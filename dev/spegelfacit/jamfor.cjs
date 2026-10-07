@@ -157,7 +157,7 @@ const sek = t => +((t - VIRT0) / 1000).toFixed(2);
 function bild(app) {
   return {
     kort: app.kort.map(c => ({ cid: c.cid, namn: c.name, zon: c.zon || null, lyft: c.lyft != null, borta: !!c.borta, tappad: !!c.tapped, spar: c.spar != null ? c.spar : null,
-      kam: c.kam ? { x: r3(c.kam.x), y: r3(c.kam.y), w: r3(c.kam.w), h: r3(c.kam.h) } : null, fast: c.attachedTo || null, gravAuto: !!c.gravAuto, spellAuto: !!c.spellAuto })),
+      kam: c.kam ? { x: r3(c.kam.x), y: r3(c.kam.y), w: r3(c.kam.w), h: r3(c.kam.h) } : null, fast: c.attachedTo || null, gravAuto: !!c.gravAuto, spellAuto: !!c.spellAuto, sist: c.sist ? { x: r3(c.sist.x), y: r3(c.sist.y), w: r3(c.sist.w), h: r3(c.sist.h) } : null })),
     fragor: app.pending.map(q => ({ id: q.id, spar: q.spar, namn: q.cands && q.cands[0] ? q.cands[0].name : null, overTak: !!q.overTak }))
   };
 }

@@ -504,7 +504,7 @@ body.oppstart .hints{display:none}
    att vända eller spegla. Raden behåller sin höjd, så ramen står still när
    bilden kommer. */
 .oppmatt.utanbild .oppmattrub{visibility:hidden}
-body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbild #manaRow,body.oppbild #lyftAlla,body.oppbild #emptyHand{visibility:hidden}
+body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbild #manaRow,body.oppbild #handRad,body.oppbild #emptyHand{visibility:hidden}
 /* I spelarens vy ritar canvasen själva bilden, vriden och speglad. */
 #pbBild.vy #pbImg{visibility:hidden}
 .opplager{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden;container-type:size}
@@ -748,7 +748,7 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
    med mellanslag hållet — ovanpå korten också, men inte över mattans
    chrome, menyer och paneler. */
 .mattavp.panlage,.mattavp.handredo,
-.mattavp:is(.panlage,.handredo) *:not(:where(.mattachrome,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark),:where(.mattachrome,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark) *){cursor:grab!important}
+.mattavp:is(.panlage,.handredo) *:not(:where(.mattachrome,.hrad,.pill,.matmeny,.ctrpanel,.kortark),:where(.mattachrome,.hrad,.pill,.matmeny,.ctrpanel,.kortark) *){cursor:grab!important}
 .mattavp.panorerar,.mattavp.panorerar *{cursor:grabbing!important}
 /* Lassot: rutan i skärmkoordinater ovanpå mattan, medan man drar. */
 .lassoruta{position:absolute;z-index:30;border:1px solid var(--acc);border-radius:3px;
@@ -832,16 +832,29 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 @media (prefers-reduced-motion:reduce){.bibhog.bump .biblek,.bibhog.bump .hograd b{animation:none}.bibring{display:none}}
 /* Exile står till höger om den sista högen — library, när den finns. */
 .gravhog.medbib .exilhog{margin-left:138px}
-.lyftbanner{
-  position:absolute;left:12px;top:12px;z-index:23;display:flex;align-items:center;gap:8px;
-  padding:6px 10px;border-radius:8px;background:#1a1710f2;border:1px solid #e8b33a66;
-  color:#e8c98a;font:11px var(--sans);box-shadow:0 8px 22px -8px #000c;max-width:calc(100% - 24px);
-}
-.lyftbanner[hidden]{display:none}
-.lyftbanner .btn{height:22px;padding:0 8px;font-size:10.5px;flex:none}
-.lyftbanner .lyfttip{min-width:0;overflow:hidden;text-overflow:ellipsis;color:#f0dcb0}
-/* Chippet ovanför ett kort (kortChip): lost = kameran tappade det, dom =
-   domen pågår, ny = just spelat, fraga = platshållaren. Sitter i kortet så
+/* Raden vid nederkanten (MES-343): "<namn> went to your hand · Exile · Still on the table · Library",
+   en rad per kort, i HAND_RAD_MS; en token som upphört får "is gone · Undo". Som prototypens .hrad
+   (design_handoff_animeringar/artboards/EPrototyp.dc.html). Listen i kortets ordning, nyast underst. */
+.hrad{position:absolute;z-index:30;left:50%;bottom:14px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;max-width:calc(100% - 24px)}
+.hrad[hidden]{display:none}
+.hradrad{position:relative;display:flex;align-items:center;gap:10px;height:40px;padding:0 6px 0 14px;border-radius:10px;background:#1b2230f2;border:1px solid #3b485c;
+  box-shadow:0 10px 28px -8px #000e;white-space:nowrap;overflow:hidden;font:13px var(--sans);color:#c8d2e0}
+.hradrad.svar{padding-right:14px}
+.hradrad b{color:#e7ecf4;font-weight:650}
+.hrad-v{display:flex;gap:4px}
+.hrad-v button{height:28px;padding:0 10px;border-radius:7px;border:1px solid #3b485c;background:#232c3c;color:#e7ecf4;font:500 12px var(--sans);cursor:pointer}
+.hrad-v button:hover{background:#2c3749;border-color:#56657c}
+.hrad-bar{position:absolute;left:0;right:0;bottom:0;height:2px;background:#f0a52a;transform-origin:0 50%;transform:scaleX(1);animation:hradBar var(--hradms,6s) linear forwards}
+@keyframes hradBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@media (prefers-reduced-motion:reduce){.hrad-bar{animation:none}}
+/* Kortet på väg till handen (flygTillHand): en kopia inne i mattans fönster (#gridWrap), så att den klipps vid
+   nederkanten. Tillbaka från handen glider det riktiga elementet (matGlidFranHand); till library och exile
+   flyger en kopia från nederkanten (flygFranHandTill). Fast i fönstret, inte i brädet: brädets zoom rör den inte. */
+.handflyg{position:absolute;z-index:40;pointer-events:none;border-radius:6px;overflow:hidden;will-change:transform,opacity}
+.handflyg img{width:100%;height:100%;object-fit:cover;display:block}
+.handflyg .skugga{position:absolute;inset:0;border-radius:6px;box-shadow:0 26px 40px -12px #000f;opacity:0}
+/* Chippet ovanför ett kort (kortChip): dom = domen pågår, ny = just
+   spelat, fraga = platshållaren. Sitter i kortet så
    det följer zoomen; på ett tappat kort motroterat vid kortets vänsterkant,
    som är dess visuella överkant. */
 .kortchip{
@@ -849,7 +862,6 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
   padding:3px 8px;border-radius:999px;white-space:nowrap;font:600 10.5px/1.3 var(--sans);
   background:#0b1017f2;border:1px solid var(--line);color:var(--dim);box-shadow:0 4px 12px -4px #000c;
 }
-.kortchip.lost{border-color:#e8b33a99;color:#ffd98a;background:#241a0ef2}
 .kortchip.fraga{border-color:var(--acc);color:var(--pa-acc);background:#141c28f2}
 .card.tappad .kortchip{left:-8px;top:50%;transform:translate(-100%,-50%) rotate(-90deg)}
 /* Kamerans dom på ett bundet kort: mjuk kontur medan spåret rör sig eller
@@ -2023,12 +2035,6 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .plats.fyll{cursor:pointer;outline-color:var(--acc);color:var(--txt)}
 .plats.fyll:hover{background:#232c3c;animation:none}
 .plats.fyll .platstxt::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--acc);margin:0 6px 1px 0}
-/* Ett kort kameran inte längre ser. Det stannar på sin plats, nedtonat, med
-   en enda fråga: ska det till graveyard? Krysset tar allt annat, och att göra
-   ingenting betyder att det ligger kvar. Samma vokabulär som den gröna pulsen
-   åt andra hållet: kameran lade ut → puls, kameran ser inte → nedtonat. */
-.card.lyft img{filter:grayscale(.8) brightness(.55)}
-.card.lyft{outline:1px dashed #e8b33a66;outline-offset:-1px}
 .kalupp{display:flex;align-items:center;gap:6px;font:12px var(--sans);color:var(--dim)}
 .kalupp .btn.on{background:var(--acc-d);color:var(--pa-acc);border-color:var(--acc)}
 .kamskruv .kalupp{padding:2px 9px 8px;flex-wrap:wrap}
@@ -3575,9 +3581,9 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
              högar som ett par. Ritas av renderBibHog(). -->
         <div class="bibhog" id="bibHog" hidden></div>
         <div class="gravhog" id="manaRow"></div>
-        <!-- Bannern när kameran tappat tre eller fler kort på en gång
-             (renderLyftBanner): Keep all / All to graveyard / One by one. -->
-        <div class="lyftbanner" id="lyftAlla" data-lyftalla="alla" hidden></div>
+        <!-- Raden vid nederkanten (MES-343, renderHandRad): kortet som kameran
+             skickade till handen, med Exile / Still on the table / Library i ~6 s. -->
+        <div class="hrad" id="handRad" hidden></div>
         <!-- Tomrutan ritas av renderTom(): vad man gör med ett tomt bräde beror
              på läget. Id:t och klassen står kvar — drag-markeringen (.over),
              body.tomhand-reglerna och #zonPerm-delegaten för data-addtile
@@ -6897,10 +6903,6 @@ function slimDelat(cards) {
     cid: c.cid, name: doltKort(c) ? undefined : c.name, sid: !doltKort(c) && c.sid ? c.sid : undefined,
     flipped: c.flipped ? 1 : 0, tapped: c.tapped ? 1 : 0,
     attachedTo: c.attachedTo || undefined, zon: c.zon || undefined,
-    /* Nedtoningen följer med: utan den kom ett lyft kort tillbaka som ett
-       vanligt efter en omladdning, fast det fortfarande låg utanför mattan.
-       En tidsstämpel är ofarlig att dela — hos de andra visar den samma sak. */
-    lyft: c.lyft || undefined,
     /* Mattan: var kortet ligger, i vilken ordning, i vilken hög, och dess
        counters — det de andra behöver för att se samma bord. != null, inte
        ||: x 0, z 0 och gi 0 (högens första kort) är riktiga värden. */
@@ -6920,7 +6922,7 @@ function slimKort(cards) {
   return (cards || []).map(c => ({
     cid: c.cid, name: c.name, sid: c.sid || undefined, flipped: c.flipped ? 1 : 0,
     tapped: c.tapped ? 1 : 0, attachedTo: c.attachedTo || undefined,
-    zon: c.zon || undefined, lyft: c.lyft || undefined,
+    zon: c.zon || undefined,
     box: c.box || undefined, rot: c.rot || undefined, shotId: c.shotId || undefined,
     cands: c.cands ? c.cands.slice(0, 8) : undefined,
     x: c.x != null ? c.x : undefined, y: c.y != null ? c.y : undefined,
@@ -7494,7 +7496,7 @@ function ritaOppKropp(p, m, r) {
     for (const c of utan) { const pos = slotBeside(cards.filter(k => k !== c && k.x != null && k.y != null), matSlag(c), board); c.x = pos.x; c.y = pos.y; }
   }
   const sig = oppVand + '/' + cards.map(c => c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
-    + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (c.lyft != null ? 1 : 0) + '·' + (paMattan(c) ? matSlag(c) : zonAv(c))
+    + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (paMattan(c) ? matSlag(c) : zonAv(c))
     + '·' + (c.cts || []).map(ctLabel).join(',') + '·' + c.x + ',' + c.y + ',' + c.z).join('|')
     + '/' + lekSig(p);   // hens lek bland korten (MES-334 steg 3)
   let glid = false;
@@ -7838,18 +7840,13 @@ function tillLeken(i) {
    låg). En aura som är en token (Role-tokens) upphör att finnas i stället,
    som varje token som lämnar mattan (MES-105): förut hamnade den i
    graveyard och låg kvar där. Tar bort ur cards, så den som går över
-   listan i en loop får inte anropa den mitt i.
-   En aura som kameran tonat ned tillsammans med värden släpper sin
-   nedtoning: den är avgjord nu. Förut följde lyft med till graveyard —
-   arket frågade om auran igen, "Still there" lämnade den i högen, och
-   matLage.lyftN räknade den så att chippet och bannern kunde döljas för de
-   andra nedtonade korten. */
+   listan i en loop får inte anropa den mitt i. */
 function aurorFoljer(cards, vard) {
   for (let j = cards.length - 1; j >= 0; j--) {
     const k = cards[j];
     if (k.attachedTo !== vard.cid || !/\bAura\b/i.test(typLinje(k))) continue;
     if (k.tok) cards.splice(j, 1);
-    else { k.zon = ZON_GRAV; delete k.attachedTo; slappLyft(k); }
+    else { k.zon = ZON_GRAV; delete k.attachedTo; }
   }
 }
 function flyttaTill(i, zon) {
@@ -7880,10 +7877,8 @@ function flyttaTill(i, zon) {
     save(); renderAll(true);
     return true;
   }
-  /* Ett svar på "inte på mattan". Bindningen till spåret behålls: kortet
-     ligger ofta kvar fysiskt en stund till, och utan den hade kameran lagt
-     ut det igen som nytt. */
-  slappLyft(e);
+  /* Bindningen till spåret behålls: kortet ligger ofta kvar fysiskt en
+     stund till, och utan den hade kameran lagt ut det igen som nytt. */
   c.splice(i, 1);
   if (hog) {
     const d = delaHand(), g = zon === ZON_EXIL ? d.exil : d.grav;   // efter borttaget
@@ -7934,14 +7929,14 @@ function kortHtml(e, i, extra, pos, bif, las) {
      counters eller bifogade kort ändrar den. */
   const f = card && card.faces[fi] || null;
   const eff = bifEffekt(bif);
-  const visaOrd = !land && !baksida && e.lyft == null && !!card;
+  const visaOrd = !land && !baksida && !!card;
   const tryckt = visaOrd ? (card.kw || []) : [];
   const givna = visaOrd ? eff.kw.filter(w => !tryckt.some(k => k.toLowerCase() === w.toLowerCase())) : [];
   const ord = ordTak(tryckt, givna);
-  const pv = e.lyft != null || land || baksida ? null : ptVarden(e, f, eff);
+  const pv = land || baksida ? null : ptVarden(e, f, eff);
   const kwHtml = !ord.length ? '' : `<span class="kwkort">${ord.map(o => o.g ? `<b class="giv">${KEDJA}${esc(o.t)}</b>` : `<b>${esc(o.t)}</b>`).join('')}</span>`;
   const kl = ['card', land ? 'land' : '', st === 'ok' ? '' : st === 'err' ? 'err' : 'pending',
-              e.tapped ? 'tappad' : '', nytt ? 'nykort' : '', e.lyft != null ? 'lyft' : '', dom ? 'dom-' + dom : '',
+              e.tapped ? 'tappad' : '', nytt ? 'nykort' : '', dom ? 'dom-' + dom : '',
               ark && ark.cid === e.cid ? 'aktuell' : '', ordKrockar(ord, pv, e.tapped ? sz.h : sz.w) ? 'kwlyft' : '',
               tokDold.has(e.cid) ? 'spawndold' : '', (tokGlod.get(e.cid) || 0) > Date.now() ? 'spawnglod' : '',
               baksida ? 'bak' : '', extra || ''].filter(Boolean).join(' ');
@@ -8040,16 +8035,16 @@ function ptTile(pv) {
   return '';
 }
 /* Chippet ovanför ett kort som säger vad kameran vet om det (README steg 7).
-   Nedtonat (lyft): frågan — men bara när högst två saknas; tre eller fler
-   svarar bannern för. Kamerabundet kort: spårets dom medan den pågår
-   ("moving", "reading") så att latensen läses som att kameran tittar, inte
-   som ett fel. Ett kort vars spår dött och som väntar (borta, MES-291) får
-   inget chip: det antas ha flyttats och ser ut som förut tills väntan är
-   slut — "Lost sight of it…" stod förut i nådens 0,6 s, och hade stått i
-   hela väntans 5 s. Ett nytt kort får inget chip (MES-135:
-   "Just played" är borttaget). På någon annans bord bara konstaterandet. matLage räknas
-   i renderGrid inför varje omritning. */
-let matLage = { lyftN: 0, nyN: 0 };
+   Kamerabundet kort: spårets dom medan den pågår ("moving", "reading") så
+   att latensen läses som att kameran tittar, inte som ett fel. Ett kort vars
+   spår dött och som väntar (borta, MES-291) får inget chip: det antas ha
+   flyttats och ser ut som förut tills väntan är slut — "Lost sight of it…"
+   stod förut i nådens 0,6 s, och hade stått i hela väntans 5 s. Ett nytt
+   kort får inget chip (MES-135: "Just played" är borttaget). Nedtoningens
+   chip ("Where did it go?", "Camera lost it") är borta med nedtoningen
+   (MES-343): ett kort kameran tappat går till handen, med raden vid
+   nederkanten. matLage räknas i renderGrid inför varje omritning. */
+let matLage = { nyN: 0 };
 /* Tokens som ligger osynliga medan deras kopia flyger ut ur kortet, och
    kort som lyser medan de gör det (tokSpawn, MES-143): cid → till när. */
 const tokDold = new Set(), tokGlod = new Map();
@@ -8063,10 +8058,6 @@ function kamDom(c) {
   return '';
 }
 function kortChip(e, las) {
-  if (e.lyft != null) {
-    if (las || !redigerbar()) return '<span class="kortchip lost">Camera lost it</span>';
-    return matLage.lyftN <= 2 ? '<span class="kortchip lost">Where did it go?</span>' : '';
-  }
   const dom = kamDom(e);
   if (dom === 'moving') return '<span class="kortchip dom">Moving…</span>';
   if (dom === 'reading') return '<span class="kortchip dom">Reading…</span>';
@@ -8108,11 +8099,8 @@ function losBifogade(cards) {
   for (const e of cards) {
     if (!e.attachedTo) continue;
     const vard = cards.find(x => x.cid === e.attachedTo);
-    /* En värd som kameran tonat ned (lyft) är kvar: ingenting är avgjort
-       förrän spelaren svarat. Med paMattanKort här släpptes auran vid
-       första omritningen, före bannern och arket — och när svaret sedan
-       blev graveyard hittade aurorFoljer ingenting, så auran blev liggande
-       lös och en Role-token blev en token utan värd. */
+    /* Båda på mattan: bandet håller. (Förut: en värd som kameran tonat ned
+       räknades som kvar tills spelaren svarat — nedtoningen är borta, MES-343.) */
     if (vard && paMattan(vard) && paMattan(e)) continue;
     /* Kortet ligger kvar där det syntes senast: platsen har hela tiden
        varit härledd ur värden, så den skrivs ut på kortet innan bandet
@@ -8590,6 +8578,10 @@ function renderGrid(force) {
     if (valt) state.sel = cards.indexOf(valt);
     save();
   }
+  /* Till handen (MES-343): kortet är redan ur listan; dess element från förra
+     ritningen glider ut genom nederkanten (flygTillHand) innan matSynk tar
+     bort det. En gång per kort, bara på mitt eget bord. */
+  if (arMitt(p)) for (const h of handRad) if (!h.flugen) { h.flugen = true; flygTillHand(h, [...gridEl.querySelectorAll('.card[data-cid]')].find(el => el.dataset.cid === h.cid)); }
   /* Bara det egna bordet får skrivas: en teammates kort är en kopia. */
   if (losBifogade(cards) && arMitt(p)) save();
   /* Manahögarna: en hög med ett kort upphör att vara en hög, och en hög vars
@@ -8637,7 +8629,7 @@ function renderGrid(force) {
   matSkriv(p, v, zoomGlid);
   const d = delaHand();
   const nuT = Date.now();
-  matLage = { lyftN: cards.filter(c => c.lyft != null).length, nyN: cards.filter(c => c.ny && nuT - c.ny < 2500).length };
+  matLage = { nyN: cards.filter(c => c.ny && nuT - c.ny < 2500).length };
   const senasteLas = kamAnsluten && kamRad ? platser.filter(pl => pl.slag === 'laser').sort((a, b) => b.sedan - a.sedan)[0] : null;
   platsRadSpar = senasteLas ? senasteLas.spar : null;
   /* Två signaturer: strukturen (vilka kort, vilket tillstånd) och lägena.
@@ -8647,10 +8639,10 @@ function renderGrid(force) {
      counterpanelen, och kamerans hjärtslag kommer var tredje sekund. */
   const strukt = cards.map(c =>
     c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
-    + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (c.lyft != null ? 1 : 0) + kamDom(c) + (c.ny && nuT - c.ny < 2500 ? 'N' : '')
+    + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + kamDom(c) + (c.ny && nuT - c.ny < 2500 ? 'N' : '')
     + '·' + (paMattan(c) ? matSlag(c) : zonAv(c)) + '·' + (c.cts || []).map(ctLabel).join(',')).join('|')
     + '/' + platser.map(pl => pl.spar + pl.slag + (pl.namn || '') + (platsTappad(pl) ? 'T' : '') + (pl.spar === platsRadSpar ? 'R' + radKort() : '')).join(',') + '/' + p.id + (redigerbar() ? '' : 'L')
-    + '/' + matLage.lyftN + ',' + matLage.nyN + '/' + (ark ? (ark.cid || ark.pend) : '')
+    + '/' + matLage.nyN + '/' + (ark ? (ark.cid || ark.pend) : '')
     + '/' + lekSig(p) + '/' + lekFargSig(slvAv(p))   // leken bland korten och bordets sleeves (MES-334 steg 3)
     + '/' + gravFragaSig(p);   // graveyard-frågan på mitt bord (MES-334 steg 4)
   const lagen = cards.map(c => c.x + ',' + c.y + ',' + c.z).join('|')
@@ -8720,9 +8712,6 @@ function renderGrid(force) {
   /* Ett nytt kort (e.ny) ritas om efter 2,5 s, när det slutat vara nytt. */
   clearTimeout(nyChipT);
   if (matLage.nyN) nyChipT = setTimeout(() => renderGrid(true), 2600);
-  /* Arket för ett nedtonat kort stänger sig när kortet kommit tillbaka
-     (spåret band om det) eller redan fått sitt svar. */
-  if (ark && ark.mode === 'lost' && !cards.some(c => c.cid === ark.cid && c.lyft != null)) arkNasta();
   if (ark && ark.mode === 'olast' && !platser.some(pl => pl.pend === ark.pend)) closeArk();
   /* Tomt-rutan viker för platshållarna också: kameran ser kort, och de
      står redan på mattan. */
@@ -9105,7 +9094,7 @@ function speglaKamPos(p, v) {
   const skala = fryst || kamSkala(p), g = gravRuta(v), ori = kamOriNyckel() + '|' + skala.toFixed(3), stort = { w: 1e6, h: 1e6 };   // den låsta skalan också (kamSkala)
   let andrat = false;
   for (const c of p.cards) {
-    if (c.spar == null || !c.kam || c.lyft != null || !paMattan(c) || c.attachedTo) continue;
+    if (c.spar == null || !c.kam || !paMattan(c) || c.attachedTo) continue;
     if (c.kamRitad === c.kam.nar && c.kamOri === ori) continue;
     const m = kamTillMatta(c.kam, skala), sz = matStorlek(c);
     const k = clampKort(Object.assign({}, c, { x: m.x - sz.w / 2, y: m.y - sz.h / 2 }), stort, g);
@@ -9589,7 +9578,6 @@ function gravLaggPa(cards, e) {
   const i = cards.indexOf(e); if (i < 0) return;
   e.zon = ZON_GRAV; delete e.attachedTo;
   if (e.spar != null) { if (e.borta) { delete e.spar; delete e.borta; } else e.fysisk = true; }
-  slappLyft(e);
   aurorFoljer(cards, e);
   cards.splice(cards.indexOf(e), 1);
   if (e.tok) return;
@@ -10412,7 +10400,7 @@ function satMatVerktyg(l) {
   gridWrap.classList.toggle('panlage', l === 'pan');
   const p = player(); if (p) matSkriv(p);
 }
-const MATT_UI = '.mattachrome,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark,.gravfraga,.gravmeny';
+const MATT_UI = '.mattachrome,.hrad,.pill,.matmeny,.ctrpanel,.kortark,.gravfraga,.gravmeny';
 let matPan = null, matPanSvalg = false;
 /* ⌃ (eller ⌥) + tryck på ett kort i en manahög är uttagningen ur högen
    (MES-206). En del webbläsare på Mac skickar ⌃-klicket som högerknappen —
@@ -10710,7 +10698,7 @@ function renderPill() {
   const hovEl = matHover != null && !(dnd && dnd.drar) ? gridEl.querySelector(`.card[data-cid="${CSS.escape(matHover)}"]`) : null;
   for (const k of gridEl.querySelectorAll('.card.hov')) if (k !== hovEl) k.classList.remove('hov');
   if (hovEl) hovEl.classList.add('hov');
-  if (!c || (dnd && dnd.drar) || !redigerbar() || c.lyft != null || !paMattan(c)) { if (el) el.remove(); return; }
+  if (!c || (dnd && dnd.drar) || !redigerbar() || !paMattan(c)) { if (el) el.remove(); return; }
   /* Medan det hovrade kortet glider (matSynk, MES-334 steg 2) står pillen inte
      över målet — den räknas ur kortets data, och kortet är inte där än. Den
      tas bort och ritas igen när rörelsen landat eller avbrutits (då väntar
@@ -10925,10 +10913,10 @@ function openArk(a) {
       arkSvar(b.dataset.ark, b.dataset.n);
     });
     /* Solfjädern och sökraden hör till arket medan de namnger kortet (MES-103, MES-145). */
-    addEventListener('mousedown', ev => { if (ark && !ark.lista && !arkEl.contains(ev.target) && !(hfNamnge && (hfEl.contains(ev.target) || ev.target.closest('#hintBar')))) closeArk(); });
-    gridWrap.addEventListener('wheel', () => { if (ark && !ark.lista) closeArk(); }, { passive: true });
+    addEventListener('mousedown', ev => { if (ark && !arkEl.contains(ev.target) && !(hfNamnge && (hfEl.contains(ev.target) || ev.target.closest('#hintBar')))) closeArk(); });
+    gridWrap.addEventListener('wheel', () => { if (ark) closeArk(); }, { passive: true });
   }
-  ark = Object.assign({ hoppade: new Set() }, ark && ark.lista ? { lista: ark.lista, pos: ark.pos, hoppade: ark.hoppade } : {}, a);
+  ark = Object.assign({}, a);
   /* "Which card is this?": library-solfjädern öppnas själv och ett klick
      på ett kort där namnger kortet (MES-103, MES-145). Den läggs ner med
      arket om det var arket som öppnade den. */
@@ -10943,26 +10931,13 @@ function closeArk() {
   ark = null;
   if (hfNamnge) { hfNamnge = null; if (hfAvArk && hf.src === 'lib') hfStang(); hfAvArk = false; hfHint(); }
   if (arkEl) arkEl.classList.remove('open');
-  document.body.classList.remove('granskar');
   for (const el of gridEl.querySelectorAll('.aktuell')) el.classList.remove('aktuell');
-  renderLyftBanner();
 }
 function arkRita() {
   if (!ark || !arkEl) return;
   const h = hand();
-  let namn = '', r = null, html = '';
-  if (ark.mode === 'lost') {
-    const e = h.find(k => k.cid === ark.cid); if (!e) return closeArk();
-    namn = namnAv(e); r = matRect(e);
-    matVisa(e);
-    const steg = ark.lista ? `${ark.pos + 1} of ${ark.lista.length} · ` : '';
-    html = `<div class="arkrub"><b>${esc(namn)} isn't on the table</b><span>${steg}Where did it go?</span></div>
-      <button type="button" class="arkval prim medkbd" data-ark="grav"><b>Graveyard</b><span>Died, sacrificed or discarded</span><kbd>↵</kbd></button>
-      <button type="button" class="arkval" data-ark="exil"><b>Exile</b><span>Removed from the game</span></button>
-      <button type="button" class="arkval" data-ark="hand"><b>Back to hand or library</b><span>Bounced, tucked away or shuffled in</span></button>
-      <button type="button" class="arkval" data-ark="kvar"><b>It's still there</b><span>The camera lost sight of it</span></button>
-      <div class="arkfot"><button type="button" data-ark="senare">Decide later</button>${ark.lista ? '<button type="button" data-ark="stopp">Stop reviewing</button>' : ''}</div>`;
-  } else if (ark.mode === 'rad') {
+  let r = null, html = '';
+  if (ark.mode === 'rad') {
     /* Glansarket (5d): telefonens råd, och vägen att säga vilket kort det är. */
     const pos = platsPos.get(ark.spar) || platsPos.get(String(ark.spar)) || { x: 44, y: 82 };
     r = { x: pos.x, y: pos.y, w: MATTA.CW, h: MATTA.CH };
@@ -10993,10 +10968,8 @@ function arkRita() {
   const pos = arkPanelPos(r, 300, 330);
   arkEl.style.left = pos.left + 'px'; arkEl.style.top = pos.top + 'px';
   arkEl.classList.add('open');
-  document.body.classList.toggle('granskar', !!ark.lista);
   for (const el of gridEl.querySelectorAll('.aktuell')) el.classList.remove('aktuell');
-  const mal = ark.mode === 'lost' ? gridEl.querySelector(`.card[data-cid="${CSS.escape(ark.cid)}"]`)
-                                  : gridEl.querySelector(`.plats[data-pend="${CSS.escape(ark.pend)}"]`);
+  const mal = gridEl.querySelector(`.plats[data-pend="${CSS.escape(ark.pend)}"]`);
   if (mal) mal.classList.add('aktuell');
 }
 /* Kamerans beskärning av kortet, om den kommit (tagEmotBeskarning). */
@@ -11005,45 +10978,9 @@ function arkBild(q) {
   for (const [k, v] of cropCache) if (k.startsWith(q.id + '@')) return v;
   return '';
 }
-/* Granskning en och en: alla nedtonade kort i den ordning de tonades ned. */
-function arkGranska() {
-  const lista = hand().filter(c => c.lyft != null && kanLyftas(c)).sort((a, b) => a.lyft - b.lyft).map(c => c.cid);
-  if (!lista.length) return;
-  ark = { mode: 'lost', cid: lista[0], lista, pos: 0, hoppade: new Set() };
-  openArk({ mode: 'lost', cid: lista[0] });
-  renderLyftBanner();
-}
-/* Nästa kort i granskningen som fortfarande är nedtonat och inte hoppats
-   över; inget kvar → stängt. Utanför en granskning: stängt. */
-function arkNasta() {
-  if (!ark) return;
-  if (!ark.lista) return closeArk();
-  const h = hand();
-  for (let k = 1; k <= ark.lista.length; k++) {
-    const pos = (ark.pos + k) % ark.lista.length, cid = ark.lista[pos];
-    const e = h.find(c => c.cid === cid);
-    if (e && e.lyft != null && !ark.hoppade.has(cid)) { ark.pos = pos; ark.cid = cid; return arkRita(); }
-  }
-  closeArk();
-}
 function arkSvar(val, n) {
   if (!ark) return;
-  const h = hand();
   if (ark.mode === 'rad') { closeArk(); if (val === 'vilket' && hf.src !== 'lib') hfOppna('lib'); return; }
-  if (ark.mode === 'lost') {
-    const e = h.find(k => k.cid === ark.cid), i = h.indexOf(e);
-    if (val === 'stopp') return closeArk();
-    if (val === 'senare') { if (ark.lista) { ark.hoppade.add(ark.cid); return arkNasta(); } return closeArk(); }
-    if (!e) return arkNasta();
-    const cid = ark.cid;
-    if (val === 'grav') matAngra(namnAv(e) + ' → graveyard', () => flyttaTill(i, ZON_GRAV));
-    else if (val === 'exil') matAngra(namnAv(e) + ' → exile', () => flyttaTill(i, ZON_EXIL));
-    else if (val === 'hand') tillLeken(i);
-    else if (val === 'kvar') { slappLyft(e); e.ny = Date.now(); save(); renderAll(true); }
-    /* Omritningen har oftast redan gått vidare (kortet är inte nedtonat
-       längre); bara om arket står kvar på samma kort stegas det här. */
-    return ark && ark.cid === cid ? arkNasta() : null;
-  }
   const p = malSpelare(), q = pendById(ark.pend);
   if (val === 'sok') { if (hf.src !== 'lib' || hf.fas === 'gather') hfOppna('lib'); return; }   // solfjädern står redan i namnläge
   if (val === 'senare' || !q) return closeArk();
@@ -11067,7 +11004,7 @@ addEventListener('keydown', ev => {
   const t = ev.target;
   if (t && t.closest && t.closest('input,textarea,select,[contenteditable]')) return;
   ev.preventDefault(); ev.stopPropagation();     // före appens egen Enter (fokusvyn)
-  if (ark.mode === 'lost') arkSvar('grav'); else if (pendById(ark.pend) && (pendById(ark.pend).cands || []).length) arkSvar('gissa', 0);
+  if (pendById(ark.pend) && (pendById(ark.pend).cands || []).length) arkSvar('gissa', 0);
 }, true);
 /* 1–3 väljer bland gissningarna i "Which card is this?" (före spelarbytet). */
 addEventListener('keydown', ev => {
@@ -11287,7 +11224,7 @@ function overlapAndel(rm, ro) {
   const iy = Math.max(0, Math.min(rm.y + rm.h, ro.y + ro.h) - Math.max(rm.y, ro.y));
   return rm.w * rm.h ? ix * iy / (rm.w * rm.h) : 0;
 }
-const paMattanKort = c => c && paMattan(c) && c.lyft == null;
+const paMattanKort = c => c && paMattan(c);
 /* Träff mot en befintlig hög avgörs på arean som överlappar, inte på avstånd.
    Returnerar cid för kortet i målhögen, eller null. Land läggs på land, en
    token på tokens med samma namn (MES-105). */
@@ -11531,7 +11468,7 @@ function renderAll(forceGrid) {
   renderTabs();
   renderBord();
   renderGrid(forceGrid);
-  renderLyftBanner();
+  renderHandRad();
   renderInspektor();
   renderFocus();
   renderShotUI();
@@ -12349,7 +12286,7 @@ async function bytLage(v) {
   const fore = mig.lage;
   mig.lage = v; lageByte = true;
   if (v === 'skarm') {
-    for (const c of mig.cards) { if (c.lyft != null) slappLyft(c); delete c.borta; }
+    for (const c of mig.cards) delete c.borta;
     clearTimeout(lyftT); closeArk(); save();
   }
   renderAll(true);
@@ -12998,7 +12935,7 @@ function tokensVidEtb() {
     if (!arMitt(p)) continue;
     for (const c of p.cards.slice()) {
       if (!c.etb || (dnd && dnd.cid === c.cid)) continue;
-      if (!paMattan(c) || c.lyft != null || c.flipped) { delete c.etb; continue; }
+      if (!paMattan(c) || c.flipped) { delete c.etb; continue; }
       const card = cardOf(c);
       if (!card) { if (failed.has(keyOf(c))) delete c.etb; continue; }
       delete c.etb;
@@ -13014,8 +12951,7 @@ function tokensVidEtb() {
    tangenterna, så det bara finns en beskrivning av vad varje sak gör. */
 function tappa(i) {
   const e = hand()[i];
-  /* Ett nedtonat kort ligger inte där — tap är meningslöst (lyftRadHtml ritar ingen tap-knapp). */
-  if (!e || !paMattan(e) || e.lyft != null) return;
+  if (!e || !paMattan(e)) return;
   angraPunkt();
   e.tapped = e.tapped ? 0 : 1;
   /* Kortet behåller sitt element, och omritningen vrider det (matSynk,
@@ -13032,7 +12968,6 @@ function kortAktion(akt, i) {
     return;
   }
   if (akt === 'del') return removeAt(i);
-  if (akt === 'kvar') { const e = hand()[i]; if (e) slappLyft(e); save(); renderAll(true); }
 }
 gridEl.addEventListener('click', ev => {
   /* Klick som bara MARKERAR är alltid tillåtna — man ska kunna titta på ett
@@ -13061,9 +12996,6 @@ gridEl.addEventListener('click', ev => {
   if (!c) return;
   state.sel = +c.dataset.i;
   renderSel(); renderInspektor(); sparaUi();
-  /* Ett nedtonat kort: klicket öppnar frågan var det tog vägen. */
-  const e = hand()[state.sel];
-  if (e && e.lyft != null && redigerbar()) openArk({ mode: 'lost', cid: e.cid });
 });
 gridEl.addEventListener('dblclick', ev => { if (ev.target.closest('.card')) openFocus(); });
 /* Platshållaren i granskningen: klicket öppnar granskningen på det kortet.
@@ -13171,7 +13103,7 @@ const kortEl = cid => gridEl.querySelector(`.card[data-cid="${CSS.escape(cid)}"]
    nedtonade ligger inte där, och kamerabundna placeras av bordet. */
 function gruppAttFlytta() {
   const h = hand(), kam = spelLage && kamSpeglar(minSpelare());
-  const med = k => paMattan(k) && k.lyft == null && !k.attachedTo && !(kam && k.spar != null);
+  const med = k => paMattan(k) && !k.attachedTo && !(kam && k.spar != null);
   const grp = new Set(h.filter(k => matValda.has(k.cid) && med(k) && k.grp).map(k => k.grp));
   return h.filter(k => med(k) && (matValda.has(k.cid) || (k.grp && grp.has(k.grp))));
 }
@@ -13184,7 +13116,7 @@ function manaHog(c) { return !!c && !!c.grp && !c.tok && matSlag(c) === 'land'; 
 /* Korten i kortets hög, med samma villkor som ett gruppdrag. */
 function hogAttFlytta(c) {
   const h = hand(), kam = spelLage && kamSpeglar(minSpelare());
-  return h.filter(k => k.grp === c.grp && paMattan(k) && k.lyft == null && !k.attachedTo && !(kam && k.spar != null));
+  return h.filter(k => k.grp === c.grp && paMattan(k) && !k.attachedTo && !(kam && k.spar != null));
 }
 /* Ett kort ut ur högen utan ⌃ och utan drag — kortmenyns väg, och den enda
    som finns på en pekskärm. Kortet läggs bredvid högen, och högen löses upp
@@ -13251,7 +13183,7 @@ function gruppSlapp(d, avbryt) {
 /* T med flera markerade: tappar alla, eller ställer upp alla om alla
    redan var tappade. */
 function tappaValda() {
-  const valda = valdaKort().filter(e => paMattan(e) && e.lyft == null);
+  const valda = valdaKort().filter(e => paMattan(e));
   const ny = valda.some(e => !e.tapped) ? 1 : 0;
   angraPunkt();
   valda.forEach(e => { e.tapped = ny; });
@@ -13292,7 +13224,6 @@ gridEl.addEventListener('pointerdown', ev => {
                               fore: JSON.stringify(hand()) };
     return;
   }
-  if (c.lyft != null) return;                // ett nedtonat kort ligger inte där (M9: arket)
   /* Table leads: bordet bestämmer var ett kamerabundet kort ligger. */
   if (spelLage && kamSpeglar(minSpelare()) && c.spar != null) {
     matChip(c, `The table places this card · switch to ${LAGE_NAMN.skarm} to move it`);
@@ -30213,15 +30144,22 @@ const FLIK_ID = (() => {
    Telefonen skickar HELA det den ser, inte händelser. Här jämförs det med
    mitt bord: varje kort som kameran följer bär sitt spår-id. Syns spåret är
    kortet kvar och tappat som kameran säger. Syns det inte längre antas det
-   först ha flyttats: det väntar (BORTA_NAD) och tonas sedan ned PÅ SIN
-   PLATS, om det inte binds på en ny plats eller graveyard-högen växer under
-   tiden (MES-291). Det lämnar aldrig bordet av sig självt.
+   först ha flyttats: det väntar (BORTA_NAD, och så länge en hand är nära
+   platsen) och går sedan TILL HANDEN — tas ur bordet, med raden vid
+   nederkanten där man kan ändra till Exile, Still on the table eller
+   Library i HAND_RAD_MS (MES-343, Jesper 2026-10-02) — om det inte binds på
+   en ny plats eller graveyard-högen växer under tiden (MES-291).
 
-   Så var det inte förut: kortet flyttades till en remsa "Lyft från mattan"
-   och togs ur bordet i samma stund. Medspelarna såg det försvinna innan man
-   hunnit svara, en omladdning tappade remsan helt, och när auto stängdes av
-   fylldes den av kort som aldrig lyfts (MES-22). Kameran får LÄGGA TILL kort
-   och vrida dem; att ta bort ett kort är alltid människans beslut. */
+   Regeln har bytts två gånger. Först flyttades kortet till en remsa "Lyft
+   från mattan" och togs ur bordet i samma stund; medspelarna såg det
+   försvinna innan man hunnit svara, en omladdning tappade remsan, och när
+   auto stängdes av fylldes den av kort som aldrig lyfts (MES-22). Sedan
+   tonades kortet ned på sin plats och väntade på människans svar: "att ta
+   bort ett kort är alltid människans beslut". Nedtoningen är borta
+   (dev/plan/spegelmattan-principer.md, "Nedtoningen tas bort helt"):
+   osäkert betyder orört, och en tom plats efter att händerna gått betyder
+   att kortet lämnat bordet. Kameran tar alltså bort kort själv, och
+   spelaren kan ändra det. */
 /* Den korta nåden (i dag SLAPP_MS i avstamBord) var tre sekunder till
    2026-09-18 (MES-214), och ett lyft kort tonades ned ~3,7 s efter att det
    lämnat bordet. Vad den skyddade mot, mätt med
@@ -30238,9 +30176,7 @@ const FLIK_ID = (() => {
        ned och flyger sedan (efterskottet nedan) — samma slut.
    Med nåd 400 ms: 0 nedtoningar som togs tillbaka i 07/09/10/11/12, och
    nedtoningen +1,2–2,65 s efter facits tid i stället för +4–5,25 s. 600 ger
-   marginal över det uppmätta glappet. Att läsa ett kort och lägga tillbaka
-   det tonar nu ned det medan det är i handen, och tänder det när det ligger
-   igen — det lämnar fortfarande aldrig bordet av sig självt.
+   marginal över det uppmätta glappet.
 
    Väntan, 5 s (MES-291, Jespers beslut 3 2026-09-24). Av 82 "kortet är
    borta"-domar i partiet 2026-09-21 var högst 10 riktiga; resten var kort
@@ -30272,11 +30208,17 @@ const FLIK_ID = (() => {
    rad 66 +1,89 → +6,29 s (högens ändring gick inte att ge det, ett Swamp
    försvann samtidigt), rad 34 i den lokala loggen +7,92 → +12,27 s, och i
    golden 07, 11 och 12 kommer nedtoningen ~4,4 s senare. Slutbordet är
-   detsamma i golden 07–13. Det priset är Jespers beslut. */
+   detsamma i golden 07–13. Det priset är Jespers beslut.
+
+   Sedan MES-343 (2026-10-07) är det inte nedtoningen som väntar utan
+   kortets väg till handen: samma väntan, samma handzon (HAND_MAX), samma
+   högvakt — men i stället för ett grått kort med en fråga tas kortet ur
+   bordet och raden vid nederkanten håller valet (tillHanden, handRad). */
 const BORTA_NAD = 5000;
 /* "På en gång": tre eller fler kort som försvinner inom det här fönstret är
-   snarare telefonen som flyttats än korten (MES-103), och de får bannern i
-   stället för var sin fråga. Var BORTA_NAD så länge nåden var tre sekunder. */
+   snarare telefonen som flyttats än korten (MES-103) — ingenting på mattan
+   ändras, och kameran binder om när den ankrat sig (fall 8, dogSamtidigt i
+   avstamBord). Var BORTA_NAD så länge nåden var tre sekunder. */
 const SAMTIDIGT_MS = 3000;
 let lyftT = null;
 /* Spår som inte får skapa något: granskningar man hoppat över, och kort man
@@ -30285,12 +30227,6 @@ let lyftT = null;
    samma spår och avstämningen visste inte att frågan redan fått sitt svar. */
 let hoppade = new Set();     // granskningar man hoppat över — gäller så länge spåret är osäkert
 let borttagna = new Set();   // kort man tagit bort för hand — gäller så länge spåret finns
-/* Kortet som bär förstagångsförklaringen. Den visas en gång per konto, i
-   zonrubriken — inne i kortet täckte den knapparna den beskrev så fort
-   korten var mindre än ~110 px. */
-let lyftTips = null;
-/* Nedtoningen släpps på ett ställe, så att förklaringen följer med. */
-function slappLyft(k) { delete k.lyft; if (lyftTips === k.cid) lyftTips = null; }
 let kamFas = '';                 // telefonens fas ur senaste bordsmeddelandet
 let kamSer = 0;                  // kort telefonen ser, lästa eller inte — skräp borträknat, ett kort som syns som två spår räknat en gång
 let kamYta = null;               // ytans betyg ur telefonens referens: { dom, brus, textur, blank, rad }
@@ -30305,21 +30241,18 @@ let kamHalsaSenast = null;       // { t, halsa } ur senaste bordet (MES-240); ha
    meningslöst och i värsta fall fel kort. Att bryta bindningen är ofarligt:
    kortet ligger kvar på bordet, det är bara kameran som får leta rätt på det
    igen — nu också bland obundna kort med samma namn, så att omkopplingen inte
-   ger dubbletter. Nedtoningen bryts bara när auto stängs av: ett nedtonat
-   kort är ett påstående om vad kameran ser, och utan kamera finns inget
-   påstående. */
-function glomSpar(ocksaLyft) {
+   ger dubbletter. */
+function glomSpar() {
   clearTimeout(lyftT); lyftT = null;
-  hoppade = new Set(); borttagna = new Set(); lyftTips = null;
+  hoppade = new Set(); borttagna = new Set();
   /* Remsans minne av spåren hör till samma numrering som bindningen. */
   losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map();
   sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); flyttVantan = new Map(); platsMinne = new Map();   // tvivelSteg, dubblettväntan och platsminnet: samma numrering
   const mig = minSpelare(); if (!mig) return;
   let andrat = false;
   for (const k of mig.cards) {
-    if (k.spar != null || k.borta != null || (ocksaLyft && k.lyft != null)) andrat = true;
+    if (k.spar != null || k.borta != null) andrat = true;
     delete k.spar; delete k.borta;
-    if (ocksaLyft) delete k.lyft;
   }
   if (andrat) { save(); renderAll(true); }
 }
@@ -30388,6 +30321,41 @@ const GRAV_TIDIGAST = 350, GRAV_EFTER = 5000;
    (som SPELL_MS, 6757fa8) behöll de sina. */
 const GRAV_ATER_MS = 8000;
 let gravHandelser = [], gravSistaN = null, gravTid = new Map();
+/* ── till handen (MES-343) ──────────────────────────────────────────
+   Ett kort vars plats syns och är tom när händerna nära den gått, och som
+   varken graveyard tog (högvakten) eller syns någon annanstans, har lämnat
+   bordet (princip 9): det går till handen. Kortet tas ur mig.cards — handen
+   och library är ett i Mesa, som i tillLeken — och raden vid nederkanten
+   (renderHandRad) håller valet i HAND_RAD_MS: Exile, Still on the table
+   (tillbaka där det låg) eller Library. Inget val = handen står fast. En
+   token upphör i stället (fall 7, MES-105), med Ångra i raden. Efter ett
+   val står bekräftelsen i HAND_RAD_SVAR_MS. Motståndarna ser kortet lämna
+   mattan utan att se vart (slimDelat: kortet är inte med). Inne i skivan, så
+   att dev/avstamning.cjs, dev/dubbletter.cjs och spegelfacit har det utan
+   en stubbe; raden och rörelserna ritas utanför (renderHandRad,
+   flygTillHand). */
+const HAND_RAD_MS = 6000;       // raden står så länge; sedan står handen fast
+const HAND_RAD_SVAR_MS = 1800;  // bekräftelsen efter ett val ("is back on the table") står så länge
+let handRad = [];               // [{ cid, kort, i, borta0, nar, tok, namn, val? }], nyast sist
+/* Raderna som gått ut tas bort; sant när något togs bort. */
+function handRadStada(nu) {
+  const n = handRad.length;
+  handRad = handRad.filter(h => nu - h.nar < (h.val ? HAND_RAD_SVAR_MS : HAND_RAD_MS));
+  return handRad.length !== n;
+}
+/* Kortet ur bordet och in i raden. Auror på kortet går till graveyard som
+   när värden lämnar mattan (aurorFoljer, som tillLeken); utrustning släpps
+   där den låg (losBifogade i omritningen). borta0: när spåret dog — det
+   högvakten parar en sen ändring av högen med (efterskottet i avstamBord). */
+function tillHanden(mig, k, borta0, nu) {
+  const i = mig.cards.indexOf(k); if (i < 0) return false;
+  mig.cards.splice(i, 1);
+  if (typeof aurorFoljer === 'function') aurorFoljer(mig.cards, k);
+  if (typeof state !== 'undefined' && state && state.sel != null) state.sel = Math.max(0, Math.min(state.sel, mig.cards.length - 1));
+  gravTid.delete(k.cid);
+  handRad.push({ cid: k.cid, kort: k, i, borta0, nar: nu, tok: !!k.tok, namn: k.name });
+  return true;
+}
 /* Graveyard följer med (Jesper 2026-10-06, principen "högarna är saker"): spelaren lyfter graveyard-högen och
    lägger den någon annanstans. Telefonen säger att rutan blivit tom (grav.tom); ett nytt spår som lägger sig
    inom GRAV_FOLJ_MS med namnet på något av högens två översta kort är högen. Rutan flyttas dit (sparaGravZon:
@@ -30643,19 +30611,18 @@ const paBordetZon = c => zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil';
    kort med namnet som redan ligger på mattan, i stället för att skapa ett
    till. Samma ordning som ledigt i avstamBord (MES-291): först ett kort som
    väntar (borta — dess spår dog nyss, och det antas ha flyttats; det är det
-   som ligger där nu), sedan ett nedtonat, sedan ett obundet. Utan kortet i
-   väntan skapades ett andra kort när man svarade inom väntans 5 s, och
-   originalet tonades ned när den tog slut. utom: kortet svaret själv
+   som ligger där nu), sedan ett obundet. Utan kortet i väntan skapades ett
+   andra kort när man svarade inom väntans 5 s. utom: kortet svaret själv
    skapade (kortikonen). */
 function kortSomKomTillbaka(cards, namn, utom) {
   const fria = cards.filter(c => c !== utom && c.name === namn && paBordetZon(c));
-  return fria.find(c => c.spar != null && c.borta) || fria.find(c => c.spar == null && c.lyft != null) || fria.find(c => c.spar == null) || null;
+  return fria.find(c => c.spar != null && c.borta) || fria.find(c => c.spar == null) || null;
 }
-/* Kortet som kom tillbaka binds till svarets spår: väntan och nedtoningen
-   släpps, och kamerans tap-läge gäller när den har ett (q.tappad null =
-   ingen bedömning: det digitala tap-läget står kvar). */
+/* Kortet som kom tillbaka binds till svarets spår: väntan släpps, och
+   kamerans tap-läge gäller när den har ett (q.tappad null = ingen
+   bedömning: det digitala tap-läget står kvar). */
 function bindTillbaka(k, q) {
-  k.spar = q.spar; delete k.borta; slappLyft(k);
+  k.spar = q.spar; delete k.borta;
   if (q.tappad != null) k.tapped = q.tappad ? 1 : 0;
   k.ny = Date.now();
 }
@@ -30698,10 +30665,9 @@ function tvivelSteg(spar, cards, nu) {
   }
   return { spar: ut, andrat };
 }
-/* Vilka kort som tonas ned när kameran inte ser dem: allt på bordet, landen
-   också (se nedtoningen i avstamBord). Graveyard är utanför — ett kort som
-   flyttats dit för hand behöver inget besked. Zonrubrikernas rader räknar
-   var sin zon (renderLyftBanner). */
+/* Vilka kort kameran kan ta bort när den inte ser dem (till handen,
+   MES-343): allt på bordet, landen också. Graveyard och exile är utanför —
+   ett kort som flyttats dit för hand behöver inget besked. */
 function kanLyftas(c) { return zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil'; }
 /* Grundläget (tappat mäts mot det, se Kamera.tappad). I Mirror my table tar
    telefonen det själv ur leken, eller ur första kortet utan lek (MES-334
@@ -30716,7 +30682,7 @@ let senasteKamSpar = null;
    helbildskort har ingen vinkel, och telefonen kan inte ta läget ur det. */
 function senasteMattaKort(mig, spar) {
   const matt = c => { const t = (spar || []).find(u => u.id === c.spar); return !!t && t.sen != null && !(t.ai && t.ai.helbild); };
-  const bundna = mig ? mig.cards.filter(c => c.spar != null && !c.borta && c.lyft == null && zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil' && matt(c)) : [];
+  const bundna = mig ? mig.cards.filter(c => c.spar != null && !c.borta && zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil' && matt(c)) : [];
   return bundna.find(c => c.spar === senasteKamSpar) || bundna.sort((a, b) => (b.ny || 0) - (a.ny || 0))[0] || null;
 }
 /* ── uppstartens rutor (MES-122) ──────────────────────────────────────
@@ -30974,11 +30940,10 @@ const AUTO_RORLIGT_S = 3;    // ett spår som är 'ny' (rör sig) längre än s�
    ihop till en rörelse (eller ett annat mått) innan den går in. */
 const AUTO_FLYTT = 0.15;     // ett spår vars hörn gått längre än så av dess bredd har spelaren flyttat — mindre är detektorns darr
 const AUTO_EFTER_S = 4;      // notisen om ett kort står kvar så länge efter att kortet hamnade i granskningen
-const AUTO_LYFT_S = 6;       // "syns inte längre" står så länge efter nedtoningen — bordet visar det nedtonade kortet ändå
-/* Riktiga kort på bordet enligt kameran: bundna till ett spår och inte
-   nedtonade. Samma tal i chippet (renderMode) och i statusfältet. */
+/* Riktiga kort på bordet enligt kameran: bundna till ett spår. Samma tal
+   i chippet (renderMode) och i statusfältet. */
 function autoKortPaBordet(mig) {
-  return ((mig && mig.cards) || []).filter(c => c.spar != null && c.lyft == null).length;
+  return ((mig && mig.cards) || []).filter(c => c.spar != null).length;
 }
 /* Räkneord i anmärkningen: "Ett kort", "Två kort" — siffror först över fem. */
 const AUTO_RAKNEORD = ['', 'One', 'Two', 'Three', 'Four', 'Five'];
@@ -31042,8 +31007,6 @@ function autoRemsaModell(spar, mig, extra) {
   }
   const n = autoKortPaBordet(mig);
   const ser = e.ser != null ? e.ser : spar.length;
-  /* Nedtonade kort får en notis i AUTO_LYFT_S: bordet visar dem ändå. */
-  const lyfta = kort.filter(c => c.lyft != null && kanLyftas(c) && nu - c.lyft <= AUTO_LYFT_S * 1000);
   /* "Bordet är tomt" bara när kameran inte ser något alls: ett kort som är
      för litet, ett osäkert i granskningen eller ett skymt är inte tomt. */
   const tomt = !n && !ser && !m.paVag.length && !ko.length && !(e.sma > 0);
@@ -31085,8 +31048,6 @@ function autoRemsaModell(spar, mig, extra) {
   else if (senast && e.rad) { m.not = `${vem} is hard to read — ${autoRadSkal(e.rad)}`; m.puls = true; }
   else if (senast) { m.not = `${vem} is being read …`; m.puls = true; }
   else if (e.sma > 0) m.not = e.sma === 1 ? 'One card is too small to read' : `${autoAntal(e.sma)} cards are too small to read`;
-  else if (lyfta.length === 1) m.not = `${lyfta[0].name} is no longer visible`;
-  else if (lyfta.length > 1) m.not = `${autoAntal(lyfta.length)} cards are no longer visible`;
   return m;
 }
 /* Platshållare på bordet (MES-42): ett kort kameran ser men ännu inte har
@@ -31561,6 +31522,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { renderMode(); uppdateraPbStatus(); return; }
   const nu = Date.now();
   gravTaEmot(grav, nu);
+  handRadStada(nu);   // raden vid nederkanten (MES-343): valet som gått ut står fast — handen
   { const n0 = mig.cards.length; spar = gravFoljer(spar, nu, mig); if (mig.cards.length !== n0) { save(); renderGrid(true); } }   // graveyard följer med när högen flyttas
   /* Ett bord utan pass startar ett (eller tar upp det sparade efter en
      omladdning): sammanfattningen ska finnas när auto stängs av, även om
@@ -31594,9 +31556,8 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      nya Forest bredvid de fyra gamla. Bara graveyard är utanför. */
   const paBordet = c => zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil';
   const bunden = id => mig.cards.find(c => c.spar === id);
-  const binder = (k, t) => { k.spar = t.id; delete k.borta; if (k.lyft != null) { slappLyft(k); k.ny = nu; } andrat = true; };
-  /* Ett ledigt kort med rätt namn: helst ett nedtonat (kameran tappade det
-     och ser det nu igen), annars ett vars spår inte finns i meddelandet,
+  const binder = (k, t) => { k.spar = t.id; delete k.borta; delete k.slappt; andrat = true; };
+  /* Ett ledigt kort med rätt namn: ett vars spår inte finns i meddelandet,
      annars ett utan spår — det som ligger kvar efter en omkoppling, eller
      lades in för hand eller ur en skärmdump innan kameran såg det. Förut
      söktes bara remsan, och varje omkoppling gav en dubblett av varje läst
@@ -31607,14 +31568,11 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      igen. Flaggan släpps när spåret dör: då har kortet lämnat bordet också. */
   /* Ordningen (MES-291): först ett kort på mattan vars spår just dött — i
      väntan (borta) eller i samma meddelande. Det är kortet som flyttats:
-     läggs det ner på en ny plats flyttar det dit utan att tonas ned. Förut
-     gick ett nedtonat kort före, och ett Swamp man flyttat kunde bli kvar
-     nedtonat medan ett annat, sedan länge nedtonat, hoppade till den nya
-     platsen. Ett fysisk kort (i graveyard digitalt) kommer efter det
-     nedtonade, som förut. Samma ordning som kortSomKomTillbaka. */
+     läggs det ner på en ny plats flyttar det dit. Ett fysisk kort (i
+     graveyard digitalt) kommer efter. Samma ordning som kortSomKomTillbaka. */
   const ledigt = namn => {
     const fria = namn ? mig.cards.filter(c => c.name === namn && (paBordet(c) || c.fysisk) && (c.spar == null || !synliga.has(c.spar))) : [];
-    return fria.find(c => c.spar != null && paBordet(c)) || fria.find(c => c.lyft != null) || fria.find(c => c.spar != null) || fria[0] || null;
+    return fria.find(c => c.spar != null && paBordet(c)) || fria.find(c => c.spar != null) || fria[0] || null;
   };
   /* Ett kort som ligger i graveyard och dyker upp på mattan igen är SAMMA
      kort på väg tillbaka i spel (MES-248): reanimator, recursion, en
@@ -31686,6 +31644,10 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
        (steg 3b:s fönster, FLYTT_FORE) — och ett säkert namn som är kortets eget bekräftar en flytt
        som gjordes utan namn. */
     if (t.sen != null && !t.skymd) k.sedd = Math.max(k.sedd || 0, nu - t.sen);
+    /* Spårets senaste låda, och den senaste där kortet vilade (MES-343, urBild): ett kort som skjuts ut ur
+       bilden dör vid kanten, inte där det vilade. Detektorn klipper lådan vid bildkanten, så "utanför" syns
+       som en låda som nuddar kanten. */
+    if (t.w != null && t.h != null && !franHelbild(t)) { k.sist = { x: t.x, y: t.y, w: t.w, h: t.h }; if (t.vilar != null ? t.vilar : true) k.vilade = k.sist; }
     /* När handen lade sig över kortet (en obruten skymd-strimma): ligger den kvar länge (HAND_VILA)
        öppnas flyttens fönster vid lyftet, inte vid sista fria sikten (granskningen GRa4). */
     if (t.skymd) { if (k.handFran == null) k.handFran = nu; } else delete k.handFran;
@@ -31716,20 +31678,25 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     return !!(v && v.spar != null && synliga.has(v.spar));
   };
   /* 1. Samma spår, ett annat SÄKERT namn: omläsningen efter ett spöke fann
-     ett annat kort på platsen. Det gamla tonas ned där det ligger, det nya
-     får platsen. Ett osäkert svar ändrar ingenting — platsen är en bättre
-     ledtråd än en osäker läsning. Först, så att det gamla kortet är ledigt
-     när namnen räknas. Kortet har lämnat platsen lika mycket som ett vars
-     spår dött, så högvakten får para det (gravTid, efterskottet nedan): i
-     passet 2026-09-22 låg Ukud Cobra ovanpå Mirran Bardiche och lyftes till
-     graveyard, spåret lästes om till Mirran, och högen ändrades 1,2 s senare. */
+     ett annat kort på platsen. Det nya får platsen; det gamla ligger kvar
+     orört och släpps (slappt) — "täckt av ett annat kort" (fall 5, MES-343):
+     i passet 2026-09-22 lästes Mirran Bardiches spår om till Trusty
+     Retriever (149 s) och Forests till Ancestral Blade (265 s) när ett kort
+     lades över dem, och båda låg kvar under. Förut tonades det gamla ned,
+     och med vägen till handen gick det dit fast det låg kvar. Ett osäkert
+     svar ändrar ingenting — platsen är en bättre ledtråd än en osäker
+     läsning. Först, så att det gamla kortet är ledigt när namnen räknas.
+     Kortet har lämnat platsen lika mycket som ett vars spår dött, så
+     högvakten får para det (gravTid, efterskottet för släppta kort nedan):
+     Ukud Cobra ovanpå Mirran Bardiche lyftes till graveyard, spåret lästes
+     om till Mirran, och högen ändrades 1,2 s senare. */
   for (const t of spar) {
     const k = bunden(t.id);
     if (k && t.tillstand === 'klar' && t.namn && (t.saker || k.flyttFran) && k.name !== t.namn) {
       /* Flytten var gissad (steg 3b, utan namn) och namnet — också ett osäkert — säger att det är
          ett annat kort som ligger där: tillbaka (aterstallFlytt). Spåret får sitt eget kort i steg 4. */
       if (k.flyttFran) { aterstallFlytt(k); continue; }
-      delete k.spar; delete k.borta; if (kanLyftas(k)) { k.lyft = nu; gravTid.set(k.cid, nu); }
+      delete k.spar; delete k.borta; delete k.fysisk; if (kanLyftas(k) && pol.saknas) { k.slappt = nu; gravTid.set(k.cid, nu); }
       andrat = true;
     }
   }
@@ -31813,7 +31780,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
        som föds där kortet låg är kortet sett igen, och binds på plats. */
     const kandId = new Set(kand.map(t => t.id));
     const platsTackt = k => spar.some(u => u.w != null && !franHelbild(u) && !u.skymd && !kandId.has(u.id) && (u.tillstand === 'klar' || u.kortlik) && tackning(kamRekt(k.kam), u) >= SAMMA_KORT_TACKNING);
-    const vantar = mig.cards.filter(k => k.spar != null && !synliga.has(k.spar) && paBordet(k) && !k.fysisk && !!k.kam && !k.attachedTo && k.lyft == null
+    const vantar = mig.cards.filter(k => k.spar != null && !synliga.has(k.spar) && paBordet(k) && !k.fysisk && !!k.kam && !k.attachedTo
       && !(k.borta && nu - k.borta > BORTA_NAD) && !platsTackt(k));
     if (kand.length && vantar.length) {
       const sedd = t => sparSedd.has(t.id) ? sparSedd.get(t.id) : nu;
@@ -32027,9 +31994,15 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     if (tid == null) return null;
     const mina = gravHandelser.filter(h => !h.tagen && gravFonster(tid, h));
     if (!mina.length) return null;
-    const grannar = mig.cards.filter(c => c === k || (paBordet(c) && (c.borta || c.lyft != null) && gravTid.has(c.cid) && Math.abs(gravTid.get(c.cid) - tid) <= GRAV_EFTER - GRAV_TIDIGAST));   // två kort vars fönster delar någon ändring
-    if (grannar.length > mina.length) return null;
-    if (grannar.filter(c => Math.abs((c === k ? tid : gravTid.get(c.cid)) - tid) < SAMTIDIGT_MS).length >= 3) return null;
+    /* Kort vars fönster delar någon ändring: de som väntar på mattan (borta) och de som gått till handen
+       med raden kvar (handRad, MES-343) — förut de nedtonade. */
+    const tider = [tid]
+      .concat(mig.cards.filter(c => c !== k && paBordet(c) && c.borta && gravTid.has(c.cid)).map(c => gravTid.get(c.cid)))
+      .concat(mig.cards.filter(c => c !== k && paBordet(c) && c.slappt != null).map(c => c.slappt))
+      .concat(handRad.filter(h => h.kort !== k && !h.val && !h.tok).map(h => h.borta0))
+      .filter(t => Math.abs(t - tid) <= GRAV_EFTER - GRAV_TIDIGAST);
+    if (tider.length > mina.length) return null;
+    if (tider.filter(t => Math.abs(t - tid) < SAMTIDIGT_MS).length >= 3) return null;
     return mina[0];
   }
   function gravAutoOm(k, tid) {
@@ -32037,9 +32010,8 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     if (!h) return false;
     h.tagen = true;
     k.zon = ZON_GRAV; delete k.attachedTo; k.gravAuto = nu; gravTid.delete(k.cid);
-    /* En aura följer sin värd, som i flyttaTill — och släpper en nedtoning
-       den fått tillsammans med värden (aurorFoljer). */
-    for (const a of mig.cards) if (a.attachedTo === k.cid && typeof typLinje === 'function' && /\bAura\b/i.test(typLinje(a))) { a.zon = ZON_GRAV; delete a.attachedTo; slappLyft(a); }
+    /* En aura följer sin värd, som i flyttaTill (aurorFoljer). */
+    for (const a of mig.cards) if (a.attachedTo === k.cid && typeof typLinje === 'function' && /\bAura\b/i.test(typLinje(a))) { a.zon = ZON_GRAV; delete a.attachedTo; }
     andrat = true;
     return true;
   }
@@ -32058,16 +32030,22 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     gravAutoOm(k, borta0);
   }
   /* Väntan (MES-291, Jespers beslut 3 2026-09-24): ett kort kameran tappat
-     antas först ha FLYTTATS. Det står kvar på sin plats, otonat och bundet
-     till sitt döda spår, i BORTA_NAD. Läggs det ner någon annanstans under
-     tiden binder spåret där om det — ledigt tar det väntande kortet först —
-     och kortet flyttar dit utan att tonas ned (animeringen väntar på
-     MES-292). Graveyard-högen som växer bevisar att kortet lämnat bordet:
-     då slutar väntan, och kortet går dit som förut. Bara när högens ändring
-     går att ge just det här kortet (gravAutoKan: fler försvunna kort än
-     ändringar, eller tre på en gång, väntar vidare) — annars skulle högen
-     skicka ett kort som bara flyttats till graveyard.
-     Bara nedtoningen väntar. Allt annat avgörs efter den korta nåden
+     antas först ha FLYTTATS. Det står kvar på sin plats, orört och bundet
+     till sitt döda spår, i BORTA_NAD — och så länge en hand är nära platsen
+     (handzonen, MES-341), högst HAND_MAX till. Läggs det ner någon
+     annanstans under tiden binder spåret där om det — ledigt tar det
+     väntande kortet först — och kortet flyttar dit. Graveyard-högen som
+     växer bevisar att kortet lämnat bordet: då slutar väntan, och kortet går
+     dit som förut. Bara när högens ändring går att ge just det här kortet
+     (gravAutoKan: fler försvunna kort än ändringar, eller tre på en gång,
+     väntar vidare) — annars skulle högen skicka ett kort som bara flyttats
+     till graveyard.
+     När väntan är slut (MES-343, princip 9): platsen syns och är tom, och
+     händerna nära den har gått. Växte graveyard inte och syns kortet inte
+     någon annanstans har det lämnat bordet: det går till handen
+     (tillHanden) — ur bordet, med raden vid nederkanten där valet kan
+     ändras. Förut tonades det ned här och väntade på människans svar.
+     Bara vägen till handen väntar. Allt annat avgörs efter den korta nåden
      (SLAPP_MS) som förut: besvärjelsen går till graveyard, ett täckt kort
      och Screen leads släpps tyst. Besvärjelsen mäts från när den plockades
      upp (borta0), inte från när nåden tog slut. */
@@ -32075,14 +32053,41 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      flyttas till platsen bredvid library ska ge frågan som vilket kort som helst — det väntar på att binda om. */
   const ingenGrav = typeof gravFlodeAktivt === 'function' && gravFlodeAktivt();
   const besvarjelse = (k, borta0) => !ingenGrav && !!k.ny && borta0 - k.ny < SPELL_MS && arBesvarjelse(k);
-  const tonasNed = (k, borta0) => kanLyftas(k) && !k.fysisk && !besvarjelse(k, borta0) && pol.saknas && !tackt(k);
-  for (const k of mig.cards) {
+  const tillHand = (k, borta0) => kanLyftas(k) && !k.fysisk && !besvarjelse(k, borta0) && pol.saknas && !tackt(k);
+  /* Kortet syns någon annanstans (princip 9: "kortet syns inte någon annanstans"): ett obundet spår med
+     region bär namnet — säkert, osäkert eller som gissning. Då är det kortet som flyttats, och namnet avgör
+     när det är läst (ledigt, eller svaret i granskningen tar det väntande kortet) — inte handen. */
+  const namnAnnanstans = k => spar.some(t => t.w != null && !franHelbild(t) && !bunden(t.id) && postensNamn(t).has(k.name));
+  /* Osäkert betyder orört (princip 10): kortet väntar vidare, bundet till sitt döda spår, så länge något av
+     det här gäller — mätt i passet 2026-09-22, där sju kort gick till handen fast de låg kvar:
+     - något med ett korts form ligger på bordet och är inte färdigläst än (ny, stilla, hos Claude), fött efter
+       att kortet lyftes: det kan vara kortet (Mirran Bardiche 120,75 s: spåret vilade 0,15 s innan det fick
+       gissningen Mirran Bardiche). Ett spår i granskningen (okand utan provas) väntar inte längre än så;
+     - platsen är täckt av ett annat synligt kort eller kortformat spår (fall 5: utrustning på värden, ett kort
+       i en hög — Trusty Retriever 248,1 s under Valkyrie's Sword, Swamp 243,6 och 267,6 s i landhögen):
+       kortet ligger kvar under det, och lyfts täckaren syns kortets spår igen och binder det;
+     - spåret dog vid bildens kant (lådan nuddar kanten) utan att kortet vilade där: kortet sköts ut ur bilden,
+       inte ur spelet (Mirran Bardiche 138,75 och Pharika's Chosen 164,8 s i passet gled mot den bortre kanten). */
+  const forstSedd = t => sparSedd.has(t.id) ? sparSedd.get(t.id) : nu;
+  const olastSpar = k => spar.some(t => t.w != null && !franHelbild(t) && !bunden(t.id) && !t.ned && !!t.kortlik && t.tillstand !== 'klar'
+    && !hoppade.has(t.id) && !borttagna.has(t.id) && forstSedd(t) >= k.borta - FLYTT_FORE);
+  const tacktAvKort = k => !!k.kam && spar.some(u => u.w != null && !franHelbild(u) && !u.skymd && (u.tillstand === 'klar' || u.kortlik) && tackning(kamRekt(k.kam), u) >= SAMMA_KORT_TACKNING);
+  const vidKant = b => b.x <= 0.005 || b.y <= 0.005 || b.x + b.w >= 0.995 || b.y + b.h >= 0.995;
+  const urBild = k => !!k.sist && !!k.vilade && vidKant(k.sist) && !vidKant(k.vilade);
+  const orort = k => namnAnnanstans(k) || olastSpar(k) || tacktAvKort(k) || urBild(k);
+  /* Fall 8 (MES-343): tre eller fler spår som dog inom SAMTIDIGT_MS utan att korten setts igen är telefonen
+     som knuffats eller ljuset som slagit om (MES-103). Ingenting på mattan ändras: bindningarna släpps, och
+     kameran binder om när den ankrat sig (ledigt på namnet). gravTid minns när varje korts spår dog, och
+     ett kort som bundits om sedan dess (synligt spår) räknas inte. */
+  const dogSamtidigt = borta0 => mig.cards.filter(c => paBordet(c) && gravTid.has(c.cid) && (c.spar == null || !synliga.has(c.spar)) && Math.abs(gravTid.get(c.cid) - borta0) < SAMTIDIGT_MS).length >= 3;
+  for (const k of mig.cards.slice()) {   // en kopia: tillHanden tar kortet ur listan
     if (k.spar == null || synliga.has(k.spar) || !k.borta) continue;
     const vantat = nu - k.borta;
     if (vantat <= SLAPP_MS) continue;                                                        // nåden: inget avgörs än
-    /* Handzonen (MES-341, princip 3): en hand nära platsen skjuter upp nedtoningen, högst HAND_MAX. */
+    /* Handzonen (MES-341, princip 3): en hand nära platsen skjuter upp beslutet, högst HAND_MAX. */
     const hand = vantat <= BORTA_NAD + HAND_MAX && handNara(k, sparRa);
-    if ((vantat <= BORTA_NAD || hand) && tonasNed(k, k.borta) && !gravAutoKan(k, k.borta)) continue;   // väntan: kortet antas flyttat, tills högen växer
+    if ((vantat <= BORTA_NAD || hand) && tillHand(k, k.borta) && !gravAutoKan(k, k.borta)) continue;   // väntan: kortet antas flyttat, tills högen växer
+    if (tillHand(k, k.borta) && !gravAutoKan(k, k.borta) && orort(k)) continue;                       // osäkert betyder orört: väntar vidare
     const borta0 = k.borta;
     delete k.spar; delete k.borta; andrat = true;
     /* Borta digitalt redan (graveyard/exile medan det låg kvar): nu har
@@ -32096,12 +32101,26 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     if (!pol.saknas) continue;                 // Screen leads: kameran tar aldrig bort — bindningen släpps tyst
     if (tackt(k)) continue;                    // ligger under sin värd eller sin hög
     if (gravAutoOm(k, borta0)) continue;       // högen i bild ändrades: det lades där (MES-85)
-    k.lyft = nu;
-    if (!prefs.lyftForklarad) { prefs.lyftForklarad = true; savePrefs(); lyftTips = k.cid; }
+    if (dogSamtidigt(borta0)) { k.slappt = borta0; continue; }   // fall 8: telefonen knuffad — ingenting ändras
+    tillHanden(mig, k, borta0, nu);            // fall 1: till handen (fall 7: en token upphör, med Ångra)
   }
-  /* Efterskottet (MES-85): högen blev stilla först efter nådatiden, och
-     kortet hann tonas ned. Arket stänger sig självt (renderGrid). */
-  if (pol.saknas) for (const k of mig.cards) if (k.lyft != null && k.spar == null && gravTid.has(k.cid) && gravAutoOm(k, gravTid.get(k.cid))) slappLyft(k);
+  /* Efterskottet (MES-85): högen blev stilla först efter väntan, och kortet
+     hann gå till handen (raden står). Högens ändring i fönstret efter
+     spårets död säger att det lades där: kortet går till graveyard i
+     stället, och raden stängs. */
+  if (pol.saknas) for (const h of handRad.slice()) {
+    if (h.val || h.tok || !gravAutoKan(h.kort, h.borta0)) continue;
+    handRad.splice(handRad.indexOf(h), 1);
+    mig.cards.push(h.kort);
+    gravAutoOm(h.kort, h.borta0);
+  }
+  /* Samma efterskott för ett kort som släppts orört (steg 1: spåret lästes om till ett annat säkert namn;
+     fall 8): växer högen i fönstret efter att kortet lämnade platsen gick det dit. Sedan glöms släppet. */
+  for (const k of mig.cards) {
+    if (k.slappt == null) continue;
+    if (pol.saknas && k.spar == null && paBordet(k) && gravAutoOm(k, k.slappt)) { delete k.slappt; continue; }
+    if (nu - k.slappt > GRAV_EFTER) delete k.slappt;
+  }
   /* En token som gick till graveyard ovan — själv (gravAutoOm, besvärjelsen)
      eller som aura på sin värd — upphör att finnas (MES-105), som i
      flyttaTill. Förut låg den kvar i högen. Här och inte i gravAutoOm:
@@ -32139,7 +32158,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      namn band kortet igen i nästa rapport (Pharika's Chosen i passet
      2026-09-22, 154 s, när timern hann gå före rapporten). */
   clearTimeout(lyftT);
-  const frister = mig.cards.filter(k => k.borta).map(k => { const v = nu - k.borta; return k.borta + (v <= SLAPP_MS ? SLAPP_MS : v <= BORTA_NAD ? BORTA_NAD : BORTA_NAD + HAND_MAX); });   // efter väntan: handzonens tak
+  /* Ett kort som väntar vidare efter handzonens tak (orört: platsen täckt, något oläst, vid kanten, MES-343)
+     driver ingen timer — det prövas i varje rapport och hjärtslag; annars fyrade timern var 100:e ms. */
+  const frister = mig.cards.filter(k => k.borta && nu - k.borta <= BORTA_NAD + HAND_MAX).map(k => { const v = nu - k.borta; return k.borta + (v <= SLAPP_MS ? SLAPP_MS : v <= BORTA_NAD ? BORTA_NAD : BORTA_NAD + HAND_MAX); });   // efter väntan: handzonens tak
   /* Dubblettväntan (steg 4) tar slut i tid också när telefonen är tyst; spår som försvunnit glöms. */
   for (const id of [...flyttVantan.keys()]) if (!synliga.has(id)) flyttVantan.delete(id);
   /* Platsminnet (steg 3b): var varje spår låg senast, FLYTT_VILA bakåt. Timerns omspelning av samma
@@ -32180,10 +32201,6 @@ function tagEmotBeskarning(m) {
   if (q) renderAll(true);
 }
 
-/* Raden i zonrubriken när flera kort tonats ned på en gång — en svept matta,
-   en hand som låg still för länge, eller ett spel som är slut. Upp till två
-   kort svarar man på kortet (chippet och arket, M9); tre eller fler får
-   bannern med ett svar för alla eller en granskning en och en. */
 /* ── Statusfältet, ritat ────────────────────────────────────────────
    Modellen står i avstämningen (autoRemsaModell); här blir den HTML, i
    fältet som granskningsdelen (renderPending) delar. Ritas ur renderMode —
@@ -32216,53 +32233,167 @@ function renderAutoBar() {
    medan panelen står öppen. */
 setInterval(() => { if (autoBarAutoSynlig()) { renderAutoBar(); if (kamOppen) renderKamPop(); } }, 1000);
 
-function renderLyftBanner() {
-  const el = $('#lyftAlla'); if (!el) return;
-  const p = player();
-  const mitt = !!spelLage && redigerbar() && p;
-  const lyfta = mitt ? p.cards.filter(c => c.lyft != null && kanLyftas(c)) : [];
-  /* Under tre saknade svarar korten själva (chippet + arket). Under en
-     granskning en och en står arket för knapparna. */
-  if (lyfta.length < 3 || (ark && ark.lista)) { el.hidden = true; el.innerHTML = ''; el.dataset.h = ''; return; }
-  const t = lyfta.map(c => c.lyft), samtidigt = Math.max(...t) - Math.min(...t) < SAMTIDIGT_MS;
-  const html = `<span>${samtidigt
-      ? `The camera lost <b>${lyfta.length} cards</b> at once.`
-      : `The camera can't see <b>${lyfta.length} cards</b>.`} Nothing is removed until you choose.</span>
-    <button class="btn sm prim" data-lyft="kvar" title="The camera missed them — they stay where they were">They're still there</button>
-    <button class="btn sm" data-lyft="grav" title="Every dimmed card goes to your graveyard">All to graveyard</button>
-    <button class="btn sm" data-lyft="en" title="Decide for each card in turn">One by one</button>`;
-  if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
+/* ── Raden vid nederkanten (MES-343) ───────────────────────────────
+   "<namn> went to your hand · Exile · Still on the table · Library": en rad
+   per kort kameran skickat till handen (handRad, avstamBord), i HAND_RAD_MS
+   med en stapel som rinner ut; efter ett val står bekräftelsen i
+   HAND_RAD_SVAR_MS utan knappar. En token som upphört: "<namn> is gone ·
+   Undo". Som designytans sida 3 (scenen "Ta upp i handen") och prototypens
+   .hrad. Raderna behåller sina element så att stapeln inte börjar om: nya
+   läggs till, utgångna tas bort, ändrade byts. Bara på mitt eget bord i ett
+   spel jag får ändra. Timern ritar om när nästa rad går ut. */
+let handRadT = null;
+function renderHandRad() {
+  const el = $('#handRad'); if (!el) return;
+  clearTimeout(handRadT); handRadT = null;
+  const nu = Date.now();
+  handRadStada(nu);
+  const rader = !!spelLage && redigerbar() && arMitt(player()) ? handRad : [];
+  if (!rader.length) { el.hidden = true; if (el.firstChild) el.innerHTML = ''; return; }
+  const nyckel = h => h.cid + '@' + h.nar;
+  const html = h => {
+    const namn = esc(h.namn || (h.kort && h.kort.name) || 'The card');
+    if (h.val) {
+      const txt = h.val === 'exil' ? 'went to exile' : h.val === 'bib' ? 'went to your library' : 'is back on the table';
+      return `<div class="hradrad svar" data-cid="${esc(h.cid)}" data-nyckel="${esc(nyckel(h))}"><span><b>${namn}</b> ${txt}</span></div>`;
+    }
+    const kvar = Math.max(200, HAND_RAD_MS - (nu - h.nar));
+    const val = h.tok
+      ? '<div class="hrad-v"><button type="button" data-hand="angra">Undo</button></div>'
+      : '<div class="hrad-v"><button type="button" data-hand="exil">Exile</button><button type="button" data-hand="kvar">Still on the table</button><button type="button" data-hand="bib">Library</button></div>';
+    return `<div class="hradrad" data-cid="${esc(h.cid)}" data-nyckel="${esc(nyckel(h))}"><span><b>${namn}</b> ${h.tok ? 'is gone' : 'went to your hand'}</span>${val}<i class="hrad-bar" style="--hradms:${kvar}ms"></i></div>`;
+  };
+  const finns = new Map([...el.children].map(r => [r.dataset.nyckel, r]));
+  const nya = [];
+  for (const h of rader) {
+    const r = finns.get(nyckel(h));
+    if (r) { nya.push(r); finns.delete(nyckel(h)); continue; }
+    const t = document.createElement('template'); t.innerHTML = html(h);
+    nya.push(t.content.firstElementChild);
+  }
+  for (const r of finns.values()) r.remove();
+  nya.forEach((r, i) => { if (el.children[i] !== r) el.insertBefore(r, el.children[i] || null); });
   el.hidden = false;
+  const nasta = Math.min(...rader.map(h => h.nar + (h.val ? HAND_RAD_SVAR_MS : HAND_RAD_MS)));
+  handRadT = setTimeout(renderHandRad, Math.max(50, nasta - nu + 20));
 }
-/* Svaret för alla nedtonade kort; zon begränsar till en zon, null = hela mattan. */
-function svaraLyftAlla(zon, val) {
-  if (!redigerbar()) return;
-  const p = minSpelare(); if (!p) return;
-  const tillGraven = [];
-  for (const c of p.cards) {
-    if (c.lyft == null || !kanLyftas(c) || (zon != null && zonAv(c) !== zon)) continue;   // zonen läses innan kortet flyttas
-    slappLyft(c);
-    if (val === 'grav') { c.zon = ZON_GRAV; delete c.attachedTo; tillGraven.push(c); }
+/* Valet i raden. kvar/angra: kortet tillbaka där det låg — samma kortpost,
+   på sin plats i listan — och glider in från nederkanten (matGlidFranHand).
+   exil: kortet in i bordet och till exile (flyttaTill: auror, token,
+   ordningen i högen), med en kopia som flyger från nederkanten till högen.
+   bib: handen och library är ett (lekKvar), så bara flygturen och högens
+   landning. Ångrapunkten tas före, utan kortet på mattan: ⌘Z lämnar det i
+   handen igen. */
+function handRadVal(cid, val) {
+  const h = handRad.find(x => x.cid === cid && !x.val); if (!h || !redigerbar()) return;
+  const mig = minSpelare(); if (!mig) return;
+  const k = h.kort;
+  h.val = val; h.nar = Date.now();
+  if (val === 'kvar' || val === 'angra') {
+    angraPunkt();
+    mig.cards.splice(Math.min(h.i, mig.cards.length), 0, k);
+    save(); renderAll(true);
+    const el = kortEl(k.cid); if (el) matGlidFranHand(el);
+  } else if (val === 'exil') {
+    angraPunkt();
+    mig.cards.push(k);
+    utanAngra(() => flyttaTill(mig.cards.length - 1, ZON_EXIL));
+    flygFranHandTill(h, hfHogEl(ZON_EXIL));
+  } else if (val === 'bib') {
+    flygFranHandTill(h, hfHogEl('lib'));
+    bibBumpa();
   }
-  /* Efter loopen, som går över p.cards: en token upphör att finnas
-     (MES-105) och en aura följer sin värd — som i flyttaTill. Förut låg
-     tokens kvar i graveyard, och en aura på ett kort som gick dit blev
-     liggande lös på mattan. */
-  for (const c of tillGraven) {
-    aurorFoljer(p.cards, c);
-    const j = p.cards.indexOf(c);
-    if (c.tok && j >= 0) p.cards.splice(j, 1);
-  }
-  state.sel = clamp(state.sel, 0, Math.max(0, p.cards.length - 1));
-  lyftTips = null;
-  save(); renderAll(true);
+  renderHandRad();
 }
-$('#lyftAlla') && $('#lyftAlla').addEventListener('click', ev => {
-  const b = ev.target.closest('[data-lyft]'); if (!b) return;
-  if (b.dataset.lyft === 'en') arkGranska();
-  else if (b.dataset.lyft === 'grav') matAngra('All dimmed cards → graveyard', () => svaraLyftAlla(null, 'grav'));
-  else svaraLyftAlla(null, b.dataset.lyft);
+$('#handRad') && $('#handRad').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-hand]'); if (!b) return;
+  ev.stopPropagation();
+  const r = b.closest('[data-cid]'); if (r) handRadVal(r.dataset.cid, b.dataset.hand);
 });
+/* Kortet glider ut genom nederkanten (TIDSLINJER-E, "Till handen"): skuggan
+   0 → 1 på 90 ms, skalan 1 → 1,05 (90 ms, OUT) → 0,96 (FLY), positionen till
+   under nederkanten på 450 ms (FLY), opaciteten 1 till 280 ms och 0 vid 450.
+   En kopia inne i mattans fönster (#gridWrap, klipps vid kanten; brädets
+   zoom rör den inte) — det riktiga elementet tas bort av matSynk i samma
+   ritning, så att det inte står kvar bland korten. En token (fall 7) tonas
+   ut på sin plats. Minskad rörelse: bara toning, 200 ms. Var kortet gick ut
+   (h.ut) och dess bild (h.bild) sparas för flygturen tillbaka till en hög. */
+function flygTillHand(h, fran) {
+  if (!fran || !fran.getBoundingClientRect || !gridWrap) return;
+  const a = fran.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
+  if (!a.width || !wr.width) return;
+  const tapp = fran.classList.contains('tappad') ? 90 : 0;
+  const w = tapp ? a.height : a.width, hh = tapp ? a.width : a.height;   // kortets egna mått, före vridningen
+  const bild = fran.querySelector('img');
+  const left = a.left + a.width / 2 - w / 2 - wr.left, top = a.top + a.height / 2 - hh / 2 - wr.top;
+  h.bild = bild && bild.src ? bild.src : ''; h.ut = { x: left, w, h: hh };
+  const k = document.createElement('div');
+  k.className = 'handflyg';
+  k.style.cssText = `left:${left.toFixed(1)}px;top:${top.toFixed(1)}px;width:${w.toFixed(1)}px;height:${hh.toFixed(1)}px${tapp ? ';rotate:90deg' : ''}`;
+  k.innerHTML = (h.bild ? `<img src="${esc(h.bild)}" alt="">` : '') + '<i class="skugga"></i>';
+  gridWrap.appendChild(k);
+  let anim;
+  if (matLugn() || h.tok) {
+    anim = k.animate([{ opacity: 1 }, { opacity: 0 }], { duration: h.tok && !matLugn() ? 450 : 200, easing: 'linear', fill: 'forwards' });
+  } else {
+    const dy = wr.height - (a.top - wr.top);   // under nederkanten: kortets överkant vid fönstrets nederkant
+    k.animate([{ translate: '0 0', easing: MAT_KURVA.FLY }, { translate: `0 ${dy.toFixed(1)}px` }], { duration: 450, fill: 'forwards' });
+    k.animate([{ offset: 0, scale: '1', easing: 'ease-out' }, { offset: 90 / 450, scale: '1.05', easing: MAT_KURVA.FLY }, { offset: 1, scale: '0.96' }], { duration: 450, fill: 'forwards' });
+    const sk = k.querySelector('.skugga');
+    if (sk) sk.animate([{ offset: 0, opacity: 0, easing: 'ease-out' }, { offset: 90 / 450, opacity: 1, easing: 'linear' }, { offset: 1, opacity: 1 }], { duration: 450, fill: 'forwards' });
+    anim = k.animate([{ offset: 0, opacity: 1, easing: 'linear' }, { offset: 280 / 450, opacity: 1, easing: 'linear' }, { offset: 1, opacity: 0 }], { duration: 450, fill: 'forwards' });
+  }
+  const stad = () => k.remove();
+  anim.finished.then(stad, stad);
+  setTimeout(stad, 1200);
+}
+/* "Still on the table" (TIDSLINJER-E, "tillbaka"): kortet står redan på sin
+   plats (renderAll efter återinsättningen) och förskjuts från under
+   nederkanten — opaciteten 0 → 1 på 120 ms, positionen 420 ms FLY, skalan
+   1,05 → 0,985 → 1 och skuggan 1 → 0 på 450 ms. Samma lager som matGlid
+   (A.pos, så att ett avbrott och uppspelaren ser en glidning). Förskjutningen
+   är i brädets koordinater: skärmpixlar delat med zoomen. Minskad rörelse:
+   på plats, tonas in 200 ms. */
+function matGlidFranHand(el) {
+  const A = el._matA || (el._matA = {});
+  matStoppa(el);
+  const wr = gridWrap.getBoundingClientRect(), r = el.getBoundingClientRect();
+  if (!wr.width || !r.width || document.hidden) return;
+  if (matLugn()) { el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'linear' }); return; }
+  const z = (matVy(player()).z || 1), dy = (wr.bottom - r.top) / z;
+  A.pos = el.animate([{ translate: `0 ${dy.toFixed(1)}px`, easing: MAT_KURVA.FLY }, { translate: '0 0' }], { duration: MAT_MS.flytt });
+  A.posInfo = { fran: [0, dy], T: MAT_MS.flytt, bez: MAT_BEZ.FLY };
+  el.animate([{ offset: 0, opacity: 0, easing: 'linear' }, { offset: 120 / 450, opacity: 1, easing: 'linear' }, { offset: 1, opacity: 1 }], { duration: 450 });
+  const L = MAT_MS.lyft;
+  A.lyft = el.animate([{ offset: 0, scale: '1.05', easing: 'linear' }, { offset: 320 / L, scale: '1.05', easing: MAT_KURVA.UT }, { offset: 390 / L, scale: '0.985', easing: MAT_KURVA.UT }, { offset: 1, scale: '1' }], { duration: L });
+  matSkugga(el, A, [{ offset: 0, opacity: 1, easing: 'linear' }, { offset: 320 / L, opacity: 1, easing: 'ease-in' }, { offset: 1, opacity: 0 }], L);
+}
+/* "Library" och "Exile" (TIDSLINJER-E, "Library"): en kopia från under
+   nederkanten, där kortet gick ut (h.ut), till högen — opaciteten 0 → 1 på
+   100 ms, 1 till 380 och 0 vid 450; positionen och skalan till högens på
+   450 ms FLY. Högens landning gör bibBumpa/exile-högen själv. Minskad
+   rörelse: ingen flygtur. Utan hög på mattan: ingen flygtur. */
+function flygFranHandTill(h, hog) {
+  if (!hog || !hog.getBoundingClientRect || !gridWrap || matLugn()) return;
+  const wr = gridWrap.getBoundingClientRect(), b = hog.getBoundingClientRect();
+  if (!wr.width || !b.width) return;
+  const z = matVy(player()).z || 1;
+  const w = h.ut ? h.ut.w : MATTA.CW * z, hh = h.ut ? h.ut.h : MATTA.CH * z;
+  const x0 = h.ut ? h.ut.x : wr.width / 2 - w / 2, y0 = wr.height;
+  const k = document.createElement('div');
+  k.className = 'handflyg';
+  k.style.cssText = `left:${x0.toFixed(1)}px;top:${y0.toFixed(1)}px;width:${w.toFixed(1)}px;height:${hh.toFixed(1)}px;opacity:0`;
+  k.innerHTML = h.bild ? `<img src="${esc(h.bild)}" alt="">` : '';
+  gridWrap.appendChild(k);
+  const dx = (b.left + b.width / 2 - wr.left) - (x0 + w / 2), dy = (b.top + b.height / 2 - wr.top) - (y0 + hh / 2);
+  const sk = Math.min(1, b.width / w);
+  k.animate([{ translate: '0 0', easing: MAT_KURVA.FLY }, { translate: `${dx.toFixed(1)}px ${dy.toFixed(1)}px` }], { duration: 450, fill: 'forwards' });
+  k.animate([{ scale: '1', easing: MAT_KURVA.FLY }, { scale: sk.toFixed(3) }], { duration: 450, fill: 'forwards' });
+  const anim = k.animate([{ offset: 0, opacity: 0, easing: 'linear' }, { offset: 100 / 450, opacity: 1, easing: 'linear' }, { offset: 380 / 450, opacity: 1, easing: 'linear' }, { offset: 1, opacity: 0 }], { duration: 450, fill: 'forwards' });
+  const stad = () => k.remove();
+  anim.finished.then(stad, stad);
+  setTimeout(stad, 1200);
+}
 
 /* Ett ställe stänger av auto: knappen i skruvrummet och menyvalet. De gick
    förut var sin väg, och ingen av dem bröt kortens bindning till spåren eller
@@ -32286,7 +32417,7 @@ async function stangAvAuto(fraga) {
   kamHarVarit = false;            // avstängd är inte tappad — bordet ljuger inte
   kamTappadNar = 0; kamLast = kamTot = kamSer = 0; kamFas = ''; kamSma = 0; kamUpplosning = null;
   prefs.autoLage = false; savePrefs();
-  glomSpar(true);
+  glomSpar();
   stangKamSkruv();          // panelen stängs: utan auto finns inget att koppla eller skruva
   renderMode();
   renderGrid();             // platshållarna går med kameran
@@ -32356,7 +32487,7 @@ function tagEmotDiagnos(m) {
     version: 2, tid: new Date().toISOString(), spel: spelLage && spelLage.kod, promptv: null,
     matt: d.matt, tro: d.tro, dia: d.dia, yta: d.yta, kal: d.kal, pbTro,
     spar: d.spar, ref: d.ref, ruta: d.ruta, bild: d.bild,
-    bord: (minSpelare() || { cards: [] }).cards.map(c => ({ name: c.name, spar: c.spar, lyft: c.lyft, tapped: c.tapped }))
+    bord: (minSpelare() || { cards: [] }).cards.map(c => ({ name: c.name, spar: c.spar, tapped: c.tapped }))
   };
   const blob = new Blob([JSON.stringify(fil)], { type: 'application/json' });
   const a = document.createElement('a');

@@ -70,7 +70,7 @@ const paMattan = e => { const z = zonAv(e); return z !== ZON_GRAV && z !== ZON_E
 const Moln = { sandKam() {} };
 const hand = () => state.players[0].cards, angraPunkt = () => {}, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 /* Omritningens släpp av bifogade kort (losBifogade) och bannerns svar
-   (svaraLyftAlla): paMattanKort som appens, en bifogad plats en bit
+   (förut svaraLyftAlla, borta med nedtoningen i MES-343): paMattanKort som appens, en bifogad plats en bit
    nedanför värden, och mitt bord går alltid att ändra. */
 const paMattanKort = c => c && paMattan(c) && c.lyft == null;
 const bifogadPlats = (v, k) => ({ x: (v.x || 0) + 10 * (k + 1), y: (v.y || 0) + 10 * (k + 1), z: 0 });
@@ -90,7 +90,7 @@ const funk = namn => {
   if (i < 0 || j < 0) throw new Error('hittar inte ' + namn + ' i ' + fil);
   return src.slice(i, j + 3);
 };
-const svarKod = ['sammaKortVid', 'namngePend', 'aurorFoljer', 'flyttaTill', 'losBifogade', 'svaraLyftAlla'].map(funk).join('\n');
+const svarKod = ['sammaKortVid', 'namngePend', 'aurorFoljer', 'flyttaTill', 'losBifogade'].map(funk).join('\n');
 /* Timrarna (MES-291): avstamBord ställer en timer som låter nåden och
    väntan löpa ut när telefonen är tyst. Här virtuella: tid(t) flyttar
    klockan till t och kör timrarna som hinner gå ut, i ordning, med klockan
@@ -156,17 +156,22 @@ return {
   namnge(q, namn) { return namngePend(state.players[0], q, namn, null, null); },
   flytta(i, zon) { return flyttaTill(i, zon); },
   losBifogade() { return losBifogade(state.players[0].cards); },
-  lyftAlla(val) { return svaraLyftAlla(null, val); },
+  /* Raden vid nederkanten (MES-343): korten kameran skickat till handen, med valet kvar. */
+  get handRad() { return handRad; },
+  handVal(cid, val) { /* kvar/angra: kortet tillbaka där det låg, som handRadVal i appen; exil/bib: bara valet */ const h = handRad.find(x => x.cid === cid && !x.val); if (!h) return false; h.val = val; h.nar = Date.now(); if (val === 'kvar' || val === 'angra') state.players[0].cards.splice(Math.min(h.i, state.players[0].cards.length), 0, h.kort); return true; },
   tillbaka(namn, utom) { return kortSomKomTillbaka(state.players[0].cards, namn, utom); },
   /* Nollställningen går genom avstamBord: det är där "senaste kortet"
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
      hör till spelet, inte nollställningen — de sätts om här, som när man
      lämnar spelet. */
-  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; lekTal = new Map(); typRad = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false;
+  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; handRad = []; kamFas = ''; kamGrund = 20; lekTal = new Map(); typRad = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false;
     gravFlode = false; gravSpeglar = false; kamVand = 0; kamSpegel = false; gravLage = null; gravSedda = new Map(); gravOmstart = 0; delete state.players[0].bibHog; }
 };`)({ now: () => klocka.t }, setTimeoutV, clearTimeoutV);
 
 const stam = (spar, fas = 'kort') => app.avstamBord(spar, false, fas);
+/* Till handen (MES-343): kortet är ur app.kort och står i raden (app.handRad) med sitt kortobjekt. */
+const iHanden = k => !app.kort.includes(k) && app.handRad.some(h => h.cid === k.cid && !h.val);
+const iHandenNamn = namn => app.handRad.some(h => h.namn === namn && !h.val);
 const box = (x, y, w, h) => ({ x, y, w, h });
 /* Ett stående kort 0,063 × 0,088 av bilden, och samma kort tappat runt sitt
    nedre vänstra hörn (liggande, hörnet delat). */
@@ -254,26 +259,27 @@ prov('S10 kortet i graveyard men bundet: inget nytt', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
   assert.equal(app.kort.length, 1);
 });
-prov('S11 nedtonat kort tas tillbaka av ett nytt spår', () => {
-  app.kort.push({ cid: 'l', name: 'Ukud Cobra', flipped: 0, lyft: 1 });
+prov('S11 ett släppt kort (spåret lästes om, MES-343) tas tillbaka av ett nytt spår', () => {
+  app.kort.push({ cid: 'l', name: 'Ukud Cobra', flipped: 0, slappt: 1 });
   stam([klar(4, 'Ukud Cobra', { sen: 10, ...PORT })]);
-  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].lyft, undefined); assert.equal(app.kort[0].spar, 4);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].slappt, undefined); assert.equal(app.kort[0].spar, 4);
 });
 prov('S12 befintlig dubblett (två bundna) lämnas, följer var sitt spår', () => {
   app.kort.push({ cid: 'a', name: 'Ukud Cobra', flipped: 0, spar: 1, tapped: 0 }, { cid: 'b', name: 'Ukud Cobra', flipped: 0, spar: 2, tapped: 1 });
   stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 900, ...PORT }), klar(2, 'Ukud Cobra', { tappad: true, sen: 10, ...LAND_ })]);
   assert.equal(app.kort.length, 2); assert.ok(app.kort.every(c => c.lyft == null));
 });
-prov('S12b befintlig dubblett: när helbildens spår försvinner tonas dess kort ned efter nådatiden', () => {
+prov('S12b befintlig dubblett: när helbildens spår försvinner går dess kort till handen efter väntan', () => {
   app.kort.push({ cid: 'a', name: 'Ukud Cobra', flipped: 0, spar: 3, tapped: 1 }, { cid: 'b', name: 'Ukud Cobra', flipped: 0, spar: 4, tapped: 0 });
   const det = klar(3, 'Ukud Cobra', { tappad: true, sen: 10, ...box(0.367, 0.367, 0.179, 0.213) });
   stam([det, klar(4, 'Ukud Cobra', { ai: { helbild: true }, sen: null, ...box(0.5, 0.327, 0.129, 0.287) })]);
   stam([det]);
-  assert.ok(app.kort.find(c => c.cid === 'b').borta, 'nåd');
+  const b = app.kort.find(c => c.cid === 'b');
+  assert.ok(b.borta, 'nåd');
   klocka.t += 3100; stam([det]);
-  const [a, b] = ['a', 'b'].map(cid => app.kort.find(c => c.cid === cid));
-  assert.equal(app.kort.length, 2); assert.equal(a.spar, 3); assert.equal(a.lyft, undefined);
-  assert.equal(b.spar, undefined); assert.ok(b.lyft != null, 'nedtonat');
+  const a = app.kort.find(c => c.cid === 'a');
+  assert.equal(app.kort.length, 1); assert.equal(a.spar, 3);
+  assert.ok(iHanden(b), 'till handen'); assert.equal(b.spar, undefined);
 });
 prov('S13 två färska detektorspår omlott (landhög skuren) räknas som två', () => {
   stam([klar(1, 'Plains', { sen: 10, ...box(0.2, 0.2, 0.05, 0.07) }), klar(2, 'Plains', { sen: 10, ...box(0.2, 0.215, 0.05, 0.07) })]);
@@ -290,22 +296,23 @@ prov('S15 väntande granskning vars spår blir klart och samma kort: försvinner
   stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 900, ...PORT }), klar(2, 'Ukud Cobra', { sen: 10, ...LAND_ })]);
   assert.equal(app.kort.length, 1); assert.equal(app.pending.length, 0);
 });
-prov('S16 samma spår, ett annat säkert namn: det gamla tonas ned, det nya får ett kort', () => {
+prov('S16 samma spår, ett annat säkert namn: det gamla ligger kvar orört och släpps (fall 5), det nya får ett kort', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
   stam([klar(1, 'Llanowar Elves', { sen: 10, ...PORT })]);
   const u = app.kort.find(c => c.name === 'Ukud Cobra'), l = app.kort.find(c => c.name === 'Llanowar Elves');
-  assert.equal(app.kort.length, 2); assert.ok(u.lyft != null); assert.equal(u.spar, undefined); assert.equal(l.spar, 1);
+  assert.equal(app.kort.length, 2); assert.equal(u.spar, undefined); assert.ok(u.slappt, 'släppt'); assert.equal(l.spar, 1);
+  assert.equal(app.handRad.length, 0, 'inte till handen');
 });
-/* Landen tonas ned som permanents (MES-29): förut släpptes ett lyft lands
-   bindning tyst, och raden sa fyra Forest när tre låg kvar. Graveyard aldrig. */
-prov('L1 ett land kameran inte ser längre tonas ned efter nådatiden, det andra står kvar', () => {
+/* Landen går till handen som permanents (MES-29, MES-343): förut släpptes ett
+   lyft lands bindning tyst, och raden sa fyra Forest när tre låg kvar. Graveyard aldrig. */
+prov('L1 ett land kameran inte ser längre går till handen efter väntan, det andra står kvar', () => {
   stam([klar(1, 'Forest', { sen: 10, ...PORT }), klar(2, 'Forest', { sen: 10, ...LANGT })]);
   const a = app.kort.find(c => c.spar === 1), b = app.kort.find(c => c.spar === 2);
   stam([klar(2, 'Forest', { sen: 10, ...LANGT })]);
-  assert.ok(a.borta && a.lyft == null, 'nåd');
+  assert.ok(a.borta, 'nåd');
   klocka.t += 3100; stam([klar(2, 'Forest', { sen: 10, ...LANGT })]);
-  assert.equal(app.kort.length, 2); assert.ok(a.lyft != null, 'nedtonat'); assert.equal(a.spar, undefined);
-  assert.equal(b.lyft, undefined); assert.equal(b.spar, 2);
+  assert.equal(app.kort.length, 1); assert.ok(iHanden(a), 'till handen'); assert.equal(a.spar, undefined);
+  assert.equal(b.spar, 2);
 });
 prov('L2 ett land i graveyard tonas inte ned när spåret dör — bindningen släpps tyst', () => {
   stam([klar(1, 'Forest', { sen: 10, ...PORT })]);
@@ -313,18 +320,21 @@ prov('L2 ett land i graveyard tonas inte ned när spåret dör — bindningen sl
   stam([]); klocka.t += 3100; stam([]);
   assert.equal(app.kort.length, 1); assert.equal(app.kort[0].lyft, undefined); assert.equal(app.kort[0].spar, undefined);
 });
-prov('L3 ett nedtonat land läggs tillbaka: ett nytt spår tar det, inget nytt Forest', () => {
+prov('L3 ett land som gått till handen: Still on the table lägger tillbaka det, och ett nytt spår tar det — inget nytt Forest', () => {
   stam([klar(1, 'Forest', { sen: 10, ...PORT })]);
+  const k = app.kort[0];
   stam([]); klocka.t += 3100; stam([]);
-  assert.ok(app.kort[0].lyft != null, 'nedtonat');
+  assert.ok(iHanden(k), 'till handen'); assert.equal(app.kort.length, 0);
+  assert.ok(app.handVal(k.cid, 'kvar'));
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0], k, 'samma kortpost');
   stam([klar(9, 'Forest', { sen: 10, ...PORT })]);
-  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].lyft, undefined); assert.equal(app.kort[0].spar, 9);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, 9);
 });
-prov('L4 samma spår, ett annat säkert namn på ett land: det gamla landet tonas ned', () => {
+prov('L4 samma spår, ett annat säkert namn på ett land: det gamla landet ligger kvar orört', () => {
   stam([klar(1, 'Forest', { sen: 10, ...PORT })]);
   stam([klar(1, 'Mountain', { sen: 10, ...PORT })]);
   const f = app.kort.find(c => c.name === 'Forest'), m = app.kort.find(c => c.name === 'Mountain');
-  assert.equal(app.kort.length, 2); assert.ok(f.lyft != null); assert.equal(f.spar, undefined); assert.equal(m.spar, 1);
+  assert.equal(app.kort.length, 2); assert.equal(f.spar, undefined); assert.ok(f.slappt); assert.equal(m.spar, 1);
 });
 
 /* Telefonens riktiga rapporter, med telefonens klocka. */
@@ -385,12 +395,12 @@ prov('P2 samma spår när svaret kommit (provas false): granskningen som förut'
   stam([okant(901, { provas: false })]);
   assert.equal(app.pending.length, 1); assert.equal(app.pending[0].spar, 901); assert.equal(app.chip.kamTot, 1);
 });
-prov('P3 ledtråden väntar: ett nedtonat Forest står kvar lyft medan spåret prövas, binds sedan', () => {
-  app.kort.push({ cid: 'f', name: 'Forest', flipped: 0, lyft: 1 });
+prov('P3 ledtråden väntar: ett obundet Forest står kvar obundet medan spåret prövas, binds sedan', () => {
+  app.kort.push({ cid: 'f', name: 'Forest', flipped: 0 });
   stam([okant(902, { gissning: 'Forest', provas: true })]);
-  assert.ok(app.kort[0].lyft != null, 'lyft'); assert.equal(app.kort[0].spar, undefined);
+  assert.equal(app.kort[0].spar, undefined);
   stam([okant(902, { gissning: 'Forest', provas: false })]);
-  assert.equal(app.kort[0].lyft, undefined); assert.equal(app.kort[0].spar, 902); assert.equal(app.pending.length, 0);
+  assert.equal(app.kort[0].spar, 902); assert.equal(app.pending.length, 0);
 });
 prov('P4 Claude: inget kort — den köade posten tas bort, inget kort skapas', () => {
   stam([okant(903, { provas: false })]);
@@ -403,8 +413,8 @@ prov('P5 telefon utan fältet provas: köas på en gång som förut', () => {
   assert.equal(app.pending.length, 1); assert.equal(app.chip.kamTot, 1);
 });
 /* Ur granskningen av MES-29 (adversariell, bekräftad mot koden). */
-prov('K4 nedtonat kort bundet på ledtråden och sedan tappat: fortfarande ett kort', () => {
-  app.kort.push({ cid: 'u', name: 'Ukud Cobra', flipped: 0, lyft: 1 });
+prov('K4 obundet kort bundet på ledtråden och sedan tappat: fortfarande ett kort', () => {
+  app.kort.push({ cid: 'u', name: 'Ukud Cobra', flipped: 0 });
   stam([okant(1, { namn: 'Ukud Cobra', gissning: 'Ukud Cobra', sen: 10, ...PORT })]);
   assert.equal(app.kort[0].spar, 1, 'bands inte på ledtråden');
   stam([okant(1, { namn: 'Ukud Cobra', gissning: 'Ukud Cobra', skymd: true, sen: 1200, ...PORT }), klar(2, 'Ukud Cobra', { tappad: true, sen: 30, ...LAND_ })]);
@@ -412,7 +422,7 @@ prov('K4 nedtonat kort bundet på ledtråden och sedan tappat: fortfarande ett k
   assert.equal(app.pending.length, 0, 'det osäkra spåret köades');
   stam([klar(2, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
   klocka.t += 5000; stam([klar(2, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
-  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].lyft, undefined, 'originalet tonades ned');
+  assert.equal(app.kort.length, 1); assert.equal(app.handRad.length, 0, 'originalet gick till handen');
 });
 prov('K5 borttaget för hand, det spärrade spåret dör men ett annat ser kortet: skapas inte igen', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
@@ -571,30 +581,31 @@ prov('R6 allt bundet: "N kort på bordet" och inget mer — också när ett kort
   stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 1200, ...PORT }), klar(3, 'Ukud Cobra', { tappad: true, sen: 30, ...LAND_ }), klar(2, 'Forest', { sen: 10, ...LANGT })]);
   m = app.remsa(); assert.equal(m.text, 'Camera · 2 cards on the table'); assert.deepEqual(m.paVag, []);
   assert.deepEqual([...app.losa], []);
-  /* Spåren borta: korten är bundna och synliga i nådatiden (BORTA_NAD), så
-     de räknas tills de tonas ned — då är bordet tomt och anmärkningen
-     säger varför. */
+  /* Spåren borta: korten är bundna och synliga i väntan (BORTA_NAD), så de
+     räknas tills de går till handen (MES-343) — då är bordet tomt, och raden
+     vid nederkanten säger vart de tog vägen, inte anmärkningen. */
   stam([]); m = app.remsa(); assert.equal(m.text, 'Camera · 2 cards on the table'); assert.equal(m.not, null);
   klocka.t += 3200; stam([]); m = app.remsa();
-  assert.equal(m.text, 'Camera · the table is empty'); assert.equal(m.not, 'Two cards are no longer visible');
+  assert.equal(m.text, 'Camera · the table is empty'); assert.equal(m.not, null); assert.equal(app.handRad.length, 2);
 });
 prov('R6b två kort på bordet och ett tredje på väg: "2 kort på bordet · 1 på väg"', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), klar(2, 'Forest', { sen: 10, ...LANGT }), { id: 3, tillstand: 'ny', sen: 10, ...LAND_ }]);
   const m = app.remsa();
   assert.equal(m.text, 'Camera · 2 cards on the table · 1 on the way'); assert.deepEqual(paVag(m), ['laser:3']);
 });
-prov('R7 ett nedtonat kort: "<namn> syns inte längre", och det räknas inte som på bordet', () => {
+prov('R7 ett kort som gått till handen räknas inte som på bordet, och ingen anmärkning', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  const k = app.kort[0];
   stam([]); klocka.t += 3200; stam([]);
-  assert.ok(app.kort[0].lyft, 'nedtonat');
+  assert.ok(iHanden(k), 'till handen');
   const m = app.remsa();
-  assert.equal(m.not, 'Ukud Cobra is no longer visible'); assert.equal(m.text, 'Camera · the table is empty');
+  assert.equal(m.not, null); assert.equal(m.text, 'Camera · the table is empty');
 });
-prov('R7b flera nedtonade: "Två kort syns inte längre"', () => {
+prov('R7b flera till handen: raden har båda, ingen anmärkning', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), klar(2, 'Forest', { sen: 10, ...LANGT })]);
   stam([]); klocka.t += 3200; stam([]);
-  assert.equal(app.kort.filter(c => c.lyft).length, 2);
-  assert.equal(app.remsa().not, 'Two cards are no longer visible');
+  assert.equal(app.kort.length, 0); assert.equal(app.handRad.length, 2);
+  assert.equal(app.remsa().not, null);
 });
 prov('R8 medan telefonen lär sig ljuset: "lär sig ljuset" och "Håll telefonen stilla", inget annat', () => {
   stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
@@ -690,12 +701,13 @@ prov('K4 telefonens råd hör till kortet som läses, aldrig till bordet', () =>
   klocka.t += 3500; stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), { id: 3, tillstand: 'ny', sen: 10, ...LANGT }]);
   assert.equal(app.remsa({ rad: BLANK }).not, 'Something is moving on the table');
 });
-prov('K5 "syns inte längre" står i sex sekunder efter nedtoningen, sedan inte', () => {
+prov('K5 raden vid nederkanten står i sex sekunder (HAND_RAD_MS), sedan står handen fast', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  const k = app.kort[0];
   stam([]); klocka.t += 3200; stam([]);
-  assert.equal(app.remsa().not, 'Ukud Cobra is no longer visible');
-  klocka.t += 5900; assert.equal(app.remsa().not, 'Ukud Cobra is no longer visible');
-  klocka.t += 200; assert.equal(app.remsa().not, null); assert.ok(app.kort[0].lyft, 'fortfarande nedtonat');
+  assert.ok(iHanden(k)); const nar = app.handRad[0].nar;
+  klocka.t = nar + 5900; stam([]); assert.ok(iHanden(k), 'raden står');
+  klocka.t = nar + 6100; stam([]); assert.equal(app.handRad.length, 0, 'raden borta: handen står fast'); assert.equal(app.kort.length, 0);
 });
 prov('K6 nollställningen glömmer spårens lägen: samma spår är nytt igen', () => {
   stam([{ id: 1, tillstand: 'okand', cands: [{ name: 'Forest', sid: 's', score: 0.5 }], sen: 10, ...PORT }]);
@@ -1013,10 +1025,11 @@ prov('P1 Screen leads: spåret dör → bindningen släpps tyst, ingen nedtoning
   stam([]); klocka.t += 3100; stam([]);
   assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, undefined); assert.equal(app.kort[0].lyft, undefined); assert.equal(app.kort[0].borta, undefined);
 });
-prov('P2 Table leads: samma sak tonar ned kortet', () => {
+prov('P2 Table leads: samma sak skickar kortet till handen', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  const k = app.kort[0];
   stam([]); klocka.t += 3100; stam([]);
-  assert.ok(app.kort[0].lyft != null);
+  assert.ok(iHanden(k)); assert.equal(k.spar, undefined); assert.equal(k.borta, undefined);
 });
 prov('P3 fysisk: kortet flyttat till graveyard digitalt medan spåret lever — spåret föds om på ny plats: tyst ombindning i sin zon, inget nytt kort', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
@@ -1038,30 +1051,30 @@ prov('P5 besvärjelseregeln: ett instant som plockas upp inom 20 s går till gra
   klocka.t += 4000;
   stam([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })]); klocka.t += 3100; stam([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })]);
   const bolt = app.kort.find(k => k.name === 'Lightning Bolt');
-  assert.equal(bolt.zon, 'grav'); assert.ok(bolt.spellAuto); assert.equal(bolt.lyft, undefined);
-  // varelsen som plockas upp tonas ned (bord)
+  assert.equal(bolt.zon, 'grav'); assert.ok(bolt.spellAuto);
+  // varelsen som plockas upp går till handen (bord)
   stam([]); klocka.t += 3100; stam([]);
-  assert.ok(app.kort.find(k => k.name === 'Ukud Cobra').lyft != null);
-  // efter 20 s: instantet är en permanent på bordet, inte en besvärjelse
+  assert.ok(iHandenNamn('Ukud Cobra')); assert.equal(app.kort.filter(k => k.name === 'Ukud Cobra').length, 0);
+  // efter 20 s: instantet är en permanent på bordet, inte en besvärjelse — det går till handen
   app.nollstall(); klocka.t = 1e6; app.typ = new Map([['Lightning Bolt', 'Instant']]);
   stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
   klocka.t += 25000; stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
   stam([]); klocka.t += 3100; stam([]);
-  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+  assert.equal(app.kort.length, 0); assert.ok(iHandenNamn('Lightning Bolt')); assert.equal(app.handRad[0].kort.zon, undefined);
   // Screen leads: samma regel, men en permanent släpps tyst
   app.nollstall(); klocka.t = 1e6; app.spelsatt = 'skarm'; app.typ = new Map([['Lightning Bolt', 'Instant']]);
   stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
   stam([]); klocka.t += 3100; stam([]);
   assert.equal(app.kort[0].zon, 'grav');
 });
-prov('P6 täckt: ett bifogat kort vars värd syns är inte borta när dess spår dör', () => {
+prov('P6 täckt: ett bifogat kort vars värd syns är inte borta när dess spår dör; värden som försvinner går till handen och utrustningen blir kvar', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Bonesplitter', { sen: 20, ...LANGT })]);
   const vard = app.kort.find(k => k.name === 'Ukud Cobra'), utr = app.kort.find(k => k.name === 'Bonesplitter');
   utr.attachedTo = vard.cid;
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]); klocka.t += 3100; stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
-  assert.equal(utr.lyft, undefined); assert.equal(utr.spar, undefined);
+  assert.equal(utr.spar, undefined); assert.ok(app.kort.includes(utr)); assert.equal(app.handRad.length, 0);
   stam([]); klocka.t += 3100; stam([]);
-  assert.ok(vard.lyft != null);
+  assert.ok(iHanden(vard)); assert.deepEqual(app.kort.map(k => k.name), ['Bonesplitter'], 'utrustningen blir kvar');
 });
 prov('P7 kamerans läge: skrivs vid skapandet och vid en flytt större än darret, med ny stämpel', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
@@ -1119,10 +1132,11 @@ prov('GR2 Screen leads: samma sak — ingenting, kortet ligger kvar', () => {
   klocka.t += 2100; stamG([], hog(1));
   assert.equal(app.kort[0].zon, undefined); assert.equal(app.kort[0].gravAuto, undefined); assert.equal(app.kort[0].lyft, undefined);
 });
-prov('GR3 högen ändras inte: frågan som förut', () => {
+prov('GR3 högen ändras inte: kortet går till handen', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  const k = app.kort[0];
   klocka.t += 150; stamG([], hog(0)); klocka.t += 3100; stamG([], hog(0));
-  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+  assert.equal(k.zon, undefined); assert.ok(iHanden(k));
 });
 prov('GR3b en token vars spår dör när högen ändras upphör att finnas, och en aura-token på en värd som går dit likaså — en vanlig aura följer med (MES-105)', () => {
   app.typ = new Map([['Monster Role', 'Token Enchantment — Aura Role'], ['Pacifism', 'Enchantment — Aura'], ['Bonesplitter', 'Artifact — Equipment']]);
@@ -1153,53 +1167,39 @@ prov('GR3c handflytt till graveyard: en aura-token på kortet upphör att finnas
   assert.ok(app.flytta(0, 'grav'));
   assert.deepEqual(app.kort.map(k => k.name + ':' + (k.zon || '')), ['Grizzly Bears:grav', 'Pacifism:grav']);
 });
-prov('GR3d en värd som kameran tonat ned behåller sina auror till svaret: All to graveyard tar auran med, en aura-token upphör, utrustningen blir kvar', () => {
+prov('GR3d en värd som kameran skickat till handen (MES-343): auran går till graveyard, en aura-token upphör, utrustningen blir kvar; Still on the table lägger tillbaka värden på sin plats i listan', () => {
   app.typ = new Map([['Monster Role', 'Token Enchantment — Aura Role'], ['Pacifism', 'Enchantment — Aura'], ['Bonesplitter', 'Artifact — Equipment']]);
-  const bas = () => [{ cid: 'v', name: 'Grizzly Bears', flipped: 0, x: 10, y: 10, lyft: klocka.t },
-                     { cid: 'r', name: 'Monster Role', flipped: 0, tok: 1, attachedTo: 'v' },
-                     { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: 'v' },
-                     { cid: 'q', name: 'Bonesplitter', flipped: 0, attachedTo: 'v' }];
+  stam([klar(1, 'Grizzly Bears', { sen: 20, ...PORT })]);
+  const v = app.kort[0];
+  app.kort.push({ cid: 'r', name: 'Monster Role', flipped: 0, tok: 1, attachedTo: v.cid },
+                { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: v.cid },
+                { cid: 'q', name: 'Bonesplitter', flipped: 0, attachedTo: v.cid });
   const bild = () => app.kort.map(k => k.name + ':' + (k.zon || '') + (k.attachedTo ? '@' + k.attachedTo : ''));
-  /* Bannern: renderAll ritar mattan (losBifogade) före bannern. */
-  app.kort.push(...bas());
-  app.losBifogade();
-  assert.deepEqual(bild(), ['Grizzly Bears:', 'Monster Role:@v', 'Pacifism:@v', 'Bonesplitter:@v'], 'omritningen släppte den nedtonade värdens kort');
-  app.lyftAlla('grav'); app.losBifogade();
-  assert.deepEqual(bild(), ['Grizzly Bears:grav', 'Pacifism:grav', 'Bonesplitter:']);
-  /* Arket, ett kort i taget: graveyard går genom flyttaTill. */
-  app.kort.length = 0; app.kort.push(...bas());
-  app.losBifogade(); app.flytta(0, 'grav'); app.losBifogade();
-  assert.deepEqual(bild(), ['Grizzly Bears:grav', 'Pacifism:grav', 'Bonesplitter:']);
-  /* "They're still there": auran sitter kvar på värden. */
-  app.kort.length = 0; app.kort.push(...bas());
-  app.losBifogade(); app.lyftAlla('kvar'); app.losBifogade();
-  assert.deepEqual(bild(), ['Grizzly Bears:', 'Monster Role:@v', 'Pacifism:@v', 'Bonesplitter:@v']);
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.ok(iHanden(v));
+  assert.deepEqual(bild(), ['Pacifism:grav', 'Bonesplitter:@' + v.cid], 'auran till graveyard, token borta, utrustningen kvar (omritningen släpper den)');
+  assert.ok(app.handVal(v.cid, 'kvar'));
+  assert.equal(app.kort[0], v, 'tillbaka först i listan, där det låg'); assert.equal(app.handRad[0].val, 'kvar');
 });
-prov('GR3e en nedtonad aura på en nedtonad värd: värden till graveyard tar auran med utan nedtoning, och bara kort på mattan är nedtonade (arket och högvaktens efterskott)', () => {
+prov('GR3e värden till handen tar auran till graveyard; högvaktens efterskott flyttar värden från raden till graveyard', () => {
   app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
-  const nedtonadeUtanfor = () => app.kort.filter(k => k.lyft != null && (k.zon === 'grav' || k.zon === 'exil')).map(k => k.name);
-  /* Arket: graveyard för värden går genom flyttaTill → aurorFoljer. */
-  app.kort.push({ cid: 'v', name: 'Grizzly Bears', flipped: 0, x: 10, y: 10, lyft: klocka.t },
-                { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: 'v', lyft: klocka.t },
-                { cid: 'w', name: 'Llanowar Elves', flipped: 0, x: 200, y: 10, lyft: klocka.t });
+  /* Arket förut, nu flyttaTill: graveyard för värden går genom aurorFoljer. */
+  app.kort.push({ cid: 'v', name: 'Grizzly Bears', flipped: 0, x: 10, y: 10 },
+                { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: 'v' },
+                { cid: 'w', name: 'Llanowar Elves', flipped: 0, x: 200, y: 10 });
   app.losBifogade(); app.flytta(0, 'grav'); app.losBifogade();
   const pac = app.kort.find(k => k.name === 'Pacifism');
-  assert.equal(pac.zon, 'grav'); assert.equal(pac.lyft, undefined, 'auran är nedtonad i graveyard');
-  assert.deepEqual(nedtonadeUtanfor(), []);
-  assert.deepEqual(app.kort.filter(k => k.lyft != null).map(k => k.name), ['Llanowar Elves'], 'lyftN räknar bara kortet på mattan');
-  /* Högvaktens efterskott: värden tonades ned, högen ändras efter nåden (gravAutoOm). */
+  assert.equal(pac.zon, 'grav');
+  /* Högvaktens efterskott: värden gick till handen, högen ändras inom fönstret efter spårets död (gravAutoOm). */
   app.nollstall(); klocka.t = 1e6; app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
   const ukud = app.kort[0];
   app.kort.push({ cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: ukud.cid });
   klocka.t += 150; stamG([], hog(0));             // spåret dog: borta
-  klocka.t += 3100; stamG([], hog(0));            // nedtonad
-  assert.ok(ukud.lyft != null, 'värden tonades inte ned');
-  app.kort[1].lyft = klocka.t;                    // auran tonades ned med den
+  klocka.t += 3100; stamG([], hog(0));            // till handen
+  assert.ok(iHanden(ukud), 'värden gick inte till handen'); assert.equal(app.kort[0].zon, 'grav', 'auran följde till graveyard');
   klocka.t += 1000; stamG([], hog(1));            // högen ändras inom fönstret: efterskottet
-  assert.equal(ukud.zon, 'grav'); assert.ok(ukud.gravAuto);
-  assert.equal(app.kort[1].zon, 'grav'); assert.equal(app.kort[1].lyft, undefined, 'auran är nedtonad i graveyard');
-  assert.deepEqual(nedtonadeUtanfor(), []);
+  assert.equal(ukud.zon, 'grav'); assert.ok(ukud.gravAuto); assert.ok(app.kort.includes(ukud)); assert.equal(app.handRad.length, 0);
 });
 prov('GR4 två kort försvinner, högen ändras en gång: båda frågas', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT })], hog(0));
@@ -1208,54 +1208,59 @@ prov('GR4 två kort försvinner, högen ändras en gång: båda frågas', () => 
   klocka.t += 2100; stamG([], hog(1));
   for (const k of app.kort) { assert.equal(k.zon, undefined, k.name); assert.ok(k.lyft != null, k.name); }
 });
-prov('GR5 tre kort på en gång och tre ändringar: bannern, ingen auto', () => {
+prov('GR5 tre kort på en gång och tre ändringar: fall 8 — ingenting ändras, bindningarna släpps', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT }), klar(3, 'Llanowar Elves', { sen: 20, ...MITT })], hog(0));
   klocka.t += 150; stamG([], hog(0));
   klocka.t += 1000; stamG([], hog(3));
   klocka.t += 2100; stamG([], hog(3));
-  for (const k of app.kort) { assert.equal(k.zon, undefined, k.name); assert.ok(k.lyft != null, k.name); }
+  assert.equal(app.kort.length, 3); assert.equal(app.handRad.length, 0);
+  for (const k of app.kort) { assert.equal(k.zon, undefined, k.name); assert.equal(k.spar, undefined, k.name); assert.ok(k.slappt, k.name); }
 });
-prov('GR6 efterskottet: högen blir stilla efter nådatiden — det nedtonade kortet går till graveyard', () => {
+prov('GR6 efterskottet: högen blir stilla efter väntan — kortet som gått till handen går till graveyard i stället', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  const k = app.kort[0];
   klocka.t += 150; stamG([], hog(0)); klocka.t += 3100; stamG([], hog(0));
-  assert.ok(app.kort[0].lyft != null);
+  assert.ok(iHanden(k));
   klocka.t += 900; stamG([], hog(1));             // 4 s efter att det försvann
-  assert.equal(app.kort[0].zon, 'grav'); assert.ok(app.kort[0].gravAuto); assert.equal(app.kort[0].lyft, undefined);
+  assert.equal(k.zon, 'grav'); assert.ok(k.gravAuto); assert.ok(app.kort.includes(k)); assert.equal(app.handRad.length, 0);
 });
-prov('GR7 högen ändrades tio sekunder innan kortet försvann: frågan', () => {
+prov('GR7 högen ändrades tio sekunder innan kortet försvann: till handen', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  const k = app.kort[0];
   klocka.t += 150; stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(1));
   klocka.t += 10000; stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(1));
   klocka.t += 150; stamG([], hog(1)); klocka.t += 3100; stamG([], hog(1));
-  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+  assert.equal(k.zon, undefined); assert.ok(iHanden(k));
 });
-prov('GR8 telefonen startade om (talet sjunker): ingen falsk ändring', () => {
+prov('GR8 telefonen startade om (talet sjunker): ingen falsk ändring — till handen', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(5));
+  const k = app.kort[0];
   klocka.t += 150; stamG([], hog(5));
   klocka.t += 1000; stamG([], hog(0));
   klocka.t += 2100; stamG([], hog(0));
-  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+  assert.equal(k.zon, undefined); assert.ok(iHanden(k));
 });
-prov('GR9 besvärjelsen tar högens ändring: varelsen som plockades samtidigt frågas', () => {
+prov('GR9 besvärjelsen tar högens ändring: varelsen som plockades samtidigt går till handen', () => {
   app.typ = new Map([['Lightning Bolt', 'Instant'], ['Ukud Cobra', 'Creature — Snake']]);
   stamG([klar(1, 'Lightning Bolt', { sen: 20, ...PORT }), klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })], hog(0));
+  const cobra = app.kort.find(k => k.name === 'Ukud Cobra');
   klocka.t += 150; stamG([], hog(0));
   klocka.t += 1000; stamG([], hog(1));
   klocka.t += 2100; stamG([], hog(1));
   assert.equal(app.kort.find(k => k.name === 'Lightning Bolt').zon, 'grav');
-  const cobra = app.kort.find(k => k.name === 'Ukud Cobra');
-  assert.equal(cobra.zon, undefined); assert.ok(cobra.lyft != null);
+  assert.equal(cobra.zon, undefined); assert.ok(iHanden(cobra));
 });
 /* Fönstret börjar efter att spåret dog (GRAV_TIDIGAST, 350 ms = telefonens
    stillaMs − bortaMs): armen över högen medan kortet flyttas någon annanstans
    gav i passet 2026-09-22 två "ändringar" −1,35 och +0,15 s runt spårets död. */
-prov('GR11 högen ändras medan kortet ligger kvar skymt, spåret dör efteråt: frågan, inte graveyard', () => {
+prov('GR11 högen ändras medan kortet ligger kvar skymt, spåret dör efteråt: till handen, inte graveyard', () => {
   stamG([klar(1, 'Mirran Bardiche', { sen: 20, ...PORT })], hog(0));
+  const k = app.kort[0];
   klocka.t += 150; stamG([klar(1, 'Mirran Bardiche', { sen: 1500, skymd: true, ...PORT })], hog(1));   // armen över högen
   klocka.t += 1350; stamG([], hog(1));                                                               // spåret dör 1,35 s efter ändringen
   klocka.t += 150; stamG([], hog(2));                                                                // och en till, 0,15 s efter
   klocka.t += 3100; stamG([], hog(2));
-  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+  assert.equal(k.zon, undefined); assert.ok(iHanden(k));
 });
 prov('GR12 ändringen 0,4 s efter att spåret dog räcker: graveyard', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
@@ -1264,33 +1269,36 @@ prov('GR12 ändringen 0,4 s efter att spåret dog räcker: graveyard', () => {
   klocka.t += 2700; stamG([], hog(1));
   assert.equal(app.kort[0].zon, 'grav'); assert.ok(app.kort[0].gravAuto);
 });
-prov('GR10 utan ruta (grav null) eller en telefon utan vakten: som förut', () => {
+prov('GR10 utan ruta (grav null) eller en telefon utan vakten: som förut — till handen', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], null);
+  const k = app.kort[0];
   klocka.t += 150; stamG([], null); klocka.t += 3100; stamG([], null);
-  assert.ok(app.kort[0].lyft != null); assert.equal(app.kort[0].zon, undefined);
+  assert.ok(iHanden(k)); assert.equal(k.zon, undefined);
 });
 
 /* VN (MES-291, Jespers beslut 3): ett kort kameran tappar antas först ha
-   flyttats. Det väntar otonat i BORTA_NAD (3000 i provet, 5000 i appen) och
-   tonas ned först sedan; läggs det ner på en ny plats under väntan flyttar
-   det dit; växer graveyard-högen slutar väntan direkt. Det som inte ska
-   tonas ned — besvärjelsen, ett täckt kort, Screen leads — avgörs efter den
-   korta nåden (SLAPP_MS, 600 ms) som förut. */
+   flyttats. Det väntar orört i BORTA_NAD (3000 i provet, 5000 i appen) och
+   går till handen först sedan (MES-343; förut tonades det ned); läggs det
+   ner på en ny plats under väntan flyttar det dit; växer graveyard-högen
+   slutar väntan direkt. Det som inte ska gå till handen — besvärjelsen, ett
+   täckt kort, Screen leads — avgörs efter den korta nåden (SLAPP_MS, 600 ms)
+   som förut. */
 const mitt = b => b.x + b.w / 2;
 prov('VN0 appens väntan är 5 s och den korta nåden 600 ms (Jespers beslut 3, mätt i passet 2026-09-22)', () => {
   assert.equal(+((src.match(/const BORTA_NAD = (\d+);/) || [])[1]), 5000, 'BORTA_NAD i index.html');
   assert.equal(+((src.match(/const SLAPP_MS = (\d+);/) || [])[1]), 600, 'SLAPP_MS i index.html');
 });
-prov('VN1 väntan: ett tappat kort står kvar otonat och bundet under väntan, och tonas ned när den är slut', () => {
+prov('VN1 väntan: ett tappat kort står kvar orört och bundet under väntan, och går till handen när den är slut', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
   const k = app.kort[0];
   klocka.t += 150; stam([]);
   klocka.t += 1000; stam([]);                     // 1 s: efter den korta nåden, mitt i väntan
-  assert.ok(k.borta, 'väntar'); assert.equal(k.lyft, undefined, 'tonat under väntan'); assert.equal(k.spar, 1);
+  assert.ok(k.borta, 'väntar'); assert.ok(app.kort.includes(k)); assert.equal(k.spar, 1);
   klocka.t += 1500; stam([]);                     // 2,5 s: fortfarande väntan
-  assert.equal(k.lyft, undefined, 'tonat vid 2,5 s');
+  assert.ok(app.kort.includes(k), 'kvar vid 2,5 s'); assert.equal(app.handRad.length, 0);
   klocka.t += 650; stam([]);                      // 3,15 s: väntan slut
-  assert.ok(k.lyft != null, 'nedtonat efter väntan'); assert.equal(k.spar, undefined); assert.equal(k.borta, undefined);
+  assert.ok(iHanden(k), 'till handen efter väntan'); assert.equal(k.spar, undefined); assert.equal(k.borta, undefined);
+  assert.equal(app.handRad[0].borta0, 1e6 + 150, 'borta0 = när spåret dog');
 });
 prov('VN2 flytt under väntan: samma namn på en ny plats är samma kort — det flyttar dit och tonas aldrig ned', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
@@ -1305,17 +1313,17 @@ prov('VN2 flytt under väntan: samma namn på en ny plats är samma kort — det
   klocka.t += 3000; stam([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })]);
   assert.equal(k.lyft, undefined, 'tonat efteråt');
 });
-prov('VN3 flytt under väntan när ett annat kort med samma namn redan är nedtonat: det väntande flyttar, det nedtonade står kvar', () => {
+prov('VN3 flytt under väntan när ett annat kort med samma namn redan gått till handen: det väntande flyttar, det i handen stannar där', () => {
   stam([klar(1, 'Swamp', { sen: 20, ...PORT }), klar(2, 'Swamp', { sen: 20, ...LANGT })]);
   const a = app.kort.find(c => c.spar === 1), b = app.kort.find(c => c.spar === 2);
   klocka.t += 150; stam([klar(1, 'Swamp', { sen: 20, ...PORT })]);            // B tappas …
-  klocka.t += 3100; stam([klar(1, 'Swamp', { sen: 20, ...PORT })]);           // … och tonas ned
-  assert.ok(b.lyft != null, 'B nedtonat');
+  klocka.t += 3100; stam([klar(1, 'Swamp', { sen: 20, ...PORT })]);           // … och går till handen
+  assert.ok(iHanden(b), 'B till handen');
   klocka.t += 150; stam([]);                                                   // A tappas
   klocka.t += 2000; stam([klar(3, 'Swamp', { sen: 20, ...MITT })]);           // och läggs ner på en ny plats
-  assert.equal(app.kort.length, 2);
-  assert.equal(a.spar, 3, 'A band om'); assert.equal(a.lyft, undefined); assert.ok(Math.abs(a.kam.x - mitt(MITT)) < 1e-9);
-  assert.ok(b.lyft != null, 'B står kvar nedtonat'); assert.equal(b.spar, undefined);
+  assert.equal(app.kort.length, 1);
+  assert.equal(a.spar, 3, 'A band om'); assert.ok(Math.abs(a.kam.x - mitt(MITT)) < 1e-9);
+  assert.ok(iHanden(b), 'B står kvar i handen');
 });
 prov('VN4 graveyard-högen växer under väntan: kortet går dit direkt, utan att vänta ut väntan eller tonas ned', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
@@ -1334,16 +1342,16 @@ prov('VN5 två kort tappas och högen växer en gång: båda väntar; läggs det
   assert.equal(g.spar, 3); assert.equal(g.zon, undefined); assert.equal(g.lyft, undefined);
   assert.equal(u.zon, 'grav', 'Ukud till graveyard'); assert.ok(u.gravAuto); assert.equal(u.lyft, undefined);
 });
-prov('VN6 armen över högen före och strax efter att spåret dog kortar inte väntan: kortet väntar, tonas ned efteråt, inte graveyard', () => {
+prov('VN6 armen över högen före och strax efter att spåret dog kortar inte väntan: kortet väntar, går till handen efteråt, inte graveyard', () => {
   stamG([klar(1, 'Mirran Bardiche', { sen: 20, ...PORT })], hog(0));
+  const k = app.kort[0];
   klocka.t += 150; stamG([klar(1, 'Mirran Bardiche', { sen: 1500, skymd: true, ...PORT })], hog(1));
   klocka.t += 1350; stamG([], hog(1));
   klocka.t += 150; stamG([], hog(2));             // 0,15 s efter döden: för tidigt för att vara kortet
   klocka.t += 1000; stamG([], hog(2));
-  const k = app.kort[0];
-  assert.equal(k.zon, undefined); assert.equal(k.lyft, undefined, 'tonat under väntan'); assert.ok(k.borta);
+  assert.equal(k.zon, undefined); assert.ok(app.kort.includes(k), 'kvar under väntan'); assert.ok(k.borta);
   klocka.t += 2000; stamG([], hog(2));
-  assert.equal(k.zon, undefined); assert.ok(k.lyft != null, 'nedtonat efter väntan');
+  assert.equal(k.zon, undefined); assert.ok(iHanden(k), 'till handen efter väntan');
 });
 prov('VN7 det som inte tonas ned väntar inte: besvärjelsen går till graveyard och Screen leads släpper efter den korta nåden', () => {
   app.typ = new Map([['Lightning Bolt', 'Instant']]);
@@ -1389,16 +1397,17 @@ prov('VN9 handflytt till graveyard under väntan: bindningen släpps, och nästa
   assert.equal(matta.length, 1, 'inget kort på mattan'); assert.equal(matta[0].spar, 2);
   assert.equal(k.spar, undefined, 'graveyard-kortet band det nya spåret');
 });
-prov('VN10 timern: med hjärtslag var tredje sekund tonas kortet ned när väntan tar slut, inte vid rapporten efter', () => {
+prov('VN10 timern: med hjärtslag var tredje sekund går kortet till handen när väntan tar slut, inte vid rapporten efter', () => {
   const T0 = klocka.t;
   tid(T0); stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
   const k = app.kort[0];
   tid(T0 + 150); stam([]);                                     // spåret dör
-  for (let t = T0 + 150 + 2900; t < T0 + 12000; t += 2900) { tid(t); stam([]); }   // hjärtslagen: samma tomma bord
-  assert.ok(k.lyft != null, 'aldrig nedtonat');
-  assert.ok(k.lyft - T0 <= 150 + 3000 + 150, `nedtonat vid ${k.lyft - T0} ms, väntan slut vid ${150 + 3000}`);
+  let nar = null;
+  for (let t = T0 + 150 + 2900; t < T0 + 12000; t += 2900) { tid(t); stam([]); const h = app.handRad.find(x => x.cid === k.cid); if (h && nar == null) nar = h.nar; }   // hjärtslagen: samma tomma bord
+  assert.ok(!app.kort.includes(k), 'aldrig till handen');
+  assert.ok(nar != null && nar - T0 <= 150 + 3000 + 150, `till handen vid ${nar == null ? '–' : nar - T0} ms, väntan slut vid ${150 + 3000}`);
 });
-prov('VN11 timern spelar upp telefonens bord som det kom: ett spår som tvivlas på binder inte det lyfta kortet igen', () => {
+prov('VN11 timern spelar upp telefonens bord som det kom: ett spår som tvivlas på ger inte kortet i handen ett nytt kort', () => {
   /* Passet 2026-09-22, 154 s: Pharika's Chosen lyfts från svärdet under sig;
      spåret lägger sig på svärdet med Pharikas namn (tvivelSteg: kortet under).
      Den gamla timern spelade upp det avstämda bordet, där spåret saknas, och
@@ -1412,18 +1421,16 @@ prov('VN11 timern spelar upp telefonens bord som det kom: ett spår som tvivlas 
   const ph = app.kort.find(c => c.name === "Pharika's Chosen");
   assert.ok(ph.borta, 'Pharika väntar inte');
   tid(T0 + 1650 + 3000 + 400);                                 // telefonen tyst: timern tar väntan till slut
-  assert.ok(ph.lyft != null, 'timern tonade inte ned');
+  assert.ok(iHanden(ph), 'timern skickade inte till handen');
   tid(T0 + 1650 + 3000 + 900); stam(b3());                     // nästa rapport, samma bord
-  assert.ok(ph.lyft != null && ph.spar == null, `Pharika band spöksspåret igen: spar ${ph.spar}, lyft ${ph.lyft}`);
+  assert.equal(app.kort.filter(c => c.name === "Pharika's Chosen").length, 0, 'spöksspåret gav ett nytt Pharika');
 });
-prov('VN12 kortSomKomTillbaka: väntande före nedtonat före obundet, aldrig kortet självt eller ett i graveyard', () => {
+prov('VN12 kortSomKomTillbaka: väntande före obundet, aldrig kortet självt eller ett i graveyard', () => {
   const c = (cid, rest) => Object.assign({ cid, name: 'Swamp', flipped: 0 }, rest);
-  const obundet = c('o'), ned = c('n', { lyft: 1 }), vant = c('v', { spar: 7, borta: 1 }), bundet = c('b', { spar: 8 }), grav = c('g', { zon: 'grav', spar: 9, borta: 1 }), sjalv = c('s', { spar: 10, borta: 1 });
-  app.kort.push(obundet, ned, bundet, grav, sjalv, vant);
+  const obundet = c('o'), vant = c('v', { spar: 7, borta: 1 }), bundet = c('b', { spar: 8 }), grav = c('g', { zon: 'grav', spar: 9, borta: 1 }), sjalv = c('s', { spar: 10, borta: 1 });
+  app.kort.push(obundet, bundet, grav, sjalv, vant);
   assert.equal(app.tillbaka('Swamp', sjalv), vant, 'väntande först');
   app.kort.splice(app.kort.indexOf(vant), 1);
-  assert.equal(app.tillbaka('Swamp', sjalv), ned, 'sedan nedtonat');
-  app.kort.splice(app.kort.indexOf(ned), 1);
   assert.equal(app.tillbaka('Swamp', sjalv), obundet, 'sedan obundet');
   app.kort.splice(app.kort.indexOf(obundet), 1);
   assert.equal(app.tillbaka('Swamp', sjalv), null, 'ett bundet, ett i graveyard eller kortet självt');
@@ -1500,13 +1507,13 @@ prov('TV5 landhögen: ett Swamp ovanpå ett annat Swamp — samma namn förklara
   klocka.t += 1500; stam([klar(1, 'Swamp', { sen: 20, ...vila(0.015) }), klar(2, 'Swamp', { sen: 3750, skymd: true, ...UNDER })]);
   assert.ok(app.kort.every(k => !k.borta && k.lyft == null)); assert.equal(app.kort.length, 2);
 });
-prov('TV6 spåret läses om till ett annat kort och högen ändras en sekund senare: det gamla kortet gick till graveyard', () => {
+prov('TV6 spåret läses om till ett annat kort och högen ändras en sekund senare: det gamla kortet (släppt, orört) gick till graveyard', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
   klocka.t += 150; stamG([klar(1, 'Mirran Bardiche', { sen: 20, ...PORT })], hog(0));
   const ukud = app.kort.find(k => k.name === 'Ukud Cobra');
-  assert.ok(ukud.lyft != null);
+  assert.ok(ukud.slappt, 'släppt'); assert.equal(ukud.spar, undefined); assert.equal(app.handRad.length, 0, 'inte till handen');
   klocka.t += 1200; stamG([klar(1, 'Mirran Bardiche', { sen: 20, ...PORT })], hog(1));
-  assert.equal(ukud.zon, 'grav'); assert.ok(ukud.gravAuto); assert.equal(ukud.lyft, undefined);
+  assert.equal(ukud.zon, 'grav'); assert.ok(ukud.gravAuto); assert.equal(ukud.slappt, undefined);
 });
 prov('GU1 leken har 1 Trusty Retriever och den ligger i graveyard: kortet på mattan är SAMMA kort, tillbaka i spel', () => {
   app.lek = new Map([['Trusty Retriever', 1]]);
@@ -1586,8 +1593,8 @@ prov('GU7 högens ändring tas av kortet som lyfts ur den: nästa kort som förs
   // nu försvinner Ukud Cobra utan att högen ändras: frågan, inte auto-graveyard
   klocka.t += 150; stamG([klar(1, 'Trusty Retriever', { sen: 20, ...PORT })], hog(1));
   klocka.t += 3100; stamG([klar(1, 'Trusty Retriever', { sen: 20, ...PORT })], hog(1));
-  const c = app.kort.find(k => k.name === 'Ukud Cobra');
-  assert.equal(c.zon, undefined, 'högens ändring räknades två gånger'); assert.ok(c.lyft != null);
+  assert.ok(!app.kort.some(k => k.name === 'Ukud Cobra' && k.zon === 'grav'), 'högens ändring räknades två gånger');
+  assert.ok(iHandenNamn('Ukud Cobra'), 'till handen');
 });
 
 /* K6: antalspriorn som ren funktion (telefonen läser den i kamIdentifiera och kamAiPoster). */
@@ -1731,8 +1738,9 @@ prov('UP6 högen ändras under uppstarten: ett kort som försvinner efteråt gå
   stamG([], hog(0)); klocka.t += 1000; stamG([], hog(1));
   app.oppstart = false;
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(1));
+  const k = app.kort[0];
   klocka.t += 150; stamG([], hog(1)); klocka.t += 3100; stamG([], hog(1));
-  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+  assert.equal(k.zon, undefined); assert.ok(iHanden(k));
 });
 prov('UP7 provkortSpar: ett mätt spår före ett ur helbilden, inte skräp, inte i rutorna, samma kort som förra gången', () => {
   const hel = { id: 1, tillstand: 'klar', namn: 'Swamp', sen: null, ai: { helbild: true }, ...PORT };
@@ -2244,7 +2252,7 @@ prov('FL2 rättelsen: ett annat säkert namn på spåret — kortet tillbaka dä
   assert.equal(k.spar, 1, 'tillbaka på det döda spåret'); assert.ok(k.borta, 'väntar'); assert.equal(k.lyft, undefined);
   assert.ok(Math.abs(k.kam.x - mitt(PORT)) < 1e-9, 'läget är det gamla'); assert.equal(k.flyttFran, undefined);
   klocka.t += 3000; stam([klar(2, 'Grizzly Bears', { sen: 0, ...NY_PLATS })]);
-  assert.ok(k.lyft != null, 'nedtonat när väntan tog slut, räknad från det första försvinnandet');
+  assert.ok(iHanden(k), 'till handen när väntan tog slut, räknad från det första försvinnandet');
 });
 prov('FL3 högen upphäver flytten: graveyard växer i fönstret efter att spåret dog — kortet går dit, spåret blir fritt', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })], hog(0));
@@ -2345,30 +2353,30 @@ prov('H2 flytta med andra handen kvar: ett kort bärs utan namn medan en hand vi
   klocka.t += 300; stam([klar(2, 'Serra Angel', { sen: 450, skymd: true, ...LANGT }), vilande(3, NY_PLATS)]);
   assert.equal(u.spar, 3, 'Ukud buret dit'); assert.equal(s.spar, 2); assert.equal(s.lyft, undefined); assert.ok(Math.abs(s.kam.x - mitt(LANGT)) < 1e-9, 'Serra ligger kvar');
 });
-prov('H3 en hand nära platsen skjuter upp nedtoningen tills handen gått — men högst HAND_MAX efter väntan', () => {
+prov('H3 en hand nära platsen skjuter upp vägen till handen tills handen gått — men högst HAND_MAX efter väntan', () => {
   const OVER = box(PORT.x - 0.02, PORT.y - 0.05, 0.12, 0.10);   // handen över platsen, utan ett korts form
   stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
   const k = app.kort[0];
   klocka.t += 150; stam([hand(5, OVER)]);
   klocka.t += 3100; stam([hand(5, OVER)]);                      // väntan (3 s i provet) är slut, men handen är kvar
-  assert.ok(k.borta, 'väntar ännu'); assert.equal(k.lyft, undefined, 'inte nedtonat under handen');
+  assert.ok(k.borta, 'väntar ännu'); assert.ok(app.kort.includes(k), 'kvar under handen');
   klocka.t += 1000; stam([hand(5, OVER)]);
-  assert.equal(k.lyft, undefined, 'fortfarande under handen');
+  assert.ok(app.kort.includes(k), 'fortfarande under handen');
   klocka.t += 150; stam([]);                                    // handen gick
-  assert.ok(k.lyft != null, 'nedtonat när handen gått'); assert.equal(k.spar, undefined);
+  assert.ok(iHanden(k), 'till handen när handen gått'); assert.equal(k.spar, undefined);
   app.nollstall(); klocka.t = 1e6;
   stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
   const k2 = app.kort[0];
   klocka.t += 150; stam([hand(5, OVER)]);
   klocka.t += 3100; stam([hand(5, OVER)]);
   klocka.t += 5100; stam([hand(5, OVER)]);                      // handen blir kvar: taket
-  assert.ok(k2.lyft != null, 'nedtonat vid taket fast handen är kvar');
+  assert.ok(iHanden(k2), 'till handen vid taket fast handen är kvar');
   app.nollstall(); klocka.t = 1e6;
   stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
   const k3 = app.kort[0];
   klocka.t += 150; stam([hand(5, LANGT)]);                      // en hand långt bort spelar ingen roll
   klocka.t += 3100; stam([hand(5, LANGT)]);
-  assert.ok(k3.lyft != null, 'nedtonat: handen var inte nära');
+  assert.ok(iHanden(k3), 'till handen: handen var inte nära');
 });
 prov('H4 högen är starkare än handen: graveyard växer medan handen är kvar över platsen — kortet går dit', () => {
   const OVER = box(PORT.x - 0.02, PORT.y - 0.05, 0.12, 0.10);
@@ -2386,7 +2394,7 @@ prov('H4 högen är starkare än handen: graveyard växer medan handen är kvar 
    tap-domen väntar på ett klart spår (GRd); kedjan minns ursprungsplatsen
    (GRk); en omladdning sparar platsen före flytten (GRr, slimKort). */
 const P1 = box(0.55, 0.40, 0.063, 0.088), P2 = box(0.70, 0.60, 0.063, 0.088);
-prov('GRa2 A lyfts, ett namnlöst kort läggs på ny plats; spåret blir okänt med gissningen Grizzly Bears — A tillbaka, spåret till granskningen', () => {
+prov('GRa2 A lyfts, ett namnlöst kort läggs på ny plats; spåret blir okänt med gissningen Grizzly Bears — A tillbaka, spåret till granskningen; A väntar orört så länge spåret är oläst, och går till handen när det blivit ett annat kort', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
   const k = app.kort[0];
   klocka.t += 150; stam([]);
@@ -2397,7 +2405,10 @@ prov('GRa2 A lyfts, ett namnlöst kort läggs på ny plats; spåret blir okänt 
   assert.equal(k.spar, 1, 'tillbaka på det döda spåret'); assert.ok(k.borta); assert.equal(k.flyttFran, undefined);
   assert.ok(Math.abs(k.kam.x - mitt(PORT)) < 1e-9, 'på sin gamla plats'); assert.equal(app.pending.length, 1, 'spåret fick sin granskning');
   for (let i = 0; i < 10; i++) { klocka.t += 1000; stam([okand()]); }
-  assert.ok(k.lyft != null && k.spar == null, 'nedtonat efter väntan'); assert.equal(app.kort.length, 1);
+  assert.ok(app.kort.includes(k) && k.spar === 1 && k.borta, 'osäkert betyder orört: A väntar så länge spåret är oläst'); assert.equal(app.kort.length, 1);
+  klocka.t += 1000; stam([klar(2, 'Grizzly Bears', { sen: 0, ...NY_PLATS })]);   // spåret blev ett annat kort
+  assert.equal(app.kort.filter(c => c.name === 'Grizzly Bears').length, 1);
+  assert.ok(iHanden(k), 'A till handen när inget oläst finns kvar');
 });
 prov('GRa3 samma, men spåret blir klart med Grizzly Bears UTAN saker — Grizzly Bears skapas, A tillbaka', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
@@ -2500,7 +2511,128 @@ prov('V2sparDor det gissade spåret dör utan namn: A tillbaka där det låg, oc
   assert.equal(k.spar, 1); assert.equal(k.borta, borta0, 'väntan från det första försvinnandet'); assert.equal(k.flyttFran, undefined);
   assert.ok(Math.abs(k.kam.x - mitt(PORT)) < 1e-9, 'tillbaka där det låg');
   klocka.t += 1500; stam([]);                                   // 3,25 s efter det första försvinnandet: väntan (3 s i provet) slut
-  assert.ok(k.lyft != null, 'nedtonat när väntan tog slut');
+  assert.ok(iHanden(k), 'till handen när väntan tog slut');
+});
+
+/* TH — till handen (MES-343): fall 1, 2, 5, 7 och 8 ur dev/plan/spegelmattan-principer.md,
+   orört-reglerna (något oläst, platsen täckt, vid kanten, namnet någon annanstans) och valen i raden.
+   Väntan är 3 s i provet (BORTA_NAD i miljön), HAND_RAD_MS 6 s som i appen. */
+prov('TH1 fall 1: platsen tom och ingen hand nära → kortet ur bordet och i raden, med borta0 = spårets död och nar = beslutet', () => {
+  stam([klar(1, 'Wood Elves', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  const dog = klocka.t;
+  klocka.t += 3100; stam([]);
+  assert.ok(iHanden(k)); const h = app.handRad[0];
+  assert.equal(h.borta0, dog); assert.equal(h.nar, klocka.t); assert.equal(h.namn, 'Wood Elves'); assert.equal(h.tok, false); assert.equal(h.i, 0);
+  assert.equal(k.spar, undefined); assert.equal(k.borta, undefined);
+});
+prov('TH2 fall 2: lyft och lagt tillbaka nästan på samma plats inom väntan — ingenting', () => {
+  stam([klar(1, 'Wood Elves', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 1500; stam([klar(7, 'Wood Elves', { sen: 0, ...box(PORT.x + 0.005, PORT.y, PORT.w, PORT.h) })]);
+  assert.equal(app.kort.length, 1); assert.equal(k.spar, 7); assert.equal(k.borta, undefined); assert.equal(app.handRad.length, 0);
+  klocka.t += 5000; stam([klar(7, 'Wood Elves', { sen: 0, ...box(PORT.x + 0.005, PORT.y, PORT.w, PORT.h) })]);
+  assert.equal(app.handRad.length, 0, 'aldrig till handen');
+});
+prov('TH5 fall 5: platsen täckt av ett annat synligt kort — kortet ligger kvar orört, ingen rad; lyfts täckaren binder kortets spår det igen', () => {
+  stam([klar(1, 'Wood Elves', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  const over = klar(2, 'Pacifism', { sen: 0, ...box(PORT.x + 0.01, PORT.y + 0.01, PORT.w, PORT.h) });
+  klocka.t += 150; stam([over]);
+  klocka.t += 3100; stam([over]);
+  klocka.t += 6000; stam([over]);
+  assert.ok(app.kort.includes(k), 'kvar'); assert.equal(k.spar, 1, 'bundet till sitt döda spår'); assert.ok(k.borta); assert.equal(app.handRad.length, 0);
+  assert.equal(app.kort.length, 2, 'täckaren är ett eget kort');
+  klocka.t += 1000; stam([klar(9, 'Wood Elves', { sen: 0, ...PORT })]);   // täckaren lyfts, Wood Elves syns igen
+  assert.equal(k.spar, 9); assert.equal(k.borta, undefined); assert.equal(app.kort.length, 2);
+});
+prov('TH6 något oläst med ett korts form, fött efter lyftet, håller kortet orört; blir det ett annat kort går kortet till handen', () => {
+  stam([klar(1, 'Wood Elves', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 2900; stam([{ id: 2, tillstand: 'ny', namn: null, saker: false, tappad: false, sen: 0, kortlik: true, vilar: true, skymd: false, ...LANGT }]);
+  klocka.t += 300; stam([{ id: 2, tillstand: 'ny', namn: null, saker: false, tappad: false, sen: 0, kortlik: true, vilar: true, skymd: false, ...LANGT }]);
+  assert.ok(app.kort.includes(k) && k.borta, 'väntar medan spåret läses'); assert.equal(app.handRad.length, 0);
+  klocka.t += 500; stam([klar(2, 'Grizzly Bears', { sen: 0, ...LANGT })]);
+  assert.ok(iHanden(k), 'till handen när det olästa blev ett annat kort'); assert.equal(app.kort.length, 1);
+});
+prov('TH6b ett oläst spår som fanns FÖRE lyftet håller inte kortet', () => {
+  const olast = () => ({ id: 2, tillstand: 'ny', namn: null, saker: false, tappad: false, sen: 0, kortlik: true, vilar: true, skymd: false, ...LANGT });
+  stam([klar(1, 'Wood Elves', { sen: 0, ...PORT }), olast()]);
+  const k = app.kort[0];
+  klocka.t += 2000; stam([klar(1, 'Wood Elves', { sen: 0, ...PORT }), olast()]);
+  klocka.t += 150; stam([olast()]);
+  klocka.t += 3100; stam([olast()]);
+  assert.ok(iHanden(k));
+});
+prov('TH7 fall 7: en token lämnar bordet — ur bordet, raden med Ångra (tok), och Ångra lägger tillbaka den', () => {
+  stam([klar(1, 'Soldier', { sen: 0, ...PORT })]);
+  const k = app.kort[0]; k.tok = 1;
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.ok(iHanden(k)); assert.equal(app.handRad[0].tok, true);
+  assert.ok(app.handVal(k.cid, 'angra'));
+  assert.ok(app.kort.includes(k)); assert.equal(app.handRad[0].val, 'angra');
+});
+prov('TH8 fall 8: tre spår dör samtidigt utan hög — ingenting ändras; när kameran ankrat om binder namnen korten igen', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Grizzly Bears', { sen: 0, ...LANGT }), klar(3, 'Llanowar Elves', { sen: 0, ...MITT })]);
+  const av = n => app.kort.find(k => k.name === n), a = av('Ukud Cobra'), b = av('Grizzly Bears'), c = av('Llanowar Elves');
+  klocka.t += 150; stam([]);
+  klocka.t += 3100; stam([]);
+  assert.equal(app.kort.length, 3); assert.equal(app.handRad.length, 0);
+  for (const k of [a, b, c]) { assert.equal(k.spar, undefined); assert.ok(k.slappt); }
+  klocka.t += 2000; stam([klar(11, 'Ukud Cobra', { sen: 0, ...PORT }), klar(12, 'Grizzly Bears', { sen: 0, ...LANGT }), klar(13, 'Llanowar Elves', { sen: 0, ...MITT })]);
+  assert.equal(app.kort.length, 3); assert.equal(a.spar, 11); assert.equal(b.spar, 12); assert.equal(c.spar, 13); assert.equal(a.slappt, undefined);
+});
+prov('TH8b två spår som dör samtidigt är inte fall 8: båda till handen', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Grizzly Bears', { sen: 0, ...LANGT })]);
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.equal(app.kort.length, 0); assert.equal(app.handRad.length, 2);
+});
+prov('TH9 vid kanten: spåret glider ut ur bilden och dör längre ut än kortet vilade — kortet ligger kvar orört', () => {
+  const vid = box(0.40, 0.02, 0.063, 0.088);   // vilar nära kanten
+  stam([klar(1, 'Wood Elves', { sen: 0, ...vid })]);
+  const k = app.kort[0];
+  klocka.t += 300; stam([klar(1, 'Wood Elves', { sen: 0, ...box(0.40, 0.0, 0.063, 0.088), vilar: false })]);   // skjuts ut: detektorns låda nuddar kanten
+  klocka.t += 150; stam([]);
+  klocka.t += 3100; stam([]);
+  assert.ok(app.kort.includes(k) && k.borta, 'kvar, väntar'); assert.equal(app.handRad.length, 0);
+});
+prov('TH10 namnet syns någon annanstans som gissning på ett obundet spår: ledtråden binder det väntande kortet dit (flytten), ingen rad', () => {
+  stam([klar(1, 'Wood Elves', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  const gissar = () => okant(2, { gissning: 'Wood Elves', cands: [{ name: 'Wood Elves', score: 0.5 }], provas: false, sen: 0, ...LANGT });
+  klocka.t += 3100; stam([gissar()]);
+  assert.equal(app.kort.length, 1); assert.equal(k.spar, 2, 'ledtråden band det väntande kortet'); assert.equal(k.borta, undefined); assert.equal(app.handRad.length, 0);
+});
+prov('TH11 raden: Still on the table lägger tillbaka kortet på sin plats i listan; efter bekräftelsen (HAND_RAD_SVAR_MS) är raden tom', () => {
+  stam([klar(1, 'Forest', { sen: 0, ...PORT }), klar(2, 'Wood Elves', { sen: 0, ...LANGT }), klar(3, 'Swamp', { sen: 0, ...MITT })]);
+  const k = app.kort.find(c => c.name === 'Wood Elves'), ordning = app.kort.map(c => c.name), plats = app.kort.indexOf(k);
+  klocka.t += 150; stam([klar(1, 'Forest', { sen: 0, ...PORT }), klar(3, 'Swamp', { sen: 0, ...MITT })]);
+  klocka.t += 3100; stam([klar(1, 'Forest', { sen: 0, ...PORT }), klar(3, 'Swamp', { sen: 0, ...MITT })]);
+  assert.ok(iHanden(k)); assert.equal(app.handRad[0].i, plats);
+  assert.ok(app.handVal(k.cid, 'kvar'));
+  assert.deepEqual(app.kort.map(c => c.name), ordning, 'samma ordning som före');
+  klocka.t += 1900; stam([klar(1, 'Forest', { sen: 0, ...PORT }), klar(3, 'Swamp', { sen: 0, ...MITT })]);
+  assert.equal(app.handRad.length, 0, 'bekräftelsen borta');
+  klocka.t += 3100; stam([klar(1, 'Forest', { sen: 0, ...PORT }), klar(3, 'Swamp', { sen: 0, ...MITT })]);
+  assert.ok(app.kort.includes(k), 'kortet tillbaka utan spår ligger kvar: inget dött spår att vänta på');
+});
+prov('TH12 Screen leads: inget till handen, ingen rad', () => {
+  app.spelsatt = 'skarm';
+  stam([klar(1, 'Wood Elves', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.equal(app.kort.length, 1); assert.equal(app.handRad.length, 0);
+});
+prov('TH13 efterskottet räknar kortet i raden som en granne: två kort borta och en ändring — ingen får högen', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT })], hog(0));
+  klocka.t += 150; stamG([], hog(0));
+  klocka.t += 3100; stamG([], hog(0));
+  assert.equal(app.handRad.length, 2);
+  klocka.t += 500; stamG([], hog(1));            // en ändring, två kort i raden: vilket? ingen
+  assert.equal(app.handRad.length, 2); assert.equal(app.kort.length, 0);
 });
 
 console.log([...ok, ...fel].join('\n'));
