@@ -56,10 +56,14 @@ function lasHandelserTsv(fil) {
   const tom = v => v == null || v === '' || v === '-' ? null : v;
   return rader.slice(1).map(r => { const c = r.split('\t'); return { t: +c[i('t')], typ: c[i('handelse')], kort: tom(c[i('kort')]), till: tom(c[i('till')]), plats: tom(c[i('plats')]) }; });
 }
-function lekTxt() {
+/* passens: bara de 28 namnen före raden "# golden 17" — leken partiet
+   2026-09-21 spelades med (p0921k). Utan: hela filen, som förut. */
+function lekTxt(passens) {
   const ut = [];
   for (const r of fs.readFileSync(path.join(ROT, 'dev', 'golden', 'lek.txt'), 'utf8').split('\n')) {
-    const s = r.trim(); if (!s || s.startsWith('#')) continue;
+    const s = r.trim();
+    if (passens && /^#\s*golden 17\b/i.test(s)) break;
+    if (!s || s.startsWith('#')) continue;
     const x = s.match(/^(\d+)\s+(.+)$/);
     /* Set och samlarnummer ("Soldier (TFRC) 3", "(SLD) 1234★") är inte en del
        av namnet — samma svans som appens lekRad och golden-sidans kor.html tar bort. */
@@ -170,7 +174,6 @@ function parti0921() {
    på mattan (c.spar). Ett facit-kort utan spår där, eller vars spår inget
    kort har på mattan, räknas som saknat. */
 const KEDJA_START = 180, KEDJA_MATT = 230, KEDJA_PAR_PX = 60;
-const GOLDEN17 = ['Additive Evolution', 'Forest', 'Island', 'Matterbending Mage', "Proctor's Gaze", 'Virtue of Knowledge // Vantress Visions'];
 function lasHandelser0921() {
   const fil = path.join(UNDERLAG, '2026-09-21-handelser.tsv');
   const rader = fs.readFileSync(fil, 'utf8').split('\n').filter(r => r.trim());
@@ -208,7 +211,7 @@ function parti0921k() {
     id: 'p0921k', namn: 'partiet 2026-09-21, sek 230–540 — telefonens kedja på skärminspelningens kamerabild', slag: 'kedja',
     kalla: `underlag/2026-09-21-kedja-bordlogg.json.gz (${K.kalla}, ${K.skapad.slice(0, 10)}, poolen ${K.pool}, utan Claude)`,
     rader, facit, fran: KEDJA_START, matFran: KEDJA_MATT, till: +Math.min(sista + 3.5, 550).toFixed(2), upplosning: B,
-    lek: lekTxt().filter(x => !GOLDEN17.includes(x.name)),
+    lek: lekTxt(true),
     ogonblick: v2.map(q => ({ s: q.ruta + 1, namn: String(q.ruta) })), v2,
     media: { slag: 'rutor', mapp: 'dev/material/arbete/2026-10-04-hogarna-matning/a1a', sek: [0, 1206], fin },
     anm: 'kamerabilden ur skärminspelningen (704 × 438, Mesas ramar i bilden) genom kedjan utan Claude — inte telefonens egen ström i 4K; mätningen börjar 230 s'

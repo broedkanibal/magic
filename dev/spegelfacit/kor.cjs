@@ -29,10 +29,11 @@
    hämtas om (en tunn pool efter Scryfalls 429 gör siffrorna till skräp —
    läs raden Poolen:, den ska säga 114).
 
-   Poolen är passens lek: de 28 namnen i dev/golden/lek.txt före golden 17.
-   Golden 17:s sex namn (2026-10-05) skickas som utanleken, som golden
-   kor.cjs --utan-leken — annars blir poolen 168 kort, en annan lek än den
-   passen spelades med, och kontrollen nedan väntar förgäves på 114.
+   Poolen är passens lek: de 28 namnen i dev/golden/lek.txt före raden
+   "# golden 17". Allt därunder (golden 17:s namn 2026-10-05, tokens
+   2026-10-07) skickas som utanleken, som golden kor.cjs --utan-leken —
+   annars blir poolen en annan lek än den passen spelades med, och
+   kontrollen nedan väntar förgäves på 114.
 
    Partiet 2026-09-21 (MES-333, uppspelarens fall p0921k):
      --pass 2026-09-21-mes-238-parti-4k15-20min --video kamera-180-540.mp4
@@ -44,14 +45,14 @@
    bordsloggen bär videons tid (från 0). */
 'use strict';
 const { spawn, execFileSync } = require('child_process'), fs = require('fs'), path = require('path'), os = require('os');
-const { ROT, PASS_FORVAL, materialMapp, lasFacit } = require('./facit.cjs');
+const { ROT, PASS_FORVAL, materialMapp, lasFacit, utanforPassensLek } = require('./facit.cjs');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const PASS = arg('--pass', PASS_FORVAL);
 const VIDEO = arg('--video', 'kamera.mp4');
 const FACIT = arg('--facit', '') ? path.resolve(arg('--facit')) : null;
 const FRAN = +arg('--fran', 0);
-/* Golden 17:s namn (lek.txt sedan 2026-10-05) hör inte till passens lek. */
-const UTAN_LEKEN = ['Additive Evolution', 'Forest', 'Island', 'Matterbending Mage', "Proctor's Gaze", 'Virtue of Knowledge // Vantress Visions'];
+/* Golden 17:s namn och tokens (lek.txt från "# golden 17" och nedåt) hör inte till passens lek. */
+const UTAN_LEKEN = utanforPassensLek();
 const AIFLAG = process.argv.includes('--ai');
 const TRO = arg('--tro', '');   // "tapTapp:60,tapOtapp:25" — valfria trösklar till Kamera.satTrosklar, som golden-kor.cjs --tro (MES-298)
 const PORT = +arg('--port', 8263);

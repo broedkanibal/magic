@@ -40,4 +40,20 @@ function lekAntal() {
   return m;
 }
 
-module.exports = { ROT, PASS_FORVAL, facitMapp, materialMapp, lasFacit, lekAntal };
+/* Namnen i lek.txt som inte hör till passens lek: allt från raden
+   "# golden 17" (2026-10-05) och nedåt — golden 17:s kort och de tokens som
+   kom sedan. Passen 2026-09-21 och 2026-09-22 spelades med de 28 namnen
+   ovanför. Antal och set/samlarnummer tas bort som i appens lekRad. */
+function utanforPassensLek() {
+  const ut = []; let efter = false;
+  for (const r of fs.readFileSync(path.join(ROT, 'dev', 'golden', 'lek.txt'), 'utf8').split('\n')) {
+    const s = r.trim();
+    if (/^#\s*golden 17\b/i.test(s)) { efter = true; continue; }
+    if (!efter || !s || s.startsWith('#')) continue;
+    const x = s.match(/^(\d+)\s*[xX]?\s+(.+)$/);
+    ut.push((x ? x[2] : s).replace(/\s*\((?:[A-Za-z0-9]{2,6})\)\s*[A-Za-z0-9\-★]*\s*$/, '').trim());
+  }
+  return ut;
+}
+
+module.exports = { ROT, PASS_FORVAL, facitMapp, materialMapp, lasFacit, lekAntal, utanforPassensLek };
