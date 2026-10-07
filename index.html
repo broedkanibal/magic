@@ -8852,6 +8852,15 @@ function zstegBord(p) { return !!p && arMitt(p) && speglatBord(p); }
 function zstegMinZoom(s, vp) {
   return s && s.omr ? Math.min(s.z, zstegGolv(s.omr, vp) * ZSTEG.UT) : MATTA.ZOOM_MIN;
 }
+/* Tillbaka till "fit" på mitt speglade bord: zoomstegens egen vy, zoom och panorering. Förut låg spelarens egen
+   panorering kvar efter en egen zoom eller ett drag, och mattan kunde stå med ett kort halvt utanför kanten tills
+   nästa steg (sidofyndet i MES-338). false utan zoomsteg — då gäller den gamla vägen. */
+function matStegVy(p) {
+  const vy = matVyFor(p), s = vy.steg;
+  if (!s || !zstegBord(p) || !s.pan) return false;
+  vy.zoomManual = null; vy.pan = { x: s.pan.x, y: s.pan.y }; vy.ramHall = null;
+  return true;
+}
 /* Kamerans yta på mattan (MES-338, Jespers val B): konturen runt kamerabilden och bordet utanför svagt mörkare
    (CSS .kamyta). Ett barn till brädet utan matSynk-nyckel — uppspelaren räknar bara element med nyckel, så den är
    varken ett kort, en hög eller "något som syns". Bara på mitt speglade bord, och bara när skalan är mätt
@@ -10372,15 +10381,16 @@ function zoomTill(z, punkt) {
   const cx = punkt ? punkt.x : v.vp.w / 2, cy = punkt ? punkt.y : v.vp.h / 2;
   const bx = (cx - v.pan.x) / v.z, by = (cy - v.pan.y) / v.z;
   vy.zoomManual = Math.abs(nz - v.fit) <= 0.004 ? null : nz;
-  vy.pan = clampPan({ x: cx - bx * nz, y: cy - by * nz }, nz, v.board, v.vp, v.ram);
+  if (vy.zoomManual != null || !matStegVy(p)) vy.pan = clampPan({ x: cx - bx * nz, y: cy - by * nz }, nz, v.board, v.vp, v.ram);
   gridEl.classList.add('glider');
   matSkriv(p);
 }
 /* 0-tangenten: samma vy som efter Tidy up — alla kort på mattan centrerade,
-   ingen under graveyard- eller library-högen. */
+   ingen under graveyard- eller library-högen. På mitt speglade bord är "fit"
+   zoomstegens egen vy (MES-338), med deras panorering. */
 function fitView() {
   const p = player(); if (!p) return;
-  luftigVy(p);
+  if (!matStegVy(p)) luftigVy(p);
   gridEl.classList.add('glider');
   matSkriv(p);
 }

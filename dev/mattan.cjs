@@ -455,10 +455,22 @@ const PROV = async () => {
   ok('kamerans yta: egen utzoomning stannar ett steg förbi golvet (×0,87), och ytan följer zoomen',
     Math.abs(zMin - gMin * 0.87) < 2e-3 && matVy(mig).manuell && ytaStammer(bild()) && syns(),
     `${pct(zMin)}, golvet ${pct(gMin)}, ett steg förbi ${pct(gMin * 0.87)}`);
-  /* Ytan följer panoreringen (ett eget drag). */
-  { const vyP = matVyFor(mig); vyP.pan = { x: vyP.pan.x - 120, y: vyP.pan.y + 50 }; matSkriv(mig); await vanta(450);
-    ok('kamerans yta: följer panoreringen', ytaStammer(bild()));
-    vyP.zoomManual = null; matSkriv(mig); await vanta(450); }
+  /* Tillbaka till "fit": zoomstegens egen vy, också panoreringen — efter egen zoom, och efter ett eget drag. */
+  const stegT = () => { const s = matVyFor(mig).steg; return `translate(${Math.round(s.pan.x)}px,${Math.round(s.pan.y)}px) scale(${s.z})`; };
+  matVyFor(mig).pan = { x: matVyFor(mig).pan.x + 140, y: matVyFor(mig).pan.y + 60 }; matSkriv(mig);
+  zoomTill(matVy(mig).fit);
+  const efterZoom = gridEl._matT;
+  await vanta(450);
+  const vyP = matVyFor(mig); vyP.pan = { x: vyP.pan.x - 120, y: vyP.pan.y + 50 }; matSkriv(mig);
+  await vanta(450);
+  const draget = gridEl._matT, ytaDraget = ytaStammer(bild());
+  fitView();
+  ok('kamerans yta: tillbaka till "fit" ger zoomstegens vy, också panoreringen (efter egen zoom och efter ett drag)',
+    efterZoom === stegT() && draget !== stegT() && gridEl._matT === stegT() && !matVy(mig).manuell,
+    `efter zoom ${efterZoom}, efter draget ${draget}, efter 0 ${gridEl._matT}, stegens ${stegT()}`);
+  await vanta(450);
+  ok('kamerans yta: följer panoreringen (ett eget drag, och tillbaka)', ytaDraget && ytaStammer(bild()));
+  gridEl.classList.remove('glider');
   /* Kamerabilden blir mindre mitt i partiet (skalan låses om till 80 %): mattan står still, ytan krymper. Kortet
      längst till vänster går först till graveyard: med en mindre bild sticker det ut två px förbi vyn (korten är lika
      stora på brädet), och då centreras vyn om — alla kort ska synas. */
