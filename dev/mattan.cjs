@@ -110,6 +110,7 @@ const PROV = async () => {
   avstamBord(rapport, false);
   const f1 = els();
   ok('avstamBord lägger ut tre kort', f1.size === 3, f1.size + ' element');
+  await vanta(450);   // utspelet (MES-344: korten läggs ned, 400 ms) är klart innan flytten provas
 
   /* Ett kort flyttas och tappas, de andra ligger still. */
   const k1 = mig.cards.find(c => c.spar === 1), x0 = k1 && k1.x;
@@ -642,6 +643,107 @@ const PROV = async () => {
     await vanta(500);
     ok('inget val på 6 s: raden går ut och kortet stannar i handen', stodKvar && $('#handRad').hidden && !mig.cards.includes(k4), `stod vid 5,8 s: ${stodKvar}`);
   } catch (e) { ok('till handen: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); }
+
+  /* ── Framkallningen (MES-344): scenerna "Lägg ut ett kort" och "Ett kort utan namn" på sida 3 ──
+     Namnet i tid: kortet läggs ned färdigt (matLagg: opacitet, translate från spelarens håll, skala, grön
+     ring). Namnet dröjer: ett oframkallat kort (.ofr, nyckeln o:<spår>) läggs ned 0,5 s efter släppet, med
+     kamerans foto (ramen skarp, de unika ytorna suddiga) och utan namn; när namnet kommer tar kortet över
+     SAMMA element och framkallas (fotot tonas bort). Aldrig något namn: "Name this card", sökrutan BREDVID
+     kortet, och det valda namnet framkallar kortet. Ingen platshållare och ingen laddtext någonstans. */
+  try {
+    await vanta(500);
+    spelLage = Object.assign({}, spelLage, { id: 'mattprov-ofr' });
+    oppSatt({ klar: true });
+    mig.cards = []; mig.pending = []; handRad.length = 0; renderAll(true);
+    lekKort = [{ name: 'Fencing Ace', n: 2 }, { name: 'Serra Angel', n: 1 }, { name: 'Forest', n: 12 }];
+    const FOTO = (() => { const c = document.createElement('canvas'); c.width = 16; c.height = 22; const x = c.getContext('2d'); x.fillStyle = '#c8b27a'; x.fillRect(0, 0, 16, 22); return c.toDataURL('image/jpeg', 0.6); })();
+    const S = (id, namn, x, y, rest) => Object.assign({ id, tillstand: namn ? 'klar' : 'ny', namn, saker: !!namn, x, y, w: 0.08, h: 0.11, tappad: false, vilar: true, kortlik: true }, rest || {});
+    const ofrEl = id => [...gridEl.children].find(el => el._mat && el._mat.nyckel === 'o:' + id) || null;
+    const kf = (el, egenskap) => !!el && el.getAnimations().some(a => a.effect.getKeyframes().some(f => f[egenskap] != null));
+    const r = [S(41, 'Llanowar Elves', 0.2, 0.25)];
+    avstamBord(r, false);
+    const kN = mig.cards.find(c => c.spar === 41), eN = els().get(kN && kN.cid);
+    const tN = eN && eN._matA && eN._matA.pos ? eN._matA.pos.effect.getKeyframes()[0].translate : '';
+    ok('namnet i tid: kortet läggs ned färdigt från spelarens håll (opacitet, translate nedifrån, skala, grön ring)', !!eN && kf(eN, 'opacity') && /^0px 90px$/.test(tN) && kf(eN, 'scale') && kf(eN, 'boxShadow') && !ofrEl(41), eN ? anim(eN) + ' · ' + tN : 'inget kort');
+    await vanta(600);
+    /* Namnet dröjer. */
+    tagEmotFoto({ spar: 42, b64: FOTO });
+    r.push(S(42, null, 0.42, 0.25));
+    avstamBord(r, false);
+    ok('namnet dröjer: ingenting syns direkt', !ofrEl(42) && !gridEl.querySelector('.plats'), '');
+    await vanta(420);
+    ok('… inte heller efter 0,4 s', !ofrEl(42), '');
+    await vanta(200);
+    const o = ofrEl(42);
+    ok('efter 0,5 s: ett oframkallat kort, utan namn, med kamerans foto skarpt och suddigt', !!o && o.classList.contains('ofr') && !o.matches('.card') && !!o.querySelector('.ofram .ofoto:not(.ofsudd)') && !!o.querySelector('.ofram .ofsudd') && !/Fencing|Llanowar|Forest/.test(o.outerHTML),
+      o ? o.className + ' · ' + o.getAttribute('aria-label') : 'inget');
+    ok('… och det läggs ned (opacitet, skala)', !!o && kf(o, 'opacity') && kf(o, 'scale'), o ? anim(o) : '');
+    const sudd = o && getComputedStyle(o.querySelector('.ofsudd')).filter;
+    ok('de unika ytorna är suddiga, 12 px (sida 3, Suddighet Mellan)', /blur\(12px\)/.test(sudd || ''), sudd);
+    await vanta(500);
+    r[1] = S(42, 'Fencing Ace', 0.42, 0.25);
+    avstamBord(r, false);
+    const kF = mig.cards.find(c => c.spar === 42), eF = kF && els().get(kF.cid);
+    ok('namnet kommer: kortet tar över det oframkallade kortets element', !!eF && eF === o && !ofrEl(42) && eF.matches('.card[data-cid]'), eF ? (eF === o ? 'samma element' : 'nytt element') : 'inget kort');
+    const lager = eF && eF.querySelector(':scope > .ofram');
+    ok('… och framkallas: fotot tonas bort på 300 ms', !!lager && lager.getAnimations().some(a => a.playState === 'running' && a.effect.getTiming().duration === 300), lager ? lager.getAnimations().map(a => a.effect.getTiming().duration).join(',') : 'inga lager');
+    await vanta(400);
+    ok('… efter 300 ms syns kortet, fotot är borta', !!lager && +getComputedStyle(lager).opacity === 0, lager ? getComputedStyle(lager).opacity : '');
+    /* Aldrig något namn: i granskningen. */
+    await vanta(300);
+    tagEmotFoto({ spar: 43, b64: FOTO });
+    r.push(S(43, null, 0.64, 0.25, { tillstand: 'okand', gissning: 'Serra Angel', cands: [{ name: 'Serra Angel', score: 0.4 }] }));
+    avstamBord(r, false);
+    await vanta(650);
+    const u = ofrEl(43), mark = u && u.querySelector('.ofrmark');
+    ok('aldrig något namn: oframkallat med "Name this card", utan kamerans gissning', !!u && !!mark && mark.textContent === 'Name this card' && !/Serra/.test(u.outerHTML), u ? u.textContent : 'inget');
+    ok('ingen platshållare och ingen laddtext på mattan', !gridEl.querySelector('.plats') && !/Reading|Asking Claude|Moving…/.test(gridEl.textContent), '');
+    /* Motståndarna: bordsraden bär det oframkallade kortet som en post utan namn, med en liten suddig bild. */
+    for (let i = 0; i < 20 && !(ofrLista()[0] || {}).liten; i++) await vanta(25);
+    const delat = hogDelat(mig).filter(h => h.hog === 'ofr');
+    ok('bordsraden: det oframkallade kortet som en post utan namn, med en liten bild (22 × 31)', delat.length === 1 && delat[0].name == null && delat[0].cands == null && !/Serra/.test(JSON.stringify(delat)) && OFR_BILD.test(delat[0].f || ''),
+      JSON.stringify(delat.map(h => Object.assign({}, h, { f: h.f ? h.f.length + ' tecken' : null }))));
+    const oppO = normalisera({ id: 'mattprov-opp-ofr', name: 'Sara', color: '#b782ff', plats: 2, lage: 'bord', cards: [], shots: [], shotIdx: 0, pending: [], pane: null, namnkalla: 'anvandare', version: 1 }, 1);
+    const spelare0 = state.players.slice();
+    state.players = [mig, oppO]; state.active = mig.id; bord.valt = 'all'; renderAll(true);
+    fjarrBord({ game_id: spelLage.id, user_id: oppO.id, version: 2, kort: [{ cid: 'n1', flipped: 1, x: 40, y: 60, z: 1 }].concat(delat) });
+    const oo = document.querySelectorAll('#oppMattor .ofr');
+    ok('motståndaren ser det oframkallade kortet (den lilla bilden), och inget för hens nedvända kort', oo.length === 1 && oppO.cards.length === 1 && !!oo[0].querySelector('.ofram .ofoto') && !oo[0].querySelector('.ofrmark'), `${oo.length} oframkallade, ${oppO.cards.length} kort`);
+    state.players = spelare0; renderAll(true);
+    mark.click();
+    const sok = document.querySelector('.ofrsok'), ur = u.getBoundingClientRect(), sr = sok && sok.getBoundingClientRect();
+    ok('klicket öppnar sökrutan bredvid kortet, inte över det', !!sok && (sr.right <= ur.left || sr.left >= ur.right) && document.activeElement === sok.querySelector('.sok-in'), sr ? `ruta ${Math.round(sr.left)}–${Math.round(sr.right)}, kort ${Math.round(ur.left)}–${Math.round(ur.right)}` : 'ingen ruta');
+    ok('… med leken först och inget förvalt (inga gissningar)', /From your deck/.test(sok.textContent) && sok.querySelectorAll('.sok-t').length === 3 && !sok.querySelector('.sok-t.on'), sok.textContent.slice(0, 80));
+    const inp = sok.querySelector('.sok-in');
+    inp.value = 'fen'; inp.dispatchEvent(new Event('input'));
+    ok('autocomplete ur leken', [...sok.querySelectorAll('.sok-t')].map(b => b.textContent).join(',') === 'Fencing Ace' && !!sok.querySelector('.sok-t.on'), [...sok.querySelectorAll('.sok-t')].map(b => b.textContent).join(','));
+    inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    const kU = mig.cards.find(c => c.spar === 43), eU = kU && els().get(kU.cid);
+    ok('det valda namnet: kortet framkallas i samma element, sökrutan stängd, granskningen tom', !!kU && kU.name === 'Fencing Ace' && eU === u && !!eU.querySelector(':scope > .ofram') && !document.querySelector('.ofrsok') && !mig.pending.length,
+      kU ? `${kU.name}, ${eU === u ? 'samma element' : 'nytt element'}` : 'inget kort');
+    /* Minskad rörelse (TIDSLINJER-E, tabellerna längst ner): bara toning — utspelet och det oframkallade
+       kortet tonas in på 200 ms utan glid eller skala, framkallningen är linjär. */
+    window.__mattLugn = true;
+    const lugn = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    for (let i = 0; i < 100 && !lugn(); i++) await vanta(20);
+    await vanta(400);
+    r.push(S(44, 'Forest', 0.2, 0.6));
+    avstamBord(r, false);
+    const kL = mig.cards.find(c => c.spar === 44), eL = kL && els().get(kL.cid);
+    const aL = eL ? anim(eL) : '';
+    ok('minskad rörelse: utspelet bara tonas in (och den gröna kanten)', lugn() && /opacity/.test(aL) && !/translate|scale/.test(aL), aL || 'inga');
+    tagEmotFoto({ spar: 45, b64: FOTO });
+    r.push(S(45, null, 0.42, 0.6));
+    avstamBord(r, false);
+    await vanta(600);
+    const oL = ofrEl(45), aO = oL ? anim(oL) : '';
+    r[r.length - 1] = S(45, 'Serra Angel', 0.42, 0.6);
+    avstamBord(r, false);
+    const lL = oL && oL.querySelector(':scope > .ofram'), eas = lL ? lL.getAnimations().map(a => a.effect.getTiming().easing).join(',') : '';
+    ok('minskad rörelse: det oframkallade kortet tonas in, framkallningen är linjär', !!oL && /opacity/.test(aO) && !/translate|scale/.test(aO) && eas === 'linear', `${aO} · ${eas}`);
+    window.__mattLugn = false;
+    for (let i = 0; i < 100 && lugn(); i++) await vanta(20);
+  } catch (e) { ok('framkallningen: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); }
   return rad;
 };
 

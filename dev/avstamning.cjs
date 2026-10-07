@@ -139,8 +139,9 @@ return {
      och när varje spår först sågs. extra lägger till det som kommer
      utifrån (sma, fas, rad). */
   remsa(extra) { return autoRemsaModell(senasteSpar, state.players[0], Object.assign({ nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer }, extra || {})); },
-  /* Platshållarna i rutnätet (MES-42): samma underlag som remsan. */
-  platser(extra) { return autoPlatser(senasteSpar, state.players[0], Object.assign({ nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer }, extra || {})); },
+  /* De oframkallade korten (MES-344, ofrSteg i avstämningen) — de ersätter platshållarna (MES-42). */
+  get ofr() { return ofrLista(); },
+  ofrFoto(spar, b64) { return ofrFotoSatt(spar, b64); },
   get losa() { return losaSpar; },
   get lage() { return sparLage; },
   /* Sammanfattningen när auto stängs av: passet, boken, datorns anrop,
@@ -873,47 +874,159 @@ prov('A13 datorns egna anrop medan auto är på räknas i en egen bok, med serve
   assert.equal(k.totalt.anrop, 2); assert.ok(nara(k.totalt.usd, 0.00631)); assert.deepEqual(k.totalt.okandPris, ['unknown']);
 });
 
-/* ── platshållarna på bordet (MES-42) ── */
-const platsSlag = l => l.map(p => `${p.slag}:${p.spar}${p.namn ? '=' + p.namn : ''}${p.pend ? '#' : ''}`);
-prov('H1 ett spår som just föddes ("ny") får ingen plats förrän efter en halv sekund; stilla får en direkt', () => {
-  stam([{ id: 1, tillstand: 'ny', sen: 0, ...PORT }]);
-  assert.deepEqual(platsSlag(app.platser()), []);
-  klocka.t += 400; stam([{ id: 1, tillstand: 'ny', sen: 0, ...PORT }]);
-  assert.deepEqual(platsSlag(app.platser()), []);
-  klocka.t += 200; stam([{ id: 1, tillstand: 'ny', sen: 0, ...PORT }]);
-  assert.deepEqual(platsSlag(app.platser()), ['laser:1']);
-  stam([{ id: 1, tillstand: 'stilla', sen: 0, ...PORT }, { id: 2, tillstand: 'stilla', sen: 0, ...LANGT }]);
-  assert.deepEqual(platsSlag(app.platser()), ['laser:1', 'laser:2'], 'i den ordning de sågs');
+/* ── framkallningen (MES-344): det oframkallade kortet ersätter platshållaren (MES-42) ── */
+/* Ett kort som ligger still på bordet utan namn: kortlikt, vilar, inte skymt. */
+const ovila = (id, rest) => Object.assign({ id, tillstand: 'ny', kortlik: true, vilar: true, sen: 0 }, PORT, rest);
+const ofrSlag = () => app.ofr.map(p => `${p.spar}${p.pend ? '#' : ''}${p.overTak ? '+' + p.namn : ''}`);
+const FOTO = 'data:image/jpeg;base64,AAAA';
+prov('O1 namnet dröjer: inget syns före 0,5 s, sedan ett oframkallat kort — på millisekunden, utan ny rapport', () => {
+  const t0 = klocka.t;
+  stam([ovila(1)]);
+  assert.deepEqual(ofrSlag(), []);
+  klocka.t = t0 + 400; stam([ovila(1)]);
+  assert.deepEqual(ofrSlag(), [], 'för tidigt');
+  tid(t0 + 700);                                            // telefonen tyst: timern lägger ned det
+  assert.deepEqual(ofrSlag(), ['1']);
+  assert.equal(app.ofr[0].lagd, t0 + 500, 'lades ned 0,5 s efter släppet');
+  assert.equal(app.kort.length, 0); assert.equal(app.pending.length, 0);
+  assert.equal(app.ofr[0].namn, null, 'aldrig ett namn');
 });
-prov('H1b ett nytt spår med ett korts mått (kortlik) får platsen i första rapporten, med spårets tap-läge (MES-226)', () => {
-  stam([{ id: 1, tillstand: 'ny', kortlik: true, tappad: true, sen: 0, ...PORT }, { id: 2, tillstand: 'ny', sen: 0, ...LANGT }]);
-  const l = app.platser();
-  assert.deepEqual(platsSlag(l), ['laser:1'], 'handen (inte kortlik) väntar sin halva sekund');
-  assert.equal(l[0].tappad, true);
-  // spåret dör utan namn: platsen försvinner tyst, inget kort och ingen granskning
-  stam([]);
-  assert.deepEqual(platsSlag(app.platser()), []); assert.equal(app.kort.length, 0); assert.equal(app.pending.length, 0);
+prov('O1b släppet är när kortet först ligger still: ett kort som bärs i en sekund får sitt halva sekund därifrån', () => {
+  const t0 = klocka.t;
+  for (let t = t0; t <= t0 + 1000; t += 200) { klocka.t = t; stam([ovila(1, { vilar: false })]); }
+  klocka.t = t0 + 1100; stam([ovila(1)]);                    // läggs ned
+  tid(t0 + 1500);
+  assert.deepEqual(ofrSlag(), [], 'räknat från när spåret sågs');
+  tid(t0 + 1700);
+  assert.deepEqual(ofrSlag(), ['1']); assert.equal(app.ofr[0].vila, t0 + 1100);
 });
-prov('H2 ett spår som väntar på Claude: "vantar" med gissningen; skymda och klara bundna får ingen plats', () => {
-  stam([{ id: 1, tillstand: 'okand', provas: true, gissning: 'Plains', sen: 0, ...PORT }, klar(2, 'Forest', { sen: 10, ...LANGT }), { id: 3, tillstand: 'stilla', skymd: true, sen: 900, x: 0.1, y: 0.1, w: 0.063, h: 0.088 }]);
-  assert.equal(app.kort.length, 1);
-  assert.deepEqual(platsSlag(app.platser()), ['vantar:1=Plains']);
+prov('O2 namnet kommer: kortet skapas och tar över det oframkallade kortets element (ofrFran); posten går', () => {
+  stam([ovila(1)]);
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), ['1']);
+  stam([klar(1, 'Swamp', { kortlik: true, vilar: true, sen: 0, ...PORT })]);
+  assert.equal(app.kort.length, 1); assert.deepEqual(ofrSlag(), []);
+  assert.equal(app.kort[0].ofrFran && app.kort[0].ofrFran.nyckel, 'o:1');
 });
-prov('H3 ett osäkert spår i granskningen: "fyll" med posten och förslaget; kortet ifyllt → platsen borta, kortet kvar', () => {
-  stam([{ id: 1, tillstand: 'okand', sen: 0, cands: [{ name: 'Swamp', score: 0.4 }], ...PORT }]);
+prov('O3 namnet i tid (före 0,5 s): kortet direkt, aldrig något oframkallat', () => {
+  const t0 = klocka.t;
+  stam([ovila(1)]);
+  klocka.t = t0 + 300; stam([klar(1, 'Swamp', { kortlik: true, vilar: true, sen: 0, ...PORT })]);
+  tid(t0 + 2000);
+  assert.equal(app.kort.length, 1); assert.deepEqual(ofrSlag(), []); assert.ok(!app.kort[0].ofrFran);
+});
+prov('O4 en hand, något som rör sig eller ligger skymt ger aldrig ett oframkallat kort', () => {
+  const t0 = klocka.t;
+  stam([{ id: 1, tillstand: 'ny', sen: 0, ...PORT }, ovila(2, { vilar: false, ...LANGT }), ovila(3, { skymd: true, ...box(0.1, 0.6, 0.063, 0.088) })]);
+  for (let t = t0 + 300; t <= t0 + 3000; t += 300) { klocka.t = t; stam([{ id: 1, tillstand: 'ny', sen: 0, ...PORT }, ovila(2, { vilar: false, ...LANGT }), ovila(3, { skymd: true, ...box(0.1, 0.6, 0.063, 0.088) })]); }
+  assert.deepEqual(ofrSlag(), []);
+});
+prov('O5 osäkert i granskningen: oframkallat med posten, utan förslaget; frågar Claude: oframkallat utan post', () => {
+  stam([ovila(1, { tillstand: 'okand', provas: true, gissning: 'Plains', cands: [{ name: 'Plains', score: 0.4 }] })]);
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), ['1']); assert.equal(app.ofr[0].namn, null, 'gissningen syns inte');
+  stam([ovila(1, { tillstand: 'okand', cands: [{ name: 'Swamp', score: 0.4 }] })]);
   assert.equal(app.pending.length, 1);
-  const l = app.platser();
-  assert.deepEqual(platsSlag(l), ['fyll:1=Swamp#']); assert.equal(l[0].pend, app.pending[0].id);
-  // spåret blir klart (namnet fylldes i och telefonen fick det): kortet skapas, posten och platsen försvinner
-  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
-  assert.equal(app.kort.length, 1); assert.equal(app.pending.length, 0);
-  assert.deepEqual(platsSlag(app.platser()), []);
+  assert.deepEqual(ofrSlag(), ['1#']); assert.equal(app.ofr[0].pend, app.pending[0].id); assert.equal(app.ofr[0].namn, null, 'förslaget syns inte');
+  // svaret i sökrutan (granskningens väg): kortet skapas på spåret, posten går vid nästa bord
+  app.namnge(app.pending[0], 'Swamp');
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].name, 'Swamp');
+  stam([klar(1, 'Swamp', { kortlik: true, vilar: true, sen: 0, ...PORT })]);
+  assert.equal(app.kort.length, 1); assert.deepEqual(ofrSlag(), []);
 });
-prov('H4 platserna och remsan räknar samma "på väg"', () => {
-  stam([{ id: 1, tillstand: 'stilla', sen: 0, ...PORT }, { id: 2, tillstand: 'okand', provas: true, sen: 0, ...LANGT }]);
-  const m = app.remsa();
-  assert.equal(m.text, 'Camera · 2 on the way');
-  assert.equal(app.platser().filter(p => p.slag !== 'fyll').length, m.paVag.length);
+prov('O6 spåret föds om på samma plats: samma oframkallade kort; dör det utan att födas om går det efter nåden', () => {
+  stam([ovila(1)]);
+  tid(klocka.t + 600);
+  const id = app.ofr[0].id;
+  stam([]);                                                  // spåret dör
+  assert.deepEqual(ofrSlag(), ['1'], 'står kvar i nåden');
+  klocka.t += 300; stam([ovila(5)]);                          // föds om på samma plats
+  assert.equal(app.ofr.length, 1); assert.equal(app.ofr[0].id, id); assert.equal(app.ofr[0].spar, 5);
+  stam([]);
+  tid(klocka.t + 1500);
+  assert.deepEqual(ofrSlag(), [], 'borta efter nåden');
+});
+prov('O7 ett kort i väntan bärs till spåret (MES-341): inget oframkallat kort blinkar förbi på den nya platsen', () => {
+  stam([klar(1, 'Mirran Bardiche', { sen: 10, ...PORT })]);
+  klocka.t += 200; stam([]);                                 // lyfts
+  const t0 = klocka.t + 300;
+  klocka.t = t0; stam([ovila(2, LANGT)]);                      // läggs ned på en ny plats, oläst
+  tid(t0 + 600);
+  assert.deepEqual(ofrSlag(), [], 'oframkallat medan flytten avgörs');
+  klocka.t = t0 + 650; stam([ovila(2, { tillstand: 'stilla', ...LANGT })]);   // telefonen bestämmer sig för att läsa: kortet bärs dit
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, 2);
+  tid(t0 + 2000);
+  assert.deepEqual(ofrSlag(), []);
+});
+prov('O8 ett exemplar för mycket: oframkallat med frågan, och det säkra namnet', () => {
+  app.lek = new Map([['Sol Ring', 1]]);
+  stam([klar(1, 'Sol Ring', { sen: 20, ...PORT })]);
+  stam([klar(1, 'Sol Ring', { sen: 20, ...PORT }), klar(2, 'Sol Ring', { kortlik: true, vilar: true, sen: 20, ...LANGT })]);
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), ['2#+Sol Ring']);
+});
+prov('O9 kamerans foto: följer med det oframkallade kortet, och med kortet som tar över', () => {
+  app.ofrFoto(1, FOTO);
+  stam([ovila(1)]);
+  tid(klocka.t + 600);
+  assert.equal(app.ofr[0].foto, FOTO);
+  stam([klar(1, 'Swamp', { kortlik: true, vilar: true, sen: 0, ...PORT })]);
+  assert.equal(app.kort[0].ofrFran.foto, FOTO);
+});
+prov('O10 ett nedvänt kort och ett spår som tagits bort får inget oframkallat kort', () => {
+  app.borttagna.add(2);
+  stam([ovila(1, { ned: true }), ovila(2, LANGT)]);
+  tid(klocka.t + 1000);
+  assert.deepEqual(ofrSlag(), []);
+});
+prov('O12 spelaren säger "inte ett kort" (eller hoppar över det): det oframkallade kortet går', () => {
+  stam([ovila(1, { tillstand: 'okand', cands: [{ name: 'Swamp', score: 0.4 }] })]);
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), ['1#']);
+  app.borttagna.add(1); app.pending.length = 0;
+  stam([ovila(1, { tillstand: 'okand', cands: [{ name: 'Swamp', score: 0.4 }] })]);
+  assert.deepEqual(ofrSlag(), []);
+});
+prov('O13 (granskningen F4) ett spår som föds om där ett kort i väntan ligger (högen tappas): inget oframkallat kort ovanpå kortet', () => {
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
+  const a = app.kort[0];
+  klocka.t += 150; stam([]);                                   // spåret dog (tap i högen)
+  klocka.t += 300; stam([ovila(2)]);                           // föds om på samma plats: ny, kortlik, vilar
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), [], 'ett oframkallat kort ritas över kortet som ligger kvar');
+  klocka.t += 150; stam([ovila(2, { tillstand: 'stilla' })]);  // telefonen bestämmer sig för att läsa: kortet binds
+  assert.equal(a.spar, 2); assert.deepEqual(ofrSlag(), []);
+  // ett nytt kort bredvid (inte över kortet i väntan) får sitt oframkallade kort som vanligt
+  stam([ovila(2, { tillstand: 'stilla' }), ovila(3, LANGT)]);
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), ['3']);
+});
+prov('O14 (kontrollen, G2) ett ANNAT kort läggs där ett kort i väntan ligger och är oläsbart: när läsningen säger ett annat namn får det sitt oframkallade kort', () => {
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([]);                                   // Swampen lyfts
+  klocka.t += 300; stam([ovila(2)]);                           // något läggs ned på samma plats, oläst
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), [], 'oläst: det kan vara Swampen sedd igen');
+  klocka.t += 150; stam([ovila(2, { tillstand: 'okand', gissning: 'Forest', cands: [{ name: 'Forest', score: 0.4 }] })]);   // läst: inte Swampen
+  tid(klocka.t + 100);
+  assert.deepEqual(ofrSlag(), ['2#'], 'ett annat kort som aldrig fick namn ska ha "Name this card" på mattan');
+});
+prov('O15 läsningen gissar kortet i väntans namn: det är kortet sett igen, inget oframkallat kort', () => {
+  app.spelsatt = 'skarm';                                     // Screen leads: ingen flytt binder, så bara regeln avgör
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([ovila(2)]);
+  tid(klocka.t + 600);
+  klocka.t += 150; stam([ovila(2, { tillstand: 'okand', gissning: 'Swamp', cands: [{ name: 'Swamp', score: 0.4 }] })]);
+  tid(klocka.t + 100);
+  assert.deepEqual(ofrSlag(), []);
+});
+prov('O11 namnet kommer på ett spår som fötts om bredvid: kortet tar över, ingen post blir kvar bredvid', () => {
+  stam([ovila(1)]);
+  tid(klocka.t + 600);
+  stam([klar(7, 'Swamp', { kortlik: true, vilar: true, sen: 0, ...box(0.405, 0.405, 0.063, 0.088) })]);   // spår 1 dog, 7 föddes på platsen med namn
+  assert.equal(app.kort.length, 1); assert.deepEqual(ofrSlag(), []);
+  assert.equal(app.kort[0].ofrFran && app.kort[0].ofrFran.nyckel, 'o:1');
 });
 
 prov('K7 ett osäkert spår med telefonens lågt vägda namn: notisen skriver det som en gissning, aldrig som kortets namn', () => {
@@ -995,7 +1108,7 @@ prov('Q2 leken har 1 Sol Ring: det andra spåret blir en fråga, inte ett kort; 
   stam([klar(1, 'Sol Ring', { sen: 20, ...PORT }), klar(2, 'Sol Ring', { sen: 20, ...LANGT })]);
   assert.equal(app.kort.length, 1, 'ett kort till skapades');
   assert.equal(app.pending.length, 1); assert.equal(app.pending[0].spar, 2); assert.equal(app.pending[0].overTak, true); assert.equal(app.pending[0].tak, 1);
-  assert.deepEqual(platsSlag(app.platser()), ['fyll:2=Sol Ring#']);
+  assert.ok(app.pending[0].overTak);
   klocka.t += 3000;
   stam([klar(1, 'Sol Ring', { sen: 20, ...PORT }), klar(2, 'Sol Ring', { sen: 20, ...LANGT })]);
   assert.equal(app.pending.length, 1, 'dubblett av frågan'); assert.equal(app.kort.length, 1);
