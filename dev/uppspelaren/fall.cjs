@@ -60,7 +60,10 @@ function lekTxt() {
   for (const r of fs.readFileSync(path.join(ROT, 'dev', 'golden', 'lek.txt'), 'utf8').split('\n')) {
     const s = r.trim(); if (!s || s.startsWith('#')) continue;
     const x = s.match(/^(\d+)\s+(.+)$/);
-    ut.push({ name: x ? x[2] : s, n: x ? +x[1] : 1 });
+    /* Set och samlarnummer ("Soldier (TFRC) 3", "(SLD) 1234★") är inte en del
+       av namnet — samma svans som appens lekRad och golden-sidans kor.html tar bort. */
+    const namn = (x ? x[2] : s).replace(/\s*\((?:[A-Za-z0-9]{2,6})\)\s*[A-Za-z0-9\-★]*\s*$/, '').trim();
+    ut.push({ name: namn, n: x ? +x[1] : 1 });
   }
   return ut;
 }
