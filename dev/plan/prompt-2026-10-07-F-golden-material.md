@@ -61,15 +61,19 @@ i fall 18 är golden-filens komprimering, inte upplösningen: 1920×1080 i **150
 
 ## Steg 4 — ny baslinje
 
-När steg 1–3 är inne: **en** golden på main med `--spara`, i den varma profilen (TMPDIR = e4a618fc:s scratchpad, se
-historik 2026-10-07), egen port över 8260, `node /abs/sökväg/worktree/dev/golden/kor.cjs` (absolut sökväg — fällan i
-redogörelsen) och kontrollera `curl -s localhost:<port>/ | md5` mot worktreens index.html medan den kör. Läs raden
-`Poolen:` (171 → ny pool med fler landkonstverk) och `remsorna: mobileclip-s0-mesa-v2.onnx`. Inga bänkar på datorn
-under körningen. Väntat mot B4 (98/119, 0 fel): +1 (17 Island), läsbara 98 → 99/114 eller 100/114 med 18 Ancestral
-Blade, fördröjning 18 ≈ 1 s, inga fel namn. Avviker något annat kort: förklara det kort för kort (`kortdom.py` mot
-`dev/material/arbete/markning/golden-2026-10-07/D/B4.json`) innan baslinjen sparas.
+När steg 1–3 är inne: **en** golden med `--fall 13,17,18 --spara` — bara de fall vars material ändras. Övriga fall
+står kvar i `senaste.json` (regeln i SNABBGUIDE, *När en ny baslinje behövs*). Den varma profilen (TMPDIR =
+e4a618fc:s scratchpad, se historik 2026-10-07), egen port över 8260, `node /abs/sökväg/worktree/dev/golden/kor.cjs`
+(absolut sökväg — fällan i redogörelsen) och kontrollera `curl -s localhost:<port>/ | md5` mot worktreens index.html
+medan den kör. Läs raden `Poolen:` (ny pool med fler landkonstverk, eftersom lek.txt ändras) och
+`remsorna: mobileclip-s0-mesa-v2.onnx`. Inga bänkar på datorn under körningen. Väntat mot B4 på de tre fallen: +1
+(17 Island), 18 Ancestral Blade läst om kodningen räcker, fördröjning 18 ≈ 1 s, inga fel namn. Avviker något annat
+kort i de tre fallen: förklara det kort för kort (`kortdom.py` mot
+`dev/material/arbete/markning/golden-2026-10-07/D/B4.json`) innan baslinjen sparas. Poolbytet kan i teorin flytta
+ett kort i de andra 15 fallen; det syns nästa gång alla fall körs efter en kamerändring, och raden i historik.md ska
+säga att poolen bytts här.
 
-Rad i `historik.md`, commit med hela historien (vad som var fel, vad som mättes, vad som ändrades), push till main
+Rad i `historik.md` (det korta formatet, se filens huvud), commit med hela historien (vad som var fel, vad som mättes, vad som ändrades), push till main
 efter "säg till" till Spegelmattan orkestrerare (golden-material, ingen kamerakod — den behöver inte köra om något,
 men uppspelarens baslinje bär index.html:s sha och rörs inte av det här).
 

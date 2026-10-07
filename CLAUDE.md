@@ -420,3 +420,13 @@ appen, och varje session som mäter en.
 1·1·0 på samma kod), så ett enda sämre fall säger inget; och bänkarna är
 strängare än appen, som har remsan och ORB som fångar det bänken kallar fel.
 Det som aldrig får skaka är löftet till spelarna: inget säkert fel namn.
+
+## Golden: kör bara när måttstocken eller kamerakoden ändras (Jespers beslut 2026-10-07)
+
+En golden-körning tar ~25 min och många tokens. Kör den bara när
+**facit, en video eller lek.txt ändras** (då bara de fall som rörs, med
+`--fall … --spara`) eller när **kamerakod som ska behållas** hamnar på main
+(då alla fall, en gång). Datorsidan, gränssnitt, dokument och planer kräver
+ingen körning. Raden i `dev/golden/historik.md` är högst tre meningar; detaljerna
+står i rapporten. Hela regeln: `dev/golden/SNABBGUIDE.md`, *När en ny baslinje
+behövs*.
