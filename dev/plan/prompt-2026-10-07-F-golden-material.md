@@ -30,6 +30,18 @@ samma form som 13 Fencing Ace har. Orsaken ska säga vad ögat ser (ovan) och f�
 Forest** (`facit.json`), så antalspriorn (K6, `fler än leken`) spärrar varje Island efter den första — i B3/B4 föll
 17:s Island A 0,57 (remsan 0,339, säker) på det. Skriv `5 Island` och `2 Forest`. Det byter poolnyckeln.
 
+**Uppspelaren läser också lek.txt** (Spegelmattan orkestrerare, 2026-10-07): `dev/uppspelaren/fall.cjs` bygger
+partiet 09-21:s lek ur raderna OVANFÖR `# golden 17` och kastar fel (kod 2, "p0921k går inte att läsa") om det inte
+blir exakt 28 namn och 40 kort — en avsiktlig spärr mot att lekens antal ändras tyst. Därför:
+
+- Island och Forest står redan **under** `# golden 17` (rad 37–38); ändra dem där och lägg nya golden-kort under den
+  raden eller i ett eget avsnitt längre ned. Rör inte raderna ovanför.
+- Måste raderna ovanför ändå ändras: uppdatera talen 28/40 i `fall.cjs` i samma commit och kör
+  `node dev/uppspelaren/kor.cjs --jamfor`; tal som flyttar sig sparas om med `--spara` på main i en egen commit, med
+  förklaring.
+- Kör `sh dev/kolla.sh` efter ändringen (den stoppar annars med "p0921k går inte att läsa"), och **säg till
+  Spegelmattan orkestrerare när lek.txt är pushad**.
+
 ## Steg 3 — golden 18:s bithastighet
 
 Prompt A (`dev/material/arbete/markning/matningar-2026-10-07-resultat.md`, fråga 2) visade att fördröjningen till namn
