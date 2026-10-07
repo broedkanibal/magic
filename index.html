@@ -872,7 +872,6 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .platsq{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);font:700 64px/1 var(--sans);color:#ffffff22}
 .plats.fyll .platsq{color:var(--acc);opacity:.5}
 /* Granskning en och en: allt utom det aktuella kortet viker undan. */
-body.granskar .card:not(.aktuell),body.granskar .plats:not(.aktuell){opacity:.25}
 .card.aktuell,.plats.aktuell{box-shadow:0 0 0 9999px #05080cb8;z-index:900!important;opacity:1}
 /* Arket. */
 .kortark{
@@ -30350,10 +30349,29 @@ function handRadStada(nu) {
 function tillHanden(mig, k, borta0, nu) {
   const i = mig.cards.indexOf(k); if (i < 0) return false;
   mig.cards.splice(i, 1);
+  /* Auror på kortet: till graveyard, en aura-token upphör (aurorFoljer). De minns i raden, så att Still on
+     the table — och kortet som kommer tillbaka inom radens tid — lägger tillbaka dem på värden (T2). */
+  const fore = mig.cards.filter(a => a.attachedTo === k.cid);
   if (typeof aurorFoljer === 'function') aurorFoljer(mig.cards, k);
+  const auror = fore.filter(a => !mig.cards.includes(a) || a.attachedTo !== k.cid).map(a => ({ kort: a, tok: !!a.tok }));
   if (typeof state !== 'undefined' && state && state.sel != null) state.sel = Math.max(0, Math.min(state.sel, mig.cards.length - 1));
   gravTid.delete(k.cid);
-  handRad.push({ cid: k.cid, kort: k, i, borta0, nar: nu, tok: !!k.tok, namn: k.name });
+  handRad.push({ cid: k.cid, kort: k, i, borta0, nar: nu, tok: !!k.tok, namn: k.name, auror });
+  return true;
+}
+/* Kortet tillbaka ur raden: samma kortpost på sin plats i listan, dess auror tillbaka på det (en aura-token
+   skapas igen, en vanlig aura tas ur graveyard), bindningen till spåret om det finns ett. Raden stängs med
+   valet (kvar/angra — eller 'kvar' när kameran själv såg kortet igen, fall 9). Sant om kortet lades tillbaka. */
+function handRadTillbaka(mig, h, val, nu) {
+  if (!h || h.val || mig.cards.includes(h.kort)) return false;
+  const k = h.kort;
+  mig.cards.splice(Math.min(h.i, mig.cards.length), 0, k);
+  for (const a of h.auror || []) {
+    if (a.tok) { if (!mig.cards.includes(a.kort)) mig.cards.splice(mig.cards.indexOf(k) + 1, 0, a.kort); }
+    else if (a.kort.zon === ZON_GRAV) delete a.kort.zon;
+    a.kort.attachedTo = k.cid;
+  }
+  h.val = val; h.nar = nu;
   return true;
 }
 /* Graveyard följer med (Jesper 2026-10-06, principen "högarna är saker"): spelaren lyfter graveyard-högen och
@@ -30560,12 +30578,11 @@ let platsMinne = new Map();  // spår-id → { x, y, w, h, sist }: varje spårs 
    skickar: spår som är skymda (något ligger över kortet) och spår som rör sig utan ett korts form
    (tillstand ny, inte kortlik och vilande) — en hand, eller något som bärs. Nära ett kort = kortets
    ruta vuxen HAND_NARA kortbredder åt varje håll rör vid spårets låda. Ett kort vars spår dött medan
-   en hand är nära får ingen slutsats om nedtoning förrän handen gått — högst HAND_MAX efter väntan
-   (BORTA_NAD), så att en hand som vilar vid bordskanten (den skymda remsan vid library, 60 s i
-   passet) inte håller ett kort för evigt. Högen är starkare än handen: växer graveyard i fönstret
-   går kortet dit ändå. En hand som vilar längre bort spelar ingen roll. */
+   en hand är nära får ingen slutsats förrän handen gått (MES-343: utan tak — kortet ligger kvar
+   orört så länge handen är nära; förut HAND_MAX för nedtoningen). Högen är starkare än handen:
+   växer graveyard i fönstret går kortet dit ändå. En hand som vilar längre bort spelar ingen roll. */
 const HAND_NARA = 0.5;       // kortbredder: så långt från kortets kant räknas en hand som "intill"
-const HAND_MAX = 5000;       // ms: så mycket längre än BORTA_NAD väntar nedtoningen på att handen ska gå
+const HAND_MAX = 5000;       // ms: var taket för hur länge en hand sköt upp nedtoningen; borttagningen (MES-343) har inget tak — en hand nära betyder orört
 const HAND_VILA = 1500;      // ms: en hand som legat stilla över ett kort så länge har inte burit det — flyttens fönster (steg 3b) öppnas då först vid lyftet
 /* Ett skymt spår som ett KORT ligger över (ett klart eller kortlikt spår som syns, sammaPlats-täckning)
    är ett täckt kort, ingen hand: Pharika's Chosen på svärdet i passet (154 s, VN11). */
@@ -30616,7 +30633,12 @@ const paBordetZon = c => zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil';
    skapade (kortikonen). */
 function kortSomKomTillbaka(cards, namn, utom) {
   const fria = cards.filter(c => c !== utom && c.name === namn && paBordetZon(c));
-  return fria.find(c => c.spar != null && c.borta) || fria.find(c => c.spar == null) || null;
+  const k = fria.find(c => c.spar != null && c.borta) || fria.find(c => c.spar == null) || null;
+  if (k) return k;
+  /* Kortet i raden (MES-343, fall 9): svaret med dess namn tar det tillbaka ur raden, inte ett nytt kort. */
+  const h = handRad.find(h => !h.val && !h.tok && h.namn === namn);
+  const mig = typeof minSpelare === 'function' ? minSpelare() : null;
+  return h && mig && mig.cards === cards && handRadTillbaka(mig, h, 'kvar', Date.now()) ? h.kort : null;
 }
 /* Kortet som kom tillbaka binds till svarets spår: väntan släpps, och
    kamerans tap-läge gäller när den har ett (q.tappad null = ingen
@@ -31570,9 +31592,18 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      väntan (borta) eller i samma meddelande. Det är kortet som flyttats:
      läggs det ner på en ny plats flyttar det dit. Ett fysisk kort (i
      graveyard digitalt) kommer efter. Samma ordning som kortSomKomTillbaka. */
+  /* …och ett kort som gick till handen nyss, med raden kvar (MES-343, fall 9 inom HAND_RAD_MS): det som
+     syns igen är samma kort — tillbaka ur raden (med sina auror), inte ett nytt kort bredvid det gamla
+     (granskningen T3, T6: counters och tap-rättningar följer med). Raden bekräftar "is back on the table". */
+  const urRaden = namn => {
+    const h = namn ? handRad.find(h => !h.val && !h.tok && h.namn === namn) : null;
+    if (!h || !handRadTillbaka(mig, h, 'kvar', nu)) return null;
+    andrat = true;
+    return h.kort;
+  };
   const ledigt = namn => {
     const fria = namn ? mig.cards.filter(c => c.name === namn && (paBordet(c) || c.fysisk) && (c.spar == null || !synliga.has(c.spar))) : [];
-    return fria.find(c => c.spar != null && paBordet(c)) || fria.find(c => c.spar != null) || fria[0] || null;
+    return fria.find(c => c.spar != null && paBordet(c)) || fria.find(c => c.spar != null) || fria[0] || urRaden(namn) || null;
   };
   /* Ett kort som ligger i graveyard och dyker upp på mattan igen är SAMMA
      kort på väg tillbaka i spel (MES-248): reanimator, recursion, en
@@ -32080,12 +32111,14 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      kameran binder om när den ankrat sig (ledigt på namnet). gravTid minns när varje korts spår dog, och
      ett kort som bundits om sedan dess (synligt spår) räknas inte. */
   const dogSamtidigt = borta0 => mig.cards.filter(c => paBordet(c) && gravTid.has(c.cid) && (c.spar == null || !synliga.has(c.spar)) && Math.abs(gravTid.get(c.cid) - borta0) < SAMTIDIGT_MS).length >= 3;
-  for (const k of mig.cards.slice()) {   // en kopia: tillHanden tar kortet ur listan
+  for (const k of mig.cards.slice().sort((a, b) => (a.attachedTo ? 1 : 0) - (b.attachedTo ? 1 : 0))) {   // en kopia: tillHanden tar kortet ur listan; värdarna före sina auror, så att auran följer värden (granskningen T2b)
     if (k.spar == null || synliga.has(k.spar) || !k.borta) continue;
     const vantat = nu - k.borta;
     if (vantat <= SLAPP_MS) continue;                                                        // nåden: inget avgörs än
-    /* Handzonen (MES-341, princip 3): en hand nära platsen skjuter upp beslutet, högst HAND_MAX. */
-    const hand = vantat <= BORTA_NAD + HAND_MAX && handNara(k, sparRa);
+    /* Handzonen (MES-341, princip 3): en hand nära platsen betyder orört, hur länge den än ligger kvar
+       (granskningen T1: taket HAND_MAX fanns för nedtoningen, där priset var ett grått kort — nu är priset
+       en borttagning, och issuens regel är "platsen syns och är tom när händerna nära den gått"). */
+    const hand = handNara(k, sparRa);
     if ((vantat <= BORTA_NAD || hand) && tillHand(k, k.borta) && !gravAutoKan(k, k.borta)) continue;   // väntan: kortet antas flyttat, tills högen växer
     if (tillHand(k, k.borta) && !gravAutoKan(k, k.borta) && orort(k)) continue;                       // osäkert betyder orört: väntar vidare
     const borta0 = k.borta;
@@ -32158,9 +32191,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      namn band kortet igen i nästa rapport (Pharika's Chosen i passet
      2026-09-22, 154 s, när timern hann gå före rapporten). */
   clearTimeout(lyftT);
-  /* Ett kort som väntar vidare efter handzonens tak (orört: platsen täckt, något oläst, vid kanten, MES-343)
-     driver ingen timer — det prövas i varje rapport och hjärtslag; annars fyrade timern var 100:e ms. */
-  const frister = mig.cards.filter(k => k.borta && nu - k.borta <= BORTA_NAD + HAND_MAX).map(k => { const v = nu - k.borta; return k.borta + (v <= SLAPP_MS ? SLAPP_MS : v <= BORTA_NAD ? BORTA_NAD : BORTA_NAD + HAND_MAX); });   // efter väntan: handzonens tak
+  /* Ett kort som väntar vidare efter väntan (orört: en hand nära, platsen täckt, något oläst, vid kanten,
+     MES-343) driver ingen timer — det prövas i varje rapport och hjärtslag; annars fyrade timern var 100:e ms. */
+  const frister = mig.cards.filter(k => k.borta && nu - k.borta <= BORTA_NAD).map(k => { const v = nu - k.borta; return k.borta + (v <= SLAPP_MS ? SLAPP_MS : BORTA_NAD); });
   /* Dubblettväntan (steg 4) tar slut i tid också när telefonen är tyst; spår som försvunnit glöms. */
   for (const id of [...flyttVantan.keys()]) if (!synliga.has(id)) flyttVantan.delete(id);
   /* Platsminnet (steg 3b): var varje spår låg senast, FLYTT_VILA bakåt. Timerns omspelning av samma
@@ -32291,7 +32324,7 @@ function handRadVal(cid, val) {
   h.val = val; h.nar = Date.now();
   if (val === 'kvar' || val === 'angra') {
     angraPunkt();
-    mig.cards.splice(Math.min(h.i, mig.cards.length), 0, k);
+    h.val = null; handRadTillbaka(mig, h, val, h.nar);   // kortet och dess auror tillbaka där de låg
     save(); renderAll(true);
     const el = kortEl(k.cid); if (el) matGlidFranHand(el);
   } else if (val === 'exil') {

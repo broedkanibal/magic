@@ -158,7 +158,7 @@ return {
   losBifogade() { return losBifogade(state.players[0].cards); },
   /* Raden vid nederkanten (MES-343): korten kameran skickat till handen, med valet kvar. */
   get handRad() { return handRad; },
-  handVal(cid, val) { /* kvar/angra: kortet tillbaka där det låg, som handRadVal i appen; exil/bib: bara valet */ const h = handRad.find(x => x.cid === cid && !x.val); if (!h) return false; h.val = val; h.nar = Date.now(); if (val === 'kvar' || val === 'angra') state.players[0].cards.splice(Math.min(h.i, state.players[0].cards.length), 0, h.kort); return true; },
+  handVal(cid, val) { /* kvar/angra: kortet och dess auror tillbaka (handRadTillbaka), som handRadVal i appen; exil/bib: bara valet */ const h = handRad.find(x => x.cid === cid && !x.val); if (!h) return false; if (val === 'kvar' || val === 'angra') return handRadTillbaka(state.players[0], h, val, Date.now()); h.val = val; h.nar = Date.now(); return true; },
   tillbaka(namn, utom) { return kortSomKomTillbaka(state.players[0].cards, namn, utom); },
   /* Nollställningen går genom avstamBord: det är där "senaste kortet"
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
@@ -2353,7 +2353,7 @@ prov('H2 flytta med andra handen kvar: ett kort bärs utan namn medan en hand vi
   klocka.t += 300; stam([klar(2, 'Serra Angel', { sen: 450, skymd: true, ...LANGT }), vilande(3, NY_PLATS)]);
   assert.equal(u.spar, 3, 'Ukud buret dit'); assert.equal(s.spar, 2); assert.equal(s.lyft, undefined); assert.ok(Math.abs(s.kam.x - mitt(LANGT)) < 1e-9, 'Serra ligger kvar');
 });
-prov('H3 en hand nära platsen skjuter upp vägen till handen tills handen gått — men högst HAND_MAX efter väntan', () => {
+prov('H3 en hand nära platsen skjuter upp vägen till handen tills handen gått — utan tak', () => {
   const OVER = box(PORT.x - 0.02, PORT.y - 0.05, 0.12, 0.10);   // handen över platsen, utan ett korts form
   stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
   const k = app.kort[0];
@@ -2369,8 +2369,11 @@ prov('H3 en hand nära platsen skjuter upp vägen till handen tills handen gått
   const k2 = app.kort[0];
   klocka.t += 150; stam([hand(5, OVER)]);
   klocka.t += 3100; stam([hand(5, OVER)]);
-  klocka.t += 5100; stam([hand(5, OVER)]);                      // handen blir kvar: taket
-  assert.ok(iHanden(k2), 'till handen vid taket fast handen är kvar');
+  klocka.t += 5100; stam([hand(5, OVER)]);                      // handen blir kvar: inget tak (granskningen T1)
+  klocka.t += 5000; stam([hand(5, OVER)]);
+  assert.ok(app.kort.includes(k2) && k2.borta, 'orört så länge handen ligger kvar');
+  klocka.t += 150; stam([]);
+  assert.ok(iHanden(k2), 'till handen när handen gått');
   app.nollstall(); klocka.t = 1e6;
   stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
   const k3 = app.kort[0];
@@ -2633,6 +2636,113 @@ prov('TH13 efterskottet räknar kortet i raden som en granne: två kort borta oc
   assert.equal(app.handRad.length, 2);
   klocka.t += 500; stamG([], hog(1));            // en ändring, två kort i raden: vilket? ingen
   assert.equal(app.handRad.length, 2); assert.equal(app.kort.length, 0);
+});
+
+/* T — granskarens riktade prov (2026-10-07): handen utan tak, auror, fall 9 inom radens tid, valen, fall 8. */
+const OVER9 = box(PORT.x - 0.02, PORT.y - 0.05, 0.12, 0.10);
+const nyHand = (id, b) => ({ id, tillstand: 'ny', namn: null, saker: false, tappad: false, sen: 0, kortlik: false, vilar: false, skymd: false, ...b });
+prov('T1 en hand vilar över kortet längre än HAND_MAX medan spåret är dött: kortet ligger kvar orört', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  for (let i = 0; i < 70; i++) { klocka.t += 150; stam([nyHand(5, OVER9)]); }   // 10,5 s med handen över platsen
+  assert.ok(app.kort.includes(k) && k.borta && k.spar === 1, 'kortet gick till handen fast handen ligger kvar över platsen'); assert.equal(app.handRad.length, 0);
+  klocka.t += 150; stam([]);
+  assert.ok(iHanden(k), 'till handen när handen gått');
+});
+prov('T2 aura och token-aura på kortet: till handen och sedan Still on the table — auran tillbaka ur graveyard på värden, token-auran tillbaka', () => {
+  app.typ = new Map([['Pacifism', 'Enchantment — Aura'], ['Monster Role', 'Enchantment — Aura']]);
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Pacifism', { sen: 0, ...box(PORT.x + 0.01, PORT.y + 0.03, 0.063, 0.088) })]);
+  const a = app.kort.find(c => c.name === 'Ukud Cobra'), p = app.kort.find(c => c.name === 'Pacifism');
+  p.attachedTo = a.cid;
+  app.kort.push({ cid: 'tokR', name: 'Monster Role', tok: 1, attachedTo: a.cid, flipped: 0, tapped: 0 });
+  klocka.t += 150; stam([]);                           // båda spåren dog (kortet lyft med auran)
+  klocka.t += 3100; stam([]);
+  assert.ok(iHanden(a)); assert.equal(app.handRad.length, 1, 'auran fick en egen rad'); assert.equal(p.zon, 'grav'); assert.ok(!app.kort.some(c => c.cid === 'tokR'));
+  assert.ok(app.handVal(a.cid, 'kvar'));
+  assert.ok(app.kort.includes(a)); assert.equal(p.zon, undefined, 'auran ligger i graveyard fast kortet är tillbaka'); assert.equal(p.attachedTo, a.cid);
+  assert.ok(app.kort.some(c => c.cid === 'tokR' && c.attachedTo === a.cid), 'token-auran är borta');
+});
+prov('T2b värd och aura lyfts ihop och syns igen: samma kort tillbaka ur raden med auran på sig, ingen dubblett', () => {
+  app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
+  const PA = box(PORT.x + 0.01, PORT.y + 0.03, 0.063, 0.088);
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Pacifism', { sen: 0, ...PA })]);
+  const a = app.kort.find(c => c.name === 'Ukud Cobra'), p = app.kort.find(c => c.name === 'Pacifism');
+  p.attachedTo = a.cid;
+  klocka.t += 150; stam([]);
+  klocka.t += 3100; stam([]);
+  assert.ok(iHanden(a)); assert.equal(app.handRad.length, 1); assert.equal(p.zon, 'grav');
+  klocka.t += 1000; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Pacifism', { sen: 0, ...PA })]);
+  assert.deepEqual(app.kort.map(c => [c.name, c.zon, c.attachedTo]).sort(), [['Pacifism', undefined, a.cid], ['Ukud Cobra', undefined, undefined]].sort());
+  assert.equal(a.spar, 1); assert.equal(app.handRad[0].val, 'kvar', 'raden bekräftar');
+});
+prov('T2c bara värden lyfts (auran ligger kvar på platsen): värden orörd, täckt av auran', () => {
+  app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
+  const PA = box(PORT.x + 0.01, PORT.y + 0.03, 0.063, 0.088);
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Pacifism', { sen: 0, ...PA })]);
+  const a = app.kort.find(c => c.name === 'Ukud Cobra'), p = app.kort.find(c => c.name === 'Pacifism');
+  p.attachedTo = a.cid;
+  klocka.t += 150; stam([klar(2, 'Pacifism', { sen: 0, ...PA })]);
+  klocka.t += 3100; stam([klar(2, 'Pacifism', { sen: 0, ...PA })]); klocka.t += 5100; stam([klar(2, 'Pacifism', { sen: 0, ...PA })]);
+  assert.ok(app.kort.includes(a) && a.borta); assert.equal(app.handRad.length, 0);
+});
+prov('T3 fall 9 inom radens 6 s: kortet syns igen — samma kortpost tillbaka ur raden, raden bekräftar, Still on the table ger ingen dubblett', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 3100; stam([]);
+  assert.ok(iHanden(k));
+  klocka.t += 1000; stam([klar(7, 'Ukud Cobra', { sen: 0, ...PORT })]);   // samma kort syns igen
+  assert.deepEqual(app.kort, [k], 'ett nytt kort bredvid det i handen'); assert.equal(k.spar, 7); assert.equal(app.handRad[0].val, 'kvar');
+  assert.equal(app.handVal(k.cid, 'kvar'), false, 'valet är redan gjort');
+  assert.equal(app.kort.filter(c => c.name === 'Ukud Cobra').length, 1, 'dubblett');
+});
+prov('T4 valen med samma kort: Exile ger ett kort i exile och inget på mattan; Library ger inget kort; Still on the table ger samma kortpost som binds igen utan dubblett', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.ok(iHanden(k));
+  assert.ok(app.handVal(k.cid, 'exil')); app.kort.push(k); app.flytta(app.kort.length - 1, 'exil');   // som handRadVal
+  assert.equal(app.kort.filter(c => c === k).length, 1); assert.equal(k.zon, 'exil');
+  klocka.t += 500; stam([]); assert.equal(app.kort.filter(c => c.name === 'Ukud Cobra').length, 1);
+  app.nollstall(); klocka.t = 1e6;
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k2 = app.kort[0];
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.ok(app.handVal(k2.cid, 'bib')); klocka.t += 500; stam([]);
+  assert.equal(app.kort.length, 0); assert.equal(app.handRad[0].val, 'bib');
+  app.nollstall(); klocka.t = 1e6;
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k3 = app.kort[0];
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.ok(app.handVal(k3.cid, 'kvar')); assert.equal(app.kort[0], k3); assert.equal(k3.spar, undefined);
+  klocka.t += 1000; stam([klar(8, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0], k3, 'samma kortpost bunden igen'); assert.equal(k3.spar, 8);
+});
+prov('T5 valet efter 6 s: raden är borta, kortet står i handen, inget val går — och ett kort med namnet som syns sedan är ett nytt kort (fall 9)', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  const nar = app.handRad[0].nar;
+  klocka.t = nar + 6100; stam([]);
+  assert.equal(app.handRad.length, 0); assert.equal(app.handVal(k.cid, 'kvar'), false); assert.equal(app.kort.length, 0);
+  klocka.t += 1000; stam([klar(7, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  assert.equal(app.kort.length, 1); assert.notEqual(app.kort[0], k);
+});
+prov('T6 spåret dött > BORTA_NAD utan hand eller täckning, kortet till handen; syns det igen inom radens tid följer identiteten med (tapped, counters)', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, tappad: true, ...PORT })]);
+  const k = app.kort[0]; k.cts = [{ t: '+1/+1', n: 2 }];
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.ok(iHanden(k), 'till handen efter väntan utan hand/täckning');
+  klocka.t += 2000; stam([klar(9, 'Ukud Cobra', { sen: 0, tappad: true, ...PORT })]);
+  const n = app.kort.find(c => c.name === 'Ukud Cobra');
+  assert.equal(n, k, 'kortet kom tillbaka som ett nytt kort: counters borta'); assert.deepEqual(n.cts, [{ t: '+1/+1', n: 2 }]); assert.equal(n.tapped, 1); assert.equal(n.spar, 9);
+});
+prov('T8 fall 8 med tre spår: ingenting ändras, och korten binds om på namnet när kameran ankrat sig', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Grizzly Bears', { sen: 0, ...LANGT }), klar(3, 'Forest', { sen: 0, ...LAND_ })]);
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.equal(app.kort.length, 3); assert.equal(app.handRad.length, 0);
+  klocka.t += 2000; stam([klar(11, 'Ukud Cobra', { sen: 0, ...PORT }), klar(12, 'Grizzly Bears', { sen: 0, ...LANGT }), klar(13, 'Forest', { sen: 0, ...LAND_ })]);
+  assert.equal(app.kort.length, 3); assert.ok(app.kort.every(c => c.spar != null && c.slappt == null));
 });
 
 console.log([...ok, ...fel].join('\n'));
