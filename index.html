@@ -23807,10 +23807,33 @@ const Kamera = (() => {
        källan. Ett saknat namn är en rest, ett säkert fel är ett fel.
        remsaVittne: marginalen som räcker för att remsan ska
        räknas som ett andra vittne åt Claudes svar (svarAI) eller åt ett
-       svagt läst namn (kamLasRemsa, remsa+namn). */
+       svagt läst namn (kamLasRemsa, remsa+namn).
+       0,28 och vittnet 0,08 sedan MES-340 (2026-10-07): remsorna läses med
+       den finjusterade modellen v2 (embed.js remsModell), och v2:s marginaler
+       är inte appens modells. Mätt i dev/remsa/remsregel.py på remsbänkens
+       exakta remsor (resultat/remsexp-v2.npz), Jespers lek: med 0,20/0,20/0,05
+       två säkra fel på MES-246:s blänkremsor (Fencing Ace → Plains, hela
+       remsan 0,225; Hooded Blightfang → Plains, titeldelen 0,248 med hela
+       remsan 0,055). Största felet på hela remsan 0,225 → 0,28 med samma
+       marginal som 0,15 → 0,20 fick 2026-10-03; vittnet 0,08 ligger över
+       0,055. Med 0,28/0,20/0,08: 0 säkra fel i golden-leken och Jespers lek
+       (golden 57 säkra rätt av 68, 13b 13 av 96, MES-246 174 av 479 — mot
+       59 · 37 · 232 vid 0,20 med 2 fel). Titeltröskeln 0,20 står: största
+       titelfelet med hela remsan ≥ 0,08 är 0,145. */
     remsa: 1,
-    remsaTroskel: 0.2,
-    remsaVittne: 0.05,
+    remsaTroskel: 0.28,
+    remsaVittne: 0.08,
+    /* Remsan ur kortets geometri (MES-340 steg 1.2, skarRemsa → remsGeo):
+       1 = den vridna rektangeln ur remslådans mitt, kortets vinkel och
+       kortstorleken; 0 = detektorns remslåda som förut. */
+    remsaGeo: 1,
+    /* Spärren mot kort i handen (steg 1.3, medRemsa → remsaDomSkal): 1 =
+       remsan gör namnet säkert bara på ett stilla, oskymt spår med region
+       nyss; 0 = som förut. */
+    remsaStilla: 1,
+    /* 'modell land' på ett täckt kort kräver ett vittne (steg 1.3, medRemsa):
+       1 = på; 0 = som förut. */
+    remsaLandVittne: 1,
     /* Remsan läses för VARJE osäkert spår (MES-331 pass 4, A1, medRemsa), inte
        bara maskade och omlott: golden 15:s ensamma Plains med blänk över
        konstverket. 0 = som till pass 3 (golden --tro "remsaAlla:0"). */
@@ -28375,9 +28398,65 @@ const Kamera = (() => {
   /* Skärningen för sig (MES-331 pass 6): samma låda, samma vridning och samma
      övermålning för läsningen (lasRemsa) och för minnet (larMinne) — det
      viktiga är att kortet jämförs med sig självt. */
+  /* Remsan ur kortets GEOMETRI (MES-340, prompt D steg 1.2, 2026-10-07):
+     detektorns remslåda är axelparallell och lös — 0,04 kortlängder utanför
+     titelkanten och 0,025 innanför remsans innerkant för ett rakt kort, och
+     för ett kort i vinkel skjuter dess hörn 0,15 kortlängder förbi åt båda
+     håll (dev/remsa/appremsa.py, 92 remsor i golden 03–06 och 13–18). Lådan
+     tar då bord, grannens titel och en bit av konstverket med sig, och
+     bildmodellen läser 0,05–0,19 där den hörnexakta remsan läser 0,3–0,6
+     (matningar-2026-10-07-resultat.md). Här byggs remsan av det kameran vet:
+     remslådans MITT (bänken: bias +0,007 kortlängder mot facits remsmitt,
+     p10–p90 −0,011…+0,028), kortets upp-riktning ur KortVinkel (median 0,9°
+     från facit, max 6,9°, t.vmRa) och kortets storlek — en vriden rektangel
+     en kortbredd lång och REMSA (14 %) av kortlängden tjock, ritad med
+     kortet upprätt. Storleken: kortets egen ur lådan och vinkeln när lådan
+     är hela kortet (t.vm), annars bordets (kortEgenMatt: de namngivna
+     kortens egna sidor); saknas båda — före bordets första namn — skärs
+     remslådan som förut. Bänken med v2 på remsorna, tröskel 0,28: säkra rätt
+     50 (dagens låda) → 60 (geometrin), exakt remsa 65; rätt överst 81 → 86
+     av 92, 0 säkra fel. Kortlådans kant i stället för remslådans mitt
+     provades och var inte bättre (58). Det som ligger ovanpå (tackt) och
+     grannens remsa (remsaUtom) målas över genom samma vridning, som i
+     maskaTackt. T.remsaGeo 0 stänger av (golden --tro "remsaGeo:0"). */
+  const REMSA_FORVAL = 0.14;   // remsans höjd i andel av kortet när detektorn inte är laddad (= REMSA_ANDEL utanför blocket, Detektor.REMSA)
+  function remsGeo(t, r, sx, sy) {
+    if (!T.remsaGeo || !t.remsaLada || t.remsaSynt) return null;
+    const vm = t.vmRa; if (!vm || vm.kalla !== 'remsa' || vm.upp == null || !isFinite(vm.upp)) return null;
+    let L = 0, K = 0;
+    if (t.vm && t.vm.helt && t.vm.sakerLang && t.vm.L > 0) { L = t.vm.L; K = t.vm.K; }
+    else { const m = kortEgenMatt(); if (m) { L = m.l * sx; K = m.k * sx; } }
+    if (!(L > 0 && K > 0)) return null;
+    /* Remsans andel av kortet: detektorns (Detektor.REMSA, 0,14 — samma som remsleken byggs med, KamEmbed.byggRemsor);
+       bänken (dev/kamerabank.cjs) kör blocket utan detektorn och får förvalet. */
+    const s = t.remsaLada, andel = (typeof window !== 'undefined' && window.Detektor && window.Detektor.REMSA) || REMSA_FORVAL;
+    return { cx: r.x + (s.x + s.w / 2) * sx, cy: r.y + (s.y + s.h / 2) * sy, upp: vm.upp, L, K, tj: andel * L };
+  }
   function skarRemsa(t) {
     const s = t.remsaLada; if (!s || !video) return null;
     const vb = video.videoWidth, vh = video.videoHeight, r = rutaPx(vb, vh), sx = r.w / AW, sy = r.h / AH;
+    const geo = remsGeo(t, r, sx, sy);
+    if (geo) {
+      const ow = Math.max(4, Math.round(geo.K)), oh = Math.max(4, Math.round(geo.tj));
+      const rot = -geo.upp, rad = rot * Math.PI / 180, cs = Math.cos(rad), sn = Math.sin(rad);   // vrid bilden så att kortets upp-axel pekar uppåt
+      const hx = (geo.K * Math.abs(cs) + geo.tj * Math.abs(sn)) / 2, hy = (geo.K * Math.abs(sn) + geo.tj * Math.abs(cs)) / 2;   // den vridna remsans omskrivna låda i videon
+      const sx0 = Math.max(0, Math.floor(geo.cx - hx)), sy0 = Math.max(0, Math.floor(geo.cy - hy)), sx1 = Math.min(vb, Math.ceil(geo.cx + hx)), sy1 = Math.min(vh, Math.ceil(geo.cy + hy));
+      if (sx1 - sx0 >= 4 && sy1 - sy0 >= 4) {
+        const c = document.createElement('canvas'); c.width = ow; c.height = oh;
+        const x2 = c.getContext('2d'); x2.imageSmoothingQuality = 'high';
+        x2.translate(ow / 2, oh / 2); x2.rotate(rad);
+        x2.drawImage(video, sx0, sy0, sx1 - sx0, sy1 - sy0, sx0 - geo.cx, sy0 - geo.cy, sx1 - sx0, sy1 - sy0);
+        let tackt = 0, utom = 0;
+        const v = Math.max(0, Math.min(255, Math.round(modell ? modell.M / senasteGain : 128)));
+        x2.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
+        /* Rektanglarna i videons bildpunkter, relativt remsans mitt: kontexten är vriden, så de målas vridna med bilden. */
+        const mala = q => x2.fillRect(r.x + (q.x - 1) * sx - geo.cx, r.y + (q.y - 1) * sy - geo.cy, (q.w + 2) * sx, (q.h + 2) * sy);
+        if (t.tackt && t.tackt.length) for (const q of t.tackt) { mala(q); tackt++; }
+        if (t.remsaUtom && t.remsaUtom.length) for (const q of t.remsaUtom) { mala(q); utom++; }
+        x2.setTransform(1, 0, 0, 1, 0, 0);
+        return { c, rot: Math.round(rot), px: { w: ow, h: oh }, tackt, utom, mx: s.x + s.w / 2, my: s.y + s.h / 2, L: Math.max(s.w, s.h), geo: true };
+      }
+    }
     const m = 0.04;
     const x = r.x + (s.x - s.w * m) * sx, y = r.y + (s.y - s.h * m) * sy, w = s.w * (1 + 2 * m) * sx, h = s.h * (1 + 2 * m) * sy;
     if (!(w >= 4 && h >= 4)) return null;
@@ -28429,7 +28508,7 @@ const Kamera = (() => {
     const s = skarRemsa(t); if (!s) return null;
     const m = !T.remsaMinne ? { minnen: [], skal: null } : arTackt(t, maskad) ? minnenFor(t, s.mx, s.my, s.L) : { minnen: [], skal: 'inte täckt' }, minnen = m.minnen;
     if (T.remsaMinne) { minneStat.fragor++; if (minnen.length) minneStat.medMinne++; }
-    const rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, tackt: s.tackt, utom: s.utom,
+    const rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo: !!s.geo, tackt: s.tackt, utom: s.utom,
                                               minnen: minnen.length ? minnen.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: e.prov })) : null, minneSkal: m.skal });
     if (rs && rs.saker && rs.varfor === 'remsa minne') minneStat.sakra++;
     return rs;
@@ -28570,13 +28649,52 @@ const Kamera = (() => {
      namn säkert lättare än förut, och svarAI:s vittneskrav gäller som förut
      bara maskade beskärningar (remsan blir inte vittne åt Claude för ett
      omaskat spår). */
+  /* Spärren mot kort i handen (MES-340, prompt D steg 1.3, 2026-10-07):
+     remsan får göra namnet SÄKERT bara på ett spår som ligger stilla
+     (formstilla SPEK_RUTOR rutor eller vilat stillaMs), som inte är skymt
+     (ingen hand eller arm över kortet) och som har region i den här eller
+     förra rutan. Golden 11 vid 38,85 s: spelaren håller Danitha Capashen i
+     handen ovanför bordet; den finjusterade remsmodellen v3 läste kortet
+     rätt (0,216) på ett skymt, rörligt spår, och appen lade det på bordet i
+     3,5 s fast det aldrig spelades (videoFelUnder, syns inte i sluttabellen).
+     Vägen 'remsa' saknade villkor på spåret — hela kortets vägar har sina
+     (ensamt, ORB:s skala, serUtSomKort). Remsans svar sparas ändå på spåret
+     (vittne åt Claude, förslag) — bara domen hålls tillbaka med skälet i
+     varfor, och spåret läses om när det vilat (spek miss → identifiera).
+     Gäller alla remsans vägar (remsa, remsa+titel, remsa+namn, remsa minne).
+     vm.hallen (långsidan ur hysteresen) är inte en hand och spärrar inte.
+     T.remsaStilla 0 stänger av (golden --tro "remsaStilla:0"). */
+  const remsaDomSkal = t => !T.remsaStilla ? null : t.skymd ? 'skymt' : !(t.regionNar != null && forra - t.regionNar <= 2 * TAKT_MS) ? 'ingen region nyss'
+    : !((t.formN || 0) >= R(SPEK_RUTOR) || arStilla(t)) ? 'inte stilla' : null;
+  /* 'modell land' på ett TÄCKT kort kräver ett andra vittne (steg 1.3): ett
+     basland säkert på modellen ensam (LAND_MARGINAL, utan ORB) på en
+     beskärning som är maskad, omlott eller har ett kort ovanpå — där syns
+     bara en del av kortet, och modellen svarar alltid med något av lekens
+     namn. Så gick v2:s båda säkra fel på hela kortet (2026-10-06, 'modell
+     land'); appens modell har 0 i golden men samma väg. Vittnet: remsan med
+     samma namn (marginal ≥ T.remsaVittne — remsan läses här för det) eller
+     titelraden på beskärningen (namnLast ≥ 0,5). Utan vittne blir svaret
+     osäkert ('modell land utan vittne'): Claude eller remsan nästa gång.
+     Ett helt synligt land (inte täckt) rörs inte. T.remsaLandVittne 0
+     stänger av (golden --tro "remsaLandVittne:0"). */
   async function medRemsa(t, svar, maskad) {
     t.remsa = null;
-    if (!T.remsa || !(T.remsaAlla || maskad || t.omlott) || !svar || svar.saker || svar.skrap || svar.baksida || !t.remsaLada || !cb.lasRemsa) return svar;
+    if (!T.remsa || !svar || svar.skrap || svar.baksida || !t.remsaLada || !cb.lasRemsa) return svar;
+    const landVittne = !!(T.remsaLandVittne && svar.saker && svar.varfor === 'modell land' && arTackt(t, maskad));
+    if (svar.saker && !landVittne) return svar;
+    if (!svar.saker && !(T.remsaAlla || maskad || t.omlott)) return svar;
     let rs = null;
     try { rs = await lasRemsa(t, maskad); } catch (e) { rs = null; }
+    if (rs) t.remsa = rs;
+    const skal = rs && rs.saker && rs.namn ? remsaDomSkal(t) : null;
+    if (skal) { rs = Object.assign({}, rs, { saker: false, varfor: (rs.varfor || 'remsa') + ' väntar: ' + skal }); t.remsa = rs; }
+    if (landVittne) {
+      const vittne = !!((rs && rs.namn === svar.namn && rs.marginal >= T.remsaVittne) || (svar.namnLast && svar.namnLast.namn === svar.namn && svar.namnLast.poang >= 0.5));
+      if (vittne) return Object.assign({}, svar, { varfor: 'modell land+vittne', remsa: rs || undefined });
+      if (rs && rs.saker && rs.namn) return Object.assign({}, svar, { namn: rs.namn, sid: rs.sid, saker: true, cands: rs.cands, varfor: rs.varfor || 'remsa', remsa: rs });   // remsan dömer själv, med sin egen gräns
+      return Object.assign({}, svar, { saker: false, varfor: 'modell land utan vittne', remsa: rs || undefined });
+    }
     if (!rs) return svar;
-    t.remsa = rs;
     if (!rs.saker || !rs.namn) return Object.assign({}, svar, { remsa: rs });
     return Object.assign({}, svar, { namn: rs.namn, sid: rs.sid, saker: true, cands: rs.cands, varfor: rs.varfor || 'remsa', remsa: rs });
   }
@@ -29989,7 +30107,7 @@ async function kamLasRemsa(canvas, id, o) {
   }
   return { namn: cands[0].name, sid: cands[0].sid, saker, varfor, marginal, poang: cands[0].score, cands, titel, minne,
            ocr: ocr ? { text: ocr.text || '', namn: ocrNamn, poang: ocr.poang, marginal: ocr.marginal, hoppad: ocr.hoppad || null } : null,
-           rot: o && o.rot != null ? o.rot : null, px: o && o.px ? o.px : null, synt: !!(o && o.synt), tackt: (o && o.tackt) || 0, utom: (o && o.utom) || 0,   // syntetisk remsa ur lådans kant, hur många lådor ovanpå som målats över (MES-331 pass 2) och hur många grannremsor (pass 4)
+           rot: o && o.rot != null ? o.rot : null, px: o && o.px ? o.px : null, synt: !!(o && o.synt), geo: !!(o && o.geo), tackt: (o && o.tackt) || 0, utom: (o && o.utom) || 0,   // syntetisk remsa ur lådans kant, remsan ur kortets geometri (MES-340), hur många lådor ovanpå som målats över (MES-331 pass 2) och hur många grannremsor (pass 4)
            ms: Math.round(performance.now() - t0), modellMs: Math.round(e.ms || 0) };
 }
 /* Lekens antal av ett namn (K6), för Kamera: null utan lek eller utanför den. */

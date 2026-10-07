@@ -51,6 +51,16 @@
   const KALIBRERING = [[0, 0.40], [0.03, 0.54], [0.05, 0.81], [0.07, 0.875], [0.095, 0.92], [0.13, 0.99], [0.2, 1]];
   const ORT_CDN = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
   const MODELL_HF = 'https://huggingface.co/Xenova/mobileclip_s0/resolve/main/onnx/';
+  /* Remsornas egen modell (MES-340, prompt D steg 1, 2026-10-07): MobileCLIP-S0
+     finjusterad på Mesas bord (v2: syntetiska bord + Jespers riktiga
+     inspelningar pass 2/3/5; dev/remsa/tran, Kaggle). Mätt i golden bara på
+     remsorna med appens egen modell på hela kortet: 99/119 i två identiska
+     körningar mot 95, 0 fel namn — v2 på HELA kortet gav två säkra fel via
+     'modell land', så den läser bara remsor. Filen (43 MB) ligger i
+     projektets Supabase-lagring, bucketen modeller (publik, CORS *); samma fil
+     som dev/embed/modeller/mobileclip-s0-mesa-v2.onnx (gitignorerad), sha256
+     e0eb2612…733a. Golden kan byta den med --rems-modell. */
+  const REMS_MODELL_URL = 'https://rtoejcafnssypnysjmey.supabase.co/storage/v1/object/public/modeller/mobileclip-s0-mesa-v2.onnx';
   const FORVAL = {
     ort: ORT_CDN + 'ort.webgpu.min.js', wasmPaths: ORT_CDN,
     /* fp16 är hälften så stor och lika träffsäker (55/61 båda), men går bara på
@@ -58,13 +68,17 @@
        (den färdiga dynamiskt kvantiserade) är oanvändbar: 7/61 rätt. */
     modell: { webgpu16: MODELL_HF + 'vision_model_fp16.onnx', webgpu: MODELL_HF + 'vision_model.onnx', wasm: MODELL_HF + 'vision_model.onnx' },
     backend: 'auto',                         // 'auto' | 'webgpu' | 'wasm'
-    /* En egen modell för remsorna (2026-10-05): samma form som modell, null =
-       samma modell som hela kortet. Den finjusterade piloten (dev/remsa/tran)
-       läser remsor i blänk mycket bättre (remsbänken MES-246 67 → 455/627 rätt
-       överst) men hela kort sämre (golden-beskärningarna 53 → 50/61), så den
-       provas bara på remsorna. Remsleken byggs då med den modellen och lagras
-       under en egen nyckel (remsTagg) — vektorer från två modeller blandas aldrig. */
-    remsModell: null,
+    /* En egen modell för remsorna (2026-10-05, förval sedan 2026-10-07): samma
+       form som modell, null = samma modell som hela kortet. Den finjusterade
+       modellen (dev/remsa/tran) läser remsor i blänk mycket bättre (remsbänken
+       MES-246 67 → 455/627 rätt överst för piloten) men hela kort sämre
+       (golden-beskärningarna 53 → 50/61), så den läser bara remsorna.
+       Remsleken byggs då med den modellen och lagras under en egen nyckel
+       (remsTagg: '|' + filnamnet) — vektorer från två modeller blandas aldrig,
+       och receptets V behöver inte höjas: kortlekens förräknade vektorer
+       (MES-230) gäller hela kortets modell, som är orörd. Går filen inte att
+       hämta läses remsorna med kortets modell som förut (remsFel i svaret). */
+    remsModell: { webgpu: REMS_MODELL_URL, wasm: REMS_MODELL_URL },
   };
 
   let session = null, backend = null, inNamn = null, utNamn = null, laddar = null;
