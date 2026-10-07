@@ -194,7 +194,7 @@ const PROV = async steg => {
       /* Lådan ändras både i kortets kam och i telefonens senaste bord: kamSkala mäter bara en kam som är den låda kortet
          har nu (kamHel, MES-345). */
       const gamlaRa = senasteRa.map(t => Object.assign({}, t));
-      const nyLada = (c, f) => { c.kam = Object.assign({}, c.kam, f(c.kam)); const t = senasteRa.find(u => u.id === c.spar); if (t && t.w != null) Object.assign(t, f(t)); };
+      const nyLada = (c, f) => { c.kam = Object.assign({}, c.kam, f(c.kam)); senasteRa = senasteRa.map(u => u.id === c.spar && u.w != null ? Object.assign({}, u, f(u)) : u); };   // nya spårobjekt: senasteRa är arrayen provet skickade (LAND), den får inte ändras
       const aterstall = () => { for (const c of mig().cards) if (gamla.has(c.cid)) c.kam = gamla.get(c.cid); senasteRa = gamlaRa.map(t => Object.assign({}, t)); };
       for (const c of mig().cards) if (c.kam) nyLada(c, k => ({ w: k.w * 1.3, h: k.h * 1.3 }));
       renderGrid(true); await stilla();

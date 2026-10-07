@@ -200,5 +200,22 @@ const del = (extra) => Object.assign({ w: 0.075, h: 0.075 * 1.1 / ASP }, extra);
   const r2 = k.spela(3100, 9000, () => [0.075, 0.09, 0.09]);
   ok('9h · …kontrollen: med spåren i bordet byts den efter 3 s', unika(r2).length === 2 && Math.round(r2[r2.length - 1][1]) === S(0.09), 'skalor ' + unika(r2).join(', '));
 }
+/* 9i. Kortens lås, leken i bild med ett annat värde, och alla tre korten skymda i 6 s: leken tar inte över låset (förut
+      byttes skalan till lekens och tillbaka när korten syntes igen — två zoomsteg; granskningen av MES-345, G1). */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075, 0.075, 0.075], 0.090);
+  const r = spela(3100, 9100, () => [del({ skymd: true }), del({ skymd: true }), del({ skymd: true })], 0.090)
+    .concat(spela(9200, 12000, () => [0.075, 0.075, 0.075], 0.090));
+  ok('9i · handen över alla kort, leken i bild med ett annat värde: kortens lås står kvar', unika(r).length === 1 && unika(r)[0] === S(0.075), 'skalor ' + unika(r).join(', '));
+}
+/* 9j. Samma, men kortens spår är borta ur bordet i 6 s (telefonen tappade bordet, eller spår-id:n började om): låset står kvar. (G2) */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075, 0.075, 0.075], 0.090);
+  const r = spela(3100, 9100, () => [0.075, 0.075, 0.075].map(w => ({ w, h: w * R / ASP, utanSpar: true })), 0.090)
+    .concat(spela(9200, 12000, () => [0.075, 0.075, 0.075], 0.090));
+  ok('9j · kortens spår borta ur bordet, leken i bild: kortens lås står kvar', unika(r).length === 1 && unika(r)[0] === S(0.075), 'skalor ' + unika(r).join(', '));
+}
 console.log(fel ? `kamskala-las: ${fel} FEL` : 'kamskala-las: 0 FEL');
 process.exit(fel ? 1 : 0);

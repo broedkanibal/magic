@@ -9358,7 +9358,7 @@ function kamKortsida(k, asp) {
    första rendering, som kan anropa kamSkala med sparade kort: före raden är den inte läsbar, och då är inget kort
    känt som helt. */
 function kamHel(c, asp) {
-  let ra = null; try { ra = senasteRa; } catch (e) { /* före let-raden */ }
+  let ra = null; try { ra = senasteRa; } catch (e) { if (!(e instanceof ReferenceError)) throw e; /* före let-raden */ }
   const t = ra && c.spar != null ? ra.find(u => u.id === c.spar) : null;
   if (!t || t.skymd || (t.under && t.under.length) || t.w == null || t.h == null) return false;
   const sida = kamKortsida(c.kam, asp), nu = kamKortsida(t, asp);
@@ -9393,6 +9393,10 @@ function kamSkala(p) {
   /* Bara kort som syns hela mäter (kamHel, MES-345). Ett delvis täckt kort är som ett som inte vilat: det ger en
      första skala när inget är mätt, men flyttar aldrig ett mätt värde. */
   const hela = vilande.filter(c => kamHel(c, asp));
+  /* Vilande kort men inget som syns helt (en hand över högen, spåren borta ur bordet): inget mått. Ett lås från korten
+     står kvar, som i spärren ovan — annars tog lekens bredd över det efter 3 s, och första hela kortet bytte tillbaka
+     direkt (två zoomsteg; granskningen av MES-345). */
+  if (vilande.length && !hela.length && las && las.kalla === 'kort') { las.kand = null; return las.v; }
   const w = (hela.length ? hela : las && las.kalla !== 'gissning' ? [] : vilande.length ? vilande : allaKam).map(c => kortsida(c.kam)).sort((a, b) => a - b);
   /* Inga kort än: lekens bredd i bilden (MES-334 steg 3) — en lek är ett kort brett. */
   const lek = p.bibHog && p.bibHog.kam && p.bibHog.kam.w;
