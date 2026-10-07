@@ -1,6 +1,6 @@
 # Uppspelarens baslinje — 2026-10-07
 
-Kod: `index.html` (sha256 251751f39563, commit 544be0d). Simulerad klocka: två körningar på samma fil ger samma tal. Spelet har en motståndare (bordsvyn), som ett riktigt parti. Grinden (`--jamfor`) är totalt-kolumnen och p0921; tider ±0,1 s, antal exakt. Definitionerna: [LÄS-MIG](../LÄS-MIG.md).
+Kod: `index.html` (sha256 f123226f39c8, commit 1fda2a6). Simulerad klocka: två körningar på samma fil ger samma tal. Spelet har en motståndare (bordsvyn), som ett riktigt parti. Grinden (`--jamfor`) är totalt-kolumnen och p0921; tider ±0,1 s, antal exakt. Definitionerna: [LÄS-MIG](../LÄS-MIG.md).
 
 | Fall | Vad | Underlag |
 |---|---|---|
