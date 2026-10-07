@@ -287,10 +287,13 @@ const PROV = async steg => {
     ok('…och delas utan namn i bordsraden', rad5.some(k => k.hog === 'ned' && k.name === undefined));
     const lb = () => gridEl.querySelector('.lekhog .lekbr.ledig').getBoundingClientRect(), gk = () => gridEl.querySelector('.lekhog').getBoundingClientRect();
     await stilla();
-    const br0 = lb(), k0 = gk();
-    vy.zoomManual = Math.max(MATTA.ZOOM_MIN, zs * 0.6); renderGrid(true); await stilla();
+    /* Zoomen läses när mattan stått still: det nedvända kortet långt till höger kan ha gett ett zoomsteg ut
+       (MES-338). Står mattan redan nära minsta zoomen provas det inåt i stället. */
+    const br0 = lb(), k0 = gk(), zFore = matVy().z, zNy = zFore * 0.6 >= MATTA.ZOOM_MIN ? zFore * 0.6 : Math.min(MATTA.ZOOM_MAX, zFore * 1.6);
+    vy.zoomManual = zNy; renderGrid(true); await stilla();
     const br1 = lb(), k1 = gk();
-    ok('8 · högarna följer mattans zoom, brickan behåller sin storlek', k1.width < k0.width * 0.75 && Math.abs(br1.height - br0.height) < 1.5, `leken ${Math.round(k0.width)} → ${Math.round(k1.width)} px, brickan ${br0.height.toFixed(1)} → ${br1.height.toFixed(1)} px`);
+    ok('8 · högarna följer mattans zoom, brickan behåller sin storlek', Math.abs(k1.width / k0.width - zNy / zFore) < 0.05 && Math.abs(br1.height - br0.height) < 1.5,
+      `zoom ${zFore.toFixed(2)} → ${zNy.toFixed(2)} (startade på ${zs.toFixed(2)}), leken ${Math.round(k0.width)} → ${Math.round(k1.width)} px, brickan ${br0.height.toFixed(1)} → ${br1.height.toFixed(1)} px`);
     vy.zoomManual = null; renderGrid(true);
     tagEmotLek(lek('nere', 1, R1));
     /* Frågan behåller sin storlek på skärmen när mattan zoomas (--matz). */

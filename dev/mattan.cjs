@@ -259,14 +259,8 @@ const PROV = async () => {
   visaVy('app'); renderAll(true);
   ok('efter en ritning medan mattan var dold ritas zoomen på plats', gridEl.style.transform !== tDold && !gar(gridEl), `${tDold} → ${gridEl.style.transform}`);
 
-  /* Mattans zoom: fit som krymper när ett kort läggs långt ut glider (i en
-     synlig vy under spelet). */
-  await vanta(450);
-  const ny = normaliseraKort({ cid: 'mattprov-ute', name: 'Island', x: 3400, y: 2600, z: 10, tapped: 0, cts: [] }, mig.cards.length);
-  const zFore = matVy(mig).z;
-  mig.cards.push(ny); renderAll(true);
-  const zEfter = matVy(mig).z;
-  ok('zoomen ändrades och glider (brädets transform)', zEfter < zFore && gridEl.getAnimations().some(a => a.playState === 'running'), `${zFore.toFixed(3)} → ${zEfter.toFixed(3)}`);
+  /* Mattans zoom när ett kort läggs långt ut: zoomstegen (MES-338) har
+     ett eget avsnitt sist i provet, med en kamerabild av känd storlek. */
 
   /* En hög som post i matSynk (grunden för leken och graveyard i steg 3–5):
      egen nyckel, samma element, och den glider när läget ändras. */
@@ -361,6 +355,112 @@ const PROV = async () => {
   ok('ett nytt parti ritas på plats (ingen zoom glider in, inte heller hos motståndaren)',
     gridEl.style.transform !== tParti && !gar(gridEl) && !!oNy && oNy.style.transform !== oParti && !gar(oNy),
     `min ${tParti} → ${gridEl.style.transform}; hens ${oParti} → ${oNy && oNy.style.transform}`);
+
+  /* ── Zoomsteg (MES-338) ───────────────────────────────────────────────
+     Mitt speglade bord zoomar i fasta steg: 100 %, 86 %, 75 % och 65 % av
+     bordets 100 %, och sist golvet — hela kamerabilden (dev/plan/
+     spegelmattan-principer.md, Mattan: zoomsteg; prototypens zoomFor). Ett
+     kort som inte får plats ger ett steg ut som glider 500 ms (UT), till den
+     första nivån där korten ryms med ungefär två kort till åt det håll bordet
+     växte. Aldrig in av sig själv — bara i ett nytt parti. Ensam vid bordet
+     (100 % = zoom 1). Kamerabilden 16:9 och ett kort en tiondel av dess
+     bredd: skalan 1780, bilden 1780 × 1001 på brädet från (198, 50).
+     Kastar något (en index.html utan zoomstegen, --fil) faller avsnittet som
+     en kontroll i stället för att hela provet dör. */
+  try {
+  await vanta(600);
+  state.players = [mig]; state.active = mig.id;
+  spelLage = Object.assign({}, spelLage, { id: 'mattprov-zoom' });
+  oppSatt({ klar: true });
+  mig.cards = []; matVyer.delete(mig.id);
+  if (kamSkala.las) kamSkala.las.delete(mig.id);
+  kamUpplosning = { w: 1920, h: 1080 };
+  renderAll(true);
+  const zs = (id, namn, cx, cy) => ({ id, tillstand: 'klar', namn, saker: true, x: cx - 0.05, y: cy - 0.124, w: 0.1, h: 0.248, tappad: false, vilar: true });
+  const zr = [zs(21, 'Llanowar Elves', 0.25, 0.4), zs(22, 'Forest', 0.35, 0.4)];
+  avstamBord(zr, false);
+  await vanta(700);
+  const NIVA = [1, 0.86, 0.75, 0.65], KANT = MATTA.KANT, TOPP = MATTA.TOPP;
+  const yta = () => { const vp = matVy(mig).vp; return { w: vp.w - 2 * KANT, h: vp.h - TOPP - KANT, vp }; };
+  const bild = () => { const sk = kamSkala(mig), a = kamTillMatta({ x: 0, y: 0 }, sk), b = kamTillMatta({ x: 1, y: 1 }, sk); return { x0: a.x, y0: a.y, x1: b.x, y1: b.y }; };
+  const golvNu = () => { const a = yta(), b = bild(); return Math.max(MATTA.ZOOM_MIN, Math.min(1, a.w / (b.x1 - b.x0), a.h / (b.y1 - b.y0))); };
+  /* Vyn i brädets koordinater, ur transformen som skrivits (inte ur appens tillstånd). */
+  const vyn = () => { const m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)\s*scale\(([\d.]+)\)/.exec(gridEl._matT || ''), a = yta();
+    const px = +m[1], py = +m[2], z = +m[3]; return { z, x0: (KANT - px) / z, x1: (a.vp.w - KANT - px) / z, y0: (TOPP - py) / z, y1: (a.vp.h - KANT - py) / z }; };
+  const syns = () => { const w = gridWrap.getBoundingClientRect(); return [...gridEl.querySelectorAll('.card[data-cid]')].every(el => { const r = el.getBoundingClientRect(); return r.left >= w.left - 1 && r.right <= w.right + 1 && r.top >= w.top - 1 && r.bottom <= w.bottom + 1; }); };
+  const pct = z => Math.round(z * 100) + ' %', avZ = () => vyn().z;
+  const ram = () => matRam(mig);
+  const zA = avZ();
+  ok('zoomsteg: två kort mitt i bilden — 100 % fit, och de syns', Math.abs(zA - 1) < 1e-6 && syns() && !matVy(mig).manuell, pct(zA) + ', bilden ' + JSON.stringify(bild()));
+
+  /* Ett kort långt till höger: ett steg ut, och det glider 500 ms med UT. */
+  zr.push(zs(23, 'Serra Angel', 0.72, 0.4));
+  avstamBord(zr, false);
+  const zB = avZ(), A = gridEl._matZoom, tim = A && A.effect.getTiming();
+  ok('zoomsteg: ett kort som inte får plats ger ett steg ut som glider 500 ms (UT)', zB < zA - 0.01 && !!A && A.playState === 'running' && tim.duration === 500 && /cubic-bezier\(0?\.2,\s*0?\.8,\s*0?\.3,\s*1\)/.test(tim.easing),
+    `${pct(zA)} → ${pct(zB)}, ${A ? tim.duration + ' ms ' + tim.easing : 'ingen glidning'}`);
+  const nivaer = () => { const g = golvNu(); return NIVA.filter(s => s > g * 1.03).concat([g]); };
+  ok('zoomsteg: nivån är en av de fasta (100/86/75/65 % eller golvet)', nivaer().some(n => Math.abs(n - zB) < 1e-4), `${pct(zB)}; nivåerna ${nivaer().map(pct).join(', ')}`);
+  /* Brickan och frågan behåller sin storlek medan zoomen glider: --matz följer zoomen som syns. */
+  await vanta(150);
+  const syntZ = (() => { const m = /matrix\(\s*([-\d.e]+),\s*([-\d.e]+)/.exec(getComputedStyle(gridEl).transform); return m ? Math.hypot(+m[1], +m[2]) : NaN; })();
+  const matz = parseFloat(gridEl.style.getPropertyValue('--matz'));
+  ok('zoomsteg: --matz följer zoomen medan den glider (brickorna behåller sin storlek)', gar(gridEl) && Math.abs(matz - syntZ) < 0.006 && syntZ > zB + 0.02, `--matz ${matz.toFixed(3)}, zoomen som syns ${syntZ.toFixed(3)}, målet ${zB.toFixed(3)}`);
+  await vanta(500);
+  const vB = vyn(), rB = ram(), bB = bild();
+  ok('zoomsteg: efter steget syns alla kort, och --matz är målet', syns() && Math.abs(parseFloat(gridEl.style.getPropertyValue('--matz')) - zB) < 1e-3, JSON.stringify(vB));
+  /* Plats för ungefär två kort till åt höger (prototypens MARG, två kortbredder och 60 px, eller hela bilden),
+     och nivån innanför hade inte haft den. */
+  const behov = Math.min(rB.x1 + 2 * MATTA.CW + 60, bB.x1);
+  const inne = nivaer().filter(n => n > zB + 1e-4).pop();
+  const yB = yta();
+  ok('zoomsteg: steget ger plats för två kort till åt höger, och nivån innanför hade inte räckt',
+    vB.x1 >= behov - 1 && (inne == null || yB.w / inne < behov - rB.x0 + 1),
+    `vyn ${Math.round(vB.x0)}–${Math.round(vB.x1)}, korten ${Math.round(rB.x0)}–${Math.round(rB.x1)}, behov till ${Math.round(behov)}; nivån innanför ${inne ? pct(inne) + ' rymmer ' + Math.round(yB.w / inne) : '–'}`);
+
+  /* Aldrig in av sig själv: kortet långt ut går till graveyard, och ett nytt kort mitt i — zoomen står kvar. */
+  const tB = gridEl._matT;
+  flyttaTill(mig.cards.findIndex(c => c.spar === 23), ZON_GRAV);
+  zr.pop(); zr.push(zs(24, 'Wood Elves', 0.3, 0.6));
+  avstamBord(zr, false);
+  await vanta(600);
+  ok('zoomsteg: aldrig in av sig själv (kortet längst ut gick, ett nytt kom mitt i)', gridEl._matT === tB && syns(), `${tB} → ${gridEl._matT}`);
+
+  /* Golvet: kort ut mot bildens kanter — vänster, höger, uppåt, men inne i bilden. Zoomen går aldrig längre
+     ut än hela bilden. */
+  zr.push(zs(25, 'Plains', 0.06, 0.5), zs(26, 'Island', 0.94, 0.5), zs(27, 'Swamp', 0.5, 0.13));
+  for (let i = 0; i < 3; i++) { avstamBord(zr.slice(0, zr.length - 2 + i), false); await vanta(250); }
+  await vanta(600);
+  const vG = vyn(), bG = bild(), g = golvNu();
+  ok('zoomsteg: vid golvet syns hela kamerabilden, och aldrig längre ut', Math.abs(vG.z - g) < 1e-3 && vG.x0 <= bG.x0 + 1 && vG.x1 >= bG.x1 - 1 && vG.y0 <= bG.y0 + 1 && vG.y1 >= bG.y1 - 1 && syns(),
+    `${pct(vG.z)}, golvet ${pct(g)}, vyn ${[vG.x0, vG.y0, vG.x1, vG.y1].map(Math.round).join(',')}, bilden ${[bG.x0, bG.y0, bG.x1, bG.y1].map(Math.round).join(',')}`);
+
+  /* Minskad rörelse: steget är en toning (mattan till 0,35, bytet vid 150 ms, tillbaka vid 400). */
+  window.__mattLugn = true;
+  for (let i = 0; i < 100 && !lugn(); i++) await vanta(20);
+  spelLage = Object.assign({}, spelLage, { id: 'mattprov-zoom-lugn' });
+  oppSatt({ klar: true });
+  zr.length = 2; mig.cards = mig.cards.filter(c => c.spar === 21 || c.spar === 22);
+  renderAll(true); await vanta(100);
+  const zL = avZ();
+  zr.push(zs(28, 'Grizzly Bears', 0.72, 0.4));
+  avstamBord(zr, false);
+  const L = gridEl._matZoom, kf = L ? L.effect.getKeyframes() : [];
+  ok('zoomsteg med minskad rörelse: mattan tonas (0,35) och zoomen byts mitt i, 400 ms', lugn() && avZ() < zL - 0.01 && !!L && L.effect.getTiming().duration === 400 && kf.some(k => +k.opacity === 0.35) && !kf.some(k => k.easing && /cubic/.test(k.easing)),
+    L ? `${pct(zL)} → ${pct(avZ())}, ${kf.map(k => k.offset.toFixed(3) + ':' + k.opacity).join(' ')}` : `ingen rörelse: ${pct(zL)} → ${pct(avZ())}, lugn ${lugn()}, klasser ${gridEl.className}, kort ${mig.cards.map(c => c.spar).join(',')}`);
+  window.__mattLugn = false;
+  for (let i = 0; i < 100 && lugn(); i++) await vanta(20);
+
+  /* Ett nytt parti börjar på 100 % igen, på plats (korten mitt i ryms; kortet långt ut är borta). */
+  await vanta(500);
+  const zFore = avZ();
+  spelLage = Object.assign({}, spelLage, { id: 'mattprov-zoom-2' });
+  oppSatt({ klar: true });
+  mig.cards = mig.cards.filter(c => c.spar === 21 || c.spar === 22);
+  renderAll(true);
+  ok('zoomsteg: ett nytt parti börjar på 100 %, ritat på plats', zFore < 0.99 && Math.abs(avZ() - 1) < 1e-6 && !gar(gridEl), `${pct(zFore)} → ${pct(avZ())}`);
+  } catch (e) { ok('zoomsteg: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); window.__mattLugn = false; }
+  kamUpplosning = null;
   return rad;
 };
 
@@ -474,15 +574,17 @@ const TIDPROV = async () => {
       console.log(`  alla 40 avbrutna mitt i lyftet   ${f(t.avbrutna)}`);
     } else {
       /* Minskad rörelse slås på mitt i provet (window.__mattLugn): Chrome
-         emulerar mediefrågan, så att appens matLugn() läser den på riktigt. */
+         emulerar mediefrågan, så att appens matLugn() läser den på riktigt.
+         Den kan slås på och av flera gånger (mattans rörelser, zoomstegen). */
       let provKlart = false;
       const r0 = c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')()', awaitPromise: true, returnByValue: true }).finally(() => { provKlart = true; });
       const vakt = (async () => {
         let pa = false;
-        for (let i = 0; i < 4000 && !provKlart; i++) {
+        const slut = Date.now() + 120000;
+        while (!provKlart && Date.now() < slut) {
           const v = await c.cdp('Runtime.evaluate', { expression: 'window.__mattLugn', returnByValue: true }).catch(() => null), x = v && v.result.value;
           if (x === true && !pa) { pa = true; await c.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] }); }
-          if (x === false && pa) { await c.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] }); return; }
+          if (x === false && pa) { pa = false; await c.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] }); }
           await vanta(5);
         }
       })();
