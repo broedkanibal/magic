@@ -8848,9 +8848,10 @@ function zstegBord(p) { return !!p && arMitt(p) && speglatBord(p); }
 function zstegBas(vp) { const ref = bordRef || vp; return Math.min(1, vp.w / ref.w, vp.h / ref.h); }
 /* Kamerabilden i brädkoordinater, eller null innan skalan är känd. Skalan läses — provkortets eller den låsta
    (kamSkala.las) — utan att kamSkala anropas: den låser om sig själv, och ett anrop här mitt i en avstämning
-   hade kunnat byta skalan för korten. */
+   hade kunnat byta skalan för korten. Låset är { v, kalla, kand } sedan MES-342; en skala som bara är en
+   gissning (inga kort, ingen lek) ger ingen kamerabild — mattan följer korten tills skalan är mätt. */
 function matKamRam(p) {
-  const sk = kamSkalaFryst() || (kamSkala.las && kamSkala.las.get(p.id));
+  const l = kamSkala.las && kamSkala.las.get(p.id), sk = kamSkalaFryst() || (l && typeof l === 'object' ? (l.kalla === 'gissning' ? null : l.v) : l);
   if (!(sk > 0)) return null;
   let r = null;
   for (const x of [0, 1]) for (const y of [0, 1]) { const m = kamTillMatta({ x, y }, sk); r = forenaRam(r, { x0: m.x, y0: m.y, x1: m.x, y1: m.y }); }
