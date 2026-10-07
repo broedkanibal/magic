@@ -49,7 +49,10 @@ def main():
     p.add_argument('--fall', default='13,14,17,18')
     p.add_argument('--extra', nargs='*', default=[])
     p.add_argument('--ut', default=os.path.join(ROT, 'dev', 'remsa', 'resultat', 'hogfall-golden.json'))
+    p.add_argument('--para', default=None, help='parningens inställningar som JSON i stället för appens förval (MES-340 steg 2: {"skapa":"alla","dubIou":0.3,"hog":true})')
     a = p.parse_args()
+    global PARA
+    if a.para: PARA = json.loads(a.para)
     import onnxruntime as ort
     so = ort.SessionOptions(); so.intra_op_num_threads = 4
     sess = ort.InferenceSession(ONNX, so, providers=['CPUExecutionProvider'])

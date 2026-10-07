@@ -1983,7 +1983,9 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     }
     // VK5: beskärningen i läsningen — ett kort 25° snett (remsa, säker långsida) beskärs vridet −25°, kortets egna mått, och kort-argumentet är null
     {
-      namnSvar = osaker; nystart(); Kamera.satTrosklar({ spokMs: 2000, beskarRikt: 0 }); await lyft(LYFT);
+      /* Remsan ur kortets geometri (MES-340) vrider sin duk i kortets vinkel — samma −25° som beskärningen här — och
+         stängs av i VK5/VK5b, som mäter BESKÄRNINGENS vridningar: med remsaGeo på hade VK5b räknat remsans vridning. */
+      namnSvar = osaker; nystart(); Kamera.satTrosklar({ spokMs: 2000, beskarRikt: 0, remsaGeo: 0 }); await lyft(LYFT);
       const a = vridet(75, 75, 25); kvSvar = svarFor(25); sistaBesk = null; ctx.__rit = [];
       let s = []; for (let k = 0; k < 25; k++) s = await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));
       /* skarRemsa (remsans läsning) vrider också, i hela kvartsvarv efter remsans sida — de räknas inte här. */
@@ -1994,14 +1996,14 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       check(`VK5 vriden beskärning i läsningen: vridningar ${JSON.stringify([...new Set(rot)])}, duk ${sistaBesk && sistaBesk.w}×${sistaBesk && sistaBesk.h} (väntat ≈ ${kb}×${lb}), kort ${JSON.stringify(sistaBesk && sistaBesk.kort)}`,
             rot.length > 0 && rot.every(x => x === -25) && sistaBesk && Math.abs(sistaBesk.w - kb) <= 3 && Math.abs(sistaBesk.h - lb) <= 4 && sistaBesk.kort === null);
       // …och utan vridning (beskarVrid 0): den raka lådan, kort-argumentet satt (serUtSomKort mäter i rektangeln)
-      nystart(); Kamera.satTrosklar({ spokMs: 2000, beskarVrid: 0 }); await lyft(LYFT); sistaBesk = null; ctx.__rit = [];
+      nystart(); Kamera.satTrosklar({ spokMs: 2000, beskarVrid: 0, remsaGeo: 0 }); await lyft(LYFT); sistaBesk = null; ctx.__rit = [];
       for (let k = 0; k < 25; k++) s = await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));
       const rot0 = ctx.__rit.filter(x => x[0] === 'rotate').map(x => Math.round(x[1] * 180 / Math.PI)).filter(x => !remsRot(x)).length; ctx.__rit = null;
       /* Rektangeln är kortets egna sidor (kvoten 88/63 ≈ 1,40), inte den raka lådans (50,7 × 44,9 ≈ 1,13) — granskningen F3. */
       const kq = sistaBesk && sistaBesk.kort ? sistaBesk.kort.lang / sistaBesk.kort.kort : null;
       check(`VK5b beskarVrid 0: vridningar ${rot0}, duk ${sistaBesk && sistaBesk.w}×${sistaBesk && sistaBesk.h}, kort ${sistaBesk && sistaBesk.kort ? 'satt, kvot ' + kq.toFixed(2) : 'null'}`,
             rot0 === 0 && sistaBesk && !!sistaBesk.kort && kq > 1.3 && kq < 1.5);
-      Kamera.satTrosklar({ beskarVrid: 1 });
+      Kamera.satTrosklar({ beskarVrid: 1, remsaGeo: 1 });
     }
     // VK6: grundläget som exakt vinkel (API:t för steg 3) — leken 20° snett: otappat 20° snett, tappat 110°; en knuff ändrar inget
     {

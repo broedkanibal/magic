@@ -221,24 +221,21 @@
     const m = matt || mattUr(ut);
     const mitt = s => ({ x: (s.x0 + s.x1) / 2, y: (s.y0 + s.y1) / 2 });
     const inne = (p, k) => p.x >= k.x0 && p.x <= k.x1 && p.y >= k.y0 && p.y <= k.y1;
-    let skapade = 0;
-    remsor.forEach((s, si) => {
-      if (tagna.has(si) || SKAPA === 'inga') return;
-      const vg = vagrat(s), c = mitt(s);
-      if (SKAPA === 'fria' && ut.some(k => inne(c, k))) return;
-      let lod = o.lod || 1, vag = o.vag || -1;
-      const granne = ut.find(k => k.remsa && vagrat(k.remsa) === vg && inne(c, k)) || ut.find(k => k.remsa && vagrat(k.remsa) === vg && iou(k, { x0: c.x - 1, y0: c.y - 1, x1: c.x + 1, y1: c.y + 1 }) > 0);
-      if (granne) {
-        const g = granne.remsa, gc = mitt(g), kc = { x: (granne.x0 + granne.x1) / 2, y: (granne.y0 + granne.y1) / 2 };
-        if (vg) lod = kc.y >= gc.y ? 1 : -1; else vag = kc.x >= gc.x ? 1 : -1;
-      }
-      /* Lådan: från remsan och kortets höjd åt kroppens håll (form 'hel' —
-         facits och modellens lådor runt det synliga är i en snett förskjuten
-         hög nästan hela kortet; mätt i parprov.py gav 'hel' +2 kort, 'synlig'
-         0). Med form 'synlig' bara fram till nästa kort i högen — den
-         närmaste lådan eller remsan vars kant ligger bortom remsan och som
-         överlappar den i sidled till minst hälften. Minst 1,5 remstjocklekar. */
-      const t = tjock(s), hinder = [];
+    let skapade = 0, hogar = 0;
+    /* Två remsors avstånd tvärs sin riktning, i den tunnares tjocklek (appens remsaIsar, index.html): under ISAR är
+       det samma titel två gånger — NMS 0,6 släpper igenom par med IoU under 0,6, och de ligger högst ~0,45 isär;
+       två kort i en hög ligger minst ~0,8 isär (golden 04). */
+    const ISAR = o.isar != null ? o.isar : 0.6;
+    const ihop = (a, b) => { if (vagrat(a) !== vagrat(b)) return false; const ca = mitt(a), cb = mitt(b), t = Math.min(tjock(a), tjock(b)); return Math.hypot(ca.x - cb.x, ca.y - cb.y) / t < ISAR; };
+    /* 2b. En låda som är en HÖG (MES-340 steg 2.2): ytan mer än HOG_YTA kort (kortstorleken m) och minst en remsa
+       inne i den. Dubblettsteget (NMS 0,7) har lagt en låda över flera kort — golden 17:s hög B: en låda över tre
+       tappade land, som appen dömde som skräp för att den inte var kortformad, och högens remsor kastades med den.
+       Lådan ersätts av ett kort per remsa inne i den (lådan ur remsan och kortstorleken, åt lådans mitt); remsor som
+       ligger ihop (ISAR) räknas en gång. Bara med en kortstorlek (m), aldrig utan remsa: en låda utan remsa har
+       inget att läsa och går till kamIdentifiera som förut. o.hog slår på (appen: T.detHog). */
+    const HOG_YTA = o.hogYta != null ? o.hogYta : 1.5;
+    const skapaUr = (s, si, lod, vag) => {
+      const vg = vagrat(s), c = mitt(s), t = tjock(s), hinder = [];
       if (FORM === 'synlig') { for (const k of ut) hinder.push(k); remsor.forEach((q, qi) => { if (qi !== si) hinder.push(q); }); }
       const sidled = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)) >= 0.5 * (a1 - a0);
       let b;
@@ -255,10 +252,68 @@
         else { x1 = s.x1 + 0.02 * w; x0 = x1 - w; for (const q of hinder) if (q.x1 < s.x0 + 0.25 * t && sidled(s.y0, s.y1, q.y0, q.y1) && q.x1 > x0) x0 = q.x1; x0 = Math.min(x0, s.x0 - 0.5 * t); }
         b = { x0, x1, y0: c.y - h / 2, y1: c.y + h / 2 };
       }
+      return b;
+    };
+    if (o.hog && m) {
+      const kortYta = m.lang * m.kort, behall = [], nya = [];
+      for (const k of ut.slice()) {
+        const yta = (k.x1 - k.x0) * (k.y1 - k.y0);
+        if (!(yta > HOG_YTA * kortYta)) { behall.push(k); continue; }
+        const kc = { x: (k.x0 + k.x1) / 2, y: (k.y0 + k.y1) / 2 }, inneI = [];
+        remsor.forEach((s, si) => { if ((k.remsa === s || !tagna.has(si)) && inne(mitt(s), k) && !inneI.some(j => ihop(remsor[j], s))) inneI.push(si); });
+        if (!inneI.length) { behall.push(k); continue; }
+        hogar++;
+        /* Alla kort i en hög vänder titeln åt samma håll: kroppen ligger från remsornas GEMENSAMMA läge mot lådans mitt
+           (remsa för remsa hade det nedersta kortets remsa i en nedåt förskjuten hög fått kroppen uppåt). */
+        const mc = inneI.reduce((a, si) => { const c = mitt(remsor[si]); a.x += c.x / inneI.length; a.y += c.y / inneI.length; return a; }, { x: 0, y: 0 });
+        const lod = kc.y >= mc.y ? 1 : -1, vag = kc.x >= mc.x ? 1 : -1;
+        for (const si of inneI) {
+          const s = remsor[si];
+          const b = skapaUr(s, si, lod, vag);
+          nya.push({ x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1, poang: s.poang, klass: 'kort', remsa: s, ur: 'hog' });
+          tagna.add(si); skapade++;
+        }
+      }
+      ut = behall.concat(nya);
+    }
+    remsor.forEach((s, si) => {
+      if (tagna.has(si) || SKAPA === 'inga') return;
+      const vg = vagrat(s), c = mitt(s);
+      if (SKAPA === 'fria' && ut.some(k => inne(c, k))) return;
+      /* Vakt (a), MES-340 steg 2.1: samma titel som en redan parad remsa — inget kort till (parprov: 'alla' rakt av
+         gav 76 dubbletter i MES-246 mot 37; en andra remsa på samma kant var den vanligaste). Samma titel = ligger
+         ihop med den parade remsan (ISAR) OCH ligger till minst INNE_ANDEL inne i den parade remsans låda. Golden 17
+         hög A: Island (tappat, överst) har en lös remsa som täcker högens titlar, och Forests remsa under den ligger
+         0,56 tjocklekar bort — men till hälften UTANFÖR Islands låda: det är en annan titel som sticker fram, och den
+         ska bli ett kort. MES-246:s dubblettremsor ligger helt inne i sin låda. */
+      const andelInne = (a, k) => { const ix = Math.max(0, Math.min(a.x1, k.x1) - Math.max(a.x0, k.x0)), iy = Math.max(0, Math.min(a.y1, k.y1) - Math.max(a.y0, k.y0)), aa = (a.x1 - a.x0) * (a.y1 - a.y0); return aa > 0 ? ix * iy / aa : 0; };
+      const INNE_ANDEL = o.inneAndel != null ? o.inneAndel : 0.7;
+      if (o.vakt !== false && ut.some(k => k.remsa && ihop(k.remsa, s) && andelInne(s, k) >= INNE_ANDEL)) return;
+      /* Provat och backat (granskningen 2026-10-07, fynd 1): en vakt (b) som parade en överbliven remsa till en
+         remslös låda där den satt 0,08–0,2 kortsidor från kanten (parprov: lådor som tar med sig fickan eller kortet
+         under, 0,145–0,16). Men samma geometri är en hög där det ÖVERSTA kortets remsa inte detekterats och det undre
+         kortets synliga remsa ligger inne i dess låda (17: fyra av sju högkort utan remsa) — då hade det övre kortets
+         spår fått det undre kortets remsa och läst dess namn SÄKERT på fel kort. En dubblett (det här kortet en gång
+         till, ur remsan) är billigare än ett fel namn: får båda samma säkra namn slår sammaKortSom ihop dem; står
+         kortets egen låda osäker ligger två spår för ett kort tills granskningen avgör. parprov med bara vakt (a):
+         se dev/plan/remsan-forst-resultat.md. */
+      let lod = o.lod || 1, vag = o.vag || -1;
+      const granne = ut.find(k => k.remsa && vagrat(k.remsa) === vg && inne(c, k)) || ut.find(k => k.remsa && vagrat(k.remsa) === vg && iou(k, { x0: c.x - 1, y0: c.y - 1, x1: c.x + 1, y1: c.y + 1 }) > 0);
+      if (granne) {
+        const g = granne.remsa, gc = mitt(g), kc = { x: (granne.x0 + granne.x1) / 2, y: (granne.y0 + granne.y1) / 2 };
+        if (vg) lod = kc.y >= gc.y ? 1 : -1; else vag = kc.x >= gc.x ? 1 : -1;
+      }
+      /* Lådan: från remsan och kortets höjd åt kroppens håll (form 'hel' —
+         facits och modellens lådor runt det synliga är i en snett förskjuten
+         hög nästan hela kortet; mätt i parprov.py gav 'hel' +2 kort, 'synlig'
+         0). Med form 'synlig' bara fram till nästa kort i högen — den
+         närmaste lådan eller remsan vars kant ligger bortom remsan och som
+         överlappar den i sidled till minst hälften. Minst 1,5 remstjocklekar. */
+      const b = skapaUr(s, si, lod, vag);
       ut.push({ x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1, poang: s.poang, klass: 'kort', remsa: s, ur: 'remsa' });
       skapade++;
     });
-    ut.dubbletter = dubbletter; ut.skapade = skapade; ut.matt = m;
+    ut.dubbletter = dubbletter; ut.skapade = skapade; ut.hogar = hogar; ut.matt = m;
     return ut;
   }
 

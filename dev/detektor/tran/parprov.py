@@ -120,13 +120,21 @@ def main():
                 sx0, sy0, sx1, sy1 = kk['remsa']; scx, scy = (sx0 + sx1) / 2, (sy0 + sy1) / 2
                 vag = (sx1 - sx0) >= (sy1 - sy0)
                 inne = [m for m in u['kort'] if m['x0'] <= scx <= m['x1'] and m['y0'] <= scy <= m['y1']]
+                # lådans egen parade remsa (MES-340 steg 2: skiljer en andra remsa på samma titel från en granntitel som sticker fram)
+                egen = {(round(pp['x0']), round(pp['y0'])): pp.get('remsa') for pp in u['par']}
+                def remsaText(m):
+                    r = egen.get((round(m['x0']), round(m['y0'])))
+                    return f" remsa {int(r[0])},{int(r[1])}–{int(r[2])},{int(r[3])}" if r else ' utan remsa'
                 beskr = []
                 for m in inne:
                     if vag:
                         d = min(abs(sy0 - m['y0']), abs(sy1 - m['y1'])) / max(1, m['y1'] - m['y0'])
                     else:
                         d = min(abs(sx0 - m['x0']), abs(sx1 - m['x1'])) / max(1, m['x1'] - m['x0'])
-                    beskr.append(f"låda {int(m['x0'])},{int(m['y0'])}–{int(m['x1'])},{int(m['y1'])} p{m['poang']:.2f} avstånd {d:.3f}")
+                    beskr.append(f"låda {int(m['x0'])},{int(m['y0'])}–{int(m['x1'])},{int(m['y1'])} p{m['poang']:.2f} avstånd {d:.3f}{remsaText(m)}")
+                if not inne and u['kort']:
+                    m = min(u['kort'], key=lambda m: abs((m['x0'] + m['x1']) / 2 - scx) + abs((m['y0'] + m['y1']) / 2 - scy))
+                    beskr.append(f"närmast: låda {int(m['x0'])},{int(m['y0'])}–{int(m['x1'])},{int(m['y1'])} p{m['poang']:.2f}{remsaText(m)}")
                 print(f"    {b['id']}: skapat kort {dd['dom']} ur {'vågrät' if vag else 'stående'} remsa {int(sx0)},{int(sy0)}–{int(sx1)},{int(sy1)} (tjock {int(min(sx1-sx0, sy1-sy0))}); i lådor: {'; '.join(beskr) or 'ingen'}")
         if (k['eget'], k['falsk'], k['dubblett'], k['hogar_hela']) != (q['eget'], q['falsk'], q['dubblett'], q['hogar_hela']):
             skillnader.append({'fall': b['id'], 'kort': k['kort'], 'kortlador': [k['eget'], k['falsk'], k['dubblett'], k['hogar_hela'], k['hogar']],

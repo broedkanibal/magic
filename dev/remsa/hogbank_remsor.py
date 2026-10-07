@@ -53,7 +53,7 @@ def inne(b, lada):
 
 
 def mata(a):
-    det = Detektor(); m = Bildmodell()
+    det = Detektor(); m = Bildmodell(fil=a.modell) if a.modell else Bildmodell()
     refs = Referenser(m, [(n, i, ref_strip(img, a.andel)) for n, i, img in las_referensbilder()], rotar=(0, 180))
     fall = fall_facit()
     for h in fall:
@@ -77,7 +77,7 @@ def mata(a):
             # OCR:n får banden ur båda vridningarna, sex steg, som appen skulle pröva)
             lagen = [strip] if strip.shape[1] >= strip.shape[0] else [cv2.rotate(strip, cv2.ROTATE_90_CLOCKWISE), cv2.rotate(strip, cv2.ROTATE_90_COUNTERCLOCKWISE)]
             q = m.kor([kvadrat(cv2.cvtColor(lagen[0], cv2.COLOR_BGR2RGB))])[0]
-            e = dom(refs.rangordna(q), h['namn'] or '')
+            e = dom(refs.rangordna(q), h['namn'] or '', a.troskel) if a.troskel else dom(refs.rangordna(q), h['namn'] or '')
             mapp = os.path.join(a.ut, 'orig', 'detektor'); os.makedirs(mapp, exist_ok=True)
             steg = 0
             for s in lagen:
@@ -151,6 +151,8 @@ def main():
     p.add_argument('--andel', type=float, default=0.14)
     p.add_argument('--ut', default=UT)
     p.add_argument('--rapport', default=None, help='ocr.json från ocr.cjs → tabellen med OCR')
+    p.add_argument('--modell', default=None, help='bildmodellens fil (förval appens; MES-340: dev/embed/modeller/mobileclip-s0-mesa-v2.onnx för remsorna)')
+    p.add_argument('--troskel', type=float, default=None, help='marginalen för säker (förval lib.TROSKEL 0,11; appens remströskel är 0,28 sedan MES-340)')
     a = p.parse_args()
     if a.rapport:
         j = json.load(open(os.path.join(HAR, 'resultat', 'hogbank-remsor.json'), encoding='utf-8'))
