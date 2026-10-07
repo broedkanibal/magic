@@ -24046,11 +24046,26 @@ const Kamera = (() => {
        WASM — går kedjan på dagens detektor ändå (KamDet). Golden kör båda:
        --tro "detektor:0". detRemsa: parningen remsa + kortlåda skapar kort
        ur remsor utan låda (1) eller inte (0); dubbletter som delar remsa
-       slås ihop oavsett. Mätt i dev/detektor/tran/parprov.py: skapade kort
-       ger +2 av 738 i MES-246 och ~40 dubblettlådor; förvalet är av tills
-       golden visar en vinst (dev/golden/historik.md 2026-10-01). */
+       slås ihop oavsett. Mätt i dev/detektor/tran/parprov.py 2026-10-01:
+       skapade kort gav +2 av 738 i MES-246 och ~40 dubblettlådor, och
+       förvalet var av. På sedan MES-340 steg 2 (2026-10-07) med två vakter i
+       Detektor.para: en remsa som ligger ihop med en redan parad (samma
+       titel två gånger, NMS 0,6) skapar inget, och en remsa i en låda utan
+       remsa paras dit i stället för att bli ett kort till (parprov: se
+       dev/plan/remsan-forst-resultat.md). Golden 17: Forest i hög A har en
+       remsa men ingen låda, och kastades.
+       detHog (MES-340 steg 2.2): en kortlåda som är en hög — ytan mer än
+       1,5 kort och minst en remsa inne i den (golden 17 hög B: en låda över
+       tre tappade land) — ersätts av ett kort per remsa i Detektor.para.
+       AVSTÄNGD (0): parprov 2026-10-07 gav högar 99 → 103/107 i MES-246 men
+       ett MISSAT kort (66,90 s: Thriving Moor, vars låda togs bort och vars
+       remsa inte gav tillbaka det) — hittade får aldrig gå ner. Remsor i en
+       hög blir kort ändå via detRemsa (steg 3 i para: grannens riktning), och
+       en låda med remsa döms inte längre som skräp (kamIdentifiera). Golden
+       --tro "detRemsa:0", "detHog:1". */
     detektor: 1,
-    detRemsa: 0,
+    detRemsa: 1,
+    detHog: 0,
     /* Namnet ur remsan (MES-330): ett spår vars beskärning maskats (ett
        annat kort ligger över, maskaTackt) och som den lokala kedjan inte
        var säker på läses om på detektorns remslåda, skuren ur videons fulla
@@ -24090,6 +24105,11 @@ const Kamera = (() => {
        1 = den vridna rektangeln ur remslådans mitt, kortets vinkel och
        kortstorleken; 0 = detektorns remslåda som förut. */
     remsaGeo: 1,
+    /* …utom när det som ligger ovanpå målar över mer än så här stor andel av
+       geometrins remsa (remsGeo): då skärs detektorns remslåda, som ramar in
+       den synliga titeln. Golden 04 ~0,4, 05 ~0,7 (lådan vann), 14 0 (geometrin
+       vann); gränsen ligger mellan. */
+    remsaGeoTackt: 0.25,
     /* Spärren mot kort i handen (steg 1.3, medRemsa → remsaDomSkal): 1 =
        remsan gör namnet säkert bara på ett stilla, oskymt spår med region
        nyss; 0 = som förut. */
@@ -25738,7 +25758,7 @@ const Kamera = (() => {
     const k = W / Math.max(1, r.w);   // bordsrutans bildpunkter → analyspixlar
     const km = kortMatt(), matt = km.kalla === 'spår' ? { lang: km.lang / k, kort: km.kort / k } : null;
     let par;
-    try { par = D.para(L.kort, L.remsor, matt, { skapa: T.detRemsa ? 'alla' : 'inga', dubIou: 0.3 }); }
+    try { par = D.para(L.kort, L.remsor, matt, { skapa: T.detRemsa ? 'alla' : 'inga', dubIou: 0.3, hog: !!T.detHog }); }
     catch (e) { par = L.kort.map(b => Object.assign({}, b, { remsa: null, ur: 'lada' })); }
     dia.detLador = L.kort.length; dia.detRemsor = L.remsor.length; dia.detSkapade = par.skapade || 0; dia.detIhopslagna = par.dubbletter || 0;
     vinkelRuta++; vinkelMs = 0; vinkelN = 0;
@@ -28722,7 +28742,29 @@ const Kamera = (() => {
     /* Remsans andel av kortet: detektorns (Detektor.REMSA, 0,14 — samma som remsleken byggs med, KamEmbed.byggRemsor);
        bänken (dev/kamerabank.cjs) kör blocket utan detektorn och får förvalet. */
     const s = t.remsaLada, andel = (typeof window !== 'undefined' && window.Detektor && window.Detektor.REMSA) || REMSA_FORVAL;
-    return { cx: r.x + (s.x + s.w / 2) * sx, cy: r.y + (s.y + s.h / 2) * sy, upp: vm.upp, L, K, tj: andel * L };
+    const geo = { cx: r.x + (s.x + s.w / 2) * sx, cy: r.y + (s.y + s.h / 2) * sy, upp: vm.upp, L, K, tj: andel * L };
+    /* Ett TÄCKT kort (steg 1-körningen 2026-10-07, S1): geometrins remsa är hela kortbredden och hela
+       remstjockleken, och det som ligger ovanpå målas över i den. Sticker kortet fram bara lite — golden 04:
+       Plains under Plains förskjutet 19 px, remsan 35 px tjock → ~40 % målat; golden 05: Scourge med Pacifism
+       i sidled över ~70 % av bredden — ser bildmodellen mest matta och gissar (Island 0,06, Danitha), medan
+       detektorns remslåda, som bara ramar in den SYNLIGA titeln, läste rätt (remsa+titel, remsa). Så länge
+       remsan ligger fri (14:s två täckta Plains, 25 % synliga: 0 % målat) vinner geometrin. Täcker det som
+       ligger ovanpå (tackt) och grannens remsa (remsaUtom) mer än T.remsaGeoTackt av remsan skärs lådan som
+       förut. Täckningen räknas på remsans omskrivna låda i analyspixlar — för ett kort i vinkel är den större
+       än remsan, så andelen överskattas och återfallet kommer hellre för ofta än för sällan. */
+    if (t.tackt && t.tackt.length || t.remsaUtom && t.remsaUtom.length) {
+      const th = vm.upp * Math.PI / 180, ux = Math.sin(th), uy = -Math.cos(th), vx = Math.cos(th), vy = Math.sin(th);
+      const hx = Math.abs(ux) * geo.tj / 2 + Math.abs(vx) * K / 2, hy = Math.abs(uy) * geo.tj / 2 + Math.abs(vy) * K / 2;
+      const b = { x: (geo.cx - hx - r.x) / sx, y: (geo.cy - hy - r.y) / sy, w: 2 * hx / sx, h: 2 * hy / sy };
+      let tackt = 0;
+      for (const q of (t.tackt || []).concat(t.remsaUtom || [])) {
+        const iw = Math.min(b.x + b.w, q.x + q.w) - Math.max(b.x, q.x), ih = Math.min(b.y + b.h, q.y + q.h) - Math.max(b.y, q.y);
+        if (iw > 0 && ih > 0) tackt += iw * ih;
+      }
+      const yta = (K / sx) * (geo.tj / sy);
+      if (yta > 0 && tackt / yta > T.remsaGeoTackt) return null;
+    }
+    return geo;
   }
   function skarRemsa(t) {
     const s = t.remsaLada; if (!s || !video) return null;
@@ -29021,7 +29063,7 @@ const Kamera = (() => {
       const tackt = maskaTackt(b, t);
       t.maskad = !!tackt;   // beskärningen som går till Claude är övermålad (MES-330: spärren i svarAI)
       if (window.MESA_DET_LOGG) console.log('[det läs]', t.id, JSON.stringify(t.box), 'tackt', JSON.stringify(t.tackt), 'maskad', tackt, 'geo', b && JSON.stringify(b.geo));
-      if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort, { tackt: !!tackt, detPoang: t.detPoang || 0 });
+      if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort, { tackt: !!tackt, detPoang: t.detPoang || 0, remsa: !!(t.remsaLada && !t.remsaSynt) });
       svar = await medRemsa(t, svar, tackt);
     } catch (e) { fel = true; }
     finally { lasande--; t.laser = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(nuRiktig() - t0)); }
@@ -29107,7 +29149,7 @@ const Kamera = (() => {
       const b = video ? beskar(t) : null;
       const tackt = maskaTackt(b, t);
       t.maskad = !!tackt;
-      if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true, tackt, detPoang: t.detPoang || 0 });
+      if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true, tackt, detPoang: t.detPoang || 0, remsa: !!(t.remsaLada && !t.remsaSynt) });
       svar = await medRemsa(t, svar, tackt);
       lasLogg(t, lasStart, svar, 'spek');
       if (t.spek !== vantar) return;
@@ -30095,7 +30137,10 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   /* …utom en beskärning där grannens hörn är övermålat med mattans nivå
      (o.tackt, MES-250): den ser ut som matta till större delen med flit.
      Att det är ett kort har passaKort redan visat på formen och kanten. */
-  if (!(o && o.tackt) && !serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala, kort)) return { skrap: true };
+  /* …och inte en låda som bär detektorns egen namnremsa (MES-340 steg 2.3): remsklassen (≥ 0,68) såg en titel där, så
+     det är ett kort — också när lådan inte är kortformad (golden 17 hög B: en låda över tre tappade land, dömd skräp,
+     och högens remsa kastades med den). Remsan läses sedan i medRemsa. En syntetisk remsa (lådans kant) räknas inte. */
+  if (!(o && (o.tackt || o.remsa)) && !serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala, kort)) return { skrap: true };
   kamMinnsBild(id, canvas);
   /* Läsningens delar för latensrapporten (MES-242, bara ?debug): tidpunkter
      mellan stegen nedan, i performance.now(). */
