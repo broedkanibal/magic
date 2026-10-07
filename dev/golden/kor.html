@@ -1253,7 +1253,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
     metod: metod(), ai: aiModell(), promptv: AI_PA ? promptVersion : null,
     poolKod: (poolRec && poolRec.code) || null,   // poolens nyckel (lek.txt): byts den mäter körningen en annan lek än baslinjen
-    remsModell: (REMS_MODELL && w.Embed && w.Embed.remsModell) || undefined, remsModellFel: (REMS_MODELL && w.Embed && !w.Embed.remsModell && (w.Embed.remsFel || 'ingen remsmodell')) || undefined,
+    remsModell: (w.Embed && w.Embed.remsModell) || undefined, remsModellFel: (w.Embed && !w.Embed.remsModell && (w.Embed.remsFel || 'ingen remsmodell')) || undefined,   // alltid (MES-340): remsmodellen är appens förval, och en körning utan den ska synas
     videoErsatt: (f.facit.video && VIDEO_ERSATT) || undefined,
     kallStorlek: f.kallStorlek,
     /* Bildmodellen (MES-225): vilken väg den räknade (webgpu/wasm), null = reserven; och domskälen för de säkra rätta namnen — vilket vittne som bar. */

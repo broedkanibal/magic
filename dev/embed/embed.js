@@ -59,7 +59,10 @@
      'modell land', så den läser bara remsor. Filen (43 MB) ligger i
      projektets Supabase-lagring, bucketen modeller (publik, CORS *); samma fil
      som dev/embed/modeller/mobileclip-s0-mesa-v2.onnx (gitignorerad), sha256
-     e0eb2612…733a. Golden kan byta den med --rems-modell. */
+     e0eb2612…733a. Golden kan byta den med --rems-modell. Filen får ALDRIG
+     skrivas över under samma namn: hamtaModell cachar per URL och remsTagg
+     är filnamnet, så en v3 under samma namn hade blandat två modellers
+     vektorer under en nyckel — en ny modell får ett nytt filnamn. */
   const REMS_MODELL_URL = 'https://rtoejcafnssypnysjmey.supabase.co/storage/v1/object/public/modeller/mobileclip-s0-mesa-v2.onnx';
   const FORVAL = {
     ort: ORT_CDN + 'ort.webgpu.min.js', wasmPaths: ORT_CDN,

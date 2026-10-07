@@ -28785,8 +28785,24 @@ const Kamera = (() => {
         x2.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
         /* Rektanglarna i videons bildpunkter, relativt remsans mitt: kontexten är vriden, så de målas vridna med bilden. */
         const mala = q => x2.fillRect(r.x + (q.x - 1) * sx - geo.cx, r.y + (q.y - 1) * sy - geo.cy, (q.w + 2) * sx, (q.h + 2) * sy);
-        if (t.tackt && t.tackt.length) for (const q of t.tackt) { mala(q); tackt++; }
-        if (t.remsaUtom && t.remsaUtom.length) for (const q of t.remsaUtom) { mala(q); utom++; }
+        /* Bara det som rör remsan räknas (granskningen fynd 10): remsans omskrivna låda i analyspixlar. */
+        const hx2 = hx / sx, hy2 = hy / sy, rb = { x: (geo.cx - r.x) / sx - hx2, y: (geo.cy - r.y) / sy - hy2, w: 2 * hx2, h: 2 * hy2 };
+        const ror = q => Math.min(rb.x + rb.w, q.x + q.w) > Math.max(rb.x, q.x) && Math.min(rb.y + rb.h, q.y + q.h) > Math.max(rb.y, q.y);
+        if (t.tackt && t.tackt.length) for (const q of t.tackt) { mala(q); if (ror(q)) tackt++; }
+        if (t.remsaUtom && t.remsaUtom.length) for (const q of t.remsaUtom) { mala(q); if (ror(q)) utom++; }
+        /* …och allt UTANFÖR kortets egen låda (granskningen 2026-10-07, fynd 2): remsan är en hel kortbredd, och
+           ligger detektorns remslåda bara runt den synliga delen av titeln — grannens kort i sidled, en tärning,
+           en token utan egen låda över resten — sträcker sig rektangeln ut över grannen, som bara målas om den
+           står i tackt. Det detektorn gav som kortets låda (ramen när den finns) är det här kortets utsträckning;
+           det som ligger utanför den är inte kortets, och målas med mattans nivå genom samma vridning. Marginalen
+           4 % som beskärningens (KortVinkel.MARG). */
+        /* Unionen av detektorns låda (den remslådan och vinkeln räknades ur) och ramen (finLada får krympa den
+           12 % per sida — titeln börjar 7–8 % in, så ramen ensam kunde måla över första bokstaven på ett helt
+           synligt kort; granskningen runda 2): kan bara bli större än kortet, aldrig mindre. */
+        const kb = t.ram ? { x: Math.min(t.ram.x, t.box.x), y: Math.min(t.ram.y, t.box.y), w: Math.max(t.ram.x + t.ram.w, t.box.x + t.box.w) - Math.min(t.ram.x, t.box.x), h: Math.max(t.ram.y + t.ram.h, t.box.y + t.box.h) - Math.min(t.ram.y, t.box.y) } : t.box, km = 0.04, BIG = 1e5;
+        const bx0 = r.x + (kb.x - kb.w * km) * sx - geo.cx, by0 = r.y + (kb.y - kb.h * km) * sy - geo.cy, bx1 = bx0 + kb.w * (1 + 2 * km) * sx, by1 = by0 + kb.h * (1 + 2 * km) * sy;
+        x2.fillRect(-BIG, -BIG, BIG + bx0, 2 * BIG); x2.fillRect(bx1, -BIG, BIG, 2 * BIG);
+        x2.fillRect(bx0, -BIG, bx1 - bx0, BIG + by0); x2.fillRect(bx0, by1, bx1 - bx0, BIG);
         x2.setTransform(1, 0, 0, 1, 0, 0);
         return { c, rot: Math.round(rot), px: { w: ow, h: oh }, tackt, utom, mx: s.x + s.w / 2, my: s.y + s.h / 2, L: Math.max(s.w, s.h), geo: true };
       }
@@ -28837,13 +28853,21 @@ const Kamera = (() => {
     /* skal: varför inget minne fick tävla (golden --detalj) — hur många som föll på varje villkor. */
     return { minnen: nara, skal: nara.length ? null : `${alla.length} minnen: ${lever.length} lever, ${alla.length - lever.length - nyss.length} för gamla, ${nyss.length - nara.length} för långt bort` };
   }
-  async function lasRemsa(t, maskad) {
+  async function lasRemsa(t, maskad, o) {
     if (!cb.lasRemsa) return null;
     const s = skarRemsa(t); if (!s) return null;
     const m = !T.remsaMinne ? { minnen: [], skal: null } : arTackt(t, maskad) ? minnenFor(t, s.mx, s.my, s.L) : { minnen: [], skal: 'inte täckt' }, minnen = m.minnen;
     if (T.remsaMinne) { minneStat.fragor++; if (minnen.length) minneStat.medMinne++; }
-    const rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo: !!s.geo, tackt: s.tackt, utom: s.utom,
-                                              minnen: minnen.length ? minnen.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: e.prov })) : null, minneSkal: m.skal });
+    /* Minnets prov jämförs bara med samma skärning (granskningen fynd 6): ett prov taget ur geometrins remsa mot en
+       fråga ur detektorns låda (återfallet) är två olika utsnitt av samma titel, och minnets tröskel (0,10, pass 6)
+       mättes på lådremsor. Ett prov utan flaggan är från före geometrin — lådskuret. */
+    const geo = !!s.geo, provLika = e => (e.prov || []).filter(p => !!p.geo === geo);
+    /* …och på en geo-skuren remsa får minnet inte döma alls än (granskningen runda 2): två geo-remsor på samma plats är
+       identiskt inramade, så bakgrundslikheten mellan två OLIKA kort är högre än mellan två lådremsor, och minnets
+       tröskel (0,10) mättes på lådremsor (pass 6). Mäts om i remsexp innan 'remsa minne' får vara säker på geo-prov. */
+    const minnenLika = geo ? [] : minnen.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: provLika(e) })).filter(e => e.prov.length);
+    const rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo, tackt: s.tackt, utom: s.utom, vittneBara: !!(o && o.vittneBara),
+                                              minnen: minnenLika.length ? minnenLika : null, minneSkal: m.skal || (minnen.length && !minnenLika.length ? (geo ? 'geo: minnets tröskel omätt' : 'annan skärning') : null) });
     if (rs && rs.saker && rs.varfor === 'remsa minne') minneStat.sakra++;
     return rs;
   }
@@ -28954,7 +28978,7 @@ const Kamera = (() => {
       let e = remsMinne.find(x => x.sparId === id);
       if (!e) { e = { sparId: id, namn, sid, prov: [], mx: s.mx, my: s.my, L: s.L, sedd: forra, tagen: 0, lever: true }; remsMinne.push(e); }
       e.namn = namn; e.sid = sid; e.tagen = forra;
-      e.prov.push({ hel: v.hel, titel: v.titel, tagen: forra }); if (e.prov.length > 3) e.prov.shift();
+      e.prov.push({ hel: v.hel, titel: v.titel, tagen: forra, geo: !!s.geo }); if (e.prov.length > 3) e.prov.shift();   // geo: provet skars ur kortets geometri (MES-340) — jämförs bara med lika
       minneStat.fangster++; minneStat.fangstMs += Math.round(nuRiktig() - t0);
     }, () => {}).then(() => { t.minneLaser = false; });
   }
@@ -28998,6 +29022,7 @@ const Kamera = (() => {
      Gäller alla remsans vägar (remsa, remsa+titel, remsa+namn, remsa minne).
      vm.hallen (långsidan ur hysteresen) är inte en hand och spärrar inte.
      T.remsaStilla 0 stänger av (golden --tro "remsaStilla:0"). */
+  const VANTA_MAX = 4;   // omläsningar remsans väntan får kosta innan svaret går den gamla vägen (1,5 + 3 + 6 + 10 s)
   const remsaDomSkal = t => !T.remsaStilla ? null : t.skymd ? 'skymt' : !(t.regionNar != null && forra - t.regionNar <= 2 * TAKT_MS) ? 'ingen region nyss'
     : !((t.formN || 0) >= R(SPEK_RUTOR) || arStilla(t)) ? 'inte stilla' : null;
   /* 'modell land' på ett TÄCKT kort kräver ett andra vittne (steg 1.3): ett
@@ -29018,17 +29043,24 @@ const Kamera = (() => {
     if (svar.saker && !landVittne) return svar;
     if (!svar.saker && !(T.remsaAlla || maskad || t.omlott)) return svar;
     let rs = null;
-    try { rs = await lasRemsa(t, maskad); } catch (e) { rs = null; }
+    try { rs = await lasRemsa(t, maskad, { vittneBara: landVittne }); } catch (e) { rs = null; }   // vittnesläsningen utan textläsaren: bara marginalen behövs (granskningen fynd 9)
     if (rs) t.remsa = rs;
     const skal = rs && rs.saker && rs.namn ? remsaDomSkal(t) : null;
     if (skal) { rs = Object.assign({}, rs, { saker: false, varfor: (rs.varfor || 'remsa') + ' väntar: ' + skal }); t.remsa = rs; }
     if (landVittne) {
       const vittne = !!((rs && rs.namn === svar.namn && rs.marginal >= T.remsaVittne) || (svar.namnLast && svar.namnLast.namn === svar.namn && svar.namnLast.poang >= 0.5));
       if (vittne) return Object.assign({}, svar, { varfor: 'modell land+vittne', remsa: rs || undefined });
-      if (rs && rs.saker && rs.namn) return Object.assign({}, svar, { namn: rs.namn, sid: rs.sid, saker: true, cands: rs.cands, varfor: rs.varfor || 'remsa', remsa: rs });   // remsan dömer själv, med sin egen gräns
+      /* Två säkra vittnen som säger olika är ingen dom (granskningen fynd 5): osäkert, med båda bland förslagen (ett namn en gång). */
+      if (rs && rs.saker && rs.namn) { const c = [svar.cands && svar.cands[0], ...(rs.cands || [])].filter(Boolean), sedd = new Set(); return Object.assign({}, svar, { saker: false, varfor: 'modell land mot remsa', cands: c.filter(x => !sedd.has(x.name) && sedd.add(x.name)), remsa: rs }); }
+      /* Remsan höll tillbaka sin dom för att spåret är skymt eller rörligt: samma läge som vanta nedan — läs om när det vilat, inte Claude (granskningen runda 2, 3b). */
+      if (skal) return Object.assign({}, svar, { saker: false, varfor: 'modell land utan vittne', remsa: rs, vanta: skal });
       return Object.assign({}, svar, { saker: false, varfor: 'modell land utan vittne', remsa: rs || undefined });
     }
     if (!rs) return svar;
+    /* Spärren höll tillbaka remsans dom: svaret bär vanta, och identifiera läser om spåret när det vilat i stället för att
+       göra det osäkert — ett osäkert svar går till Claude, som inte har någon stilla- eller skymd-koll (granskningen fynd 3),
+       och kortet i handen hade då hamnat på bordet som 'ai' i stället. */
+    if (skal) return Object.assign({}, svar, { remsa: rs, vanta: skal });
     if (!rs.saker || !rs.namn) return Object.assign({}, svar, { remsa: rs });
     return Object.assign({}, svar, { namn: rs.namn, sid: rs.sid, saker: true, cands: rs.cands, varfor: rs.varfor || 'remsa', remsa: rs });
   }
@@ -29074,6 +29106,17 @@ const Kamera = (() => {
        kortet går till granskningen en gång, i stället för att frågas om sju
        gånger i sekunden med ett obesvarat fel per gång. */
     if (svar === null && !fel) { t.igen = (nu || 0) + 1500; return; }
+    /* Remsans dom väntar (medRemsa → remsaDomSkal: skymt, rörligt, utan region): kortet läses om när det vilat, utan
+       granskningspost och utan fråga till Claude — det är spärren mot kortet i handen (MES-340 steg 1.3). */
+    if (svar && svar.vanta && !svar.saker) {
+      t.remsa = svar.remsa || t.remsa;
+      /* Backoff och tak (granskningen runda 2): ett kort under en hand som vilar på bordet, eller ett spår som står
+         skymt länge, hade annars lästs om i full kedja (beskärning, bildmodell, ORB, titelrad, remsa — 0,5–1,5 s)
+         var 1,5 s i evighet utan att nå spelaren. 1,5 → 3 → 6 → 10 s; efter VANTA_MAX varv (~20 s) går svaret den
+         gamla vägen — osäkert, Claude och granskningen — så att ett kort som ligger kvar under något ändå dyker upp. */
+      t.vantaN = (t.vantaN || 0) + 1;
+      if (t.vantaN <= VANTA_MAX) { t.igen = (nu || 0) + Math.min(10000, 1500 * Math.pow(2, t.vantaN - 1)); return; }
+    }
     /* Ingen ljus textruta i beskärningen: det är inte ett kort utan en bit
        av bordet som kom igenom. Det får inte bli en granskningspost — åtta
        "kort att fylla i" med trä i miniatyrerna var precis det. */
@@ -30436,7 +30479,9 @@ async function kamLasRemsa(canvas, id, o) {
     if (minne && minne.saker && minne.namn && minne.namn !== BAKSIDA_NAMN) { saker = true; varfor = 'remsa minne'; cands = minne.cands; marginal = minne.marginal; }
   }
   let ocr = null;
-  if (!saker) { try { ocr = await Namn.lasBand(canvas, namnUtanBaksida()); } catch (x) { ocr = null; } }
+  /* Textläsaren (0,4–1 s) bara när svaret ska dömas — inte när remsan läses som VITTNE åt 'modell land' (o.vittneBara,
+     medRemsa): där räcker bildmodellens marginal (granskningen 2026-10-07, fynd 9). */
+  if (!saker && !(o && o.vittneBara)) { try { ocr = await Namn.lasBand(canvas, namnUtanBaksida()); } catch (x) { ocr = null; } }
   const ocrNamn = ocr && ocr.namn ? typNamn(ocr.namn) : null;
   if (!saker && ocrNamn && ocrNamn === cands[0].name && ocr.poang >= 0.5 && ocr.marginal >= 0.15 && marginal >= T.remsaVittne) { saker = true; varfor = 'remsa+namn'; }
   if (saker && kamLekAntal) {

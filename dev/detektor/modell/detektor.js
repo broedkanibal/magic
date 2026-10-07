@@ -289,11 +289,14 @@
       const andelInne = (a, k) => { const ix = Math.max(0, Math.min(a.x1, k.x1) - Math.max(a.x0, k.x0)), iy = Math.max(0, Math.min(a.y1, k.y1) - Math.max(a.y0, k.y0)), aa = (a.x1 - a.x0) * (a.y1 - a.y0); return aa > 0 ? ix * iy / aa : 0; };
       const INNE_ANDEL = o.inneAndel != null ? o.inneAndel : 0.7;
       if (o.vakt !== false && ut.some(k => k.remsa && ihop(k.remsa, s) && andelInne(s, k) >= INNE_ANDEL)) return;
-      /* Vakt (b): remsan ligger i en låda UTAN remsa, vid dess kant men längre in än TOL2 (parprov: 0,145–0,16 av
-         kortsidan — en låda som tar med sig fickan eller kortet under): remsan hör till den lådan, och paras dit.
-         Högst TOL3 in; en remsa mitt i en remslös låda är något annat. */
-      const TOL3 = o.tol3 != null ? o.tol3 : 0.2;
-      if (o.vakt !== false) { const k = ut.find(q => !q.remsa && passning(s, q) <= TOL3); if (k) { k.remsa = s; tagna.add(si); return; } }
+      /* Provat och backat (granskningen 2026-10-07, fynd 1): en vakt (b) som parade en överbliven remsa till en
+         remslös låda där den satt 0,08–0,2 kortsidor från kanten (parprov: lådor som tar med sig fickan eller kortet
+         under, 0,145–0,16). Men samma geometri är en hög där det ÖVERSTA kortets remsa inte detekterats och det undre
+         kortets synliga remsa ligger inne i dess låda (17: fyra av sju högkort utan remsa) — då hade det övre kortets
+         spår fått det undre kortets remsa och läst dess namn SÄKERT på fel kort. En dubblett (det här kortet en gång
+         till, ur remsan) är billigare än ett fel namn: får båda samma säkra namn slår sammaKortSom ihop dem; står
+         kortets egen låda osäker ligger två spår för ett kort tills granskningen avgör. parprov med bara vakt (a):
+         se dev/plan/remsan-forst-resultat.md. */
       let lod = o.lod || 1, vag = o.vag || -1;
       const granne = ut.find(k => k.remsa && vagrat(k.remsa) === vg && inne(c, k)) || ut.find(k => k.remsa && vagrat(k.remsa) === vg && iou(k, { x0: c.x - 1, y0: c.y - 1, x1: c.x + 1, y1: c.y + 1 }) > 0);
       if (granne) {
