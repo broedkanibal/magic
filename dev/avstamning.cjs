@@ -1001,6 +1001,26 @@ prov('O13 (granskningen F4) ett spår som föds om där ett kort i väntan ligge
   tid(klocka.t + 600);
   assert.deepEqual(ofrSlag(), ['3']);
 });
+prov('O14 (kontrollen, G2) ett ANNAT kort läggs där ett kort i väntan ligger och är oläsbart: när läsningen säger ett annat namn får det sitt oframkallade kort', () => {
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([]);                                   // Swampen lyfts
+  klocka.t += 300; stam([ovila(2)]);                           // något läggs ned på samma plats, oläst
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), [], 'oläst: det kan vara Swampen sedd igen');
+  klocka.t += 150; stam([ovila(2, { tillstand: 'okand', gissning: 'Forest', cands: [{ name: 'Forest', score: 0.4 }] })]);   // läst: inte Swampen
+  tid(klocka.t + 100);
+  assert.deepEqual(ofrSlag(), ['2#'], 'ett annat kort som aldrig fick namn ska ha "Name this card" på mattan');
+});
+prov('O15 läsningen gissar kortet i väntans namn: det är kortet sett igen, inget oframkallat kort', () => {
+  app.spelsatt = 'skarm';                                     // Screen leads: ingen flytt binder, så bara regeln avgör
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([ovila(2)]);
+  tid(klocka.t + 600);
+  klocka.t += 150; stam([ovila(2, { tillstand: 'okand', gissning: 'Swamp', cands: [{ name: 'Swamp', score: 0.4 }] })]);
+  tid(klocka.t + 100);
+  assert.deepEqual(ofrSlag(), []);
+});
 prov('O11 namnet kommer på ett spår som fötts om bredvid: kortet tar över, ingen post blir kvar bredvid', () => {
   stam([ovila(1)]);
   tid(klocka.t + 600);

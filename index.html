@@ -9231,14 +9231,17 @@ function hogSkarm() {
   const r = rutor.reduce((a, b) => ({ left: Math.min(a.left, b.left), right: Math.max(a.right, b.right), top: Math.min(a.top, b.top), bottom: Math.max(a.bottom, b.bottom) }));
   return { x0: r.left - w.left, x1: r.right - w.left, y0: r.top - w.top, y1: r.bottom - w.top };
 }
-/* Skalan det oframkallade kortet ritas med: den kortet sedan får. Ligger inga kort med kamerans läge på
-   mattan räknar kamSkala med en gissning (leken, eller 0,12 av bilden) som byts mot kortets egen bredd när
-   kortet kommer — då hade det första kortet framkallats på ett annat ställe än det oframkallade låg. Här räknas
-   det första kortets skala som kamSkala sedan räknar den: kortsidan i bildbreddens enhet (MES-344). */
+/* Skalan det oframkallade kortet ritas med: den kortet sedan får (MES-344). Har kamSkala bara en gissning —
+   inga kort med kamerans läge på mattan, ingen lek i bild och inget mätt lås (kamSkala.las, MES-342) — tar
+   det första kortet över låset med sin egen kortsida när det kommer; då hade det framkallats på ett annat
+   ställe än det oframkallade låg. Här räknas den skalan som kamSkala sedan räknar den (kamKortsida). Finns
+   ett mätt värde (kort, lek, provkort) gäller kamSkala som den är: det första kortet byter det inte förrän
+   en ny median stått sig i 3 s. */
 function ofrSkala(p, q) {
-  if (kamSkalaFryst() || p.cards.some(c => c.kam && c.kam.w)) return kamSkala(p);
+  const l = kamSkala.las && kamSkala.las.get(p.id), matt = !!l && (typeof l !== 'object' || l.kalla !== 'gissning');
+  if (kamSkalaFryst() || matt || p.cards.some(c => c.kam && c.kam.w && paMattan(c)) || (p.bibHog && p.bibHog.kam && p.bibHog.kam.w)) return kamSkala(p);
   const asp = kamUpplosning && kamUpplosning.w && kamUpplosning.h ? kamUpplosning.h / kamUpplosning.w : 4 / 3;
-  return MATTA.CW / Math.max(0.03, Math.min(q.kam.w, q.kam.h ? q.kam.h * asp : q.kam.w));
+  return MATTA.CW / Math.max(0.03, kamKortsida(q.kam, asp));
 }
 /* De oframkallade kortens platser (MES-344): post-id → {x,y}. Kortet som skapas ur ett oframkallat kort tar
    över platsen (matPlacera), så att det framkallas exakt där det oframkallade låg. */
@@ -31642,8 +31645,15 @@ function ofrSteg(spar, mig, nu, losa, flyttKan) {
      samma plats (passet 2026-09-22, 215 s): utan regeln låg ett oframkallat kort ovanpå kortet i ~0,3 s,
      tills spåret blev stilla och steg 3b band kortet — och motståndarna såg det också (granskningen F4).
      Ingen tidsgräns: så länge kortet ligger kvar på platsen är det där. */
+  /* …men bara tills telefonen läst spåret: säger läsningen ett annat namn (osäkert, gissning eller förslag) är
+     det ett annat kort som lagts där, och det får sitt oframkallade kort och "Name this card" — samma regel som
+     motsager i steg 3b (kontrollen av MES-344, G2). Ett läst spår utan något namn alls säger inte emot. */
   const vantarHar = mig.cards.filter(c => c.spar != null && !synliga.has(c.spar) && !!c.kam && zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil');
-  const kortSettIgen = t => vantarHar.some(c => tackning(kamRekt(c.kam), t) >= SAMMA_KORT_TACKNING);
+  const namnPa = t => { const q = mig.pending.find(q => q.spar === t.id && !q.overTak); return new Set([t.namn, t.gissning, t.cands && t.cands[0] && t.cands[0].name, q && q.cands && q.cands[0] && q.cands[0].name].filter(Boolean)); };
+  const kortSettIgen = t => {
+    const last = t.tillstand !== 'ny' && t.tillstand !== 'stilla', n = last ? namnPa(t) : null;
+    return vantarHar.some(c => tackning(kamRekt(c.kam), t) >= SAMMA_KORT_TACKNING && (!last || !n.size || n.has(c.name)));
+  };
   /* Nya: ett löst spår som ligger still som ett kort, OFR_TROSKEL efter släppet, utan namn — eller med
      antalets fråga. Inte ett spår spelaren hoppat över eller tagit bort, inte ett som kan vara ett kort
      i väntan som flyttats hit (det avgörs när telefonen läst det), och inte ett som ligger där ett kort i
