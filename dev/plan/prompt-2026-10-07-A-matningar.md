@@ -1,6 +1,7 @@
 # Prompt A, 2026-10-07: varför de 19 korten utan säkert namn är kvar — högarna, 0,5×, remsvägen med v4
 
-**Modell: Fable 5.1, effort xhigh.** En session; golden kan inte köras parallellt på samma dator. Mätning utan kod i
+**Modell: Fable 5.1, effort xhigh.** En session, i egen worktree låst på en commit (se golden-protokollet), så den kan
+köras medan Spegelmattan-orkestreraren pushar index.html. Bara en golden åt gången på datorn. Mätning utan kod i
 appen — det här är underlaget för prompt C (bygget mot högarna). Kör A före C.
 
 ---
@@ -24,16 +25,27 @@ inte tröskeln; 7 har rätt namn överst men under tröskeln; 3 går nästan att
 (13 Fencing Ace utbränd i hylsan, 13 Ancestral Blade och 18 Mirran Bardiche täckta av ett nedvänt kort). Jesper:
 högarna och det som ögat kan läsa ska hittas; det utbrända ska inte räknas mot 100 % (prompt B).
 
-**Golden-protokollet:** port 8291, `--ny-embed --tak 3600000`, varm profil `TMPDIR=/private/tmp/claude-501/
--Users-jesperfunk-Code-magic/e4a618fc-60bc-45b1-87b5-f16275e99c14/scratchpad/tmp` om mappen finns (annars ny profil
-+ ett uppvärmningsvarv som kastas). Före varje körning: `ps -axo command= | grep -E '^node .*golden/kor\.cjs'` tomt;
-"golden startar"/"klart" till **"MES-334 fall 05 utredning"** och **"Spegelmattan orkestrerare"** (ListAgents; den
-senare pushar index.html — be den låta huvudträdet vara tills du skriver "golden-serien klar"). index.html har ändrats
-sedan b581b49 (MES-338/341/342) och `dev/golden/lek.txt` har fått tokens Rebel och Fractal (poolen 168 → 170, ny
-poolnyckel) → **ny C först**, och samma kod i alla körningar (`git log -1`, `git diff --stat <C-commit> HEAD --
-index.html`, `stat -f %Sm index.html` före varje). Verktyg: `dev/golden/summera.sh <logg>`, `dev/golden/kortdom.py
-A.json [B.json]`, `node dev/golden/felbok.cjs <json>`; läs `videoFelUnder` i json (fel namn under förloppet syns inte i
-sluttabellen). `--ut` till `dev/material/arbete/markning/golden-2026-10-07/`. Rad per körning i `dev/golden/historik.md`.
+**Golden-protokollet — i egen worktree, låst på en commit.** Spegelmattan-orkestreraren pushar index.html till main
+under dagen. Golden mäter den index.html som ligger i trädet den körs från, så kör hela serien från en egen worktree
+som står still: `EnterWorktree` (namn `matningar-2026-10-07`), notera `git log -1` som seriens commit, och **pulla inte**
+förrän serien är klar. Då jämför C och alla körningar samma kod oavsett vad som pushas, och ingen behöver vänta på
+någon. Symlänka före första körningen (gitignorerat, finns bara i huvudträdet; minnena `worktree-saknar-env-local`
+och `mes-331-pass4-landhogar`): `.env.local`, `node_modules`, `dev/material`, `dev/embed/modeller`, `dev/embed/cache`;
+`npm install` i `dev/remsa` (tesseract.js) om remsbänkarna ska köras där. Symlänka INTE `dev/embed/node_modules`
+(finns inte i huvudträdet; utan den hämtas appens modell från HF, som i alla gårdagens körningar — loggen varnar).
+Port 8291, `--ny-embed --tak 3600000`, varm profil `TMPDIR=/private/tmp/claude-501/-Users-jesperfunk-Code-magic/
+e4a618fc-60bc-45b1-87b5-f16275e99c14/scratchpad/tmp` om mappen finns (annars ny profil + ett uppvärmningsvarv som
+kastas). Före varje körning: `ps -axo command= | grep -E '^node .*golden/kor\.cjs'` tomt (en golden åt gången på
+datorn, också orkestrerarens), och "golden startar"/"klart" till **"MES-334 fall 05 utredning"** och **"Spegelmattan
+orkestrerare"** (ListAgents) — så att de inte startar golden eller mäter tider under er last. Fördröjning till namn
+"med beräkningstid" påverkas av last från uppspelaren/spegelfacit; skriv i rapporten om de körde samtidigt.
+index.html har ändrats sedan b581b49 (MES-338/341/342/343/344) och `dev/golden/lek.txt` har fått tokens Rebel och
+Fractal (poolen 168 → 170, ny poolnyckel) → **ny C först** i worktreen. Verktyg: `dev/golden/summera.sh <logg>`,
+`dev/golden/kortdom.py A.json [B.json]`, `node dev/golden/felbok.cjs <json>`; läs `videoFelUnder` i json (fel namn
+under förloppet syns inte i sluttabellen). `--ut` till `dev/material/arbete/markning/golden-2026-10-07/` (via
+symlänken = huvudträdets mapp). Rad per körning i `dev/golden/historik.md` med seriens commit; resultat och
+historik committas i worktreen och pushas med `git push origin HEAD:main` efter `git fetch` + rebase/merge på
+origin/main — när serien är klar.
 
 ## 1. Högarna — detektorn eller läsningen? (7 av de 19)
 Fall 17:s fem Island/Forest i högarna A/B blir aldrig spår fast bilden är ljus och titlarna läsbara; 13:s, 14:s och

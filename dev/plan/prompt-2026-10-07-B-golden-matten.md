@@ -1,9 +1,11 @@
 # Prompt B, 2026-10-07: golden ska mäta det ögat kan läsa — oläsbart-flaggan, tokens som facit, poolens tryckningar
 
 **Modell: Opus 5.5, effort high** (avgränsat bygge i golden-verktygen, inte i appen; granskas av en fristående
-granskare före merge). Kan köras parallellt med prompt A i egen worktree — men **ingen golden medan A kör**
-(`ps -axo command= | grep -E '^node .*golden/kor\.cjs'`), och säg till A-sessionen och "Spegelmattan orkestrerare"
-(ListAgents) före varje golden.
+granskare före merge). Kan köras parallellt med prompt A och med Spegelmattan-orkestreraren — B rör bara golden-verktygen (kor.html,
+kor.cjs, felbok.cjs, facit.json, lek.txt), som ingen av dem rör. Egen worktree; mätningarna före/efter görs i
+worktreen på samma commit (pulla inte mitt i). **Ingen golden medan någon annan kör** (`ps -axo command= | grep -E
+'^node .*golden/kor\.cjs'`), och säg till A-sessionen (ListAgents), "MES-334 fall 05 utredning" och "Spegelmattan
+orkestrerare" före varje golden. A:s golden-serie tar ~3 h; B:s körningar ryms i A:s pauser eller efter.
 
 ---
 

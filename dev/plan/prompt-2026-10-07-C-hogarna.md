@@ -4,6 +4,11 @@
 spel). **Körs efter prompt A** — A:s avsnitt 1 säger om det är detektorn, remsan under tröskeln eller modellen, och
 den här prompten ska läsas med det svaret i handen. En session; ingen golden parallellt.
 
+**Krock med Spegelmattan:** C ändrar index.html (kameran: detektorn, remsan, läsningen), orkestreraren också
+(datorsidan: avstamBord, mattan, kamSkala). Olika funktioner, samma fil. Kolla `ListAgents` och In Progress innan
+start; pågår spegelmattans kö, bygg ändå i egen worktree men slå ihop först efter `git fetch` och en granskning av
+det sammanslagna läget, säg till orkestreraren före push, och kör C och ändringens golden på den sammanslagna koden.
+
 ---
 
 Läs `dev/material/arbete/markning/matningar-2026-10-07-resultat.md` (A:s svar), `dev/plan/handover-2026-10-06-
