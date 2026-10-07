@@ -435,9 +435,56 @@ const PROV = async () => {
   ok('zoomsteg: vid golvet syns hela kamerabilden, och aldrig längre ut', Math.abs(vG.z - g) < 1e-3 && vG.x0 <= bG.x0 + 1 && vG.x1 >= bG.x1 - 1 && vG.y0 <= bG.y0 + 1 && vG.y1 >= bG.y1 - 1 && syns(),
     `${pct(vG.z)}, golvet ${pct(g)}, vyn ${[vG.x0, vG.y0, vG.x1, vG.y1].map(Math.round).join(',')}, bilden ${[bG.x0, bG.y0, bG.x1, bG.y1].map(Math.round).join(',')}`);
 
+  /* ── Kamerans yta (MES-338, Jespers val B 2026-10-07) ──
+     En kontur runt kamerabilden i brädets koordinater, bordet utanför svagt mörkare. Den följer mattans zoom och
+     panorering, finns bara på min matta, och spelarens egen utzoomning stannar ett steg (×0,87) förbi golvet. */
+  const kamYta = () => gridEl.querySelector(':scope > .kamyta');
+  /* Ytans ruta på skärmen, räknad ur transformen som skrivits och bilden i brädet — inte ur elementet. */
+  const ytaVantad = b => { const m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)\s*scale\(([\d.]+)\)/.exec(gridEl._matT), w = gridWrap.getBoundingClientRect(), z = +m[3];
+    return { l: w.left + +m[1] + b.x0 * z, t: w.top + +m[2] + b.y0 * z, r: w.left + +m[1] + b.x1 * z, b: w.top + +m[2] + b.y1 * z }; };
+  const ytaStammer = b => { const e = kamYta(), r = e && e.getBoundingClientRect(), v = ytaVantad(b);
+    return !!r && Math.abs(r.left - v.l) < 1.5 && Math.abs(r.top - v.t) < 1.5 && Math.abs(r.right - v.r) < 1.5 && Math.abs(r.bottom - v.b) < 1.5; };
+  const kY = kamYta(), bY = bild();
+  ok('kamerans yta: finns på min matta runt kamerabilden, utan matSynk-nyckel (uppspelaren räknar den inte)',
+    !!kY && !kY.hidden && !kY._mat && gridEl.querySelectorAll('.kamyta').length === 1 && ytaStammer(bY) && /Camera view/.test(kY.textContent) && getComputedStyle(kY).boxShadow !== 'none',
+    kY ? `${kY.style.cssText}; bilden ${[bY.x0, bY.y0, bY.x1, bY.y1].map(Math.round).join(',')}` : 'ingen');
+  /* Spelarens egen zoom ut: stannar ett steg förbi golvet, och ytan följer zoomen. */
+  for (let i = 0; i < 4; i++) { zoomBy(0.8); await vanta(80); }
+  await vanta(450);
+  const zMin = avZ(), gMin = golvNu();
+  ok('kamerans yta: egen utzoomning stannar ett steg förbi golvet (×0,87), och ytan följer zoomen',
+    Math.abs(zMin - gMin * 0.87) < 2e-3 && matVy(mig).manuell && ytaStammer(bild()) && syns(),
+    `${pct(zMin)}, golvet ${pct(gMin)}, ett steg förbi ${pct(gMin * 0.87)}`);
+  /* Ytan följer panoreringen (ett eget drag). */
+  { const vyP = matVyFor(mig); vyP.pan = { x: vyP.pan.x - 120, y: vyP.pan.y + 50 }; matSkriv(mig); await vanta(450);
+    ok('kamerans yta: följer panoreringen', ytaStammer(bild()));
+    vyP.zoomManual = null; matSkriv(mig); await vanta(450); }
+  /* Kamerabilden blir mindre mitt i partiet (skalan låses om till 80 %): mattan står still, ytan krymper. Kortet
+     längst till vänster går först till graveyard: med en mindre bild sticker det ut två px förbi vyn (korten är lika
+     stora på brädet), och då centreras vyn om — alla kort ska synas. */
+  flyttaTill(mig.cards.findIndex(c => c.spar === 25), ZON_GRAV); zr.splice(zr.findIndex(r => r.id === 25), 1);
+  await vanta(500);
+  { const las = kamSkala.las.get(mig.id), tFore = gridEl._matT, sk0 = las.v;
+    kamSkala.las.set(mig.id, { v: sk0 * 0.8, kalla: 'kort', kand: { sedan: Date.now(), varden: [] } });
+    renderAll(true); await vanta(600);
+    const a = kamTillMatta({ x: 0, y: 0 }, sk0 * 0.8), b = kamTillMatta({ x: 1, y: 1 }, sk0 * 0.8), mindre = { x0: a.x, y0: a.y, x1: b.x, y1: b.y };
+    ok('kamerans yta: kamerabilden blir mindre mitt i partiet — mattan står still, ytan visar var kameran ser',
+      gridEl._matT === tFore && kamSkala.las.get(mig.id).v === sk0 * 0.8 && ytaStammer(mindre) && kamYta().getBoundingClientRect().width < ytaVantad(bY).r - ytaVantad(bY).l - 50,
+      `${tFore} → ${gridEl._matT}, skalan ${Math.round(sk0)} → ${Math.round(kamSkala.las.get(mig.id).v)}`);
+    kamSkala.las.set(mig.id, { v: sk0, kalla: 'kort', kand: null }); renderAll(true); await vanta(600); }
+  /* Bara på min matta: inte på motståndarens, inte heller när hens bord kommer (fjarrBord). */
+  state.players = [mig, opp]; state.active = mig.id; bord.valt = 'all'; renderAll(true); await vanta(100);
+  fjarrBord({ game_id: spelLage.id, user_id: opp.id, kort: [{ cid: 'o20', name: 'Island', x: 300, y: 200, z: 1, tapped: 0 }], version: 20 });
+  ok('kamerans yta: bara på min matta — inte på motståndarens (bordsvyn, fjarrBord)',
+    document.querySelectorAll('#oppMattor .kamyta').length === 0 && document.querySelectorAll('.kamyta').length === 1 && !!kamYta() && !kamYta().hidden,
+    `${document.querySelectorAll('.kamyta').length} i sidan, ${document.querySelectorAll('#oppMattor .kamyta').length} hos motståndaren`);
+  state.players = [mig]; state.active = mig.id; bord.valt = null; renderAll(true); await vanta(600);
+  gridEl.classList.remove('glider');   // zoomknapparnas övergång (zoomTill, fitView) får inte ta stegens glidning nedan
+
   /* Minskad rörelse: steget är en toning (mattan till 0,35, bytet vid 150 ms, tillbaka vid 400). */
   window.__mattLugn = true;
   for (let i = 0; i < 100 && !lugn(); i++) await vanta(20);
+  ok('kamerans yta med minskad rörelse: ingen egen rörelse (ingen övergång)', !!kamYta() && parseFloat(getComputedStyle(kamYta()).transitionDuration) === 0, kamYta() ? getComputedStyle(kamYta()).transitionDuration : 'ingen');
   spelLage = Object.assign({}, spelLage, { id: 'mattprov-zoom-lugn' });
   oppSatt({ klar: true });
   zr.length = 2; mig.cards = mig.cards.filter(c => c.spar === 21 || c.spar === 22);

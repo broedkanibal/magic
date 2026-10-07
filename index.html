@@ -757,6 +757,18 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 /* Övergången är none under drag och hjul, och .32s när zoomknapparna eller
    fit används — annars släpar zoomen efter pekaren. */
 .mattabrade.glider{transition:transform .32s cubic-bezier(.2,.8,.3,1)}
+/* Kamerans yta på mitt speglade bord (MES-338, Jespers val B 2026-10-07): en heldragen kontur runt det kameran
+   ser, och bordet utanför svagt mörkare. Ligger i brädets koordinater under allt annat (z-index −1 i brädets
+   egen stapel), så att den följer mattans zoom och panorering och korten aldrig tonas. Linjen och etiketten har
+   samma storlek på skärmen vid all zoom (1/--matz); skuggans räckvidd (--kamskugga) sätts av matKamYta, precis
+   till mattans kant. Ingen egen rörelse utom när
+   kamerabilden själv byter storlek, och då bara utan minskad rörelse. */
+.kamyta{position:absolute;z-index:-1;pointer-events:none;box-sizing:border-box;will-change:transform;
+  border:calc(1.5px / var(--matz,1)) solid var(--dim2);border-radius:calc(6px / var(--matz,1));
+  box-shadow:0 0 0 var(--kamskugga,0px) #05070a8c}
+.kamyta .kamtxt{position:absolute;left:0;top:0;transform:translateY(-100%) scale(calc(1 / var(--matz,1)));transform-origin:0 100%;
+  padding:0 0 6px 2px;font:600 11px/1 var(--sans);letter-spacing:.6px;text-transform:uppercase;color:var(--dim2);white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){.kamyta{transition:left .42s cubic-bezier(.4,0,.2,1),top .42s cubic-bezier(.4,0,.2,1),width .42s cubic-bezier(.4,0,.2,1),height .42s cubic-bezier(.4,0,.2,1)}}
 .mattachrome{position:absolute;top:10px;right:10px;z-index:24;display:flex;align-items:center;gap:6px}
 .zoomchip{display:flex;align-items:center;height:28px;border-radius:7px;border:1px solid var(--line);background:var(--bg3)}
 .zoomchip button{height:28px;border:0;background:none;color:var(--dim);cursor:pointer;font:inherit;padding:0}
@@ -8798,14 +8810,16 @@ function matVy(p) {
   /* Mitt speglade bord zoomar i fasta steg (MES-338, matStegStart nedan); andra bord följer brädets storlek. */
   const nu = matRam(p), s = vp.riktig && zstegBord(p) ? matStegStart(p, v, vp, nu) : null;
   const fit = s ? s.z : fitZoom(v.board, vp);
-  const z = v.zoomManual != null ? Math.max(MATTA.ZOOM_MIN, Math.min(MATTA.ZOOM_MAX, v.zoomManual)) : fit;
+  const z = v.zoomManual != null ? Math.max(zstegMinZoom(s, vp), Math.min(MATTA.ZOOM_MAX, v.zoomManual)) : fit;
   /* Rutan runt korten krymper när det yttersta kortet lämnar mattan, och med
      den hur långt mattan får dras förbi kanten. Panen får inte hoppa av det
      — då flyttar alla kort på skärmen på en gång (GRAVEYARD_ANIMATION.md §6).
      Den förra rutan hålls kvar tills panen ligger inom den nya, av sig själv
      eller för att man dragit dit den. På mitt speglade bord får mattan också
-     dras över hela kamerabilden (s.omr) — där ligger zoomstegens utsnitt. */
-  const om = s ? s.omr : null, inom = clampPan(v.pan, z, v.board, vp, forenaRam(nu, om));
+     dras över hela kamerabilden — där ligger zoomstegens utsnitt — och över den
+     som den var tidigare i partiet (s.omrHall): blir bilden mindre står mattan
+     still, i stället för att klämningen flyttar panen (MES-338, kamerans yta). */
+  const om = s ? s.omrHall : null, inom = clampPan(v.pan, z, v.board, vp, forenaRam(nu, om));
   const ram = v.ramHall && (inom.x !== v.pan.x || inom.y !== v.pan.y) ? forenaRam(nu, v.ramHall) : nu;
   const pan = clampPan(v.pan, z, v.board, vp, forenaRam(ram, om));
   /* Medan mattan är dold (inga mått) räknas en tillfällig fit på designens viewport; zoomstegens pan står
@@ -8832,6 +8846,44 @@ function matVy(p) {
    steg ut. Spelarens egen zoom (zoomManual) och pan fungerar som förut: ett
    steg flyttar panen bara när spelaren inte zoomat själv. */
 function zstegBord(p) { return !!p && arMitt(p) && speglatBord(p); }
+/* Längst ut spelaren själv får zooma (MES-338, Jesper 2026-10-07): på mitt speglade bord ett steg förbi golvet
+   (ZSTEG.UT, ×0,87) — men aldrig så att gränsen drar in mattan förbi zoomstegens egen vy, som kan stå längre ut
+   när kamerabilden blivit mindre mitt i ett parti. Andra bord: MATTA.ZOOM_MIN som förut. s: matVy:s steg. */
+function zstegMinZoom(s, vp) {
+  return s && s.omr ? Math.min(s.z, zstegGolv(s.omr, vp) * ZSTEG.UT) : MATTA.ZOOM_MIN;
+}
+/* Kamerans yta på mattan (MES-338, Jespers val B): konturen runt kamerabilden och bordet utanför svagt mörkare
+   (CSS .kamyta). Ett barn till brädet utan matSynk-nyckel — uppspelaren räknar bara element med nyckel, så den är
+   varken ett kort, en hög eller "något som syns". Bara på mitt speglade bord, och bara när skalan är mätt
+   (matKamRam); motståndarnas mattor (ritaOppMattor, fjarrBord) ritar inget sådant. Den finns alltid där och syns
+   när mattan visar bord som kameran inte ser: zoomad förbi golvet, eller ovanför och under en bred kamerabild.
+   Det mörka utanför är en skugga runt ytan, och den räcker precis till mattans kant i vyn som skrivs och i den
+   förra (en zoom som glider går mellan dem) — inte längre: en skugga flera tusen px förbi kanten gjorde varje
+   bild så tung att kortens rörelser kom efter (mattans prov, pillen över ett kort som glider). v: vyn som skrivs,
+   fore: den förra ({ z, pan, vp }). */
+function matKamYta(p, v, fore) {
+  const r = zstegBord(p) ? matKamRam(p) : null;
+  let el = gridEl.querySelector(':scope > .kamyta');
+  if (!r) { if (el) el.hidden = true; return; }
+  if (!el) {
+    el = document.createElement('div'); el.className = 'kamyta'; el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = '<span class="kamtxt">Camera view</span>';
+    gridEl.prepend(el);
+  }
+  /* Hur långt bordet syns utanför ytan, i brädets px, i en vy; plus en marginal på 64 skärm-px. */
+  const behov = w => {
+    if (!w || !w.vp || !(w.z > 0)) return 0;
+    const x0 = -w.pan.x / w.z, x1 = (w.vp.w - w.pan.x) / w.z, y0 = -w.pan.y / w.z, y1 = (w.vp.h - w.pan.y) / w.z;
+    return Math.max(0, r.x0 - x0, x1 - r.x1, r.y0 - y0, y1 - r.y1) + 64 / w.z;
+  };
+  /* Byter ytan storlek (skalan låstes om) glider den dit (CSS): skuggan räcker också över skillnaden. */
+  const f = el._rekt, flytt = f ? Math.max(Math.abs(f.x0 - r.x0), Math.abs(f.x1 - r.x1), Math.abs(f.y0 - r.y0), Math.abs(f.y1 - r.y1)) : 0;
+  el._rekt = r;
+  const spr = Math.ceil(Math.max(behov(v), behov(fore)) + flytt);
+  const st = `left:${Math.round(r.x0)}px;top:${Math.round(r.y0)}px;width:${Math.round(r.x1 - r.x0)}px;height:${Math.round(r.y1 - r.y0)}px;--kamskugga:${spr}px`;
+  if (el.dataset.st !== st) { el.style.cssText = st; el.dataset.st = st; }
+  el.hidden = false;
+}
 /* Bordets 100 % i rutan: 1, eller i bordsvyn rutan mot mitt bord när det är stort. */
 function zstegBas(vp) { const ref = bordRef || vp; return Math.min(1, vp.w / ref.w, vp.h / ref.h); }
 /* Kamerabilden i brädkoordinater, eller null innan skalan är känd. Skalan läses — provkortets eller den låsta
@@ -8861,7 +8913,7 @@ function matStegStart(p, v, vp, ram) {
     }
     v.pan = { x: s.pan.x, y: s.pan.y }; v.ramHall = null;
   }
-  s.omr = omr;
+  s.omr = omr; s.omrHall = forenaRam(s.omrHall, omr);
   return s;
 }
 /* Ett steg ut: den första nivån längre ut än s.z där mal ryms, annars golvet. Är vyn redan vid golvet blir det
@@ -8888,7 +8940,7 @@ function matStegBeslut(p, v) {
   if (!s || !vp.riktig) return false;
   const ram = matRam(p), cam = matKamRam(p), omr = forenaRam(cam, ram), tom = !s.ram;
   if (tom) s.ny = true;
-  s.omr = omr;
+  s.omr = omr; s.omrHall = forenaRam(s.omrHall, omr);
   const bas = zstegBas(vp), golv = omr ? zstegGolv(omr, vp) : bas;
   let andrat = false;
   if (Math.abs(bas / s.bas - 1) > 0.01) {
@@ -8932,6 +8984,7 @@ function matSkriv(p, vy, glid) {
   matBradeSkriv(gridEl, `translate(${Math.round(v.pan.x)}px,${Math.round(v.pan.y)}px) scale(${v.z})`,
     s ? (s.glid && !s.ny && fri ? 'steg' : false) : !!glid && fri);
   if (s) s.glid = s.ny = false;
+  matKamYta(p, v, gridEl._matKamVy); gridEl._matKamVy = { z: v.z, pan: { x: v.pan.x, y: v.pan.y }, vp: v.vp };
   gridWrap.classList.toggle('inzoomad', v.z > v.fit + 0.005);
   renderChrome(v);
   return v;
@@ -10315,7 +10368,7 @@ function zoomBy(mult) { zoomTill(matVy().z * mult); }
    mitten av mattan om ingen punkt ges. */
 function zoomTill(z, punkt) {
   const p = player(), v = matVy(p), vy = matVyFor(p);
-  const nz = Math.max(MATTA.ZOOM_MIN, Math.min(MATTA.ZOOM_MAX, z));
+  const nz = Math.max(zstegMinZoom(v.steg, v.vp), Math.min(MATTA.ZOOM_MAX, z));   // mitt speglade bord: ett steg förbi golvet (MES-338)
   const cx = punkt ? punkt.x : v.vp.w / 2, cy = punkt ? punkt.y : v.vp.h / 2;
   const bx = (cx - v.pan.x) / v.z, by = (cy - v.pan.y) / v.z;
   vy.zoomManual = Math.abs(nz - v.fit) <= 0.004 ? null : nz;
@@ -10369,7 +10422,7 @@ function arNypning(ev) {
 }
 function matZoomMot(z, mx, my) {
   const p = player(), v = matVy(p), vy = matVyFor(p);
-  const nz = Math.max(MATTA.ZOOM_MIN, Math.min(MATTA.ZOOM_MAX, z));
+  const nz = Math.max(zstegMinZoom(v.steg, v.vp), Math.min(MATTA.ZOOM_MAX, z));   // mitt speglade bord: ett steg förbi golvet (MES-338)
   const bx = (mx - v.pan.x) / v.z, by = (my - v.pan.y) / v.z;
   vy.zoomManual = Math.abs(nz - v.fit) <= 0.004 ? null : nz;
   vy.pan = clampPan({ x: mx - bx * nz, y: my - by * nz }, nz, v.board, v.vp, v.ram);
@@ -10606,7 +10659,7 @@ function luftigVy(p) {
     if (z > 0 && (!bast || z > bast.z)) bast = { z, r };
   }
   if (!bast) return;
-  const z = Math.max(MATTA.ZOOM_MIN, bast.z), r = bast.r;
+  const z = Math.max(zstegMinZoom(v.steg, v.vp), bast.z), r = bast.r;
   vy.zoomManual = Math.abs(z - v.fit) <= 0.004 ? null : z;
   vy.pan = clampPan({ x: (r.x0 + r.x1) / 2 - (ram.x0 + rw / 2) * z, y: (r.y0 + r.y1) / 2 - (ram.y0 + rh / 2) * z }, z, v.board, v.vp, ram);
 }
@@ -11169,9 +11222,11 @@ function fitZoom(board, vp) { vp = vp || MATTA.VP; return Math.max(MATTA.ZOOM_MI
      MARG — plats för ungefär två kort till — åt det håll bordet växte (vänster,
      höger, uppåt; nedåt sitter spelaren), centrerat och inom kamerabilden.
      Ryms det ingenstans blir det golvet.
+   - Spelaren får själv zooma ut ett steg förbi golvet (UT, ×0,87) och inte
+     längre; då markeras kamerans yta på mattan (Jesper 2026-10-07, matKamYta).
    Allt räknas i brädkoordinater mot mattans användbara yta: under chromen
    (TOPP) och KANT från de andra kanterna. Inget här läser DOM. */
-const ZSTEG = { NIVA: [1, 0.86, 0.75, 0.65], MARG: 2 * MATTA.CW + 60, LUFT: 20, NARA: 1.03 };
+const ZSTEG = { NIVA: [1, 0.86, 0.75, 0.65], MARG: 2 * MATTA.CW + 60, LUFT: 20, NARA: 1.03, UT: 0.87 };
 /* Mattans användbara yta i skärmens px. */
 function zstegYta(vp) {
   return { x: MATTA.KANT, y: MATTA.TOPP, w: Math.max(1, vp.w - 2 * MATTA.KANT), h: Math.max(1, vp.h - MATTA.TOPP - MATTA.KANT) };
