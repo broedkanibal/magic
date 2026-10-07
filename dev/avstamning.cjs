@@ -2217,7 +2217,9 @@ prov('GY6 flödet av (uppstartens ruta, Screen leads, ingen telefon): ingen frå
    som telefonen ser som ett kort som ligger still (kortlik, vilar) på en tom
    plats, strax efter att ett korts spår dött, är det kortet: det bärs dit och
    namnet bekräftar — eller rättar — i efterhand. Vid tvekan binds inget. */
-const vilande = (id, b, rest) => Object.assign({ id, tillstand: 'ny', namn: null, saker: false, tappad: false, sen: 0, kortlik: true, vilar: true, skymd: false, vx: b.x + b.w / 2, vy: b.y + b.h / 2 }, b, rest);
+/* Ett vilande kort telefonen läst en gång utan att känna igen det (okand utan förslag): det är först
+   då steg 3b binder — ett nytt eller stilla spår kan ännu säga emot kortet vid första läsningen. */
+const vilande = (id, b, rest) => Object.assign({ id, tillstand: 'okand', namn: null, saker: false, cands: [], gissning: null, tappad: false, sen: 0, kortlik: true, vilar: true, skymd: false, vx: b.x + b.w / 2, vy: b.y + b.h / 2 }, b, rest);
 const NY_PLATS = box(0.70, 0.40, 0.063, 0.088);
 prov('FL1 flytt utan namn: spåret dör, ett namnlöst kort vilar på en tom plats — kortet bärs dit; samma namn bekräftar', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);

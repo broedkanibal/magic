@@ -30559,9 +30559,10 @@ let tvivel = new Map();      // spår-id → namnet det bar när det kom tillbak
    tom (Mirran Bardiche i passet 2026-09-22, 113,6 s: nedtonat +7,1 s, inget
    kort på nya platsen; Trusty Retriever 243 s: nedtonat, fast det låg kvar
    till slutet).
-   Kandidat (steg 3b): ett spår utan säkert namn som telefonen ser som ett
-   kort som ligger still (kortlik, vilar — samma villkor som framkallningen,
-   MES-344), inte skymt, som inget kort håller, som fötts efter att kortet
+   Kandidat (steg 3b): ett spår telefonen bestämt sig för att läsa (stilla)
+   eller läst utan säkert namn (okand), som ligger still som ett kort
+   (kortlik, vilar — samma villkor som framkallningen, MES-344), inte skymt,
+   som inget kort håller, som inte säger emot kortets namn, som fötts efter att kortet
    senast sågs (högst FLYTT_FORE före, k.sedd) och lagt sig nyss
    (FLYTT_VILA), och som inte bär en annan gissning än kortets namn. Kortet:
    ett i väntan — spåret dött i det här bordet eller inom BORTA_NAD — i
@@ -31784,8 +31785,16 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     k.kam = { x: cx, y: cy, w: t.w, h: t.h, nar: nu };
   };
   if (pol.flytt) {
-    /* Inte ett nedvänt kort (ned): en baksida får aldrig namn, så gissningen kunde aldrig rättas (GRbak). */
-    const kand = spar.filter(t => t.w != null && t.h != null && !franHelbild(t) && t.tillstand !== 'klar' && !iFysiskt.has(t.id) && !bunden(t.id)
+    /* Bara spår telefonen bestämt sig för att läsa (stilla: legat still i stillaMs, läsningen kommer i
+       nästa rapport) eller redan läst utan säkert namn (okand — osäkert, eller hos Claude), och som
+       inte säger emot kortet. Ett spår som binds medan det är nytt (vilar efter två rutor) får sin
+       första läsning 0,6–3 s senare, och säger den ett annat namn tas bindningen tillbaka synligt —
+       platshållare, kort, platshållare (spår 28 och 34 i passet 2026-09-22; granskningen). Osäkert
+       betyder orört (princip 10): hellre bindningen ~0,8 s efter vilan än en som ångras. Bara okand
+       (efter läsningen) tappade Mirran Bardiches flyttar 113,6 och 119,0 s i spegelfacit (8 → 6/18)
+       utan att vinna något. Inte ett nedvänt kort (ned): en baksida får aldrig namn, så gissningen
+       kunde aldrig rättas (GRbak). */
+    const kand = spar.filter(t => t.w != null && t.h != null && !franHelbild(t) && (t.tillstand === 'stilla' || t.tillstand === 'okand') && !iFysiskt.has(t.id) && !bunden(t.id)
       && !t.skymd && !t.ned && !!t.kortlik && !!(t.vilar != null ? t.vilar : t.stilla) && !hoppade.has(t.id) && !borttagna.has(t.id)
       && !(sparLage.has(t.id) && nu - sparLage.get(t.id).andrad > FLYTT_VILA));
     /* Kortet ska ha lämnat sin plats (princip 9): ett synligt klart eller kortlikt spår som täcker
