@@ -30,6 +30,8 @@ högarna bland korten (källan: `design_handoff_animeringar/src3/` och
 | 6 | MES-344 framkallningen, utspelets rörelse, kort utan namn | *Utspel* | Blocked av 341 |
 | 7 | MES-336 graveyard minns kort utan namn | framkallningen för graveyard | Blocked av 344 |
 
+**Natten 2026-10-07:** MES-333 och MES-338 är Done. MES-341 och MES-343 ligger på main och står i Redo att testas. MES-342 och MES-344 ligger som grenar och står i Behöver dig. Måtten, vad som backades och vad som ska provas vid bordet står i [`natt-2026-10-06-spegelmattan.md`](natt-2026-10-06-spegelmattan.md).
+
 MES-337 (fysisk exile-hög) hör till högarna, inte hit. MES-248 har lämnat
 över "bordet → ut ur bild" till MES-343 och behåller graveyard → ut ur bild.
 MES-312 (beta-grinden) blockeras nu också av 341, 343 och 344.

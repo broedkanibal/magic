@@ -17,7 +17,7 @@ och en grind som kunde bli grön fast appen kastade fel. Alla rättades innan n�
 | MES-341 | Bordets minne: flytt utan att vänta på namnet, handen fryser, osäkert = orört | **Redo att testas** | `82200c6` |
 | MES-343 | Kort som lämnar bordet går till handen med raden "ändra", ingen gråton | **Redo att testas** | `4141d5a` |
 | MES-342 | Positionerna: kamerans skala | **Behöver dig**, grenen `mes-342-del4` | nej |
-| MES-344 | Framkallningen | In Progress när rapporten skrevs (se sist) | nej |
+| MES-344 | Framkallningen: inget syns förrän namnet finns, sedan ett oframkallat kort med kamerans foto efter 0,5 s | **Behöver dig**, grenen `mes-344-framkallningen` | nej |
 | MES-336 | Graveyard minns kort utan namn | inte påbörjad: designytan behövs först | – |
 
 Produktionen kör exakt main (`diff` mot sidan ute: identiska, 06:35).
@@ -77,6 +77,8 @@ enskilda händelser. Säg till om du menade varje fall för sig.
 ## Vad som kräver dig
 
 1. **MES-342:** ta in grenen `mes-342-del4` trots zoomraden, eller vänta på en bättre kortstorlek?
+1b. **MES-344:** godtar du att "tid till något syns" blir sämre, som beslutat, och byggarens val? Golden och
+    ett prov på telefonen körs innan den går in.
 2. **MES-338:** byts kamerans skala mitt i ett parti kan mattan stå längre ut än hela
    kamerabilden. Där krockar "aldrig in av sig själv" med golvet. Ska golvet vinna?
 3. **MES-343, två val som byggaren gjorde och som inte står på sida 3:** flera "went to your
@@ -111,6 +113,36 @@ Spela Mirror my table med telefonen och en motståndare (eller bordsvyn), och ti
 - Uppspelaren: `node dev/uppspelaren/kor.cjs --visa --fall g09` visar videon bredvid mattan.
   Grinden för nästa ändring är `--fil <index.html> --jamfor`.
 
-## MES-344, framkallningen
+## MES-344, framkallningen: byggd och granskad, väntar på dig
 
-Startad 06:35, efter MES-343. Läget skrivs här när den är klar eller när natten tar slut.
+Grenen `mes-344-framkallningen` (`c6d0b41`) är pushad men inte ihopslagen. En fristående granskare
+(Fable) hittade inget blockerande. Två fynd rättades och kontrollerades: ett oframkallat kort ritades
+ovanpå en tappad hög, och en skarp titelrad syntes i glipan mellan de suddiga banden.
+
+| Uppspelaren mot main (`dcc159f`) | Main | Grenen |
+|---|---|---|
+| Platshållare som syntes | 281 | **0** |
+| Laddtexter ("Reading…" m.fl.) | 326 | **0** |
+| Tid till rätt plats, median | 1,71 s | 1,75 s (inom toleransen) |
+| Tid till något syns, median | 0,32 s | **0,80 s, sämre** |
+| Utspel som syns inom 0,5 s räknat från släppet (issuens mål) | – | 30 av 31 |
+
+**Varför den inte gick in:**
+1. Grindens rad "tid till något syns" blir sämre, och det är avsiktligt: platshållaren som syntes
+   medan handen höll kortet är borta, precis som principerna säger. Bara du kan godta det.
+2. Telefonens kod är ändrad. Telefonen skickar ett litet foto (~6–8 kB) när ett nytt kort ligger
+   still utan namn. Golden och ett prov på telefonen behövs före ihopslagningen.
+3. Byggaren har gjort val som inte står på sida 3:
+   - ramen är kamerans foto med mörk kant
+   - de unika ytorna är ett sammanhängande suddigt fält, inte fem band
+   - "Another X?" öppnar arket som förut
+   - "Hard to read" är borta
+   - ett oframkallat kort står kvar 1,2 s när spåret dör
+
+Frågorna står på MES-344. Motståndarna får en bild på 22×31 px i `boards.kort`, utan migration, och
+nedvända kort får ingen bild.
+
+## MES-336, graveyard minns kort utan namn
+
+Inte påbörjad. Den bygger på MES-344:s foto och sökruta och behöver en designyta för
+graveyard-vyn först. Där stannar kön enligt prompten.
