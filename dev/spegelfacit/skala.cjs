@@ -82,6 +82,9 @@ const gravRuta = () => null;
 const paMattan = e => { const z = zonAv(e); return z !== ZON_GRAV && z !== ZON_EXIL; };
 function matSlag(e) { return zonAv(e) === ZON_MANA ? 'land' : 'perm'; }
 function matStorlek(e) { return matSlag(e) === 'land' ? { w: MATTA.LW, h: MATTA.LH } : { w: MATTA.CW, h: MATTA.CH }; }
+function lekPlacera() { return false; }   // leken bland korten (MES-334 steg 3) finns inte här
+function speglatBord() { return true; }
+let kamGravRad = null;                      // ingen graveyard-ruta bland korten
 `;
 const klocka = { t: 1e6 };
 const timers = []; let timerN = 0;
