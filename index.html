@@ -6931,7 +6931,9 @@ function slimKort(cards) {
     /* Bara lokalt: kamerans senast antagna läge för kortet (bildandelar) och
        "ligger kvar fysiskt fast det lämnat mattan digitalt" (Screen leads).
        De andra har inget att göra med dem. */
-    kam: c.kam || undefined, fysisk: c.fysisk ? 1 : undefined,
+    /* En flytt utan namn som inget namn bekräftat (flyttFran, MES-341) sparas som platsen FÖRE flytten:
+       bindningen överlever ingen omladdning, och då ska kortet ligga där det låg, inte på gissningen. */
+    kam: (c.flyttFran && c.flyttFran.kam) || c.kam || undefined, fysisk: c.fysisk ? 1 : undefined,
     kamTap: c.kamTap === 0 || c.kamTap === 1 ? c.kamTap : undefined
   }));
 }
@@ -30595,6 +30597,7 @@ let platsMinne = new Map();  // spår-id → { x, y, w, h, sist }: varje spårs 
    går kortet dit ändå. En hand som vilar längre bort spelar ingen roll. */
 const HAND_NARA = 0.5;       // kortbredder: så långt från kortets kant räknas en hand som "intill"
 const HAND_MAX = 5000;       // ms: så mycket längre än BORTA_NAD väntar nedtoningen på att handen ska gå
+const HAND_VILA = 1500;      // ms: en hand som legat stilla över ett kort så länge har inte burit det — flyttens fönster (steg 3b) öppnas då först vid lyftet
 /* Ett skymt spår som ett KORT ligger över (ett klart eller kortlikt spår som syns, sammaPlats-täckning)
    är ett täckt kort, ingen hand: Pharika's Chosen på svärdet i passet (154 s, VN11). */
 function handSpar(t, spar) {
@@ -31667,7 +31670,11 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   };
   const lagg = (k, t) => {
     const tap = t.tappad ? 1 : 0;
-    if (tapSynk && (k.kamTap == null || tap !== k.kamTap)) {
+    /* Ett kort som burits till spåret utan namn (flyttFran) följer inte spårets tap-dom förrän spåret
+       är klart: domen på ett nytt spår är preliminär, och ett tappat kort som flyttas ska stå tappat
+       tills kameran är säker (MES-293; granskningen GRd). */
+    const tapLas = !!k.flyttFran && t.tillstand !== 'klar';
+    if (tapSynk && !tapLas && (k.kamTap == null || tap !== k.kamTap)) {
       k.kamTap = tap;
       if (pol.tap && (k.tapped ? 1 : 0) !== tap) { k.tapped = tap; andrat = true; }
     }
@@ -31678,8 +31685,28 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
        (steg 3b:s fönster, FLYTT_FORE) — och ett säkert namn som är kortets eget bekräftar en flytt
        som gjordes utan namn. */
     if (t.sen != null && !t.skymd) k.sedd = Math.max(k.sedd || 0, nu - t.sen);
+    /* När handen lade sig över kortet (en obruten skymd-strimma): ligger den kvar länge (HAND_VILA)
+       öppnas flyttens fönster vid lyftet, inte vid sista fria sikten (granskningen GRa4). */
+    if (t.skymd) { if (k.handFran == null) k.handFran = nu; } else delete k.handFran;
     if (k.flyttFran && t.tillstand === 'klar' && t.saker && t.namn === k.name) delete k.flyttFran;
   };
+  /* Flytten utan namn (steg 3b) var fel: spåret bär ett annat namn — säkert, osäkert eller som
+     gissning. Kortet läggs tillbaka där det låg och väntar som det gjorde innan, på sitt döda spår
+     och från samma stund; tap-läget är det kortet hade. Platsen var fel, inte kortet (princip 10:
+     osäkert är orört). Spåret blir fritt: det nya kortet (steg 4), eller granskningen (steg 5). */
+  const aterstallFlytt = k => {
+    const f = k.flyttFran; delete k.flyttFran;
+    k.kam = f.kam; k.spar = f.spar; k.borta = f.borta; gravTid.set(k.cid, f.borta);
+    if (f.kamTap !== undefined) { k.kamTap = f.kamTap; if (pol.tap) k.tapped = f.tapped; } else delete k.kamTap;
+    andrat = true;
+  };
+  /* Namnen ett spår skulle visa i granskningen (steg 5, MES-294) — och som en flytt utan namn (steg
+     3b) inte får motsäga. */
+  const postensNamn = t => {
+    const q = mig.pending.find(q => q.spar === t.id && !q.overTak);
+    return new Set([t.namn, t.gissning, t.cands && t.cands[0] && t.cands[0].name, q && q.cands && q.cands[0] && q.cands[0].name].filter(Boolean));
+  };
+  const motsager = (k, t) => { const n = postensNamn(t); return n.size > 0 && !n.has(k.name); };
   /* Täckt: ett bifogat kort vars värd syns, eller ett kort i en hög vars
      understa (gi 0) syns, är inte borta — det ligger under. */
   const tackt = k => {
@@ -31697,16 +31724,10 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      graveyard, spåret lästes om till Mirran, och högen ändrades 1,2 s senare. */
   for (const t of spar) {
     const k = bunden(t.id);
-    if (k && t.tillstand === 'klar' && t.namn && t.saker && k.name !== t.namn) {
-      /* Flytten var gissad (steg 3b, utan namn) och namnet säger att det är ett annat kort som ligger
-         där: kortet lades tillbaka där det låg, och väntar som det gjorde innan — på sitt döda spår,
-         från samma stund. Platsen var fel, inte kortet (princip 10: osäkert är orört). */
-      if (k.flyttFran) {
-        const f = k.flyttFran; delete k.flyttFran;
-        k.kam = f.kam; k.spar = f.spar; k.borta = f.borta; gravTid.set(k.cid, f.borta);
-        if (f.kamTap !== undefined) { k.kamTap = f.kamTap; if (pol.tap) k.tapped = f.tapped; } else delete k.kamTap;
-        andrat = true; continue;
-      }
+    if (k && t.tillstand === 'klar' && t.namn && (t.saker || k.flyttFran) && k.name !== t.namn) {
+      /* Flytten var gissad (steg 3b, utan namn) och namnet — också ett osäkert — säger att det är
+         ett annat kort som ligger där: tillbaka (aterstallFlytt). Spåret får sitt eget kort i steg 4. */
+      if (k.flyttFran) { aterstallFlytt(k); continue; }
       delete k.spar; delete k.borta; if (kanLyftas(k)) { k.lyft = nu; gravTid.set(k.cid, nu); }
       andrat = true;
     }
@@ -31752,28 +31773,34 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
        först när telefonen fått namnet. */
     if (k) autoSumKort(k.cid, ledare);
   }
-  /* Namnen ett spår skulle visa i granskningen (steg 5, MES-294) — och som en flytt utan namn (steg
-     3b) inte får motsäga. */
-  const postensNamn = t => {
-    const q = mig.pending.find(q => q.spar === t.id && !q.overTak);
-    return new Set([t.namn, t.gissning, t.cands && t.cands[0] && t.cands[0].name, q && q.cands && q.cands[0] && q.cands[0].name].filter(Boolean));
-  };
   /* 3b. En flytt väntar inte på namnet (bordets minne, MES-341 — reglerna vid FLYTT_FORE). Kort i
      väntan vars spår dött, och spår som ligger still som ett kort utan säkert namn och utan kort. */
   const flyttBuren = (k, t) => {
     const cx = t.vx != null ? t.vx : t.x + t.w / 2, cy = t.vy != null ? t.vy : t.y + t.h / 2;
-    k.flyttFran = { kam: Object.assign({}, k.kam), spar: k.spar, borta: k.borta || nu, kamTap: k.kamTap, tapped: k.tapped, nar: nu };
+    /* Den första gissningen minns var kortet låg INNAN flytten: en andra bindning (lagt i två steg)
+       skriver inte över den, så att en rättelse lägger kortet på ursprungsplatsen (granskningen GRk). */
+    if (!k.flyttFran) k.flyttFran = { kam: Object.assign({}, k.kam), spar: k.spar, borta: k.borta || nu, kamTap: k.kamTap, tapped: k.tapped, nar: nu };
     binder(k, t);
     k.kam = { x: cx, y: cy, w: t.w, h: t.h, nar: nu };
   };
   if (pol.flytt) {
+    /* Inte ett nedvänt kort (ned): en baksida får aldrig namn, så gissningen kunde aldrig rättas (GRbak). */
     const kand = spar.filter(t => t.w != null && t.h != null && !franHelbild(t) && t.tillstand !== 'klar' && !iFysiskt.has(t.id) && !bunden(t.id)
-      && !t.skymd && !!t.kortlik && !!(t.vilar != null ? t.vilar : t.stilla) && !hoppade.has(t.id) && !borttagna.has(t.id)
+      && !t.skymd && !t.ned && !!t.kortlik && !!(t.vilar != null ? t.vilar : t.stilla) && !hoppade.has(t.id) && !borttagna.has(t.id)
       && !(sparLage.has(t.id) && nu - sparLage.get(t.id).andrad > FLYTT_VILA));
+    /* Kortet ska ha lämnat sin plats (princip 9): ett synligt klart eller kortlikt spår som täcker
+       platsen är kortet självt sett igen (en hög vars spår föds om när den tappas, passet 215 s; ett
+       täckt kort i en hög, GRf) — inte ett kort i väntan. Kandidaterna själva räknas inte: ett spår
+       som föds där kortet låg är kortet sett igen, och binds på plats. */
+    const kandId = new Set(kand.map(t => t.id));
+    const platsTackt = k => spar.some(u => u.w != null && !franHelbild(u) && !u.skymd && !kandId.has(u.id) && (u.tillstand === 'klar' || u.kortlik) && tackning(kamRekt(k.kam), u) >= SAMMA_KORT_TACKNING);
     const vantar = mig.cards.filter(k => k.spar != null && !synliga.has(k.spar) && paBordet(k) && !k.fysisk && !!k.kam && !k.attachedTo && k.lyft == null
-      && !(k.borta && nu - k.borta > BORTA_NAD));
+      && !(k.borta && nu - k.borta > BORTA_NAD) && !platsTackt(k));
     if (kand.length && vantar.length) {
       const sedd = t => sparSedd.has(t.id) ? sparSedd.get(t.id) : nu;
+      /* Fönstret: från sista fria sikten (k.sedd) — eller från lyftet (spårets död) när en hand legat
+         stilla över kortet i HAND_VILA: ett kort som lades ut medan handen vilade på A är inte A (GRa4). */
+      const fran = k => { const dod = k.borta || nu; return k.handFran != null && dod - k.handFran >= HAND_VILA ? dod : (k.sedd || 0); };
       /* Platsen var tom (platsMinne): inget annat spår än kortets eget har legat där kandidaten vilar —
          utom ett kort som ligger där SYNLIGT och känt just nu (klart, bundet, inte skymt): ett kort som
          läggs delvis över ett annat (utrustning på en varelse, Mirran Bardiche på Ukud Cobra i passet
@@ -31781,7 +31808,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
          dött eller inte blivit kort: en landhög där regioner föds och dör. */
       const kant = new Set(spar.filter(u => u.tillstand === 'klar' && !u.skymd && bunden(u.id)).map(u => u.id));
       const tomPlats = (k, t) => { for (const [id, e] of platsMinne) if (id !== t.id && id !== k.spar && !kant.has(id) && tackning(e, t) >= SAMMA_KORT_TACKNING) return false; return true; };
-      const passar = (k, t) => { const n = postensNamn(t); return (!n.size || n.has(k.name)) && sedd(t) >= (k.sedd || 0) - FLYTT_FORE && tomPlats(k, t); };
+      const passar = (k, t) => { const n = postensNamn(t); return (!n.size || n.has(k.name)) && sedd(t) >= fran(k) - FLYTT_FORE && tomPlats(k, t); };
       const avst = (k, t) => Math.hypot((t.vx != null ? t.vx : t.x + t.w / 2) - k.kam.x, (t.vy != null ? t.vy : t.y + t.h / 2) - k.kam.y);
       const par = [];
       for (const k of vantar) for (const t of kand) if (passar(k, t)) par.push({ k, t, d: avst(k, t), namn: postensNamn(t).has(k.name) });
@@ -31908,6 +31935,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   for (const t of spar) {
     if (iFysiskt.has(t.id)) continue;
     let k = bunden(t.id);
+    /* Flytten utan namn motsägs av spårets osäkra namn eller gissning (granskningen GRa2, fynd 1 —
+       Swampen i passet stod 52 s på Pharikas plats): kortet tillbaka, spåret till granskningen. */
+    if (k && k.flyttFran && t.tillstand !== 'klar' && motsager(k, t)) { aterstallFlytt(k); k = null; }
     if (!k && t.tillstand === 'okand' && !borttagna.has(t.id)) {
       const namn = postensNamn(t);
       if (fysiska.some(g => namn.has(g.namn) && g.spar.some(u => sammaPlats(u, t)))) { sammaSomKlart.add(t.id); continue; }
@@ -32002,8 +32032,8 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      2026-09-22, 95 s: lyft till graveyard, och ett spår i landhögen vilade i samma stund. */
   if (pol.saknas) for (const k of mig.cards) {
     if (!k.flyttFran || k.spar == null || !synliga.has(k.spar) || !gravAutoKan(k, k.flyttFran.borta)) continue;
-    const f = k.flyttFran; delete k.flyttFran; delete k.spar; delete k.borta; k.kam = f.kam;
-    gravAutoOm(k, f.borta);
+    const borta0 = k.flyttFran.borta; aterstallFlytt(k); delete k.spar; delete k.borta;
+    gravAutoOm(k, borta0);
   }
   /* Väntan (MES-291, Jespers beslut 3 2026-09-24): ett kort kameran tappat
      antas först ha FLYTTATS. Det står kvar på sin plats, otonat och bundet

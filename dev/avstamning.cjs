@@ -2377,6 +2377,93 @@ prov('H4 högen är starkare än handen: graveyard växer medan handen är kvar 
   assert.equal(k.zon, 'grav'); assert.equal(k.lyft, undefined);
 });
 
+/* GR341 — den fristående granskningens prov (2026-10-07), rättelserna 1–6 i
+   MES-341: en flytt utan namn tas tillbaka när spåret bär ett annat namn
+   också utan att vara säkert (GRa2, GRa3); ett kort under en vilande hand
+   är inte lyft förrän spåret dör (GRa4); nedvända kort binds aldrig (GRbak);
+   tap-domen väntar på ett klart spår (GRd); kedjan minns ursprungsplatsen
+   (GRk); en omladdning sparar platsen före flytten (GRr, slimKort). */
+const P1 = box(0.55, 0.40, 0.063, 0.088), P2 = box(0.70, 0.60, 0.063, 0.088);
+prov('GRa2 A lyfts, ett namnlöst kort läggs på ny plats; spåret blir okänt med gissningen Grizzly Bears — A tillbaka, spåret till granskningen', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS)]);
+  assert.equal(k.spar, 2, 'buret dit');
+  const okand = () => vilande(2, NY_PLATS, { tillstand: 'okand', gissning: 'Grizzly Bears', cands: [{ name: 'Grizzly Bears', score: 0.8 }, { name: 'Ukud Cobra', score: 0.1 }] });
+  klocka.t += 1000; stam([okand()]);
+  assert.equal(k.spar, 1, 'tillbaka på det döda spåret'); assert.ok(k.borta); assert.equal(k.flyttFran, undefined);
+  assert.ok(Math.abs(k.kam.x - mitt(PORT)) < 1e-9, 'på sin gamla plats'); assert.equal(app.pending.length, 1, 'spåret fick sin granskning');
+  for (let i = 0; i < 10; i++) { klocka.t += 1000; stam([okand()]); }
+  assert.ok(k.lyft != null && k.spar == null, 'nedtonat efter väntan'); assert.equal(app.kort.length, 1);
+});
+prov('GRa3 samma, men spåret blir klart med Grizzly Bears UTAN saker — Grizzly Bears skapas, A tillbaka', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS)]);
+  klocka.t += 1000; stam([klar(2, 'Grizzly Bears', { sen: 0, saker: false, ...NY_PLATS })]);
+  const g = app.kort.find(c => c.name === 'Grizzly Bears');
+  assert.ok(g && g.spar === 2, 'Grizzly Bears på spåret'); assert.equal(k.spar, 1); assert.ok(Math.abs(k.kam.x - mitt(PORT)) < 1e-9);
+});
+prov('GRa4 handen vilar på A i 2 s, ett namnlöst kort läggs ut under tiden, sedan lyfts A — binds inte: kortet fanns före lyftet', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  for (let i = 1; i <= 6; i++) { klocka.t += 300; stam([klar(1, 'Ukud Cobra', { sen: 300 * i, skymd: true, ...PORT })]); }
+  klocka.t += 300; stam([klar(1, 'Ukud Cobra', { sen: 2100, skymd: true, ...PORT }), vilande(2, NY_PLATS, { vilar: false })]);
+  klocka.t += 300; stam([klar(1, 'Ukud Cobra', { sen: 2400, skymd: true, ...PORT }), vilande(2, NY_PLATS)]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS)]);
+  assert.equal(k.spar, 1, 'A väntar på sitt döda spår'); assert.ok(k.borta);
+});
+prov('GRd ett tappat kort flyttas utan namn: tap-läget står kvar tills spåret är klart', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, tappad: true, ...PORT })]);
+  const k = app.kort[0];
+  assert.equal(k.tapped, 1);
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS, { tappad: false })]);
+  assert.equal(k.spar, 2); assert.equal(k.tapped, 1, 'inte avtappat av spårets preliminära dom'); assert.equal(k.kamTap, 1);
+  klocka.t += 1000; stam([klar(2, 'Ukud Cobra', { sen: 0, tappad: false, ...NY_PLATS })]);
+  assert.equal(k.tapped, 0, 'klart spår: domen gäller');
+});
+prov('GRk kedja: lagt i två steg (P1, lyft igen, P2) och namnet säger ett annat kort — A tillbaka till ursprungsplatsen, inte mellanplatsen', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, P1)]); assert.equal(k.spar, 2);
+  klocka.t += 500; stam([]);
+  klocka.t += 300; stam([vilande(3, P2)]); assert.equal(k.spar, 3);
+  assert.ok(Math.abs(k.flyttFran.kam.x - mitt(PORT)) < 1e-9, 'den första gissningen minns ursprungsplatsen');
+  klocka.t += 500; stam([klar(3, 'Grizzly Bears', { sen: 0, ...P2 })]);
+  assert.ok(Math.abs(k.kam.x - mitt(PORT)) < 1e-9, 'tillbaka till PORT'); assert.equal(k.spar, 1);
+});
+prov('GRbak ett nedvänt kort (baksida, kortlik, vilar) läggs ut när A lyfts: binds inte', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS, { tillstand: 'stilla', ned: true })]);
+  assert.equal(k.spar, 1); assert.ok(k.borta);
+});
+prov('GRf ett täckt kort i en hög (gi 1) vars spår dog medan det översta syns: inte i väntan — ett namnlöst kort tar det inte', () => {
+  const UNDER = box(PORT.x + 0.005, PORT.y + 0.005, 0.063, 0.088);
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT, ai: { klunga: 1 } }), klar(2, 'Swamp', { sen: 0, ...UNDER, ai: { klunga: 2 } })]);
+  const b = app.kort.find(c => c.spar === 2);
+  klocka.t += 150; stam([klar(1, 'Swamp', { sen: 0, ...PORT, ai: { klunga: 1 } })]);
+  klocka.t += 300; stam([klar(1, 'Swamp', { sen: 0, ...PORT, ai: { klunga: 1 } }), vilande(3, NY_PLATS)]);
+  assert.equal(b.spar, 2, 'platsen är täckt av det synliga Swampet: ingen flytt utan namn');
+});
+prov('GRr omladdning mitt i en flytt utan namn: slimKort sparar platsen FÖRE flytten, så kortet ligger kvar där det låg', () => {
+  const slim = src.slice(src.indexOf('function slimKort('), src.indexOf('\n}\n', src.indexOf('function slimKort(')) + 2);
+  const slimKort = new Function(slim + '; return slimKort;')();
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS)]);
+  assert.equal(k.spar, 2);
+  const sparat = slimKort([k])[0];
+  assert.ok(Math.abs(sparat.kam.x - mitt(PORT)) < 1e-9, 'det sparade läget är platsen före flytten');
+  assert.equal(sparat.flyttFran, undefined); assert.equal(sparat.spar, undefined);
+});
+
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);
