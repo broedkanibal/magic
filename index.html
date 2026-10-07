@@ -28115,6 +28115,18 @@ const Kamera = (() => {
       if (!t.namn && skuggklar(t) && !(t.ts && t.ts.skugga)) stampla(t, 'skugga');
       if (t.tillstand === 'klar' && t.saker && t.namn && !(t.ts && t.ts.namn)) stampla(t, 'namn', 'okand');
     }
+    /* Kamerans foto av ett nytt kort (MES-344, framkallningen): en gång per spår, när det först ligger
+       still som ett kort (kortlikt, vilar, inte skymt) utan namn — samma villkor som datorns släpp. Dröjer
+       namnet mer än en halv sekund lägger datorn ned ett oframkallat kort med fotot suddigt, och läsningen
+       (stillaMs) kommer först efter det: fotot måste vara där innan. Bara när någon tar emot det (cb.foto):
+       golden, bänken och kamerabänken kör samma väg som förut, utan beskärning. Läsningens beskärning
+       (beskar) rörs inte. Före bordet, så att fotot finns när datorn ser spåret. */
+    if (cb.foto && video) for (const t of spar) {
+      if (t.fotoSkickat || (t.tillstand === 'klar' && t.namn) || t.tillstand === 'skrap' || t.skymd || arHelbild(t) || arNedKort(t) || !skuggklar(t) || !arVila(t)) continue;
+      t.fotoSkickat = true;
+      let c = null; try { c = fotoUr(t); } catch (e) {}
+      if (c) cb.foto(t.id, c);
+    }
     /* Tredje argumentet: det som inte är spår men hör till bordet — hur
        många kortformade regioner som var för små att läsa, och vilken
        upplösning strömmen ger. sandBord lägger dem i meddelandet. */
@@ -28235,6 +28247,23 @@ const Kamera = (() => {
     return avAxel >= T.beskarVridMin ? { rot: rotGrov, rikt: false } : null;
   }
 
+  /* Det oframkallade kortets foto (MES-344): kortets låda ur den fulla videon med 2 % marginal (mot
+     läsningens 8 %: fotot ska vara kortet, inte bordet runt det), rätat upp om det ligger ner, och redan
+     litet (FOTO_BREDD) — en enda nedskalning, ingen beskärning i läsningens storlek. */
+  const FOTO_BREDD = 160, FOTO_MARG = 0.02;
+  function fotoUr(t) {
+    const vb = video.videoWidth, vh = video.videoHeight, b = t.ram || t.box;
+    if (!vb || !vh || !b) return null;
+    const r = rutaPx(vb, vh), sx = r.w / AW, sy = r.h / AH, m = FOTO_MARG;
+    const bx = r.x + (b.x - b.w * m) * sx, by = r.y + (b.y - b.h * m) * sy, bw = b.w * (1 + 2 * m) * sx, bh = b.h * (1 + 2 * m) * sy;
+    if (!(bw >= 4 && bh >= 4)) return null;
+    const liggande = bw > bh, ow = FOTO_BREDD, oh = Math.round(FOTO_BREDD * (liggande ? bw / bh : bh / bw));
+    const c = document.createElement('canvas'); c.width = ow; c.height = oh;
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+    if (liggande) { x.translate(ow / 2, oh / 2); x.rotate(-Math.PI / 2); x.drawImage(video, bx, by, bw, bh, -oh / 2, -ow / 2, oh, ow); }
+    else x.drawImage(video, bx, by, bw, bh, 0, 0, ow, oh);
+    return c;
+  }
   /* Beskär kortet ur den fulla videon, räta upp det om det ligger ner. */
   function beskar(t) {
     const vb = video.videoWidth, vh = video.videoHeight;
@@ -29435,7 +29464,8 @@ async function oppnaKamera(gameId) {
       /* Om frågorna faktiskt går till Claude (samma villkor som kamFragaAI):
          rådet om avståndet väntar då på Claudes svar innan det säger något. */
       aiPa: () => AI.mode === 'server' && !!prefs.aiAuto,
-      helbild: (canvas, o) => kamHelbild(canvas, o)
+      helbild: (canvas, o) => kamHelbild(canvas, o),
+      foto: (id, canvas) => kamSkickaFoto(id, canvas)   // det oframkallade kortets foto till datorn (MES-344)
     });
   } catch (e) {
     kamSag('fel', 'The camera could not start');
@@ -30059,6 +30089,13 @@ const kamAiNamnKapade = () => Math.max(0, [...new Set(namnUtanBaksida().filter(n
    alltid till Kamera.svarAI; spåret prövas under tiden (identifiera).
    false = frågan ställs inte (AI av, ingen pool, taket nått): den lokala
    domen är allt som finns, och ett osäkert kort går till granskningen. */
+/* Kamerans foto av ett nytt kort till datorn (MES-344, fotoUr i Kamera): 160 px brett — mattans kort är
+   178 px och de unika ytorna visas suddiga (12 px), men ramen ska se skarp ut i mattans vanliga zoom.
+   ~6–8 kB per kort, en gång per kort, på kontots privata kanal (MES-305). */
+function kamSkickaFoto(id, canvas) {
+  if (!canvas || !canvas.width || !canvas.height) return;
+  Moln.sandKam('foto', { spar: id, b64: canvas.toDataURL('image/jpeg', 0.65) });
+}
 function kamFragaAI(canvas, id) {
   if (AI.mode !== 'server' || !prefs.aiAuto || !Pool.idx || !canvas || aiPausad()) return false;
   const nu = Date.now();
