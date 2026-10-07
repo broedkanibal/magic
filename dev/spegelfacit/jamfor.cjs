@@ -21,7 +21,8 @@
      spelar, grav_till_bord  ett kort med namnet kom på bordet (nytt, ut ur
                              graveyard eller tillbaka efter nedtoning)
      tar_bort                kortet lämnade bordet: till graveyard av sig
-                             självt, eller nedtonat (frågan "plockades det upp?")
+                             självt, till handen (MES-343: kortet tas ur
+                             listan med valet kvar i raden), eller nedtonat
      tappar, otappar         kortets tap-läge slog om åt rätt håll
      flyttar                 SAMMA kort bytte plats — ett kort som tonades ned
                              och ett nytt med samma namn är "borta + nytt", inte
@@ -209,6 +210,11 @@ function tidslinje(bilder) {
       }
       if (c.fast !== v.fast) e(c.fast ? 'fäst' : 'lossat', { vid: c.fast });
     }
+    /* Ett kort som försvann ur listan medan det låg på mattan: kameran skickade det till handen (MES-343,
+       kortet tas ur mig.cards med valet kvar i raden), eller en token som upphörde (fall 7). Förut syntes
+       det inte alls i tidslinjen — på main före MES-343 försvinner inget kort ur listan av kameran. */
+    const nu0 = new Set(b.kort.map(c => c.cid));
+    for (const v of fore.kort) if (!nu0.has(v.cid) && paMattan(v)) h.push({ s: b.s, typ: 'till handen', cid: v.cid, namn: v.namn, fran: v.lyft ? 'nedtonat' : 'bordet' });
     const f0 = new Set(fore.fragor.map(q => q.id));
     for (const q of b.fragor) if (!f0.has(q.id)) h.push({ s: b.s, typ: 'fråga', cid: null, namn: q.namn, overTak: q.overTak, fraga: q.id });
     fore = b;
@@ -298,7 +304,7 @@ function jamfor(rader, bilder, h, logg) {
         else o.hur = 'inget på bordet';
       }
     } else if (r.handelse === 'tar_bort') {
-      const lamnar = x => x.typ === 'nedtonat' || x.typ === 'till graveyard' || x.typ === 'till exile';
+      const lamnar = x => x.typ === 'nedtonat' || x.typ === 'till graveyard' || x.typ === 'till exile' || x.typ === 'till handen';
       let i = forsta(r, x => lamnar(x) && x.namn === r.kort);
       if (i < 0 && varv === 1) return null;
       if (i < 0) i = forsta(r, x => lamnar(x) && x.namn !== r.kort, EFTER_ANNAT);
@@ -347,7 +353,7 @@ function jamfor(rader, bilder, h, logg) {
         const gr = grannar(bord, x.cid); o.rattPlats = platsOk(r, gr); if (gr) o.not = gr.length ? 'ligger ihop med ' + gr.join(', ') : 'ligger ensamt';
         o.fast = fastOk(bord, x.cid, r.till);
       } else {
-        const borta = h.findIndex((y, k) => !tagna.has(k) && inom(y, r) && y.namn === r.kort && (y.typ === 'nedtonat' || y.typ === 'till graveyard'));
+        const borta = h.findIndex((y, k) => !tagna.has(k) && inom(y, r) && y.namn === r.kort && (y.typ === 'nedtonat' || y.typ === 'till graveyard' || y.typ === 'till handen'));
         const nytt = h.findIndex((y, k) => !tagna.has(k) && inom(y, r) && y.namn === r.kort && y.typ === 'ny');
         if (borta >= 0 && nytt >= 0) { ta(borta); ta(nytt); o.hur = `borta + nytt kort (${h[borta].typ} ${fs2(h[borta].s - r.t)}, nytt ${fs2(h[nytt].s - r.t)})`; o.syntes = true; o.rattKort = true; o.rattPlats = false; o.dt = +(Math.max(h[borta].s, h[nytt].s) - r.t).toFixed(2); o.not = 'räknas inte som flytt'; }
         else if (borta >= 0) { ta(borta); o.hur = `${h[borta].typ} ${fs2(h[borta].s - r.t)}, inget kort på nya platsen`; }
@@ -373,7 +379,7 @@ function jamfor(rader, bilder, h, logg) {
   for (varv = 1; varv <= 2; varv++) for (const r of rader) { if (svar.has(r)) continue; const o = enRad(r); if (o) svar.set(r, o); }
   for (const r of rader) if (svar.has(r)) ut.push(svar.get(r));
   /* Det som hände på bordet utan en rad i facit: nya kort, vridningar, nedtoningar och flyttar som ingen rad tog. */
-  const over = h.map((x, i) => Object.assign({ i }, x)).filter(x => !tagna.has(x.i) && ['ny', 'ut ur graveyard', 'tappat', 'otappat', 'nedtonat', 'till graveyard', 'flyttat', 'fråga'].includes(x.typ));
+  const over = h.map((x, i) => Object.assign({ i }, x)).filter(x => !tagna.has(x.i) && ['ny', 'ut ur graveyard', 'tappat', 'otappat', 'nedtonat', 'till graveyard', 'till handen', 'flyttat', 'fråga'].includes(x.typ));
   return { rader: ut, over };
 }
 
