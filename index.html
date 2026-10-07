@@ -8836,9 +8836,10 @@ function zstegBord(p) { return !!p && arMitt(p) && speglatBord(p); }
 function zstegBas(vp) { const ref = bordRef || vp; return Math.min(1, vp.w / ref.w, vp.h / ref.h); }
 /* Kamerabilden i brädkoordinater, eller null innan skalan är känd. Skalan läses — provkortets eller den låsta
    (kamSkala.las) — utan att kamSkala anropas: den låser om sig själv, och ett anrop här mitt i en avstämning
-   hade kunnat byta skalan för korten. */
+   hade kunnat byta skalan för korten. Låset är { v, kalla, kand } sedan MES-342; en skala som bara är en
+   gissning (inga kort, ingen lek) ger ingen kamerabild — mattan följer korten tills skalan är mätt. */
 function matKamRam(p) {
-  const sk = kamSkalaFryst() || (kamSkala.las && kamSkala.las.get(p.id));
+  const l = kamSkala.las && kamSkala.las.get(p.id), sk = kamSkalaFryst() || (l && typeof l === 'object' ? (l.kalla === 'gissning' ? null : l.v) : l);
   if (!(sk > 0)) return null;
   let r = null;
   for (const x of [0, 1]) for (const y of [0, 1]) { const m = kamTillMatta({ x, y }, sk); r = forenaRam(r, { x0: m.x, y0: m.y, x1: m.x, y1: m.y }); }
@@ -9048,25 +9049,76 @@ function kamSkalaFryst() {
   const o = oppFor(), k = o.provKort;
   return o.klar && k && k.S > 0 ? MATTA.CW / Math.max(0.03, k.S) : null;
 }
+/* Ett korts kortsida i bildbredder ur spårets låda (k.w, k.h i bildandelar; asp = bildens höjd/bredd),
+   oavsett hur kortet ligger vridet (MES-342). Lådan är rak i bilden: ett kort med kortsidan c och
+   långsidan R·c (R = 88/63) vridet vinkeln θ ger lådan w = c(cos θ + R sin θ), h = c(sin θ + R cos θ),
+   och då är c² = ((w+h)²/(1+R)² + (w−h)²/(R−1)²)/2 för varje θ. Kortsidan kan aldrig vara större än
+   lådans minsta sida, så c kläms mot den.
+   Förut var kortsidan lådans minsta sida. Det stämmer för ett kort som ligger rakt, men ett kort som
+   tappats 60–70° (golden 18) ger en nästan kvadratisk låda, 1,6 gånger kortsidan, och detektorns lådor
+   runt ett rakt kort är 5–15 % för breda. Mattan fick en för liten skala, och korten låg för tätt:
+   avståndsfelet mot facits ritade lägen, i kortbredder (dev/spegelfacit/positioner.cjs --lager geometri),
+   golden 18 median 0,55 → 0,07 (p90 0,98 → 0,22), golden 13 0,21 → 0,06 (p90 0,43 → 0,23). En låda med
+   kortets form (som p0921:s) ger samma tal som förut. En nästan kvadratisk låda kan också vara ett kort
+   som bara syns till en del — då blir c för litet; medianen över korten bär det. */
+function kamKortsida(k, asp) {
+  const w = k.w, h = k.h ? k.h * asp : k.w, R = 88 / 63, S = w + h, D = w - h;
+  return Math.min(w, h, Math.sqrt((S * S / ((1 + R) * (1 + R)) + D * D / ((R - 1) * (R - 1))) / 2));
+}
 /* Skalan utan uppstartens provkort (Mirror my table sedan MES-334 steg 6) är medianen av kortens bredd i
-   bilden — men låst: den byts först när medianen gått mer än 8 % ifrån, och den ingår i nyckeln
-   (speglaKamPos), så att alla kort, leken, graveyard och de nedvända korten då räknas om med samma värde.
+   bilden — men låst: den byts först när medianen gått mer än 8 % ifrån och stått sig där i 3 s, och den
+   ingår i nyckeln (speglaKamPos), så att alla kort, leken, graveyard och de nedvända korten då räknas om
+   med samma värde.
    Förut räknades ett kort med medianen när det lades och flyttades aldrig om, medan leken och graveyard
    räknades om vid varje ändring: högarna gled mot korten (granskningen av sida 5, 2026-10-05). */
 function kamSkala(p) {
   const fryst = kamSkalaFryst(); if (fryst) return fryst;
-  /* Kortsidan i bildbreddens enhet (som provkortets S): ett tappat kort har sin kortsida på höjden. Förut räknades
-     kam.w, och tre land som tappades för mana bytte skala och krympte hela bordet (granskningen av rättelsen, fynd 3). */
+  /* Kortsidan i bildbreddens enhet (som provkortets S), ur lådan oavsett hur kortet ligger vridet (kamKortsida). */
   const asp = kamUpplosning && kamUpplosning.w && kamUpplosning.h ? kamUpplosning.h / kamUpplosning.w : 4 / 3;
-  const kortsida = k => Math.min(k.w, k.h ? k.h * asp : k.w);
-  const w = p.cards.filter(c => c.kam && c.kam.w).map(c => kortsida(c.kam)).sort((a, b) => a - b);
-  /* Inga kort än: lekens bredd i bilden (MES-334 steg 3) — en lek är ett kort brett. */
-  const med = w.length ? w[Math.floor(w.length / 2)] : (p.bibHog && p.bibHog.kam && p.bibHog.kam.w ? kortsida(p.bibHog.kam) : 0.12);
+  const kortsida = k => kamKortsida(k, asp);
   /* Den låsta skalan per spelare ligger på funktionen: den anropas i appens första rendering, före raden där en const här hade stått. */
-  const minne = kamSkala.las || (kamSkala.las = new Map()), ny = MATTA.CW / Math.max(0.03, med), las = minne.get(p.id);
-  if (las && Math.abs(ny / las - 1) <= 0.08) return las;   // 8 %: mindre är detektorns darr i kortens bredd
-  minne.set(p.id, ny);
-  return ny;
+  const minne = kamSkala.las || (kamSkala.las = new Map()), las = minne.get(p.id), nu = Date.now();
+  /* Bara kort som vilar mäter skalan (MES-342): ett läge skrivet medan kortet inte vilat (kam.prel — handen bär
+     det, eller namnet kom tidigt) har en låda som rör sig med handen. I golden 12 bytte en sådan låda skalan
+     medan kortet bars, och kortet flyttades en gång till 3 s efter att det lagts ned. Finns inget vilande kort
+     står en skala från korten kvar; före första vilande kortet får de andra ge en första skala. Samma sak när
+     hälften eller fler av korten är i rörelse: medianen över de få som vilar är inte bordets. I passet 2026-09-22
+     bar händerna tre av sex kort 158,7–162 s; medianen över de tre andra låg 11 % ifrån och bytte skalan vid
+     162 s (alla kort ~9 % utåt, och mattan tog ett zoomsteg ut) — och tillbaka vid 265 s. Spärren nollställer
+     väntan: ett värde från före spärren får inte räknas som att det stått sig efter den. Bara kort på mattan
+     räknas (ett kort i graveyard behåller sitt kam), och ett kort som inte vilat ersätter bara en gissning,
+     aldrig lekens mätta värde (kontrollgranskningen av MES-342). */
+  const allaKam = p.cards.filter(c => c.kam && c.kam.w && paMattan(c)), vilande = allaKam.filter(c => !c.kam.prel);
+  if (allaKam.length && vilande.length * 2 <= allaKam.length && las && las.kalla === 'kort') { las.kand = null; return las.v; }
+  const w = (vilande.length ? vilande : las && las.kalla !== 'gissning' ? [] : allaKam).map(c => kortsida(c.kam)).sort((a, b) => a - b);
+  /* Inga kort än: lekens bredd i bilden (MES-334 steg 3) — en lek är ett kort brett. */
+  const lek = p.bibHog && p.bibHog.kam && p.bibHog.kam.w;
+  const med = w.length ? w[Math.floor(w.length / 2)] : (lek ? kortsida(p.bibHog.kam) : 0.12);
+  const kalla = w.length ? 'kort' : lek ? 'lek' : 'gissning';
+  const ny = MATTA.CW / Math.max(0.03, med);
+  /* En gissning (inga kort, ingen lek) är inget mått: första riktiga värdet tar över direkt, och en gissning
+     ersätter aldrig ett mätt värde — när korten lämnat bordet står kameran där den stod (MES-342). */
+  if (!las || (las.kalla === 'gissning' && kalla !== 'gissning')) { minne.set(p.id, { v: ny, kalla, kand: null }); return ny; }
+  if (kalla === 'gissning') { las.kand = null; return las.v; }
+  /* 8 %: mindre är detektorns darr i kortens bredd. Kortens värde inom 8 % av lekens tar över låset som kortens —
+     annars fick nästa fladder lekens genväg förbi 3-sekundersregeln nedan (granskningen av MES-342). */
+  if (Math.abs(ny / las.v - 1) <= 0.08) { las.kand = null; if (kalla === 'kort') las.kalla = 'kort'; return las.v; }
+  /* Ett nytt värde måste stå sig 3 s innan skalan byts (MES-342): ett byte flyttar alla kort på mattan, och
+     medianen slog fram och tillbaka mellan två värden när kort kom och gick (passet 2026-09-22, 212–218 s: alla
+     Swamp hoppade tre gånger på sex sekunder). "Stå sig" = varje värde sedan dess har legat mer än 8 % från
+     låset; då byts skalan till deras median. Två värden som fladdrar mot varandra, båda långt från låset, byter
+     den alltså också (förut nollställdes väntan vid varje fladder, och skalan satt fast). Från leken till de
+     första korten byts den direkt. */
+  let v = ny;
+  if (las.kalla === 'kort' || kalla !== 'kort') {
+    if (!las.kand) { las.kand = { sedan: nu, varden: [ny] }; return las.v; }
+    las.kand.varden.push(ny); if (las.kand.varden.length > 64) las.kand.varden.shift();
+    if (nu - las.kand.sedan < 3000) return las.v;
+    const s = las.kand.varden.slice().sort((x, y) => x - y);
+    v = s[s.length >> 1];
+  }
+  minne.set(p.id, { v, kalla, kand: null });
+  return v;
 }
 function kamTillMatta(kam, skala) {
   const asp = kamUpplosning && kamUpplosning.w && kamUpplosning.h ? kamUpplosning.h / kamUpplosning.w : 4 / 3;

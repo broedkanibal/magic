@@ -193,16 +193,20 @@ const PROV = async steg => {
       const r0 = rel(), s0 = kamSkala(mig()), gamla = new Map(mig().cards.filter(c => c.kam).map(c => [c.cid, c.kam]));
       for (const c of mig().cards) if (c.kam) c.kam = Object.assign({}, c.kam, { w: c.kam.w * 1.3, h: c.kam.h * 1.3 });
       renderGrid(true); await stilla();
+      /* Skalan byts först när det nya värdet stått sig i 3 s (MES-342): direkt efter står den kvar. */
+      const sTidigt = kamSkala(mig());
+      await vanta(3100); renderGrid(true); await stilla();
       const r1 = rel(), s1 = kamSkala(mig());
-      ok('skalan byts: kort, lek och graveyard räknas med samma skala (inget glider isär)', s1 < s0 * 0.9 && r1.length > 0 && r0.concat(r1).every(d => Math.abs(d) <= 2),
-         `skala ${s0.toFixed(0)} → ${s1.toFixed(0)}, avvikelser före ${JSON.stringify(r0)} efter ${JSON.stringify(r1)}`);
+      ok('skalan byts: kort, lek och graveyard räknas med samma skala (inget glider isär)', sTidigt === s0 && s1 < s0 * 0.9 && r1.length > 0 && r0.concat(r1).every(d => Math.abs(d) <= 2),
+         `skala ${s0.toFixed(0)} → ${sTidigt.toFixed(0)} direkt → ${s1.toFixed(0)} efter 3 s, avvikelser före ${JSON.stringify(r0)} efter ${JSON.stringify(r1)}`);
       for (const c of mig().cards) if (gamla.has(c.cid)) c.kam = gamla.get(c.cid);
-      renderGrid(true); await stilla();
-      /* Tre kort tappas (kortsidan på höjden i bilden): skalan står kvar — förut krympte hela bordet. */
+      renderGrid(true); await stilla(); await vanta(3100); renderGrid(true); await stilla();
+      /* Tre kort tappas (kortsidan på höjden i bilden): skalan står kvar — förut krympte hela bordet. Också efter 3 s. */
       const s2 = kamSkala(mig()), asp = 4 / 3, tre = mig().cards.filter(c => c.kam && c.kam.w).slice(0, 3);
       for (const c of tre) c.kam = Object.assign({}, c.kam, { w: c.kam.h * asp, h: c.kam.w / asp });
+      kamSkala(mig()); await vanta(3100);
       const s3 = kamSkala(mig());
-      ok('tre kort tappas: skalan står kvar (kortsidan räknas, inte bredden i bilden)', tre.length === 3 && s3 === s2, `${s2.toFixed(0)} → ${s3.toFixed(0)}`);
+      ok('tre kort tappas: skalan står kvar (kortsidan räknas, inte bredden i bilden)', tre.length === 3 && s3 === s2 && Math.abs(s2 / s0 - 1) <= 0.08, `${s0.toFixed(0)} → ${s2.toFixed(0)} → ${s3.toFixed(0)} efter 3 s`);
       for (const c of mig().cards) if (gamla.has(c.cid)) c.kam = gamla.get(c.cid);
       renderGrid(true); await stilla(); }
     g.click();
