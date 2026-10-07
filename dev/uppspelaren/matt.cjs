@@ -169,7 +169,8 @@ function berakna(fall, logg) {
     for (const f of forluster) if (!tagnaL.has(f)) detalj.fel.push({ t: f.t, kort: f.k.namn, som: f.som, ser: f.k.s });
     m.felNedtoning = detalj.fel.length;
     /* Till handen (MES-343): ett kort som lämnar mattan mot handen fast det
-       ligger kvar. I dag går inget kort till handen av sig självt. */
+       ligger kvar. Kameran tar kortet ur listan (tillHanden), så det syns
+       som 'borttaget'; 'hand' är en zon som inte finns i appen än. */
     m.felTillHanden = detalj.fel.filter(f => f.som === 'hand' || f.som === 'borttaget').length;   // borttaget = ur korten helt: appens hand och library är ett
 
     /* ── flyttar ── */

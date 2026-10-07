@@ -461,6 +461,74 @@ const PROV = async () => {
   ok('zoomsteg: ett nytt parti börjar på 100 %, ritat på plats', zFore < 0.99 && Math.abs(avZ() - 1) < 1e-6 && !gar(gridEl), `${pct(zFore)} → ${pct(avZ())}`);
   } catch (e) { ok('zoomsteg: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); window.__mattLugn = false; }
   kamUpplosning = null;
+
+  /* ── Till handen (MES-343): scenen "Ta upp i handen" på sida 3 ──
+     Kameran skickar ett kort till handen (tillHanden, som avstamBord gör
+     när väntan är slut): kortet ur listan, kopian glider ut genom
+     nederkanten, raden med Exile · Still on the table · Library. Still on
+     the table lägger tillbaka samma kortpost och elementet glider in från
+     nederkanten; Library bekräftar; en token tonas ut med Undo; Exile
+     flyttar kortet till exile. Inget kort blir grått. */
+  try {
+    await vanta(500);
+    spelLage = Object.assign({}, spelLage, { id: 'mattprov-hand' });
+    oppSatt({ klar: true });
+    mig.cards = []; mig.pending = []; handRad.length = 0;
+    const sp3 = [spar(31, 'Llanowar Elves', 0.2, 0.25), spar(32, 'Forest', 0.42, 0.25), spar(33, 'Serra Angel', 0.64, 0.25)];
+    avstamBord(sp3, false);
+    for (const c of mig.cards) delete c.ny;
+    renderAll(true); await vanta(600);
+    const k = mig.cards.find(c => c.spar === 32), kEl = els().get(k.cid);
+    const n0 = els().size, x0 = kEl.getBoundingClientRect(), left0 = kEl.style.left, top0 = kEl.style.top;
+    delete k.spar; tillHanden(mig, k, Date.now() - 5000, Date.now()); save(); renderAll(true);
+    const flyg = gridWrap.querySelector('.handflyg'), rad = $('#handRad');
+    const kf = (el, egenskap) => !!el && el.getAnimations().some(a => a.effect.getKeyframes().some(f => f[egenskap] != null));
+    ok('till handen: kortet ur listan och dess element borta ur brädet', !mig.cards.includes(k) && !els().has(k.cid) && els().size === n0 - 1, `${els().size} element`);
+    ok('till handen: en kopia glider ut genom nederkanten inne i mattans fönster (translate, scale, opacitet)', !!flyg && flyg.parentElement === gridWrap && flyg.getAnimations().some(a => a.playState === 'running') && kf(flyg, 'translate') && kf(flyg, 'scale') && kf(flyg, 'opacity'), flyg ? anim(flyg) : 'ingen kopia');
+    const radTxt = rad && !rad.hidden ? rad.textContent : '';
+    ok('raden: "Forest went to your hand" med Exile · Still on the table · Library', !!rad && !rad.hidden && /Forest went to your hand/.test(radTxt) && ['exil', 'kvar', 'bib'].every(v => rad.querySelector(`[data-hand="${v}"]`)) && rad.querySelector('[data-hand="kvar"]').textContent === 'Still on the table', radTxt.trim().slice(0, 80));
+    const rr = rad.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
+    ok('raden står vid nederkanten, mitt på mattan, med en stapel som rinner ut', Math.abs((rr.left + rr.right) / 2 - (wr.left + wr.right) / 2) < 4 && rr.bottom <= wr.bottom && rr.bottom > wr.bottom - 40 && !!rad.querySelector('.hrad-bar'), `${Math.round(rr.left)}–${Math.round(rr.right)} i ${Math.round(wr.left)}–${Math.round(wr.right)}, botten ${Math.round(rr.bottom)} mot ${Math.round(wr.bottom)}`);
+    ok('inget kort är nedtonat och bannern finns inte', !gridEl.querySelector('.card.lyft') && !document.querySelector('.lyftbanner') && !document.querySelector('.kortchip.lost'), '');
+    await vanta(800);
+    ok('kopian städas efter flygturen', !gridWrap.querySelector('.handflyg'), '');
+    /* Still on the table. */
+    rad.querySelector('[data-hand="kvar"]').click();
+    const kEl2 = els().get(k.cid);
+    ok('Still on the table: samma kortpost tillbaka i listan, på sin plats på brädet', mig.cards.includes(k) && !!kEl2 && kEl2.style.left === left0 && kEl2.style.top === top0, kEl2 ? `${kEl2.style.left} ${kEl2.style.top} mot ${left0} ${top0}` : 'inget element');
+    ok('… och glider in från nederkanten (A.pos med translate, opacitet 0 → 1)', !!kEl2 && kEl2._matA && kEl2._matA.pos && kEl2._matA.pos.playState === 'running' && kf(kEl2, 'translate') && kf(kEl2, 'opacity'), kEl2 ? anim(kEl2) : '');
+    ok('raden bekräftar "Forest is back on the table", utan knappar', /Forest is back on the table/.test($('#handRad').textContent) && !$('#handRad').querySelector('[data-hand]'), $('#handRad').textContent.trim().slice(0, 60));
+    await vanta(600);
+    const r2 = els().get(k.cid) && els().get(k.cid).getBoundingClientRect();
+    ok('kortet landar där det låg, i samma element', els().get(k.cid) === kEl2 && !!r2 && Math.abs(r2.left - x0.left) < 2 && Math.abs(r2.top - x0.top) < 2, r2 ? `${Math.round(r2.left)},${Math.round(r2.top)} mot ${Math.round(x0.left)},${Math.round(x0.top)}` : 'borta');
+    await vanta(1400);
+    ok('bekräftelsen går ut efter 1,8 s: raden dold', $('#handRad').hidden, $('#handRad').textContent.trim().slice(0, 40));
+    /* Library: handen och library är ett — kortet stannar borta, raden bekräftar. */
+    const k2 = mig.cards.find(c => c.spar === 33);
+    delete k2.spar; tillHanden(mig, k2, Date.now() - 5000, Date.now()); save(); renderAll(true); await vanta(500);
+    $('#handRad').querySelector('[data-hand="bib"]').click();
+    ok('Library: kortet stannar ur listan, raden säger "went to your library"', !mig.cards.includes(k2) && !els().has(k2.cid) && /Serra Angel went to your library/.test($('#handRad').textContent), $('#handRad').textContent.trim().slice(0, 60));
+    await vanta(2000);
+    /* En token (fall 7): tonas ut på plats, raden med Undo. */
+    const k3 = mig.cards.find(c => c.spar === 31); k3.tok = 1;
+    delete k3.spar; tillHanden(mig, k3, Date.now() - 5000, Date.now()); save(); renderAll(true);
+    const flyg3 = gridWrap.querySelector('.handflyg');
+    ok('token: tonas ut på plats (bara opacitet), raden "Llanowar Elves is gone · Undo"', !!flyg3 && !kf(flyg3, 'translate') && kf(flyg3, 'opacity') && /Llanowar Elves is gone/.test($('#handRad').textContent) && !!$('#handRad').querySelector('[data-hand="angra"]') && !$('#handRad').querySelector('[data-hand="exil"]'), $('#handRad').textContent.trim().slice(0, 60));
+    $('#handRad').querySelector('[data-hand="angra"]').click();
+    ok('Undo: token tillbaka på mattan', mig.cards.includes(k3) && !!els().get(k3.cid), '');
+    await vanta(2000);
+    /* Exile: kortet in i bordet och till exile. */
+    k3.tok = 0; delete k3.spar; tillHanden(mig, k3, Date.now() - 5000, Date.now()); save(); renderAll(true); await vanta(500);
+    $('#handRad').querySelector('[data-hand="exil"]').click();
+    ok('Exile: kortet i exile, raden säger "went to exile"', mig.cards.includes(k3) && zonAv(k3) === ZON_EXIL && !els().has(k3.cid) && /went to exile/.test($('#handRad').textContent), $('#handRad').textContent.trim().slice(0, 60));
+    /* Inget val: raden går ut efter HAND_RAD_MS och handen står fast. */
+    await vanta(2000);
+    const k4 = mig.cards.find(c => c.name === 'Forest'); delete k4.spar; tillHanden(mig, k4, Date.now() - 5000, Date.now()); save(); renderAll(true);
+    await vanta(5800);
+    const stodKvar = !$('#handRad').hidden;
+    await vanta(500);
+    ok('inget val på 6 s: raden går ut och kortet stannar i handen', stodKvar && $('#handRad').hidden && !mig.cards.includes(k4), `stod vid 5,8 s: ${stodKvar}`);
+  } catch (e) { ok('till handen: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); }
   return rad;
 };
 

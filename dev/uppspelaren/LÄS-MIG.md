@@ -115,7 +115,7 @@ som inte syntes. Annars blir medianen bättre när det blir sämre.
 | **Utbytta kort** | en flytt i facit som syntes som ett nytt kort, eller ett nytt kortelement med samma namn högst 10 s efter att ett kort med namnet tonades ned eller lämnade mattan *fast det låg kvar* (en fel nedtoning). Plus element som byts ut i DOM:en för samma kort | lägre |
 | **Nya kort utan utspel i facit** | ett nytt kortelement som inte svarar mot något utspel i facit (inom fönstret, rätt namn) och inte är utbytt: en dubblett, ett felnamn, eller ett kort som kom tillbaka ur graveyard fast det låg kvar där | lägre |
 | **Fel nedtoning eller fel borttagning** | ett kort som tonas ned (`.lyft`) eller lämnar mattan (graveyard, exile, borta) utan att facit har en `tar_bort` för namnet inom fönstret. En borttagning som syns först efter fönstret (före nästa utspel med namnet) är ingen fel nedtoning — den räknas som "står kvar" | lägre |
-| **Fel till handen** | som ovan, men kortet lämnar mattan mot handen (zonen heter något med hand, eller kortet tas ur korten helt — i appen är hand och library ett). I dag 0: inget kort går till handen av sig självt (MES-343) | lägre |
+| **Fel till handen** | som ovan, men kortet lämnar mattan mot handen (zonen heter något med hand, eller kortet tas ur korten helt — i appen är hand och library ett). Sedan MES-343 skickar kameran själv ett kort till handen när platsen är tom efter att händerna gått: kortet tas ur listan, så det räknas här som `borttaget` | lägre |
 | **Borttagna kort som står kvar** | en `tar_bort` i facit utan att något kort med namnet tonas ned eller lämnar mattan inom fönstret | lägre |
 | **Tid till borta** | från facits `tar_bort` till nedtoningen eller till att kortet lämnar mattan, median och längst (miss = 10 s) | lägre |
 | **Utspel som syntes** | utspel (`spelar`, `grav_till_bord`) där något syntes inom fönstret, med regeln i *Tid till något syns* | högre |
@@ -211,8 +211,10 @@ Tabellen: [`baslinje/baslinje.md`](baslinje/baslinje.md). Bilder ur visaren:
 - Golden-fallens tider är relativa facits avläsning (~0,5 s efter släppet).
 - Perspektivet i p0921 är uppmätt för hand i två rutor (~7 %). Ett nytt
   facit med kortets storlek per rad gör avståndsfelet skarpare.
-- Kort på väg ut ur mattan (MES-343:s rörelse mot handen) finns inte än;
-  när de gör det ska de undantas från snabba hopp och kanten.
+- Kortet på väg ut ur mattan (MES-343:s rörelse mot handen) är en kopia i
+  mattans fönster utanför brädet (`.handflyg` i `#gridWrap`), så den syns
+  inte för motorn: varken som snabbt hopp eller utanför kanten. Kortets
+  död räknas när elementet försvinner ur brädet, i samma steg som beslutet.
 
 ## Filer
 
