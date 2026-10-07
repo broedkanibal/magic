@@ -100,6 +100,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --utan-leken "Ukud Cobra,Pacifism"` | namnen tas bort ur leken innan poolen byggs: korten ligger kvar på borden men är nu kort UTANFÖR leken — varje säkert namn på dem är ett fel namn. Ska ge 0 fel namn (se *Bildmodellen*) |
 | `node dev/golden/kor.cjs --tro "remsa:0"` | utan namnet ur remsan (MES-330): ett maskat spår (ett annat kort ligger över) läses annars om på detektorns remslåda mot remsleken, med remsans egen tröskel `remsaTroskel` (0,20 sedan MES-331; dev/remsa/remstroskel.py och overlapp_remsor.py); `remsaVittne` (0,05) är marginalen som räcker som andra vittne åt Claudes svar. `--tro "bakDet:0.7"`: gränsen för detektorns kortpoäng som stänger av 'baksida ficka'. Raden `metod:` visar `+remsa`, och `--detalj` skriver `[remsa → namn marginal …]`, `maskad`, `det` och `[ai: …]` per spår |
 | `node dev/golden/kor.cjs --tro "detektor:0"` | med **dagens detektor** (mattmodell + regioner) i stället för den tränade (MES-329, förvalet sedan 2026-10-01): raden `Detektorn:` överst och `metod:` sist säger vilken som kördes. `--tro "detRemsa:0"` kör den tränade med bara modellens lådor, utan kort ur namnremsor; `--tro "detektor:2"` kör fp16-filen (prov för telefonen) |
+| `node dev/golden/kor.cjs --lek-som-den-ar` | baslandens antal ur lek.txt som de står, utan lyftet till det största ett fall visar (förval sedan 2026-10-07, se *När en ny baslinje behövs*) — bara för prov, aldrig `--spara`. Raden `Leken:` säger vilka antal kameran fick |
 | `node dev/golden/kor.cjs --luft 0` | utan läsningen på första hela rutan (MES-227, `T.luft`): den tidiga läsningen väntar två formstilla rutor som förut. `--luft 1` tvingar den på |
 | `node dev/golden/kor.cjs --cdp-tak 300000` | tidsgränsen för ett anrop till Chrome i ms (förval 120 000). Svarar Chrome inte stoppar körningen med orsaken och slutkod 2 i stället för att hänga; attrappen och Chrome stängs alltid (MES-270) |
 | `node dev/golden/kor.cjs --fall 07 --rutlogg /tmp/rutor.json` | skriver varje videoruta med spårens tillstånd, mått, formN och skymning till en fil — för utredningar ruta för ruta (sparas aldrig i baslinjen) |
@@ -139,6 +140,17 @@ alla 18 fall, och allt runt den. Kör därför bara när något av två stämmer
 Ändras lek.txt byts poolen för alla fall, men kör ändå bara de fall som rörs:
 ett kort som flyttar sig någon annanstans syns nästa gång alla fall körs.
 Skriv i historik-raden att poolen bytts.
+
+**Basländerna i lek.txt (2026-10-07).** Skriv inte antal på basland i lek.txt
+för ett golden-falls skull. `kor.html` lyfter varje basland (Plains, Island,
+Swamp, Mountain, Forest, Wastes, snö-varianterna) till
+max(lek.txt, det största antalet av baslandet som ligger samtidigt i något
+enskilt fall: slutläget i `facit.kort` och, i ett videofall, förloppet), annars
+spärrar antalspriorn (K6, `fler än leken`) varje land efter det första. Alla
+fall räknas även när `--fall` bara kör några. Raden `Leken:` under `Poolen:`
+säger vilka antal kameran fick (`Island 1 → 5 (fall 17), Forest 1 → 2 (fall
+17)`), resultatet bär dem i `lekAntal`, och poolen berörs inte. `--lek-som-den-ar`
+stänger av lyftet för ett prov och vägras med `--spara`.
 
 Skriv en rad i `historik.md` (det korta formatet i filens huvud) och checka
 in båda.
@@ -680,10 +692,12 @@ titelrad eller konstverk — får fältet `"olasbar"` med orsaken:
 Flaggan sätts bara i facit, per kort, med en orsak — aldrig i koden. Den är
 för kort som ingen kan läsa, inte för kort som är svåra: kan Jesper lista ut
 kortet med leken framför sig ska kedjan också kunna det (den jämför mot
-lekens kort), och då får det ingen flagga. Satt 2026-10-07 på ett kort: 13
-Fencing Ace (se `dev/material/arbete/markning/golden-2026-10-06/de-12-utan-ratt-namn-V4a.html`);
-medvetet *inte* på 18 Ukud Cobra, 13 Swamp, 13 Ancestral Blade och 18 Mirran
-Bardiche. Felboken (`felbok.cjs`) visar oläsbara i ett eget avsnitt sist och
+lekens kort), och då får det ingen flagga. Satt 2026-10-07 på 13 Fencing Ace
+(se `dev/material/arbete/markning/golden-2026-10-06/de-12-utan-ratt-namn-V4a.html`)
+och, efter Jespers beslut samma dag, på de fyra korten under tokens: 13
+Ancestral Blade, 13 Mirran Bardiche, 18 Mirran Bardiche och 18 Ancestral Blade
+(läsbara 118 → 114; flaggan på 18 Ancestral Blade följer inte bithastigheten);
+medvetet *inte* på 18 Ukud Cobra och 13 Swamp. Felboken (`felbok.cjs`) visar oläsbara i ett eget avsnitt sist och
 räknar dem inte i sammanställningen. `--spara` sparar båda talen i baslinjen;
 en baslinje från före 2026-10-07 saknar dem, och då står bara körningens tal.
 **Ritas fallet om i `rita.html` tappas fältet** (verktyget bygger om

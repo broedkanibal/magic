@@ -196,6 +196,8 @@ const EMBED_V = PARAMS.get('embedv') ? '?v=' + PARAMS.get('embedv') : '';   // d
 /* ?utanbib=1 (kor.cjs --utan-bib): facits library-ruta (bib) ges INTE till modulen — som när uppstartens steg 4 inte satt någon (MES-334 steg 3). Telefonen letar då själv efter leken bland detektorns baksidelådor, och resultatet bär vad den kom fram till (res.lek), dömt mot facits ruta. */
 const UTAN_BIB = PARAMS.get('utanbib') === '1';
 const facitBib = f => UTAN_BIB ? null : (f.facit.bib || null);
+const LEK_SOM_DEN_AR = PARAMS.get('lekasis') === '1';   // --lek-som-den-ar: baslandens antal ur lek.txt, utan lyftet till det största ett fall visar (prov, aldrig baslinje)
+let lekLyft = [];   // [{ namn, fran, till, fall }] — vilka basland som lyftes och varför (byggPool)
 const UTAN_LEKEN = new Set((PARAMS.get('utanleken') || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean));
 let embedInfo = null;   // { backend, modell, vektorer, ms } när leken är inbäddad
 let detInfo = null, detFel = null;   // den tränade detektorn (MES-329): { backend, modell, variant, ms, remsa } när den är laddad; felet annars
@@ -461,7 +463,50 @@ async function byggPool() {
     } }
   /* Antalspriorn (K6): appens byggKamPool fyller kartan ur leken; här byggs
      poolen direkt, så kartan sätts här. */
-  try { w.eval('sattKamLekAntal')(kort); } catch (e) {}
+  /* Basländerna i golden-leken räcker alltid (prompt F, 2026-10-07): lek.txt
+     har "Island" och "Forest" utan antal (= 1), men golden 17 har fem Island och
+     två Forest — och antalspriorn (K6, "fler än leken") spärrar då varje Island
+     efter den första. Golden ska mäta kameran, inte om någon räknat landen i
+     lek.txt: varje basland lyfts till max(lek.txt, det största antalet av det
+     baslandet som ligger SAMTIDIGT i något enskilt fall). Slutläget i facit.kort
+     (dolda kort räknas — de ligger på bordet) och, i ett videofall, det högsta
+     antalet under förloppet: spelar/tar_bort räknas bakåt från slutläget till
+     startantalet och framåt i tid. Alla fall räknas, också när --fall bara kör
+     några, så att antalet inte beror på urvalet. Bara basland lyfts, aldrig
+     nedåt. Poolens nyckel bär bara namnen och byggLekPool läser aldrig k.n, så
+     poolen är oförändrad — bara kamLekAntal (priorn) får de nya antalen.
+     --lek-som-den-ar (lekasis=1) stänger av lyftet; kor.cjs vägrar det med --spara. */
+  const kortAntal = kort.map(k => ({ ...k }));
+  lekLyft = [];
+  if (!LEK_SOM_DEN_AR) {
+    const basNamn = n => /^(snow-covered )?(plains|island|swamp|mountain|forest|wastes)$/.test(norm(n));
+    const topp = new Map();   // basland (norm) -> { n, fall }
+    for (const f of fall) {
+      if (!f.facit || !Array.isArray(f.facit.kort)) continue;
+      const slut = new Map(), spelat = new Map(), borta = new Map();
+      const plus = (m, n) => m.set(norm(n), (m.get(norm(n)) || 0) + 1);
+      for (const k of f.facit.kort) if (basNamn(k.namn)) plus(slut, k.namn);
+      const hand = ((f.facit.video && f.facit.video.handelser) || []).slice().sort((a, b) => a.t - b.t);
+      for (const h of hand) {
+        if (h.spelar && basNamn(h.spelar)) plus(spelat, h.spelar);
+        if (h.tar_bort && basNamn(h.tar_bort)) plus(borta, h.tar_bort);
+      }
+      for (const nyckel of new Set([...slut.keys(), ...spelat.keys(), ...borta.keys()])) {
+        let nu = Math.max(0, (slut.get(nyckel) || 0) - (spelat.get(nyckel) || 0) + (borta.get(nyckel) || 0)), hog = Math.max(nu, slut.get(nyckel) || 0);
+        for (const h of hand) {
+          if (h.spelar && norm(h.spelar) === nyckel) nu++;
+          if (h.tar_bort && norm(h.tar_bort) === nyckel) nu--;
+          if (nu > hog) hog = nu;
+        }
+        if (!topp.has(nyckel) || topp.get(nyckel).n < hog) topp.set(nyckel, { n: hog, fall: f.id.slice(0, 2) });
+      }
+    }
+    for (const k of kortAntal) {
+      const t = basNamn(k.name) ? topp.get(norm(k.name)) : null;
+      if (t && t.n > (Number(k.n) || 1)) { lekLyft.push({ namn: k.name, fran: Number(k.n) || 1, till: t.n, fall: t.fall }); k.n = t.n; }
+    }
+  }
+  try { w.eval('sattKamLekAntal')(kortAntal); } catch (e) {}
   /* byggLekPool sväljer ett fel på baslandsfrågan. Syns det på antalet —
      inga fler kort än namn fast leken har basland — sparas inte poolen,
      så att nästa omladdning bygger om den i stället för att ärva luckan. */
@@ -505,6 +550,7 @@ async function byggPool() {
     + (detInfo ? `<br>Detektorn: tränad YOLOX ${esc(detInfo.variant)} på ${esc(detInfo.backend)} (${esc(detInfo.modell || '')}), klar på ${(detInfo.ms / 1000).toFixed(1)} s${detInfo.remsa ? '' : ' — bara modellens lådor, inga kort ur remsor'}.` : detFel ? `<br><span class="fel">Detektorn gick inte att ladda: ${esc(detFel)} — körningen mäter dagens detektor.</span>` : '<br>Detektorn: dagens (mattmodell + regioner).')
     + (embedInfo ? `<br>Bildmodellen: ${esc(embedInfo.backend)} (${esc(embedInfo.modell || '')}${embedInfo.tradar ? ', ' + embedInfo.tradar + ' trådar' : ''}), ${embedInfo.vektorer} vektorer, klar på ${(embedInfo.ms / 1000).toFixed(1)} s${embedInfo.remsor ? `; remsleken ${embedInfo.remsor} vektorer på ${(embedInfo.remsMs / 1000).toFixed(1)} s` : embedInfo.remsFel ? `; <span class="fel">remsleken gick inte att bygga: ${esc(embedInfo.remsFel)}</span>` : ''}.`
        : EMBED_PA ? `<br><span class="fel">Bildmodellen gick inte att ladda: ${esc(embedFel || '')} — körningen mäter reserven (Matcher + ORB).</span>` : '<br>Bildmodellen avstängd (--utan-modell): reserven Matcher + ORB mäts.')
+    + `<br>Leken: ${LEK_SOM_DEN_AR ? 'basland ur lek.txt som de är (--lek-som-den-ar)' : lekLyft.length ? lekLyft.map(x => `${esc(x.namn)} ${x.fran} → ${x.till} (fall ${x.fall})`).join(', ') : 'basland ur lek.txt räcker'}`
     + (UTAN_LEKEN.size ? `<br>Utanför leken: ${esc([...UTAN_LEKEN].join(', '))} — ett säkert namn på de korten är ett fel namn.` : '');
   $('#metod').textContent = 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, '
     + (embedInfo ? 'bildmodellen (MobileCLIP-S0, ' + embedInfo.backend + ') rangordnar lekens namn och ORB kontrollerar de tre bästa; Matcher + ORB som andra åsikt' : 'Matcher + ORB mot leken')
@@ -1252,6 +1298,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
     metod: metod(), ai: aiModell(), promptv: AI_PA ? promptVersion : null,
+    lekAntal: lekLyft.length ? lekLyft.map(x => `${x.namn} ${x.fran} → ${x.till} (fall ${x.fall})`) : (LEK_SOM_DEN_AR ? 'som lek.txt' : 'lek.txt räcker'),   // baslandens antal som kameran fick (prompt F): en baslinje bär vilka antal den mättes med
     poolKod: (poolRec && poolRec.code) || null,   // poolens nyckel (lek.txt): byts den mäter körningen en annan lek än baslinjen
     remsModell: (w.Embed && w.Embed.remsModell) || undefined, remsModellFel: (w.Embed && !w.Embed.remsModell && (w.Embed.remsFel || 'ingen remsmodell')) || undefined,   // alltid (MES-340): remsmodellen är appens förval, och en körning utan den ska synas
     videoErsatt: (f.facit.video && VIDEO_ERSATT) || undefined,
