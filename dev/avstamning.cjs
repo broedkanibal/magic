@@ -2466,6 +2466,43 @@ prov('GRr omladdning mitt i en flytt utan namn: slimKort sparar platsen FÖRE fl
   assert.equal(sparat.flyttFran, undefined); assert.equal(sparat.spar, undefined);
 });
 
+/* V2 — kontrollgranskningen av mes-341-v2 (2026-10-07): kortet som syns igen
+   på sin plats slår en gissad flytt (V2flimmer, V2flimmerNyId), och ett
+   gissat spår som dör lägger tillbaka kortet (V2sparDor). */
+const stillaSpar = (id, b, rest) => vilande(id, b, Object.assign({ tillstand: 'stilla' }, rest));
+prov('V2flimmer A:s spår dör kort (flimmer), ett namnlöst stilla spår annanstans tar A; A:s spår kommer tillbaka klart med samma id — A tillbaka, ingen dubblett', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), vilande(2, NY_PLATS, { vilar: false })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([stillaSpar(2, NY_PLATS)]);
+  assert.equal(k.spar, 2, 'gissningen');
+  klocka.t += 600; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), stillaSpar(2, NY_PLATS)]);
+  assert.equal(app.kort.length, 1, 'dubblett'); assert.equal(k.spar, 1); assert.equal(k.flyttFran, undefined); assert.equal(k.borta, undefined);
+  assert.ok(Math.abs(k.kam.x - mitt(PORT)) < 1e-9, 'tillbaka på sin plats');
+  klocka.t += 1000; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), vilande(2, NY_PLATS, { tillstand: 'okand', gissning: 'Grizzly Bears', cands: [{ name: 'Grizzly Bears', score: 0.8 }] })]);
+  assert.equal(app.kort.filter(c => c.name === 'Ukud Cobra').length, 1); assert.equal(app.pending.length, 1, 'det andra spårets granskning');
+});
+prov('V2flimmerNyId samma, men det återkomna spåret har ett nytt id — ingen dubblett', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), vilande(2, NY_PLATS, { vilar: false })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([stillaSpar(2, NY_PLATS)]);
+  assert.equal(k.spar, 2);
+  klocka.t += 600; stam([klar(3, 'Ukud Cobra', { sen: 0, ...PORT }), stillaSpar(2, NY_PLATS)]);
+  assert.equal(app.kort.filter(c => c.name === 'Ukud Cobra').length, 1, 'dubblett'); assert.equal(k.spar, 3); assert.equal(k.flyttFran, undefined);
+});
+prov('V2sparDor det gissade spåret dör utan namn: A tillbaka där det låg, och väntan räknas från det första försvinnandet', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  const borta0 = klocka.t;
+  klocka.t += 600; stam([stillaSpar(2, NY_PLATS)]);
+  assert.equal(k.spar, 2);
+  klocka.t += 1000; stam([]);
+  assert.equal(k.spar, 1); assert.equal(k.borta, borta0, 'väntan från det första försvinnandet'); assert.equal(k.flyttFran, undefined);
+  assert.ok(Math.abs(k.kam.x - mitt(PORT)) < 1e-9, 'tillbaka där det låg');
+  klocka.t += 1500; stam([]);                                   // 3,25 s efter det första försvinnandet: väntan (3 s i provet) slut
+  assert.ok(k.lyft != null, 'nedtonat när väntan tog slut');
+});
+
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);

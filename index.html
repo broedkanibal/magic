@@ -31765,6 +31765,16 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
       const u = spar.find(t => t.id === c.spar);
       return !!u && !iFysiskt.has(u.id) && g.spar.some(t => sammaPlats(t, u));
     }) || null;
+    /* Kortet syns igen på sin plats medan en gissad flytt håller det (kontrollgranskningen, V2flimmer):
+       A:s spår dog en kort stund, ett namnlöst stilla spår annanstans tog A (steg 3b), och A:s spår
+       kommer tillbaka klart där det låg — med samma id eller ett nytt. Kortet som syns igen slår
+       gissningen utan namn: tillbaka (aterstallFlytt) och bundet till ledaren. Förut hittade ledigt
+       inget A, ett andra A skapades, och rättelsen lade sedan A på samma spår som dubbletten. */
+    if (!k) {
+      const a = mig.cards.find(c => c.flyttFran && c.name === g.namn && paBordet(c)
+        && g.spar.some(t => t.id === c.flyttFran.spar || (t.w != null && tackning(kamRekt(c.flyttFran.kam), t) >= SAMMA_KORT_TACKNING)));
+      if (a) { aterstallFlytt(a); k = a; }
+    }
     if (!k && !sparrat(g)) k = ledigt(g.namn);
     if (k && k.spar !== ledare.id) binder(k, ledare);
     g.kort = k;
@@ -32033,6 +32043,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     andrat = true;
     return true;
   }
+  /* Det gissade spåret dog utan namn (skräp hos Claude, eller borta): gissningen föll. Kortet tillbaka
+     där det låg, och väntan räknas från det första försvinnandet (kontrollgranskningen, V2sparDor). */
+  for (const k of mig.cards) if (k.flyttFran && k.spar != null && !synliga.has(k.spar)) aterstallFlytt(k);
   for (const k of mig.cards) if (k.spar != null && !synliga.has(k.spar) && !k.borta) { k.borta = nu; gravTid.set(k.cid, nu); andrat = true; }
   /* En flytt utan namn (steg 3b) som inget namn bekräftat upphävs av högen: växte graveyard i fönstret
      efter att kortets spår dog (flyttFran.borta) lämnade kortet bordet — det ligger inte där det nya
