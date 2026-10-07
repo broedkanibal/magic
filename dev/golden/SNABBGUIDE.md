@@ -124,9 +124,24 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 
 Flaggorna går att kombinera: `node dev/golden/kor.cjs --ai --fall 03 --detalj`.
 
-**Spara en baslinje bara när du vill jämföra mot den framöver** — ett nytt
-fall, eller en ändring som blev bättre. Skriv då en rad i `historik.md` och
-checka in båda.
+### När en ny baslinje behövs (Jespers beslut 2026-10-07)
+
+`--spara` kostar ingenting i sig. Det som kostar är körningen, ~25 min för
+alla 18 fall, och allt runt den. Kör därför bara när något av två stämmer:
+
+| Situation | Baslinje |
+|---|---|
+| **Måttstocken ändras**: facit, ett falls video, lek.txt, ett nytt fall | ja, `--fall <de fall som ändras> --spara` |
+| **Kamerakod som ska behållas** hamnar på main (index.html:s kamera, embed.js, detektor.js, trösklar) | ja, alla fall, en gång efter ihopslagningen |
+| Datorsidan, gränssnittet, dokument, planer, golden-verktygen | **nej**, ingen körning |
+| Prov, varianter, nya modeller (`--video`, `--modell`, `--tro` …) | nej, de jämförs mot den baslinje som finns och vägrar `--spara` |
+
+Ändras lek.txt byts poolen för alla fall, men kör ändå bara de fall som rörs:
+ett kort som flyttar sig någon annanstans syns nästa gång alla fall körs.
+Skriv i historik-raden att poolen bytts.
+
+Skriv en rad i `historik.md` (det korta formatet i filens huvud) och checka
+in båda.
 
 ## När två körningar inte ger samma tal (MES-249)
 

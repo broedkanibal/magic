@@ -7,6 +7,12 @@ datorseende i webbläsaren utan AI-modell; kommer ett AI-steg med i provet
 skrivs modellens namn här. Commit är den commit som `senaste.json` checkades
 in i, alltså koden som mättes.
 
+**Det korta formatet (sedan 2026-10-07).** Kolumnen *vad som ändrats* är högst
+tre meningar: vad som ändrades, vilka fall som rörde sig och åt vilket håll,
+och var rapporten ligger. Kort för kort, domskäl, fällor och resonemang hör
+till rapporten och commit-meddelandet, inte hit. Filen läses av varje session
+som mäter, så varje ord här betalas många gånger.
+
 ## Acceptans för läge 1 (Table leads), satt 2026-09-12
 
 Målen som kamerasträngen i `dev/plan/lagen.md` mäts mot, med golden setet som
