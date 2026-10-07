@@ -64,5 +64,4 @@ Allt under `cache/`, `modeller/` och `node_modules/` är gitignorerat.
   Intel-Mac); en bit som faller körs om, och faller den tre gånger körs den
   bild för bild. Varje bild har eget frö, så resultatet är detsamma.
 - **Bänken rör inte `index.html`**, golden setet eller systemprompten.
-  `utdrag.cjs` LÄSER index.html för att baslinjen ska vara dagens kedja —
-  `dev/matcher.js` och `dev/orb.js` är gamla kopior.
+  `utdrag.cjs` LÄSER index.html för att baslinjen ska vara dagens kedja.

@@ -1,9 +1,8 @@
 'use strict';
 /* Dagens lokala bildkedja, utklippt ur index.html — som baslinje i bänken.
 
-   dev/matcher.js och dev/orb.js är gamla kopior (första committen); appens
-   egna Matcher och ORB har ändrats sedan dess (HINT_SC, packTill …). För att
-   baslinjen ska vara DAGENS kedja klipps blocken ur index.html vid körning:
+   Appens Matcher och ORB finns bara i index.html (de gamla kopiorna
+   dev/matcher.js och dev/orb.js togs bort 2026-10-07). För att baslinjen ska vara DAGENS kedja klipps blocken ur index.html vid körning:
    Matcher, ORB, cropCanvas, orbIdentify, identifyAt, confident, skräpspärren
    serUtSomKort och deras konstanter. index.html läses bara — ingenting skrivs dit.
 

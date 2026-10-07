@@ -504,10 +504,7 @@ ett dokumenterat API och fungerande CORS.
 index.html      appen
 api/identify.js serverfunktionen som håller API-nyckeln
 package.json    serverfunktionens beroende
-dev/matcher.js  bildsignaturer och helhetsmatchning
-dev/orb.js      lokala särdrag (FAST + BRIEF) och RANSAC-verifiering
 dev/detect.js   videoruts- och kortdetektering
-dev/bench.html  mätbänk för träffsäkerheten
 dev/mock.js     syntetisk skärmdump av videosamtalet för test
 dev/lekmock.js  syntetisk solfjäder och mätbänk för lekens fotoväg
 dev/stub-server.cjs  attrapp för /api/identify vid lokal utveckling
