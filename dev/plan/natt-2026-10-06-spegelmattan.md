@@ -146,3 +146,18 @@ nedvända kort får ingen bild.
 
 Inte påbörjad. Den bygger på MES-344:s foto och sökruta och behöver en designyta för
 graveyard-vyn först. Där stannar kön enligt prompten.
+
+## Dagen 2026-10-07: Jespers beslut och det som gick in efter natten
+
+| Vad | Jespers beslut | Läge | På main |
+|---|---|---|---|
+| MES-342 kamerans skala | "ta in ändå, kan förbättra senare" (zoomraden 0,68 → 0,87 godtagen) | **Done**; resten i MES-345 (Triage) | `9e0f10a` |
+| MES-338 kamerans yta på mattan | "Mattans maxstorlek ska vara markerad"; förslag B (kontur, mörkare utanför), spelaren får zooma ut ett steg förbi kamerabilden; tangenten 0 som förut | på main | `1fda2a6` |
+| MES-344 framkallningen | ja till alla åtta valen och till fyra sämre rader i grinden — alla för att platshållaren är borta (tid till något syns 0,32 → 0,80 s; p0921k saknade kort 26 → 29 och avståndsfel 0,18/0,42 → 0,19/0,44, samma urval identiskt) | **Redo att testas**; landhögarna och överlappande etiketter i MES-346 (Triage) | `1d78898` |
+| Partiet 2026-09-21 genom telefonens kedja | videon tillbaka från Drive | fallet `p0921k` i uppspelaren — platser och antal mätbara, namn inte (skärminspelning utan Claude) | `544be0d` |
+
+Golden för MES-344 (telefonens kod ändrad): **95/119, 0 fel namn, 1 falsk — kort för kort identisk med main.** `--utan-leken "Ukud Cobra,Pacifism"` ger 90/119 med **1 fel namn som main redan har** (fall 05: Pacifism → Scourge of the Undercity, `namn ensamt`) — inte från MES-344, men SNABBGUIDENs löfte om 0 där stämmer inte längre.
+
+**Spegelfacit 29/60 förklarat** (passet 09-22, utan Claude): 20 av 31 missar på mattan kommer av fem kort som aldrig fick namn och allt som händer dem sedan; 8 händelser (drag, graveyard ur bild) kan aldrig synas på en matta; 6 är tap i landhögen. Med Claude gav samma pass 35/59 på äldre kod. Mappen `2026-09-22-1x-34cm-normaltempo` (video och körningen med Claude) ligger fortfarande på Drive.
+
+**Kvar för Jesper vid bordet:** MES-341, 343 och 344 (Redo att testas, stegen står på issuerna) och markeringen av kamerans yta.
