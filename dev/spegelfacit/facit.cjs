@@ -12,9 +12,11 @@ const facitMapp = pass => path.join(ROT, 'dev', 'golden', 'inspelningar', pass);
 const materialMapp = pass => path.join(ROT, 'dev', 'material', 'inspelningar', pass);
 
 /* En rad per handling: { nr (radnummer i filen, 2 = första raden efter
-   rubriken), t, handelse, kort, till, plats, tal }. '-' och tomt blir null. */
-function lasFacit(pass) {
-  const fil = path.join(facitMapp(pass), 'handelser.tsv');
+   rubriken), t, handelse, kort, till, plats, tal }. '-' och tomt blir null.
+   fil: ett facit som inte ligger i passets mapp (kor.cjs --facit; partiet
+   2026-09-21 har sitt i dev/uppspelaren/underlag/). */
+function lasFacit(pass, fil) {
+  fil = fil || path.join(facitMapp(pass), 'handelser.tsv');
   const rader = fs.readFileSync(fil, 'utf8').split('\n').filter(r => r.trim());
   const rub = rader[0].split('\t');
   const i = k => { const j = rub.indexOf(k); if (j < 0) throw new Error(`${fil}: kolumnen ${k} saknas`); return j; };

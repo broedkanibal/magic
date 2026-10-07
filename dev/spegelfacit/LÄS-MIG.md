@@ -18,6 +18,9 @@ Flaggor:
 | `--pass <mapp>` | 1, 2 | ett annat pass (förval `2026-09-22-1x-34cm-normaltempo`); graveyard- och library-rutorna står i `ZONER` i `kor.cjs` |
 | `--tro "tapTapp:60,tapOtapp:25"` | 1 | valfria trösklar till kameran (`Kamera.satTrosklar`), som `--tro` i golden — t.ex. tap-domens gränser (MES-298). Aldrig förval |
 | `--port 8263` | 1 | attrappens port. Poolen sparas i Chrome-profilen **per port**: byt inte i onödan, första körningen på en ny port hämtar leken från Scryfall |
+| `--video fil.mp4` | 1 | en annan video än `kamera.mp4` i passets mapp under `dev/material/inspelningar/<pass>/` |
+| `--facit fil.tsv` | 1 | ett facit som inte ligger i passets mapp (samma kolumner som `handelser.tsv`; kolumner utöver dem hoppas över) |
+| `--fran 180` | 1 | videons start i facits tid, i sekunder: facits tider flyttas så att de stämmer med videon. Bordsloggen bär videons tid (från 0) |
 | `--md fil`, `--tsv fil`, `--json fil` | 2 | rapporten som markdown; det digitala bordets tidslinje (en rad per ändring); allt |
 | `--fore 2 --efter 10` | 2 | fönstret runt facits tid, i sekunder |
 | `--utan-lek` | 2 | utan lekens antal (då kan inget kort lyftas ur graveyard) |
@@ -53,10 +56,30 @@ Se huvudet i `jamfor.cjs`. Kort:
   så kolumnen visar ett hål, inte en regel som slagit fel. *Rätt plats*
   mäter i stället om korten ligger ihop på mattan.
 
+## Partiet 2026-09-21 (MES-333, uppspelarens p0921k)
+
+Telefonens egen inspelning finns inte. Kamerabilden klipps ur
+skärminspelningen `dator.mov` (Mesas kamerapanel, 704 × 438 px, samma
+utsnitt som `rutor/kam-NNN.jpg` och v2-facit) med `dev/golden/video/koda.swift`
+och körs som ett pass:
+
+```bash
+swift dev/golden/video/koda.swift dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov \
+  dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/kamera-180-540.mp4 1348 797 704 438 704 4000 15 180 540
+node dev/spegelfacit/kor.cjs --pass 2026-09-21-mes-238-parti-4k15-20min --video kamera-180-540.mp4 \
+  --facit dev/uppspelaren/underlag/2026-09-21-handelser.tsv --fran 180
+```
+
+Graveyard-rutan är Mesas egen gula ruta i bilden, library-rutan den gröna
+leken (`ZONER` i `kor.cjs`). Kedjan hittar korten och deras läge, men sätter
+nästan inga namn utan Claude — se `dev/uppspelaren/LÄS-MIG.md`.
+
 ## Fällor
 
 - Läs raden `Poolen:` — 114 kort. `kor.cjs` laddar om och väntar tills
-  poolen är hel.
+  poolen är hel. Sedan golden 17 (2026-10-05) har `dev/golden/lek.txt` sex
+  namn till; de skickas som `utanleken`, så att poolen är passens lek (28
+  namn, 114 kort) och inte 168.
 - Videon är en skärminspelning av Mesas kameravy, så appens egna rutor syns i
   bilden (som i golden-fallen 09–12).
 - Uppspelningen har grundläget 90° (kortet otappat = lodrätt) och lekens
