@@ -1,6 +1,6 @@
 /* Riktat prov för kamSkalas lås (MES-342, granskningens fynd 1 och 2): leken och första kortet inom 8 %,
    en blink på 1 s, två värden som fladdrar mot varandra, ett nytt värde som står sig, ett kort som bärs (kam.prel),
-   korten borta.
+   spärren medan korten bärs, ett kort i graveyard, leken och ett kort som aldrig vilar, korten borta.
    Kör: node dev/kamskala-las.cjs [index.html]. Slutkod 1 vid FEL. .cjs eftersom package.json säger "type": "module". */
 'use strict';
 const fs = require('fs');
@@ -12,10 +12,10 @@ let fel = 0;
 const ok = (namn, villkor, info) => { console.log(`${villkor ? 'OK ' : 'FEL'}  ${namn}${info ? '  (' + info + ')' : ''}`); if (!villkor) fel++; };
 function ny() {
   const klocka = { t: 0 };
-  const kamSkala = new Function('Date', `const MATTA = { CW: 178 }; const kamUpplosning = { w: 1920, h: 1080 }; const kamSkalaFryst = () => null;\n${kod}\nreturn kamSkala;`)({ now: () => klocka.t });
+  const kamSkala = new Function('Date', `const MATTA = { CW: 178 }; const kamUpplosning = { w: 1920, h: 1080 }; const kamSkalaFryst = () => null; const paMattan = e => !e.zon || (e.zon !== 'grav' && e.zon !== 'exil');\n${kod}\nreturn kamSkala;`)({ now: () => klocka.t });
   const p = { id: 'p1', cards: [], bibHog: null };
   /* Spela: varje 0,1 s ett anrop med kortens bredder enligt fn(t) (null = inga kort), lek = lekens bredd. */
-  const spela = (t0, t1, fn, lek) => { const ut = []; for (let t = t0; t <= t1 + 1e-9; t += 100) { klocka.t = t; const w = fn(t); p.cards = w == null ? [] : [].concat(w).map(x => typeof x === 'object' ? { kam: Object.assign({}, x) } : { kam: { w: x, h: x * 1.397 / (1080 / 1920) } });   /* ett objekt är en låda som den är: { w, h, prel } */ p.bibHog = lek ? { kam: { w: lek, h: lek * 1.397 / (1080 / 1920) } } : null; ut.push([t, kamSkala(p)]); } return ut; };
+  const spela = (t0, t1, fn, lek) => { const ut = []; for (let t = t0; t <= t1 + 1e-9; t += 100) { klocka.t = t; const w = fn(t); p.cards = w == null ? [] : [].concat(w).map(x => typeof x === 'object' ? { kam: Object.assign({}, x), zon: x.zon } : { kam: { w: x, h: x * 1.397 / (1080 / 1920) } });   /* ett objekt är en låda som den är: { w, h, prel } */ p.bibHog = lek ? { kam: { w: lek, h: lek * 1.397 / (1080 / 1920) } } : null; ut.push([t, kamSkala(p)]); } return ut; };
   return { spela };
 }
 const S = w => Math.round(178 / w);
@@ -80,6 +80,34 @@ const unika = l => [...new Set(l.map(x => Math.round(x[1])))];
   spela(0, 3000, () => [0.070, 0.072, 0.075, 0.075, 0.078, 0.080]);
   const r = spela(3100, 7100, () => [0.066, 0.067, 0.068, { w: 0.09, h: 0.2, prel: 1 }, { w: 0.09, h: 0.2, prel: 1 }, { w: 0.09, h: 0.2, prel: 1 }]);
   ok('5c · tre av sex kort bärs: skalan står kvar', unika(r).length === 1, 'skalor ' + unika(r).join(', '));
+}
+/* 6. Spärren nollställer väntan: en blink, 10 s med två av två kort i handen, en blink till — skalan står kvar.
+      (kontrollgranskningen: förut byttes den direkt 2373 -> 1874) */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075, 0.075]);
+  const r = spela(3100, 4000, () => [0.095, 0.095])
+    .concat(spela(4100, 14000, () => [{ w: 0.075, h: 0.18, prel: 1 }, { w: 0.075, h: 0.18, prel: 1 }]))
+    .concat(spela(14100, 15000, () => [0.095, 0.095]))
+    .concat(spela(15100, 20000, () => [0.075, 0.075]));
+  ok('6 · blink, spärren 10 s, blink: skalan står kvar', unika(r).length === 1, 'skalor ' + unika(r).join(', '));
+}
+/* 7. Ett kort i graveyard (behåller kam, prel) spärrar inte skalan för det enda kortet på mattan. */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075]);
+  const r = spela(3100, 8000, () => [0.090, { w: 0.075, h: 0.18, prel: 1, zon: 'grav' }]);
+  const byte = r.find(x => Math.round(x[1]) === S(0.090));
+  ok('7 · kort i graveyard räknas inte: nytt värde byts efter 3 s', !!byte && byte[0] - 3100 >= 3000 && byte[0] - 3100 <= 3300, byte ? `efter ${((byte[0] - 3100) / 1000).toFixed(1)} s` : 'byttes aldrig: ' + unika(r).join(', '));
+}
+/* 8. Leken satte låset, första kortet vilar aldrig (prel): skalan står kvar på lekens värde. (förut: kortets burna låda, 1618, fast) */
+{
+  const { spela } = ny();
+  spela(0, 2000, () => null, 0.075);
+  const r = spela(2100, 9000, () => [{ w: 0.11, h: 0.25, prel: 1 }], 0.075);
+  ok('8 · leken, sedan ett kort som aldrig vilar: lekens skala står kvar', unika(r).length === 1 && unika(r)[0] === S(0.075), 'skalor ' + unika(r).join(', '));
+  const vilar = spela(9100, 9100, () => [0.077], 0.075);
+  ok('8 · …och när kortet vilar (inom 8 %) står den kvar', Math.round(vilar[0][1]) === S(0.075), 'skala ' + Math.round(vilar[0][1]));
 }
 /* 4. Korten lämnar bordet (ingen lek): skalan står kvar. */
 {

@@ -9096,10 +9096,13 @@ function kamSkala(p) {
      står en skala från korten kvar; före första vilande kortet får de andra ge en första skala. Samma sak när
      hälften eller fler av korten är i rörelse: medianen över de få som vilar är inte bordets. I passet 2026-09-22
      bar händerna tre av sex kort 158,7–162 s; medianen över de tre andra låg 11 % ifrån och bytte skalan vid
-     162 s (alla kort ~9 % utåt, och mattan tog ett zoomsteg ut) — och tillbaka vid 265 s. */
-  const allaKam = p.cards.filter(c => c.kam && c.kam.w), vilande = allaKam.filter(c => !c.kam.prel);
-  if (allaKam.length && vilande.length * 2 <= allaKam.length && las && las.kalla === 'kort') return las.v;
-  const w = (vilande.length ? vilande : allaKam).map(c => kortsida(c.kam)).sort((a, b) => a - b);
+     162 s (alla kort ~9 % utåt, och mattan tog ett zoomsteg ut) — och tillbaka vid 265 s. Spärren nollställer
+     väntan: ett värde från före spärren får inte räknas som att det stått sig efter den. Bara kort på mattan
+     räknas (ett kort i graveyard behåller sitt kam), och ett kort som inte vilat ersätter bara en gissning,
+     aldrig lekens mätta värde (kontrollgranskningen av MES-342). */
+  const allaKam = p.cards.filter(c => c.kam && c.kam.w && paMattan(c)), vilande = allaKam.filter(c => !c.kam.prel);
+  if (allaKam.length && vilande.length * 2 <= allaKam.length && las && las.kalla === 'kort') { las.kand = null; return las.v; }
+  const w = (vilande.length ? vilande : las && las.kalla !== 'gissning' ? [] : allaKam).map(c => kortsida(c.kam)).sort((a, b) => a - b);
   /* Inga kort än: lekens bredd i bilden (MES-334 steg 3) — en lek är ett kort brett. */
   const lek = p.bibHog && p.bibHog.kam && p.bibHog.kam.w;
   const med = w.length ? w[Math.floor(w.length / 2)] : (lek ? kortsida(p.bibHog.kam) : 0.12);
