@@ -11,6 +11,7 @@ const VILA_TOL = 0.25;             // kortbredder: kortet "ligger på sin plats"
 const FLYTT_MIN = 0.5;             // kortbredder: så långt ska viloläget ändras för att en flytt ska räknas som speglad
 const RUTA_S = 1 / 15;             // en videoruta
 const OMLOTT = 0.2;                // två kortrutor på mattan ligger omlott när de delar en femtedel av den mindre (som jamfor.cjs)
+const PAR_PLATS = 0.5;             // kortbredder: ett facit-kort i p0921k har något på mattan inom så här långt från sitt läge där
 const NARA_PX = 60;                // bildpunkter: telefonens spår ligger där facits kort ligger (p0921k; ett kort är ~98 px brett där)
 
 /* Måtten, i den ordning de skrivs. riktning: vad som är bättre. */
@@ -283,10 +284,28 @@ function berakna(fall, logg) {
     };
     for (const o of logg.ogon) {
       const ruta = fall.v2.find(r => String(r.ruta) === o.namn); if (!ruta) continue;
-      /* Kortet med facit-kortets spår, annars det mattan visar för spåret i
-         stället (plats: true — det oframkallade kortet o: före platshållaren
-         p:; bara i p0921k, där kedjan sällan sätter namn; p0921 har inga). */
-      const par = ruta.kort.map(f => ({ f, m: o.kort.find(k => k.spar === f.id && !k.lyft && !k.plats) || o.kort.find(k => k.spar === f.id && k.plats) })).filter(x => { if (!x.m) saknas.push({ ruta: ruta.ruta, id: x.f.id }); else if (x.m.plats) somPlats.push({ ruta: ruta.ruta, id: x.f.id }); return !!x.m; });
+      let par;
+      if (fall.v2Par === 'plats') {
+        /* På plats (p0921k): facit-kortets läge på mattan (motorn räknar det
+           med appens kamTillMatta och mattans skala) paras med det närmaste
+           på mattan — kort, oframkallat kort eller platshållare, inte
+           nedtonat — inom PAR_PLATS kortbredder, närmast först, ett mot ett.
+           Inget där = saknas. Telefonens spår-id spelar ingen roll: ett kort
+           som ligger kvar på ett äldre spår (MES-344:s ombindning) är inte
+           ett kort som fattas. */
+        if (!o.facit || o.facit.length !== ruta.kort.length) { logg.fel.push(`v2 på plats: ögonblicket ${o.namn} saknar facits läge på mattan`); continue; }   // kod 2, inte tyst färre kortpar
+        const kand = o.kort.filter(k => !k.lyft), alla = [];
+        ruta.kort.forEach((f, i) => kand.forEach((k, j) => { const d = Math.hypot(k.cx - o.facit[i].mx, k.cy - o.facit[i].my) / cw; if (d <= PAR_PLATS) alla.push([d, i, j]); }));
+        alla.sort((a, b) => a[0] - b[0]);
+        const ti = new Map(), tj = new Set();
+        for (const [, i, j] of alla) { if (ti.has(i) || tj.has(j)) continue; ti.set(i, kand[j]); tj.add(j); }
+        par = [];
+        ruta.kort.forEach((f, i) => { const m = ti.get(i); if (!m) saknas.push({ ruta: ruta.ruta, id: f.id }); else { if (m.plats) somPlats.push({ ruta: ruta.ruta, id: f.id }); par.push({ f, m }); } });
+      } else {
+        /* På spår (p0921): kortet med facit-kortets spår, annars det mattan
+           visar för spåret i stället (plats: true — o: före p:; p0921 har inga). */
+        par = ruta.kort.map(f => ({ f, m: o.kort.find(k => k.spar === f.id && !k.lyft && !k.plats) || o.kort.find(k => k.spar === f.id && k.plats) })).filter(x => { if (!x.m) saknas.push({ ruta: ruta.ruta, id: x.f.id }); else if (x.m.plats) somPlats.push({ ruta: ruta.ruta, id: x.f.id }); return !!x.m; });
+      }
       for (let i = 0; i < par.length; i++) for (let j = i + 1; j < par.length; j++) {
         const a = par[i], b = par[j];
         const dBord = bordAvstand(a.f, b.f), dMatta = Math.hypot(a.m.cx - b.m.cx, a.m.cy - b.m.cy) / cw;

@@ -209,7 +209,7 @@ function parti0921k() {
     kalla: `underlag/2026-09-21-kedja-bordlogg.json.gz (${K.kalla}, ${K.skapad.slice(0, 10)}, poolen ${K.pool}, utan Claude)`,
     rader, facit, fran: KEDJA_START, matFran: KEDJA_MATT, till: +Math.min(sista + 3.5, 550).toFixed(2), upplosning: B,
     lek: passensLek(),   // 28 namn, 40 kort — kastar ett fel om gränsraden i lek.txt saknas
-    ogonblick: v2.map(q => ({ s: q.ruta + 1, namn: String(q.ruta) })), v2,
+    ogonblick: v2.map(q => ({ s: q.ruta + 1, namn: String(q.ruta) })), v2, v2Par: 'plats',
     media: { slag: 'rutor', mapp: 'dev/material/arbete/2026-10-04-hogarna-matning/a1a', sek: [0, 1206], fin },
     anm: 'kamerabilden ur skärminspelningen (704 × 438, Mesas ramar i bilden) genom kedjan utan Claude — inte telefonens egen ström i 4K; mätningen börjar 230 s'
   };

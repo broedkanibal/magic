@@ -87,9 +87,10 @@ något syntes i 12 av 13 utspel, median −0,7 s från att handen lade kortet
 telefonen behöll spåret där Killing Glare låg (232) och mattan sin
 platshållare, så inget nytt syntes. 0 av 13 utspel kom som kort med namn,
 10 av 10 borttagningar "står kvar" (korten låg bara som platshållare). 523
-platshållare, 2286 s, 540 laddtexter. 45 facit-kort · rutor saknas (inget
-spår där, eller spåret utan kort och platshållare), 206 låg som
-platshållare.
+platshållare, 2286 s, 540 laddtexter. Saknade kort och avståndet paras
+sedan 2026-10-07 på plats (nedan): 26 facit-kort · rutor saknas, 1204
+kortpar, avståndsfel 0,18 / 0,42 kortbredder (parat på spår: 45 saknade,
+1039 kortpar, 0,20 / 0,45).
 
 **Avståndet före och efter MES-342 (kamerans skala).** Skalan är medianen
 av kortens lådor i bilden (`kamSkala`; uppspelaren har inget provkort).
@@ -163,13 +164,15 @@ i högen, eller under handen eller armen).
   för ett spår som i telefonens bord låg där facits kort ligger (högst
   60 px, ett kort är ~98 px brett) i fönstret.
 - *v2-rutorna* (avstånd, omlott, kanten, saknas) jämförs med mattan 1 s
-  efter rutan. Facits kort paras med telefonens spår på samma plats (högst
-  60 px, närmast först), spåret med kortet på mattan — eller, finns inget
-  kort, med det mattan visar för spåret: MES-344:s oframkallade kort (`o:`,
-  på spåret det bundits om till enligt appens `ofrMinne`) före
-  platshållaren (`p:`). `--detalj p0921k` visar hur många som inte var kort
-  med namn. Ett facit-kort utan spår där, eller vars spår inget har på
-  mattan, räknas som saknat.
+  efter rutan, **på plats**: motorn räknar varje facit-korts läge på mattan
+  med appens egen `kamTillMatta` och den skala mattan står i
+  (`kamSkalaFryst()` eller den låsta `kamSkala.las`; `kamSkala()` anropas
+  inte, den låser om), och det paras med det närmaste på mattan — kort,
+  MES-344:s oframkallade kort (`o:`) eller platshållare (`p:`), inte
+  nedtonat — inom 0,5 kortbredd, närmast först, ett mot ett. Inget där =
+  saknat. Telefonens spår-id spelar ingen roll. Går läget inte att räkna:
+  kod 2. `--detalj p0921k` visar hur många som inte var kort med namn.
+  (p0921 parar som förut på spår, som där är facit.)
 
 ## Hur uppspelningen går till
 
@@ -249,7 +252,7 @@ som inte syntes. Annars blir medianen bättre när det blir sämre.
 | **Avståndsfel** (p0921) | för varje par kort i var tionde sekund: \|avståndet på mattan − avståndet på bordet\| i kortbredder. På bordet: avståndet i bilden delat med kortbredden där korten ligger (98 px i övre raden, 105 px i nedre, uppmätt i rutorna 240 och 450). Median och 90:e percentilen | lägre |
 | **Falska omlott** (p0921) | kortpar som täcker varandra till mer än en femtedel på mattan men inte rör varandra på bordet (och inte är samma hög i facit) | lägre |
 | **Kort utanför kanten** (p0921) | kort · rutor, 2,5 s efter varje facit-ruta | lägre |
-| **Kort i facit som saknas** (p0921) | facit-kort utan ett kort på mattan (ej nedtonat). I p0921k: utan kort och utan platshållare för spåret där kortet ligger | lägre |
+| **Kort i facit som saknas** (p0921) | facit-kort utan ett kort på mattan (ej nedtonat). I p0921k: inget kort, oframkallat kort eller platshållare inom 0,5 kortbredd från facits läge på mattan (parat på plats) | lägre |
 
 – betyder att måttet inte går att räkna för fallet (inget facit för det),
 aldrig 0. Totalt räknas över fallen med telefonens ström (golden och
@@ -340,18 +343,18 @@ Tabellen: [`baslinje/baslinje.md`](baslinje/baslinje.md). Bilder ur visaren:
   som håller är v2-rutornas geometri, saknade kort, hoppen och zoomhoppen
   — det som grindar — och, när MES-344 är inne, när något syns. Med Claude (`--ai`, som telefonen i partiet) eller
   telefonens egen 4K-inspelning av ett nytt parti blir namnen riktiga.
-- **Saknade kort i p0921k paras på telefonens nuvarande spår.** Med MES-344
-  v2 (c7baf19, `--fil`) blir det 73 saknade mot 45 på main. 29 är nya, 27
-  av dem land i landhögar; på main ligger alla 29 som platshållare. 22 av
-  de 29 visas ändå på c7baf19: telefonen gav kortet ett nytt spår-id (median
-  0,9 s före ögonblicket), och MES-344:s kort eller oframkallade kort ligger
-  kvar på det äldre spåret inom 0,5 kortbredd — main:s platshållare följer
-  det nya spåret direkt. 7 visas inte alls: sex ytterligare kort i en
-  landhög vars nya, olästa spår inte får något (spår 122 290, 171 330, 194
-  360, 307 440, 322 450, 406 510), och Faithful Pikemaster 530 (det
-  oframkallade kortet kommer tillbaka 531,35, efter ögonblicket 531).
-  Grinden på saknade kort fäller alltså MES-344 för båda sakerna. Det första
-  är en eftersläpning i ombindningen, inte ett kort som fattas.
+- **Saknade kort parades förut på telefonens nuvarande spår**, och det
+  fällde MES-344 för fel sak. Med MES-344 v2 (c7baf19, `--fil`) blev det 73
+  saknade mot 45 på main; 22 av de 29 nya syntes ändå (telefonen gav kortet
+  ett nytt spår-id, median 0,9 s före ögonblicket, och MES-344:s kort låg
+  kvar på det äldre spåret inom 0,5 kortbredd), och 7 syntes inte: sex
+  ytterligare kort i landhögar vars nya, olästa spår inte får något och
+  Faithful Pikemaster 530. **På plats** (sedan 2026-10-07): main 26, c7baf19
+  29. Av de 22 eftersläpningarna räknas 20 inte längre (300 spår 133 saknas
+  också på main; 500 spår 392 i vänstra landhögen saknas på c7baf19). Av de
+  7 räknas 6 (290, 330, 440, 450, 510 och 530); 360 spår 194 (armen över
+  högen, telefonens låda bara överkanten) har något inom 0,5 kortbredd.
+  Nya mot main på c7baf19 är just de sex plus 500.
 - **Borttagna kort som står kvar** i p0921k: kortet låg oftast aldrig på
   mattan som kort, bara som platshållare. `--detalj p0921k` skriver "fanns
   inte som kort på mattan" för dem.

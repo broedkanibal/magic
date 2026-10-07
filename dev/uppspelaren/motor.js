@@ -363,7 +363,21 @@
                   rect: { x: l, y: tp, w, h }, cx: l + w / 2, cy: tp + h / 2,
                   skarm: { l: sk.left, t: sk.top, r: sk.right, b: sk.bottom } });
     }
-    L.ogon.push({ namn, s: U.sek(virt), vp: { l: r.left, t: r.top, r: r.right, b: r.bottom }, z: g.z, kort });
+    /* Facits läge på mattan (p0921k, fall.v2Par = 'plats'): varje v2-kort i
+       ögonblickets ruta räknat genom appens egen kamTillMatta med den skala
+       mattan står i — kamSkalaFryst() eller den låsta kamSkala.las för mig.
+       kamSkala() själv anropas inte: den låser om skalan, och en mätning får
+       inte ändra appen. Går det inte att läsa: tolkningsfel (kod 2). */
+    let facit = null;
+    const rv = fallNu && fallNu.v2Par === 'plats' ? (fallNu.v2 || []).find(q => String(q.ruta) === namn) : null;
+    if (rv) {
+      const fr = typeof kamSkalaFryst === 'function' ? kamSkalaFryst() : null;
+      const las = typeof kamSkala === 'function' && kamSkala.las instanceof Map ? kamSkala.las.get(p && p.id) : null;
+      const sk = fr || (typeof las === 'number' ? las : las && las.v);
+      if (typeof kamTillMatta !== 'function' || !Number.isFinite(sk) || sk <= 0) tolk('facits läge på mattan: kamTillMatta eller mattans skala (kamSkalaFryst / kamSkala.las) går inte att läsa');
+      else facit = rv.kort.map(k => { const m = kamTillMatta({ x: k.x, y: k.y }, sk); return { mx: m.x, my: m.y }; });
+    }
+    L.ogon.push({ namn, s: U.sek(virt), vp: { l: r.left, t: r.top, r: r.right, b: r.bottom }, z: g.z, kort, facit });
   }
 
   /* ── spelet: som dev/mattan.cjs ──────────────────────────────────── */
