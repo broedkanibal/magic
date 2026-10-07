@@ -8916,8 +8916,9 @@ function kamSkalaFryst() {
   return o.klar && k && k.S > 0 ? MATTA.CW / Math.max(0.03, k.S) : null;
 }
 /* Skalan utan uppstartens provkort (Mirror my table sedan MES-334 steg 6) är medianen av kortens bredd i
-   bilden — men låst: den byts först när medianen gått mer än 8 % ifrån, och den ingår i nyckeln
-   (speglaKamPos), så att alla kort, leken, graveyard och de nedvända korten då räknas om med samma värde.
+   bilden — men låst: den byts först när medianen gått mer än 8 % ifrån och stått sig där i 3 s, och den
+   ingår i nyckeln (speglaKamPos), så att alla kort, leken, graveyard och de nedvända korten då räknas om
+   med samma värde.
    Förut räknades ett kort med medianen när det lades och flyttades aldrig om, medan leken och graveyard
    räknades om vid varje ändring: högarna gled mot korten (granskningen av sida 5, 2026-10-05). */
 function kamSkala(p) {
@@ -8928,11 +8929,24 @@ function kamSkala(p) {
   const kortsida = k => Math.min(k.w, k.h ? k.h * asp : k.w);
   const w = p.cards.filter(c => c.kam && c.kam.w).map(c => kortsida(c.kam)).sort((a, b) => a - b);
   /* Inga kort än: lekens bredd i bilden (MES-334 steg 3) — en lek är ett kort brett. */
-  const med = w.length ? w[Math.floor(w.length / 2)] : (p.bibHog && p.bibHog.kam && p.bibHog.kam.w ? kortsida(p.bibHog.kam) : 0.12);
+  const lek = p.bibHog && p.bibHog.kam && p.bibHog.kam.w;
+  const med = w.length ? w[Math.floor(w.length / 2)] : (lek ? kortsida(p.bibHog.kam) : 0.12);
+  const kalla = w.length ? 'kort' : lek ? 'lek' : 'gissning';
   /* Den låsta skalan per spelare ligger på funktionen: den anropas i appens första rendering, före raden där en const här hade stått. */
-  const minne = kamSkala.las || (kamSkala.las = new Map()), ny = MATTA.CW / Math.max(0.03, med), las = minne.get(p.id);
-  if (las && Math.abs(ny / las - 1) <= 0.08) return las;   // 8 %: mindre är detektorns darr i kortens bredd
-  minne.set(p.id, ny);
+  const minne = kamSkala.las || (kamSkala.las = new Map()), ny = MATTA.CW / Math.max(0.03, med), las = minne.get(p.id), nu = Date.now();
+  /* En gissning (inga kort, ingen lek) är inget mått: första riktiga värdet tar över direkt, och en gissning
+     ersätter aldrig ett mätt värde — när korten lämnat bordet står kameran där den stod (MES-342). */
+  if (!las || (las.kalla === 'gissning' && kalla !== 'gissning')) { minne.set(p.id, { v: ny, kalla, kand: null }); return ny; }
+  if (kalla === 'gissning') { las.kand = null; return las.v; }
+  if (Math.abs(ny / las.v - 1) <= 0.08) { las.kand = null; return las.v; }   // 8 %: mindre är detektorns darr i kortens bredd
+  /* Ett nytt värde måste stå sig 3 s innan skalan byts (MES-342): ett byte flyttar alla kort på mattan, och
+     medianen slog fram och tillbaka mellan två värden när kort kom och gick (passet 2026-09-22, 212–218 s: alla
+     Swamp hoppade tre gånger på sex sekunder). Från leken till de första korten byts den direkt. */
+  if (las.kalla === 'kort' || kalla !== 'kort') {
+    if (!las.kand || Math.abs(ny / las.kand.v - 1) > 0.08) { las.kand = { v: ny, sedan: nu }; return las.v; }
+    if (nu - las.kand.sedan < 3000) return las.v;
+  }
+  minne.set(p.id, { v: ny, kalla, kand: null });
   return ny;
 }
 function kamTillMatta(kam, skala) {
