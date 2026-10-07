@@ -434,6 +434,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
         ? `    ${h.t} s ut ${h.spelar}: ` + (h.s == null ? 'aldrig säkert namngivet' : `säkert ${h.s} s (spår ${h.spar}, +${h.dt} s)`)
         : `    ${h.t} s bort ${h.tar_bort}: ` + (h.borta ? 'borta ur bordet' : 'LIGGER KVAR'));
       if (r.videoFelUnder) console.log('    säkra namn på kort som aldrig var i partiet: ' + (r.videoFelUnderNamn || []).map(x => `${x.namn} (spår ${x.spar}, ${x.s} s)`).join(', '));
+      if (r.videoTokUnder) console.log('    säkra tokennamn på tokenens eget spår (inte fel under förloppet): ' + (r.videoTokUnderNamn || []).map(x => `${x.namn} (spår ${x.spar}, ${x.s} s)`).join(', '));
       for (const l of r.videoSpar) console.log(`    spår ${l.id}${l.nr ? ` (#${l.nr} i slutet)` : ''}: ${l.fodd}–${l.borta != null ? l.borta : l.sist} s`
         + (l.borta != null ? ' (försvann)' : '') + (l.skrap != null ? `, skräp från ${l.skrap} s` : '')
         + `, ${l.sakra.length ? 'säkert ' + l.sakra.map(x => `${x.namn} @${x.s} s`).join(', ') : 'aldrig säkert namngivet'}`
@@ -513,10 +514,13 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     /* Sämre mot en annan modell eller systemprompt är en jämförelse, inget fel. */
     if (gs[0].ai !== jamforda[0].ai || (gs[0].promptv != null && gs[0].promptv !== jamforda[0].promptv))
       console.log(`\nOBS: baslinjen (${BASFIL}) är gjord med ${vad(gs[0])}, den här körningen med ${vad(jamforda[0])}`);
+    /* Poolens nyckel (2026-10-07): en ändrad lek.txt ger kedjan andra kandidater i alla fall. Baslinjer från före fältet säger inget. */
+    { const pk = [...new Set(gs.map(g => g.poolKod).filter(Boolean))], nu = jamforda[0].poolKod;
+      if (nu && pk.length && pk.some(k => k !== nu)) console.log(`\nOBS: baslinjen är gjord med en annan pool (${pk.join(', ')}) än den här körningen (${nu}) — lek.txt har ändrats, och talen kan flytta sig av det.`); }
     const dom = samre.length && battre.length ? 'BLANDAT — bättre i något fall, sämre i ett annat' : samre.length ? 'SÄMRE' : battre.length ? 'BÄTTRE' : 'LIKA BRA';
     console.log(`\nJämfört med baslinjen (${BASFIL}): ${dom}`);
     /* Läsbara: baslinjer från före 2026-10-07 saknar fältet — då står bara körningens tal. */
-    const lasb = jamforda.some(r => r.kortLasbara != null) ? `, rätt namn av läsbara ${gs.every(g => g.namnLasbara != null) && s(gs, 'kortLasbara') === s(jamforda, 'kortLasbara') ? s(gs, 'namnLasbara') + ' → ' : ''}${s(jamforda, 'namnLasbara')} av ${s(jamforda, 'kortLasbara')}` : '';
+    const lasb = jamforda.some(r => r.kortLasbara != null && r.kortLasbara !== r.kort) ? `, rätt namn av läsbara ${gs.every(g => g.namnLasbara != null) && s(gs, 'kortLasbara') === s(jamforda, 'kortLasbara') ? s(gs, 'namnLasbara') + ' → ' : ''}${s(jamforda, 'namnLasbara')} av ${s(jamforda, 'kortLasbara')}` : '';
     console.log(`  totalt: rätt namn ${s(gs, 'namn')} → ${s(jamforda, 'namn')} av ${s(jamforda, 'kort')} kort${lasb}, fel namn ${s(gs, 'felNamn')} → ${s(jamforda, 'felNamn')}, falska ${s(gs, 'falska')} → ${s(jamforda, 'falska')}`
       + (jamforda.some(r => r.videoLagdaAv != null || r.videoBortaAv != null) ? `\n  förloppet: utlagda med namn ${s(gs, 'videoLagda')} → ${s(jamforda, 'videoLagda')} av ${s(jamforda, 'videoLagdaAv')} kort, borttagna ${s(gs, 'videoBorta')} → ${s(jamforda, 'videoBorta')} av ${s(jamforda, 'videoBortaAv')} kort, ordning ${s(gs, 'videoOrdning')} → ${s(jamforda, 'videoOrdning')}, fel namn under förloppet ${s(gs, 'videoFelUnder')} → ${s(jamforda, 'videoFelUnder')}` : ''));
     if (battre.length) console.log('  bättre:\n    ' + battre.join('\n    '));

@@ -1252,6 +1252,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
     metod: metod(), ai: aiModell(), promptv: AI_PA ? promptVersion : null,
+    poolKod: (poolRec && poolRec.code) || null,   // poolens nyckel (lek.txt): byts den mäter körningen en annan lek än baslinjen
     remsModell: (REMS_MODELL && w.Embed && w.Embed.remsModell) || undefined, remsModellFel: (REMS_MODELL && w.Embed && !w.Embed.remsModell && (w.Embed.remsFel || 'ingen remsmodell')) || undefined,
     videoErsatt: (f.facit.video && VIDEO_ERSATT) || undefined,
     kallStorlek: f.kallStorlek,
@@ -1351,8 +1352,8 @@ function betygVideo(f, vf, prov, korda, langd, takt, tokenLista) {
      namnet (tokenLista ur bedom; l.nr är samma numrering). Samma namn på ett
      annat spår är ett fel som förut. */
   const tokenPa = new Map((tokenLista || []).filter(x => x.spar != null).map(x => [x.spar, norm(String(x.namn).replace(/^token\s+/i, ''))]));
-  const felUnder = [];
-  for (const l of logg) for (const e of l.sakra) if (!iPartiet.has(norm(e.namn)) && !(l.nr != null && tokenPa.get(l.nr) === norm(e.namn))) felUnder.push({ spar: l.id, namn: e.namn, s: e.s });
+  const felUnder = [], tokUnder = [];
+  for (const l of logg) for (const e of l.sakra) if (!iPartiet.has(norm(e.namn))) (l.nr != null && tokenPa.get(l.nr) === norm(e.namn) ? tokUnder : felUnder).push({ spar: l.id, namn: e.namn, s: e.s });
   const dts = namngivna.map(x => x.dt).sort((a, b) => a - b);
   /* K1 (dev/plan/lagen.md §7): tap-vridningar, borta-fördröjning och
      dubbletter ur BORDSLOGGEN — datorns rapporter — inte slutläget.
@@ -1542,6 +1543,7 @@ function betygVideo(f, vf, prov, korda, langd, takt, tokenLista) {
     videoOrdning: lis.length, videoOrdningAv: spelade.length,
     videoFordrojning: dts.length ? +dts[dts.length >> 1].toFixed(2) : null,
     videoFelUnder: felUnder.length, videoFelUnderNamn: felUnder,
+    videoTokUnder: (tokenLista || []).length ? tokUnder.length : null, videoTokUnderNamn: tokUnder.length ? tokUnder : undefined,   // säkra tokennamn på tokenens eget spår — undantagna ur videoFelUnder (2026-10-07)
     videoHandelser: traffar.concat(borta.map(x => ({ t: x.t, tar_bort: x.tar_bort, borta: x.borta, namngiven: x.namngiven })))
                            .sort((a, b) => a.t - b.t)
   };
