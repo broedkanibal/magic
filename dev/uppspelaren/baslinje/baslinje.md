@@ -1,6 +1,6 @@
 # Uppspelarens baslinje — 2026-10-07
 
-Kod: `index.html` (sha256 f033fa01465a, commit 5da87c9). Simulerad klocka: två körningar på samma fil ger samma tal. Spelet har en motståndare (bordsvyn), som ett riktigt parti. Grinden (`--jamfor`) är totalt-kolumnen och p0921; tider ±0,1 s, antal exakt. Definitionerna: [LÄS-MIG](../LÄS-MIG.md).
+Kod: `index.html` (sha256 5585caa38f72, commit ce6606e). Simulerad klocka: två körningar på samma fil ger samma tal. Spelet har en motståndare (bordsvyn), som ett riktigt parti. Grinden (`--jamfor`) är totalt-kolumnen och p0921; tider ±0,1 s, antal exakt. Definitionerna: [LÄS-MIG](../LÄS-MIG.md).
 
 | Fall | Vad | Underlag |
 |---|---|---|
@@ -32,22 +32,22 @@ Kod: `index.html` (sha256 f033fa01465a, commit 5da87c9). Simulerad klocka: två 
 | Utspel där kortet kom med namn | 7/7 | 4/4 | 4/4 | 5/5 | 1/2 | 8/14 | – | 0/13 | 29/36 |
 | Tid till något syns, median (miss = 10 s) | 0,65 | -0,25 | 0,1 | 0,35 | 5,23 | 2,4 | – | 1,4 | 0,8 |
 | Tid till något syns, längst (miss = 10 s) | 2,3 | 1,45 | 0,85 | 0,75 | 10 | 10 | – | 10 | 10 |
-| Tid till rätt plats, median (miss = 10 s) | 0,83 | -0,17 | 0,15 | 0,43 | 5,28 | 7,9 | – | 10 | 0,95 |
+| Tid till rätt plats, median (miss = 10 s) | 0,83 | -0,17 | 0,15 | 0,43 | 5,28 | 6,46 | – | 10 | 0,95 |
 | Tid till rätt plats, längst (miss = 10 s) | 3,27 | 1,57 | 1 | 0,9 | 10 | 10 | – | 10 | 10 |
 | Flyttar där samma kort glider till nya platsen | – | 1/1 | – | – | 1/1 | 5/18 | – | 1/9 | 7/20 |
 | Flytt: tid till nya platsen, median (miss = 10 s) | – | 0,3 | – | – | 0,77 | 10 | – | 10 | 10 |
-| Mattans zoomändringar per minut | 5,31 | 0 | 0 | 0 | 0 | 1,03 | 0,39 | 0,57 | 0,87 |
-| Mattans panoreringar per minut | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0,19 | 0 |
+| Mattans zoomändringar per minut | 5,31 | 0 | 0 | 0 | 0 | 0,62 | 0,39 | 0,19 | 0,68 |
+| Mattans panoreringar per minut | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Zoom eller pan som hoppar (utan glidning) | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Platshållare som syntes | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Platshållare, sekunder på mattan | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Laddtexter som syntes (Reading…, Moving…, Reading the card…, Asking Claude…) | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Kort som var utanför mattans kant (antal kort) | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Kort utanför mattans kant, kortsekunder | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Avståndsfel mattan mot bordet, median (kortbredder) | – | – | – | – | – | – | 0,07 | 0,19 | – |
-| Avståndsfel mattan mot bordet, 90:e percentilen (kortbredder) | – | – | – | – | – | – | 0,17 | 0,44 | – |
+| Avståndsfel mattan mot bordet, median (kortbredder) | – | – | – | – | – | – | 0,07 | 0,13 | – |
+| Avståndsfel mattan mot bordet, 90:e percentilen (kortbredder) | – | – | – | – | – | – | 0,17 | 0,4 | – |
 | Falska omlott (kortpar · rutor) | – | – | – | – | – | – | 0 | 0 | – |
 | Kort utanför mattans kant (kort · rutor) | – | – | – | – | – | – | 0 | 0 | – |
-| Kort i facit som saknas på mattan (kort · rutor) | – | – | – | – | – | – | 0 | 29 | – |
+| Kort i facit som saknas på mattan (kort · rutor) | – | – | – | – | – | – | 0 | 26 | – |
 
 \* totalt = golden 07, 09–12 och passet 2026-09-22 (telefonens ström; inte p0921 och p0921k). Tider i sekunder från facits tid (rösten eller bildrutan), medianer över alla händelser ihop. – = går inte att räkna för fallet (inget facit för det).
