@@ -333,15 +333,23 @@
                   rect, cx: rect.x + rect.w / 2, cy: rect.y + rect.h / 2,
                   skarm: { l: sk.left, t: sk.top, r: sk.right, b: sk.bottom } });
     }
-    /* Det mattan visar för ett spår som inte är ett kort än (platshållaren,
-       nyckeln p:<spår>): samma uppgifter, med plats: true. Partiet genom
+    /* Det mattan visar för ett spår som inte är ett kort med namn än: det
+       oframkallade kortet (MES-344, nyckeln o:<spår>) och platshållaren
+       (p:<spår>). Samma uppgifter, med plats: true och utan namn — o: först,
+       så att det går före en platshållare för samma spår. Partiet genom
        kedjan (p0921k) har få namn, och då är det det här som ligger där
-       kortet ligger. */
-    for (const el of gridEl.children) {
-      const m = el._mat; if (!m || !m.nyckel || !m.nyckel.startsWith('p:')) continue;
+       kortet ligger. Läget: elementets left/top/width/height, som för
+       platshållarna i observera(). Det oframkallade kortets nyckel bär
+       spåret det föddes på; har kortet bundits om till ett nytt spår står
+       det i appens ofrMinne (post-id → { spar }), och det är det spåret
+       som gäller nu. */
+    const ofrNu = (typeof ofrMinne !== 'undefined' && ofrMinne && typeof ofrMinne.get === 'function') ? ofrMinne : null;
+    for (const pre of ['o:', 'p:']) for (const el of gridEl.children) {
+      const m = el._mat; if (!m || !m.nyckel || !m.nyckel.startsWith(pre)) continue;
       const l = parseFloat(el.style.left) || 0, tp = parseFloat(el.style.top) || 0, w = parseFloat(el.style.width) || CW(), h = parseFloat(el.style.height) || 248;
-      const sk = el.getBoundingClientRect(), sp = m.nyckel.slice(2);
-      kort.push({ cid: null, namn: '', spar: sp === '' ? null : (isFinite(+sp) ? +sp : sp), lyft: false, tappad: w > h, plats: true,
+      const sk = el.getBoundingClientRect(), s0 = m.nyckel.slice(2), id = s0 === '' ? null : (isFinite(+s0) ? +s0 : s0);
+      const post = pre === 'o:' && ofrNu && id != null ? (ofrNu.get(id) || ofrNu.get(String(id))) : null;
+      kort.push({ cid: null, namn: '', spar: post && post.spar != null ? post.spar : id, lyft: false, tappad: w > h, plats: true, slag: pre[0],
                   rect: { x: l, y: tp, w, h }, cx: l + w / 2, cy: tp + h / 2,
                   skarm: { l: sk.left, t: sk.top, r: sk.right, b: sk.bottom } });
     }

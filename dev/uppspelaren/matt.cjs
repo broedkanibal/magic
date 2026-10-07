@@ -284,8 +284,8 @@ function berakna(fall, logg) {
     for (const o of logg.ogon) {
       const ruta = fall.v2.find(r => String(r.ruta) === o.namn); if (!ruta) continue;
       /* Kortet med facit-kortets spår, annars det mattan visar för spåret i
-         stället (platshållaren, plats: true — bara i p0921k, där kedjan
-         sällan sätter namn; p0921 har inga). */
+         stället (plats: true — det oframkallade kortet o: före platshållaren
+         p:; bara i p0921k, där kedjan sällan sätter namn; p0921 har inga). */
       const par = ruta.kort.map(f => ({ f, m: o.kort.find(k => k.spar === f.id && !k.lyft && !k.plats) || o.kort.find(k => k.spar === f.id && k.plats) })).filter(x => { if (!x.m) saknas.push({ ruta: ruta.ruta, id: x.f.id }); else if (x.m.plats) somPlats.push({ ruta: ruta.ruta, id: x.f.id }); return !!x.m; });
       for (let i = 0; i < par.length; i++) for (let j = i + 1; j < par.length; j++) {
         const a = par[i], b = par[j];
