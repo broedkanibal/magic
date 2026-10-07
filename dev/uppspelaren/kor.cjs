@@ -214,11 +214,21 @@ const BILDER = [
       const mainSha = crypto.createHash('sha256').update(mainHtml).digest('hex').slice(0, 12);
       if (mainSha !== B.meta.sha) console.log(`  VARNING: origin/main:s index.html (sha256 ${mainSha}) är inte baslinjens (${B.meta.sha}). Kör --spara på main först, annars jämförs mot ett gammalt utgångsläge.`);
     } catch (e) { console.log('  VARNING: kunde inte läsa origin/main:index.html (' + String(e.message).split('\n')[0] + ')'); }
-    /* Grinden: varje mått i totalt-kolumnen (golden + passet), i p0921
-       (facit som ideal telefon, MES-342/338:s fall) och i p0921k (partiet
-       genom kedjan, när baslinjen har det). Tider får skilja ±0,1 s,
-       antal inget. Per fall skrivs som diagnos: VARNING, fäller inte. */
-    const GRIND = ['totalt', 'p0921', 'p0921k'];
+    /* Grinden, per kolumn: null = varje mått, en lista = bara de måtten.
+       totalt (golden + passet) och p0921 (facit som ideal telefon,
+       MES-342/338:s fall) grindar på allt. p0921k (partiet genom kedjan, när
+       baslinjen har det) grindar bara på det som inte hänger på namn eller
+       på kedjans namnlöshet: geometrin mot v2, hoppen och zoomen som hoppar.
+       Resten av p0921k — allt som räknar på namn, platshållarna,
+       laddtexterna, zoom och pan per minut, och tills MES-344 är inne också
+       utspel som syntes och tid till något syns — är diagnos. Tider får
+       skilja ±0,1 s, antal inget. Det som inte grindar skrivs som VARNING
+       och fäller inte. */
+    const GRIND = {
+      totalt: null, p0921: null,
+      p0921k: ['avstandMedian', 'avstandP90', 'falskaOmlott', 'utanforRutor', 'utanforKort', 'utanforS', 'saknasRutor', 'hopp', 'hoppSnabba', 'zoomUtanGlid']
+    };
+    const grindar = (fall, key) => Object.prototype.hasOwnProperty.call(GRIND, fall) && (GRIND[fall] == null || GRIND[fall].includes(key));
     let samreN = 0, battreN = 0, varnN = 0, saknas = 0, saknasMatt = 0;
     /* Måtten som jämförs är baslinjens OCH dagens: ett mått som finns i
        baslinjen men inte längre räknas (borttaget ur MATT) får inte tyst
@@ -228,11 +238,11 @@ const BILDER = [
     const rad = (fall, key, f, e) => {
       if (!MATT.find(m => m[0] === key)) { console.log(`  ${pad(fall, 8)} ${pad(key, 61)} ${lpad(visa(f), 8)} → MÅTTET RÄKNAS INTE LÄNGRE`); saknasMatt++; return; }
       const namn = (MATT.find(m => m[0] === key) || [, key])[1];
-      const grind = GRIND.includes(fall);
+      const grind = grindar(fall, key);
       const s = samre(key, f, e, true), b = !s && samre(key, e, f, true);
       if (s && grind) samreN++; else if (s) varnN++;
       if (b && grind) battreN++;
-      if (s || b || har('--alla')) console.log(`  ${pad(fall, 8)} ${pad(namn.length > 60 ? namn.slice(0, 59) + '…' : namn, 61)} ${lpad(visa(f), 8)} → ${pad(visa(e), 8)} ${s ? (grind ? 'SÄMRE' : 'VARNING (per fall, fäller inte)') : b ? 'bättre' : ''}`);
+      if (s || b || har('--alla')) console.log(`  ${pad(fall, 8)} ${pad(namn.length > 60 ? namn.slice(0, 59) + '…' : namn, 61)} ${lpad(visa(f), 8)} → ${pad(visa(e), 8)} ${s ? (grind ? 'SÄMRE' : 'VARNING (diagnos, fäller inte)') : b ? 'bättre' : ''}`);
     };
     for (const bf of B.fall.filter(f => !FALL || FALL.includes(f.id))) {
       const r = ok.find(r => r.id === bf.id);
@@ -241,7 +251,7 @@ const BILDER = [
     }
     if (!FALL) for (const key of nycklar(B.totalt)) rad('totalt', key, B.totalt[key], tot[key]);
     else console.log('  (--fall: bara de fallen jämförs, inte totalt)');
-    console.log(`  → grinden (totalt, p0921, p0921k): ${samreN} rader sämre, ${battreN} bättre; per fall: ${varnN} varningar${saknas ? `; ${saknas} fall gick inte att köra` : ''}${har('--alla') ? '' : ' (oförändrade rader visas med --alla)'}`);
+    console.log(`  → grinden (totalt, p0921, p0921k:s geometri, hopp och zoomhopp): ${samreN} rader sämre, ${battreN} bättre; per fall: ${varnN} varningar${saknas ? `; ${saknas} fall gick inte att köra` : ''}${har('--alla') ? '' : ' (oförändrade rader visas med --alla)'}`);
     if (saknasMatt) console.log(`  → ${saknasMatt} mått i baslinjen räknas inte längre — spara om baslinjen på main om det är avsiktligt`);
     if (saknas || saknasMatt) process.exitCode = 2;
     else if (samreN && process.exitCode !== 2) process.exitCode = 1;
