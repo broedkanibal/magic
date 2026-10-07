@@ -59,10 +59,10 @@ Båda skriver en tabell med ett fall per rad:
 | Kort | synliga kort i facit (`+1 dolt`: ett kort under ett annat, räknas inte) |
 | Hittade | kort kameran lade ut — också dolda den ändå såg och falska spår, så talet kan bli större än Kort (44 av 41 = 41 kort + 3 dolda) |
 | Rätt namn | synliga kort som fick rätt namn med säkert svar, t.ex. `10/10` |
-| Läsbara | **rätt namn av läsbara** (2026-10-07): samma räkning utan kort som facit märkt oläsbara (`"olasbar"`, se *Oläsbara kort och tokens i facit*). Står bara där fallet har oläsbara kort, och alltid i Totalt; i `kor.html` som `· 3/9 läsbara` i Rätt namn |
+| Läsbara | **rätt namn av läsbara** (2026-10-07): samma räkning utan kort som facit märkt oläsbara (`"olasbar"`, se *Oläsbara kort och tokens i facit*). Kolumnen finns när något kört fall har oläsbara kort, och står då i de fallen och i Totalt; i `kor.html` som `· 3/9 läsbara` i Rätt namn. Jämförs mot baslinjen bara när nämnaren är densamma |
 | Fel namn | säkert svar men fel kort — det värsta, ska vara 0. Räknas på **alla** kort, också oläsbara, och på ritade tokens (ett annat säkert namn än tokenens) |
 | Falska | spår där inget kort ligger. `(+N token)` bredvid: spår på en token som facit ritat (`rita.ovriga`, namn som börjar med `token`) — räknas inte som falska (MES-331) |
-| Tokennamn | ritade tokens som fick säkert **tokenens** namn (`token Soldier` → Soldier) / ritade tokens (2026-10-07). Utanför Kort och Rätt namn, så 119 består; i `kor.html` som `(+N/M token)` i Rätt namn |
+| Tokennamn | ritade tokens som fick säkert **tokenens** namn (`token Soldier` → Soldier) / ritade tokens (2026-10-07). Utanför Kort och Rätt namn, så 119 består; i `kor.html` som `· N/M tokennamn` i Rätt namn. Jämförs mot baslinjen bara när antalet ritade tokens är detsamma |
 | Plats, Tappad | provas bara i fallen där facit har rutor (01–02): rätt plats, och rätt tap-läge |
 | Högar | bara i `kor.html`s tabell och på raden `högar:` sist i `kor.cjs` (MES-331): facithögar (samma `hog`, minst två synliga kort) där kameran har varje kort, vet vem som ligger över vem (rapportens `under`) så att ordningen nedifrån stämmer med facits `z`, och har säkra rätta namn. Del-lägen: *ordning rätt men namn saknas*, *ordning okänd* (ett kort utan spår, eller ett par utan relation — aldrig gissat), *fel* (ordning som motsäger facit, eller säkert fel namn). `--detalj` skriver varje hög och `under #n` per spår |
 | Förlopp | bara videofall: `7/7 utlagda med namn · 2/2 borttagna · ordning 7/7` — hur många utspelade kort kameran hann namnge (hette *spelade* till 2026-10-03), hur många bortplockade som försvann ur bordet, och hur många av utspelen den såg i rätt ordning. `–` för foton. Fördröjningen (medianen i sekunder från att kortet läggs till att det får namn, i `--detalj` och i sidans rubrik) visas bara när minst hälften av de utlagda korten fick namn — annars `–`, för då bygger medianen på för få kort (13: 93 s ur två kort av tio) |
@@ -685,16 +685,19 @@ matchning som mot korten) döms så här:
 | inget säkert namn | bara `(+N token)` bredvid Falska, som förut |
 
 Tokens räknas inte i Kort, så nämnaren 119 står kvar. Ett säkert tokennamn
-under ett videofall är inget fel under förloppet: tokens i facit
-(`rita.ovriga`, `tokens[].typ`) räknas som med i partiet. För att kedjan ska
-kunna säga tokenens namn måste typen finnas i `lek.txt`.
+under ett videofall är inget fel under förloppet — men bara på det spår som i
+slutläget ligger på den ritade tokenen med det namnet; samma namn på ett annat
+spår är fortfarande ett fel. För att kedjan ska kunna säga tokenens namn måste
+typen finnas i `lek.txt`. `--detalj` skriver `RÄTT` eller `FEL NAMN` per
+ritad token.
 
 **En tryckning i `lek.txt`.** En rad kan peka på en tryckning med samma svans
 som en inklistrad lek från Moxfield/Arena/ManaBox: `Soldier (TFRC) 3` — set
 inom parentes och samlarnummer (`Soldier (TFRC)` utan nummer tar namnet i
 setet). Poolbygget slår då upp `/cards/tfrc/3` och hämtar kortet med appens
-`lookupId`; bär tryckningen ett annat namn än raden, eller saknar den bild,
-säger raden `Poolen:` det. Utan tryckning slås namnet upp med Scryfalls
+`lookupId`; bär tryckningen ett annat namn än raden (hela namnet — en
+dubbelsidig Goblin // Soldier duger inte för raden `Soldier`), eller saknar
+den bild, säger raden `Poolen:` det. Utan tryckning slås namnet upp med Scryfalls
 fuzzy som förut — `Soldier` ensamt ger den dubbelsidiga Goblin // Soldier
 med Goblin som framsida, därför tryckningen. Tryckningen ingår i poolens
 nyckel, så poolen byggs om när raden ändras; en rad utan tryckning ger samma

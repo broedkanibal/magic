@@ -64,6 +64,7 @@ const tab = (titel, nyckel) => {
   console.log(`\n${titel}: ` + Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(' · '));
 };
 tab('Steg', r => r.steg);
+{ const fel = olasbara.filter(r => r.steg === 'SÄKERT FEL').length; if (fel) console.log(`\nSÄKERT FEL på oläsbara kort: ${fel} — räknas som fel namn ändå (se avsnittet sist)`); }
 tab('Synlighet', r => r.syn.startsWith('helt') ? 'helt synligt' : 'delvis');
 tab('Fall', r => r.fall);
 tab('Video/foto', r => r.video);
