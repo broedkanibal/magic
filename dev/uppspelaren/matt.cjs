@@ -11,8 +11,8 @@ const VILA_TOL = 0.25;             // kortbredder: kortet "ligger på sin plats"
 const FLYTT_MIN = 0.5;             // kortbredder: så långt ska viloläget ändras för att en flytt ska räknas som speglad
 const RUTA_S = 1 / 15;             // en videoruta
 const OMLOTT = 0.2;                // två kortrutor på mattan ligger omlott när de delar en femtedel av den mindre (som jamfor.cjs)
-const PAR_PLATS = 0.5;             // kortbredder: ett facit-kort i p0921k har något på mattan inom så här långt från sitt läge där
-const NARA_PX = 60;                // bildpunkter: telefonens spår ligger där facits kort ligger (p0921k; ett kort är ~98 px brett där)
+const PAR_PLATS = 0.5;             // kortbredder: ett facit-kort i parti-kedjan har något på mattan inom så här långt från sitt läge där
+const NARA_PX = 60;                // bildpunkter: telefonens spår ligger där facits kort ligger (parti-kedjan; ett kort är ~98 px brett där)
 
 /* Måtten, i den ordning de skrivs. riktning: vad som är bättre. */
 const MATT = [
@@ -61,7 +61,7 @@ function berakna(fall, logg) {
   const kort = logg.kort.map(k => Object.assign({}, k));
   const harFacit = fall.slag !== 'facit';
   const facit = harFacit ? fall.facit.slice().sort((a, b) => a.t - b.t) : [];
-  /* Mätningen börjar (fall.matFran, partiet genom kedjan p0921k): det som
+  /* Mätningen börjar (fall.matFran, partiet genom kedjan parti-kedjan): det som
      hände på mattan före dess är uppstarten — kedjan startar kall med kort på
      bordet — och räknas inte: födslar, nedtoningar, hopp, platshållare,
      laddtexter, mattans rörelser och kort utanför kanten före T0. Utan
@@ -116,7 +116,7 @@ function berakna(fall, logg) {
   }
   const sparBar = (id, namn, a, b) => (sparNamn.get(String(id)) || []).some(([s, n]) => s >= a && s <= b && n.has(namn));
   /* Var ett spår låg i bilden: id → [[s, x, y]] i bildpunkter. Bara när
-     facit har kortets läge i bilden (x, y — partiet genom kedjan, p0921k). */
+     facit har kortets läge i bilden (x, y — partiet genom kedjan, parti-kedjan). */
   const B = fall.upplosning || null, sparLage = new Map();
   if (B && facit.some(h => Number.isFinite(h.x))) for (const r of fall.rader || []) for (const t of r.spar || []) {
     if (t.vx == null && t.x == null) continue;
@@ -150,7 +150,7 @@ function berakna(fall, logg) {
       let q = k ? kandidat.find(q => k.sparFodd != null && q.spar != null && String(q.spar) === String(k.sparFodd)) : null;
       if (!q && kPos) q = kandidat.filter(q => Math.hypot(q.sx - kPos[3], q.sy - kPos[4]) / cw <= 1.5).sort((a, b) => a.fodd - b.fodd)[0] || null;
       if (!q && !k) q = kandidat.filter(q => q.spar != null && sparBar(q.spar, h.kort, h.t - FORE, h.t + EFTER)).sort((a, b) => a.fodd - b.fodd)[0] || null;
-      /* Har facit kortets läge i bilden (p0921k) räknas också det vars spår
+      /* Har facit kortets läge i bilden (parti-kedjan) räknas också det vars spår
          låg där kortet ligger (högst NARA_PX) i fönstret — kedjan på en
          bild i 704 px sätter sällan namn, men spåret är kortet. */
       if (!q && !k && Number.isFinite(h.x) && sparLage.size) q = kandidat.filter(q => q.spar != null && sparDar(q.spar, h, h.t - FORE, h.t + EFTER)).sort((a, b) => a.fodd - b.fodd)[0] || null;
@@ -176,7 +176,7 @@ function berakna(fall, logg) {
       const f = forluster.find(f => !tagnaL.has(f) && f.k.namn === h.kort && f.t >= h.t - FORE && f.t <= h.t + EFTER);
       if (f) tagnaL.add(f);
       /* fanns: ett kort med namnet låg på mattan när det togs bort (diagnos —
-         i p0921k låg kortet oftast bara som platshållare, och då kan ingen
+         i parti-kedjan låg kortet oftast bara som platshållare, och då kan ingen
          borttagning av kortet synas). */
       const fanns = kort.some(k => k.namn === h.kort && k.fodd <= h.t && (k.dod == null || k.dod >= h.t - FORE));
       detalj.borta.push({ t: h.t, kort: h.kort, till: h.till, dt: f ? r2(f.t - h.t) : null, som: f ? f.som : null, fanns });
@@ -286,7 +286,7 @@ function berakna(fall, logg) {
       const ruta = fall.v2.find(r => String(r.ruta) === o.namn); if (!ruta) continue;
       let par;
       if (fall.v2Par === 'plats') {
-        /* På plats (p0921k): facit-kortets läge på mattan (motorn räknar det
+        /* På plats (parti-kedjan): facit-kortets läge på mattan (motorn räknar det
            med appens kamTillMatta och mattans skala) paras med det närmaste
            på mattan — kort, oframkallat kort eller platshållare, inte
            nedtonat — inom PAR_PLATS kortbredder, närmast först, ett mot ett.
@@ -327,7 +327,7 @@ function berakna(fall, logg) {
 }
 
 /* Totalt över fallen med telefonens ström (golden och passet; inte p0921,
-   facit som ideal telefon, och inte p0921k, kedjan på skärminspelningens
+   facit som ideal telefon, och inte parti-kedjan, kedjan på skärminspelningens
    kamerabild — de står i egna kolumner): antal
    summeras, tider räknas ur alla händelser ihop, per minut ur summan. */
 function totalt(res) {

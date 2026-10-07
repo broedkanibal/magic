@@ -35,7 +35,7 @@
    annars blir poolen en annan lek än den passen spelades med, och
    kontrollen nedan väntar förgäves på 114.
 
-   Partiet 2026-09-21 (MES-333, uppspelarens fall p0921k):
+   Partiet 2026-09-21 (MES-333, uppspelarens fall parti-kedjan):
      --pass 2026-09-21-mes-238-parti-4k15-20min --video kamera-180-540.mp4
        --facit dev/uppspelaren/underlag/2026-09-21-handelser.tsv --fran 180
    --video: en annan fil än kamera.mp4 i passets mapp (där: kamerabilden

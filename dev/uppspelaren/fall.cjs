@@ -10,7 +10,7 @@
    under fötterna: golden-fallens bordslogg (ur dev/golden/senaste.json,
    som skrivs om varje gång golden sparas) och v2-facit för partiet
    2026-09-21 (otrackat i huvudträdet när uppspelaren byggdes), och
-   partiets bordslogg genom kedjan med sitt händelsefacit (p0921k). Passet
+   partiets bordslogg genom kedjan med sitt händelsefacit (parti-kedjan). Passet
    2026-09-22 läses ur dev/material (utanför git, ändras inte). */
 'use strict';
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
@@ -87,7 +87,7 @@ function pass0922() {
 }
 
 /* ── partiet 2026-09-21: v2-facit som en idealiserad telefon ──────────
-   Det här fallet är facit, inte telefonen; partiet genom kedjan är p0921k
+   Det här fallet är facit, inte telefonen; partiet genom kedjan är parti-kedjan
    nedan. v2-facit beskriver varje kort i var
    tionde sekund 240–540: mitten i procent av kamerabilden (705 × 438),
    upprätt/tappad, hög och synlighet. Här blir varje sådan ruta ETT bord
@@ -154,7 +154,7 @@ function parti0921() {
     anm: 'v2-facit matat som en idealiserad telefon (ett klart spår per kort, rutan var 10:e sekund) — inte telefonens ström; den finns inte för partiet'
   };
 }
-/* ── partiet 2026-09-21 genom telefonens kedja (p0921k) ──────────────
+/* ── partiet 2026-09-21 genom telefonens kedja (parti-kedjan) ──────────────
    Kamerabilden ur skärminspelningen dator.mov (Mesas kamerapanel, 704 ×
    438, samma utsnitt som rutor/kam-NNN.jpg och v2-facit), sek 180–540,
    genom dev/spegelfacit/kor.cjs utan Claude 2026-10-07. Bordsloggen är fryst
@@ -179,7 +179,7 @@ function lasHandelser0921() {
   return rader.slice(1).map(r => { const c = r.split('\t'); return { t: +c[i('t')], typ: c[i('handelse')], kort: tom(c[i('kort')]), till: tom(c[i('till')]), plats: tom(c[i('plats')]), osaker: tom(c[i('osaker')]), x: +c[i('x')] / 100, y: +c[i('y')] / 100 }; });
 }
 let kedjaCache = null;
-function parti0921k() {
+function partiKedjan() {
   const fil = path.join(UNDERLAG, '2026-09-21-kedja-bordlogg.json.gz');
   if (!fs.existsSync(fil)) throw new Error('underlaget saknas: ' + path.relative(ROT, fil));
   if (!kedjaCache) kedjaCache = JSON.parse(zlib.gunzipSync(fs.readFileSync(fil)).toString('utf8'));
@@ -205,7 +205,7 @@ function parti0921k() {
   const rutorMapp = path.join(ROT, 'dev', 'material', 'arbete', '2026-10-04-hogarna-matning', 'a1a');
   const fin = fs.existsSync(path.join(rutorMapp, 'fin')) ? fs.readdirSync(path.join(rutorMapp, 'fin')).map(f => { const m = /^g-(\d+\.\d+)\.jpg$/.exec(f); return m ? +m[1] : null; }).filter(v => v != null).sort((a, b) => a - b) : [];
   return {
-    id: 'p0921k', namn: 'partiet 2026-09-21, sek 230–540 — telefonens kedja på skärminspelningens kamerabild', slag: 'kedja',
+    id: 'parti-kedjan', namn: 'partiet 2026-09-21, sek 230–540 — telefonens kedja på skärminspelningens kamerabild', slag: 'kedja',
     kalla: `underlag/2026-09-21-kedja-bordlogg.json.gz (${K.kalla}, ${K.skapad.slice(0, 10)}, poolen ${K.pool}, utan Claude)`,
     rader, facit, fran: KEDJA_START, matFran: KEDJA_MATT, till: +Math.min(sista + 3.5, 550).toFixed(2), upplosning: B,
     lek: passensLek(),   // 28 namn, 40 kort — kastar ett fel om gränsraden i lek.txt saknas
@@ -229,12 +229,17 @@ function bordRekt(a) {
   return { x: a.x * BILD.w - w / 2, y: a.y * BILD.h - h / 2, w, h };
 }
 
-const ALLA = ['g07', 'g09', 'g10', 'g11', 'g12', 'p0922', 'p0921', 'p0921k'];
+const ALLA = ['g07', 'g09', 'g10', 'g11', 'g12', 'p0922', 'p0921', 'parti-kedjan'];
+/* Gamla id som fortfarande tas emot: parti-kedjan hette p0921k till
+   2026-10-07, och baslinjer och kommandon i äldre grenar säger så. */
+const GAMLA_ID = { p0921k: 'parti-kedjan' };
+const fallId = id => GAMLA_ID[id] || id;
 function lasFall(id) {
+  id = fallId(id);
   if (/^g\d\d$/.test(id)) return golden(id.slice(1));
   if (id === 'p0922') return pass0922();
   if (id === 'p0921') return parti0921();
-  if (id === 'p0921k') return parti0921k();
+  if (id === 'parti-kedjan') return partiKedjan();
   throw new Error('okänt fall ' + id + ' (finns: ' + ALLA.join(', ') + ')');
 }
-module.exports = { ALLA, lasFall, bordAvstand, bordRekt, ROT };
+module.exports = { ALLA, fallId, lasFall, bordAvstand, bordRekt, ROT };

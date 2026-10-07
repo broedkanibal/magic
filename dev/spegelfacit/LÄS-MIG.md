@@ -56,7 +56,7 @@ Se huvudet i `jamfor.cjs`. Kort:
   så kolumnen visar ett hål, inte en regel som slagit fel. *Rätt plats*
   mäter i stället om korten ligger ihop på mattan.
 
-## Partiet 2026-09-21 (MES-333, uppspelarens p0921k)
+## Partiet 2026-09-21 (MES-333, uppspelarens parti-kedjan)
 
 Telefonens egen inspelning finns inte. Kamerabilden klipps ur
 skärminspelningen `dator.mov` (Mesas kamerapanel, 704 × 438 px, samma

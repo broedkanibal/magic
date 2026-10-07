@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Fryser partiets bordslogg genom kedjan (p0921k, MES-333) till
+/* Fryser partiets bordslogg genom kedjan (parti-kedjan, MES-333) till
    underlag/2026-09-21-kedja-bordlogg.json.gz, och skriver hur telefonens
    bord står sig mot v2-facit — en engångsanalys av strömmen, inget mått i
    uppspelaren.
@@ -10,7 +10,7 @@
    körd med dev/spegelfacit/kor.cjs --video kamera-180-540.mp4 --fran 180
    (dev/spegelfacit/LÄS-MIG.md). --start är videons start i partiets tid:
    bordsloggen bär videons tid, fall.cjs lägger till start. En logg körd med
-   Claude fryses inte (p0921k är utan). .cjs eftersom package.json säger
+   Claude fryses inte (parti-kedjan är utan). .cjs eftersom package.json säger
    "type": "module". */
 'use strict';
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
@@ -24,7 +24,7 @@ const UT = path.resolve(arg('--ut', path.join(__dirname, 'underlag', '2026-09-21
 const PAR_PX = 60;   // som fall.cjs (KEDJA_PAR_PX) och matt.cjs (NARA_PX)
 
 const J = JSON.parse(fs.readFileSync(INN, 'utf8'));
-if (J.ai) { console.error('frys-kedja: loggen är körd med Claude — p0921k är utan'); process.exit(2); }
+if (J.ai) { console.error('frys-kedja: loggen är körd med Claude — parti-kedjan är utan'); process.exit(2); }
 const m = /(\d+)\s*[×x]\s*(\d+)/.exec(J.resultat.kallStorlek || '');
 const B = m ? { w: +m[1], h: +m[2] } : { w: 704, h: 438 };
 const L = J.resultat.bordLogg;

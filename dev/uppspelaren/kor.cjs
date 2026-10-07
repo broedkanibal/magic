@@ -16,7 +16,7 @@
    Fallen (fall.cjs): golden 07, 09, 10, 11, 12 och passet 2026-09-22 —
    telefonens riktiga bordslogg — partiet 2026-09-21 sek 240–540, där
    v2-facit matas in som en idealiserad telefon (p0921), och samma parti
-   genom kedjan på skärminspelningens kamerabild, sek 230–540 (p0921k;
+   genom kedjan på skärminspelningens kamerabild, sek 230–540 (parti-kedjan;
    telefonens egen ström i 4K finns inte). Hur måtten räknas: LÄS-MIG.md.
 
    Slutkod 0 = gick (och inget sämre med --jamfor), 1 = sämre än
@@ -25,13 +25,13 @@
 'use strict';
 const fs = require('fs'), path = require('path'), crypto = require('crypto'), { execFileSync } = require('child_process');
 const { server, chrome, vantaApp, vanta, ROT } = require('./chrome.cjs');
-const { ALLA, lasFall } = require('./fall.cjs');
+const { ALLA, fallId, lasFall } = require('./fall.cjs');
 const { MATT, berakna, totalt, samre, visa } = require('./matt.cjs');
 
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const har = n => process.argv.includes(n);
 const FIL = path.resolve(arg('--fil', path.join(ROT, 'index.html')));
-const FALL = arg('--fall', '') ? arg('--fall').split(',').map(s => s.trim()).filter(Boolean) : null;
+const FALL = arg('--fall', '') ? arg('--fall').split(',').map(s => fallId(s.trim())).filter(Boolean) : null;
 const BASLINJE = path.join(__dirname, 'baslinje', 'baslinje.json');
 const SOLO = process.argv.includes('--solo');
 
@@ -94,7 +94,7 @@ function tabell(res, tot) {
     if (v.every(x => x === '–')) continue;
     L.push(pad(namn.length > 61 ? namn.slice(0, 60) + '…' : namn, 62) + v.map(x => lpad(x, 9)).join(''));
   }
-  L.push('* totalt = fallen med telefonens ström (golden och passet 2026-09-22); p0921 (facit som ideal telefon) och p0921k (kedjan på skärminspelningens kamerabild) räknas inte in');
+  L.push('* totalt = fallen med telefonens ström (golden och passet 2026-09-22); p0921 (facit som ideal telefon) och parti-kedjan (kedjan på skärminspelningens kamerabild) räknas inte in');
   return L.join('\n');
 }
 function markdown(res, tot, meta) {
@@ -110,7 +110,7 @@ function markdown(res, tot, meta) {
   L.push('');
   L.push('**p0921 är facit, inte telefonen:** v2-facit för partiet 2026-09-21 matat som en idealiserad telefon var tionde sekund. Där mäts mattans geometri (avstånd, omlott, kanten), inte kamerans fart eller träffsäkerhet.');
   L.push('');
-  L.push('**p0921k är kedjan på skärminspelningens kamerabild** (704 × 438, Mesas ramar i bilden, utan Claude), sek 230–540: händer, skymda och korta spår som i ett riktigt parti, men nästan inga namn — mattan visar mest platshållare. Inte telefonens egen ström i 4K.');
+  L.push('**parti-kedjan är kedjan på skärminspelningens kamerabild** (704 × 438, Mesas ramar i bilden, utan Claude), sek 230–540: händer, skymda och korta spår som i ett riktigt parti, men nästan inga namn — mattan visar mest platshållare. Inte telefonens egen ström i 4K.');
   L.push('');
   L.push('| Mått | ' + ok.map(r => r.id).join(' | ') + ' | totalt* |');
   L.push('|---|' + ok.map(() => '---:').join('|') + '|---:|');
@@ -120,7 +120,7 @@ function markdown(res, tot, meta) {
     L.push(`| ${namn} | ${v.join(' | ')} |`);
   }
   L.push('');
-  L.push('\\* totalt = golden 07, 09–12 och passet 2026-09-22 (telefonens ström; inte p0921 och p0921k). Tider i sekunder från facits tid (rösten eller bildrutan), medianer över alla händelser ihop. – = går inte att räkna för fallet (inget facit för det).');
+  L.push('\\* totalt = golden 07, 09–12 och passet 2026-09-22 (telefonens ström; inte p0921 och parti-kedjan). Tider i sekunder från facits tid (rösten eller bildrutan), medianer över alla händelser ihop. – = går inte att räkna för fallet (inget facit för det).');
   return L.join('\n') + '\n';
 }
 function detaljUt(r) {
@@ -185,7 +185,7 @@ const BILDER = [
   if (arg('--bilder')) { const vid = arg('--vid') ? [...new Set(arg('--vid').split(',').map(x => x.split(':')[0]))] : null; const l = await visaren(vid || FALL || [...new Set(BILDER.map(b => b[0]))], path.resolve(arg('--bilder'))); console.log('uppspelaren --bilder: ' + l.map(f => path.relative(process.cwd(), f)).join(', ')); return; }
 
   const t0 = Date.now();
-  const res = await korAlla(har('--jamfor') && !FALL && fs.existsSync(BASLINJE) ? JSON.parse(fs.readFileSync(BASLINJE, 'utf8')).fall.map(f => f.id) : ids);
+  const res = await korAlla(har('--jamfor') && !FALL && fs.existsSync(BASLINJE) ? JSON.parse(fs.readFileSync(BASLINJE, 'utf8')).fall.map(f => fallId(f.id)) : ids);
   const ok = res.filter(r => !r.fel);
   const tot = totalt(ok);
   const meta = { datum: new Date().toLocaleDateString('sv-SE'), html: path.relative(ROT, FIL) || FIL, sha: sha(FIL), commit: FIL === path.join(ROT, 'index.html') ? gitHead() : null };
@@ -205,7 +205,7 @@ const BILDER = [
 
   if (har('--jamfor')) {
     if (!fs.existsSync(BASLINJE)) { console.error('uppspelaren --jamfor: ingen baslinje (' + path.relative(process.cwd(), BASLINJE) + ') — kör --spara först'); process.exit(2); }
-    const B = JSON.parse(fs.readFileSync(BASLINJE, 'utf8'));
+    const B = JSON.parse(fs.readFileSync(BASLINJE, 'utf8')); for (const f of B.fall) f.id = fallId(f.id);
     console.log(`\nJämfört med baslinjen ${B.meta.datum} (${B.meta.html}, sha256 ${B.meta.sha}, commit ${B.meta.commit || '?'}):`);
     /* Baslinjen ska vara main: har origin/main:s index.html ändrats sedan den
        sparades jämförs en ändring mot fel utgångsläge. */
@@ -216,17 +216,17 @@ const BILDER = [
     } catch (e) { console.log('  VARNING: kunde inte läsa origin/main:index.html (' + String(e.message).split('\n')[0] + ')'); }
     /* Grinden, per kolumn: null = varje mått, en lista = bara de måtten.
        totalt (golden + passet) och p0921 (facit som ideal telefon,
-       MES-342/338:s fall) grindar på allt. p0921k (partiet genom kedjan, när
+       MES-342/338:s fall) grindar på allt. parti-kedjan (partiet genom kedjan, när
        baslinjen har det) grindar bara på det som inte hänger på namn eller
        på kedjans namnlöshet: geometrin mot v2, hoppen och zoomen som hoppar.
-       Resten av p0921k — allt som räknar på namn, platshållarna,
+       Resten av parti-kedjan — allt som räknar på namn, platshållarna,
        laddtexterna, zoom och pan per minut, och tills MES-344 är inne också
        utspel som syntes och tid till något syns — är diagnos. Tider får
        skilja ±0,1 s, antal inget. Det som inte grindar skrivs som VARNING
        och fäller inte. */
     const GRIND = {
       totalt: null, p0921: null,
-      p0921k: ['avstandMedian', 'avstandP90', 'falskaOmlott', 'utanforRutor', 'utanforKort', 'utanforS', 'saknasRutor', 'hopp', 'hoppSnabba', 'zoomUtanGlid']
+      'parti-kedjan': ['avstandMedian', 'avstandP90', 'falskaOmlott', 'utanforRutor', 'utanforKort', 'utanforS', 'saknasRutor', 'hopp', 'hoppSnabba', 'zoomUtanGlid']
     };
     const grindar = (fall, key) => Object.prototype.hasOwnProperty.call(GRIND, fall) && (GRIND[fall] == null || GRIND[fall].includes(key));
     let samreN = 0, battreN = 0, varnN = 0, saknas = 0, saknasMatt = 0;
@@ -251,7 +251,7 @@ const BILDER = [
     }
     if (!FALL) for (const key of nycklar(B.totalt)) rad('totalt', key, B.totalt[key], tot[key]);
     else console.log('  (--fall: bara de fallen jämförs, inte totalt)');
-    console.log(`  → grinden (totalt, p0921, p0921k:s geometri, hopp och zoomhopp): ${samreN} rader sämre, ${battreN} bättre; per fall: ${varnN} varningar${saknas ? `; ${saknas} fall gick inte att köra` : ''}${har('--alla') ? '' : ' (oförändrade rader visas med --alla)'}`);
+    console.log(`  → grinden (totalt, p0921, parti-kedjans geometri, hopp och zoomhopp): ${samreN} rader sämre, ${battreN} bättre; per fall: ${varnN} varningar${saknas ? `; ${saknas} fall gick inte att köra` : ''}${har('--alla') ? '' : ' (oförändrade rader visas med --alla)'}`);
     if (saknasMatt) console.log(`  → ${saknasMatt} mått i baslinjen räknas inte längre — spara om baslinjen på main om det är avsiktligt`);
     if (saknas || saknasMatt) process.exitCode = 2;
     else if (samreN && process.exitCode !== 2) process.exitCode = 1;
