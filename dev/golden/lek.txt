@@ -1,5 +1,6 @@
 # Leken som golden setet känner igen mot. Ett kortnamn per rad, som på
-# Scryfall; rader som börjar med # hoppas över. Varje namn i ett facit.json
+# Scryfall; rader som börjar med # hoppas över. En rad kan peka på en
+# tryckning med set och samlarnummer: "Soldier (TFRC) 3". Varje namn i ett facit.json
 # måste finnas här — annars kan kedjan inte känna igen kortet, och provet
 # mäter leken i stället för kameran. Baslanden får extra konstverk av
 # poolbygget själv, precis som i appen.
@@ -40,8 +41,9 @@ Proctor's Gaze
 Virtue of Knowledge // Vantress Visions
 # Tokens (Jesper 2026-10-07): facit ritar token Soldier, Rebel och Fractal i fallen
 # 13, 17 och 18. Rebel och Fractal slås upp som enkelsidiga tokens med bild
-# (tfic, tsos). "Soldier" ger via Scryfalls fuzzy den dubbelsidiga Goblin // Soldier
-# (tgk1) med Goblin som framsida — läggs in först när poolbygget kan peka på en
-# tryckning (se dev/plan/prompt-2026-10-07-B-golden-matten.md).
+# (tfic, tsos). "Soldier" ensamt ger via Scryfalls fuzzy den dubbelsidiga
+# Goblin // Soldier (tgk1) med Goblin som framsida, så raden pekar på en
+# tryckning: (SET) samlarnummer, som en inklistrad lek från Moxfield/Arena.
 Rebel
 Fractal
+Soldier (TFRC) 3

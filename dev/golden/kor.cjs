@@ -155,6 +155,8 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
    (tider, tröskel, yta) står under --detalj. */
 function skrivTabell(rs, gamla) {
   const skiljer = (r, g, k) => g && g[k] != null && g[k] !== r[k] ? ` (var ${g[k]})` : '';
+  /* De nya talen (2026-10-07) jämförs bara när nämnaren är densamma: en flagga som satts eller en token som ritats till sedan baslinjen är ingen förändring i kedjan. */
+  const skiljerAv = (r, g, k, av) => g && g[av] === r[av] ? skiljer(r, g, k) : '';
   /* Förloppet finns bara i ett videofall: hur många utspelade kort kameran
      hann namnge säkert, hur många bortplockade som försvann ur bordet, och
      hur många som kom i rätt ordning. En stillbild har inget förlopp. */
@@ -172,27 +174,35 @@ function skrivTabell(rs, gamla) {
     ['Kort', 12, r => r.kort + (r.dolda ? ` +${r.dolda} dolt` : '')],
     ['Hittade', 13, (r, g) => r.hittade + skiljer(r, g, 'hittade')],
     ['Rätt namn', 17, (r, g) => `${r.namn}/${r.kort}` + skiljer(r, g, 'namn')],
+    /* Rätt namn av läsbara (2026-10-07): bara där facit har oläsbara kort; i Totalt alltid när någon rad har dem. */
+    ['Läsbara', 18, (r, g) => r.kortLasbara == null || (r.kortLasbara === r.kort && !r.harOlasbara) ? '' : `${r.namnLasbara}/${r.kortLasbara}` + skiljerAv(r, g, 'namnLasbara', 'kortLasbara')],
     ['Fel namn', 13, (r, g) => r.felNamn + skiljer(r, g, 'felNamn')],
     ['Falska', 22, (r, g) => r.falska + skiljer(r, g, 'falska') + (r.tokens ? ` (+${r.tokens} token)` : '')],   // MES-331: spår på en ritad token räknas för sig
+    /* Tokens som facit (2026-10-07): ritade tokens som fick säkert tokenens namn / ritade tokens. */
+    ['Tokennamn', 12, (r, g) => r.tokensAv ? `${r.tokNamn || 0}/${r.tokensAv}` + skiljerAv(r, g, 'tokNamn', 'tokensAv') : ''],
     ['Plats', 12, r => r.platsAv ? `${r.plats}/${r.platsAv}` + (r.lageFel != null ? ` ±${r.lageFel}` : '') : '–'],
     ['Tappad', 8, r => r.tappadAv ? `${r.tappad}/${r.tappadAv}` : '–'],
     /* K5/MODE-5: lägesuppdateringar — rapporter där ett stilla kort flyttat mer än AUTO_FLYTT av sin bredd; per minut av fallets tid. */
     ['Läge', 16, (r, g) => r.lagesUpp == null ? '–' : `${r.lagesUpp}${skiljer(r, g, 'lagesUpp')}${r.lagesPerMin != null ? ` (${r.lagesPerMin}/min)` : ''}`],
     ['Förlopp', 72, forlopp]
-  ];
-  const rad = celler => '  ' + celler.map((c, i) => String(c).padEnd(kolumner[i][1])).join('').trimEnd();
+  ].filter(k => (k[0] !== 'Läsbara' || rs.some(r => r.kortLasbara != null && r.kortLasbara !== r.kort)) && (k[0] !== 'Tokennamn' || rs.some(r => r.tokensAv)));
+  /* Minst ett mellanslag mellan cellerna: en cell som fyller sin bredd klistrades annars ihop med nästa ("100/118 (var 99)0"). */
+  const rad = celler => '  ' + celler.map((c, i) => { const t = String(c), b = kolumner[i][1]; return t.length >= b ? t + ' ' : t.padEnd(b); }).join('').trimEnd();
   /* Summan är null när ingen rad bär fältet — en baslinje från före ett nytt mått ska inte stå som "(var 0)". */
   const summa = (lista, k) => lista.some(r => r[k] != null) ? lista.reduce((a, r) => a + (r[k] || 0), 0) : null;
-  const totalt = lista => Object.fromEntries(['kort', 'dolda', 'hittade', 'namn', 'felNamn', 'falska', 'tokens', 'plats', 'platsAv', 'tappad', 'tappadAv',
-    'videoLagda', 'videoLagdaAv', 'videoBorta', 'videoBortaAv', 'videoOrdning', 'videoOrdningAv', 'videoFelUnder', 'videoDubbletter', 'videoTapp', 'videoTappAv', 'videoTappFalska', 'videoFlytt', 'videoFlyttAv', 'videoGrav', 'videoGravAv', 'videoGravFalska', 'lagesUpp'].map(k => [k, summa(lista, k)]));
+  const totalt = lista => Object.assign({ harOlasbara: lista.some(r => r && r.kortLasbara != null && r.kortLasbara !== r.kort) }, Object.fromEntries(['kort', 'dolda', 'hittade', 'namn', 'kortLasbara', 'namnLasbara', 'tokNamn', 'tokensAv', 'felNamn', 'falska', 'tokens', 'plats', 'platsAv', 'tappad', 'tappadAv',
+    'videoLagda', 'videoLagdaAv', 'videoBorta', 'videoBortaAv', 'videoOrdning', 'videoOrdningAv', 'videoFelUnder', 'videoDubbletter', 'videoTapp', 'videoTappAv', 'videoTappFalska', 'videoFlytt', 'videoFlyttAv', 'videoGrav', 'videoGravAv', 'videoGravFalska', 'lagesUpp'].map(k => [k, summa(lista, k)])));
   console.log(rad(kolumner.map(k => k[0])));
   for (const r of rs) console.log(rad(kolumner.map(k => k[2](r, gamla.get(r.id)))));
   const gs = rs.map(r => gamla.get(r.id));
-  console.log(rad(kolumner.map(k => k[2](Object.assign({ id: `Totalt, ${rs.length} fall` }, totalt(rs)), gs.every(Boolean) ? totalt(gs) : null))));
+  /* Ett fält som körningen har men någon baslinjerad saknar (baslinjen sparad delvis före 2026-10-07) summeras inte för baslinjen — annars stod en delsumma som "(var N)". */
+  const totaltG = gs.every(Boolean) ? Object.fromEntries(Object.entries(totalt(gs)).map(([k, v]) => [k, rs.some((r, i) => r[k] != null && gs[i][k] == null) ? null : v])) : null;
+  console.log(rad(kolumner.map(k => k[2](Object.assign({ id: `Totalt, ${rs.length} fall` }, totalt(rs)), totaltG))));
   console.log('\n  Kort: synliga kort i facit (ett kort som ligger under ett annat är dolt och räknas inte).');
   console.log('  Hittade: kort kameran lade ut — också dolda kort den ändå såg, och falska spår. Därför kan talet bli större än Kort.');
   console.log('  Rätt namn: synliga kort som fick rätt namn med säkert svar. Fel namn: säkert svar men fel kort (ska vara 0).');
-  console.log('  (+N token): spår på en token som facit ritat (rita.ovriga, MES-331) — räknas inte i Falska.');
+  console.log('  Läsbara: rätt namn av läsbara — samma räkning utan kort som facit märkt oläsbara ("olasbar": orsak); tomt där fallet inte har några. Fel namn räknas på alla kort.');
+  console.log('  (+N token): spår på en token som facit ritat (rita.ovriga, MES-331) — räknas inte i Falska. Tokennamn: ritade tokens med säkert tokenens namn (ett annat säkert namn är ett fel namn).');
   console.log('  Falska: spår där inget kort ligger. Plats och Tappad provas bara där facit har rutor; ± är medianfelet mellan spårets och rutans mitt i kortbredder. (var N): baslinjens tal.');
   console.log('  Läge: rapporter där ett stilla kort flyttat mer än 15 % av sin bredd sedan förra rapporten (det datorn speglar i Table leads) — ska vara 0 på ett stilla bord; per minut av fallets tid.');
   console.log('  Förlopp: bara videofall — utlagda med namn = utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som');
@@ -364,7 +374,10 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
         + rsV.filter(r => r.hogAv).map(r => `${r.id.slice(0, 2)}: ` + r.hogar.filter(h => h.dom !== 'mäts inte').map(h => `${h.hog} ${h.dom}`).join(', ')).join(' · ')); }
     /* MES-331: tokens — spår på en ritad token (facit rita.ovriga), räknade för sig och inte som falska. */
     { const tAv = rsV.reduce((a, r) => a + (r.tokensAv || 0), 0);
-      if (tAv) console.log(`  tokens: ${rsV.reduce((a, r) => a + (r.tokens || 0), 0)} spår på ${tAv} ritade tokens (räknas inte som falska) — ` + rsV.filter(r => r.tokensAv).map(r => `${r.id.slice(0, 2)}: ${r.tokens}/${r.tokensAv}`).join(' · ')); }
+      if (tAv) console.log(`  tokens: ${rsV.reduce((a, r) => a + (r.tokens || 0), 0)} spår på ${tAv} ritade tokens (räknas inte som falska), ${rsV.reduce((a, r) => a + (r.tokNamn || 0), 0)} med säkert tokennamn — ` + rsV.filter(r => r.tokensAv).map(r => `${r.id.slice(0, 2)}: ${r.tokens}/${r.tokensAv}${r.tokNamn ? ', ' + r.tokNamn + ' namn' : ''}`).join(' · ')); }
+    /* Oläsbara (2026-10-07): facitkort som inte går att läsa ens för ögat — rätt namn av läsbara räknas utan dem. */
+    { const ol = rsV.filter(r => r.olasbara && r.olasbara.length), s = k => rsV.reduce((a, r) => a + (r[k] != null ? r[k] : 0), 0);
+      if (rsV.some(r => r.kortLasbara != null)) console.log(`  rätt namn av läsbara: ${s('namnLasbara')}/${s('kortLasbara')}` + (ol.length ? ' — oläsbara i facit: ' + ol.map(r => r.olasbara.map(k => `${r.id.slice(0, 2)} ${k.namn} (${k.orsak}; ${k.namn2 ? 'spåret säger ' + k.namn2 : k.hittad ? 'inget namn' : 'inget spår'})`).join(', ')).join(' · ') : ' (inga oläsbara i facit)')); }
     { const ers = rsV.filter(r => r.facitFil); if (ers.length) console.log('  ANNAT FACIT (--facit): ' + ers.map(r => `${r.id.slice(0, 2)} mot ${r.facitFil}`).join(' · ')); }
     const sk = rsV.filter(r => r.videoSkuggaSynlig != null).map(r => `${r.id.slice(0, 2)}: rapport +${r.videoSkuggaRapport} s, synlig +${r.videoSkuggaSynlig} s (före +${r.videoSkuggaSynligFore}), blinkar ${r.videoSkuggaBlink}`);
     if (sk.length) console.log('  skuggan (median efter utspelet, MES-226): ' + sk.join(' · '));
@@ -391,7 +404,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, omlott ${r.omlott || 0}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
     /* MES-331: varje facithög — facits kort nedifrån, spåren de fick, kamerans säkra namn och domen. */
     for (const h of r.hogar || []) console.log(`  hög ${h.hog}: ${h.dom}${h.varfor ? ' — ' + h.varfor : ''}; facit nedifrån ${h.facit.join(', ')}${h.dolda ? ` (+${h.dolda} dolt)` : ''}; spår ${h.spar.map(x => x == null ? '–' : '#' + x).join(', ')}; säkra namn ${h.namn.map(x => x || '–').join(', ')}`);
-    if (r.tokensAv) console.log(`  tokens: ${r.tokens}/${r.tokensAv} ritade fick ett spår` + ((r.tokenLista || []).length ? ' — ' + r.tokenLista.map(x => `${x.namn}: ${x.spar == null ? 'inget spår' : '#' + x.spar + ' (iou ' + x.iou + ')' + (x.namn2 ? ' ' + x.namn2 : '')}`).join(', ') : ''));
+    if (r.tokensAv) console.log(`  tokens: ${r.tokens}/${r.tokensAv} ritade fick ett spår, ${r.tokNamn || 0} med säkert tokennamn` + ((r.tokenLista || []).length ? ' — ' + r.tokenLista.map(x => `${x.namn}: ${x.spar == null ? 'inget spår' : '#' + x.spar + ' (iou ' + x.iou + ')' + (x.namn2 ? ' ' + x.namn2 : '') + (x.dom === 'rätt' ? ' RÄTT' : x.dom === 'fel' ? ' FEL NAMN' : '')}`).join(', ') : ''));
     for (const p of r.omlottProv || []) console.log(`    omlott ${p.lang}×${p.kort} (${p.area} kortareor)${p.minne ? ' (minne)' : ''}: ${p.dom}${(p.grader || []).map(g => ' · ' + g.grader + '° ' + g.dom + ' rest ' + g.rest + (g.kant && g.kant.length ? ' kant ' + g.kant.join('; ') : '')).join('')}`);
     /* K5/MODE-5: lägesuppdateringarna och lägesfelet mot facits rutor. */
     if (r.lagesUpp != null) console.log(`  läge: ${r.lagesUpp} uppdateringar (${r.lagesPerMin}/min)${r.lagesSnitt ? `, ${r.lagesSnitt} storleksbyten på plats (räknas inte)` : ''}${r.lageFel != null ? `, medianfel ${r.lageFel} kortbredder mot facits rutor` : ''}`
@@ -421,6 +434,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
         ? `    ${h.t} s ut ${h.spelar}: ` + (h.s == null ? 'aldrig säkert namngivet' : `säkert ${h.s} s (spår ${h.spar}, +${h.dt} s)`)
         : `    ${h.t} s bort ${h.tar_bort}: ` + (h.borta ? 'borta ur bordet' : 'LIGGER KVAR'));
       if (r.videoFelUnder) console.log('    säkra namn på kort som aldrig var i partiet: ' + (r.videoFelUnderNamn || []).map(x => `${x.namn} (spår ${x.spar}, ${x.s} s)`).join(', '));
+      if (r.videoTokUnder) console.log('    säkra tokennamn på tokenens eget spår (inte fel under förloppet): ' + (r.videoTokUnderNamn || []).map(x => `${x.namn} (spår ${x.spar}, ${x.s} s)`).join(', '));
       for (const l of r.videoSpar) console.log(`    spår ${l.id}${l.nr ? ` (#${l.nr} i slutet)` : ''}: ${l.fodd}–${l.borta != null ? l.borta : l.sist} s`
         + (l.borta != null ? ' (försvann)' : '') + (l.skrap != null ? `, skräp från ${l.skrap} s` : '')
         + `, ${l.sakra.length ? 'säkert ' + l.sakra.map(x => `${x.namn} @${x.s} s`).join(', ') : 'aldrig säkert namngivet'}`
@@ -487,8 +501,11 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
                                                ['lagesUpp', 'lägesuppdateringar', false, 'kort'], ['videoFlytt', 'flyttar som sågs', true, 'videoFlyttAv'],
                                                ['videoGrav', 'kort till högen som högvakten såg', true, 'videoGravAv'], ['videoGravFalska', 'falska högändringar', false, 'kort'],
                                                ['landRatt', 'land rätt per typ', true, 'landAv'], ['landOver', 'land för många per typ', false, 'landAv'],
-                                               ['hogRatt', 'högar rätt (ordning och namn)', true, 'hogAv'], ['hogFel', 'högar fel', false, 'hogAv']]) {
+                                               ['hogRatt', 'högar rätt (ordning och namn)', true, 'hogAv'], ['hogFel', 'högar fel', false, 'hogAv'],
+                                               ['namnLasbara', 'rätt namn av läsbara', true, 'kortLasbara'], ['tokNamn', 'tokens med rätt namn', true, 'tokensAv']]) {
       if (r[k] == null || g[k] == null || r[k] === g[k]) continue;
+      if (k === 'namnLasbara' && (r.kortLasbara === r.kort || r.kortLasbara !== g.kortLasbara)) continue;   // utan oläsbara är det rätt namn igen; med en annan nämnare (flaggan satt/borttagen) inget att jämföra
+      if (k === 'tokNamn' && r.tokensAv !== g.tokensAv) continue;   // en token ritad till eller bort sedan baslinjen
       ((r[k] > g[k]) === merArBattre ? battre : samre).push(`${r.id}: ${namn} ${g[k]} → ${r[k]} (av ${r[avK]} kort)`);
     } }
   const jamforda = rs.filter(r => gamla.has(r.id));
@@ -497,9 +514,14 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     /* Sämre mot en annan modell eller systemprompt är en jämförelse, inget fel. */
     if (gs[0].ai !== jamforda[0].ai || (gs[0].promptv != null && gs[0].promptv !== jamforda[0].promptv))
       console.log(`\nOBS: baslinjen (${BASFIL}) är gjord med ${vad(gs[0])}, den här körningen med ${vad(jamforda[0])}`);
+    /* Poolens nyckel (2026-10-07): en ändrad lek.txt ger kedjan andra kandidater i alla fall. Baslinjer från före fältet säger inget. */
+    { const pk = [...new Set(gs.map(g => g.poolKod).filter(Boolean))], nu = jamforda[0].poolKod;
+      if (nu && pk.length && pk.some(k => k !== nu)) console.log(`\nOBS: baslinjen är gjord med en annan pool (${pk.join(', ')}) än den här körningen (${nu}) — lek.txt har ändrats, och talen kan flytta sig av det.`); }
     const dom = samre.length && battre.length ? 'BLANDAT — bättre i något fall, sämre i ett annat' : samre.length ? 'SÄMRE' : battre.length ? 'BÄTTRE' : 'LIKA BRA';
     console.log(`\nJämfört med baslinjen (${BASFIL}): ${dom}`);
-    console.log(`  totalt: rätt namn ${s(gs, 'namn')} → ${s(jamforda, 'namn')} av ${s(jamforda, 'kort')} kort, fel namn ${s(gs, 'felNamn')} → ${s(jamforda, 'felNamn')}, falska ${s(gs, 'falska')} → ${s(jamforda, 'falska')}`
+    /* Läsbara: baslinjer från före 2026-10-07 saknar fältet — då står bara körningens tal. */
+    const lasb = jamforda.some(r => r.kortLasbara != null && r.kortLasbara !== r.kort) ? `, rätt namn av läsbara ${gs.every(g => g.namnLasbara != null) && s(gs, 'kortLasbara') === s(jamforda, 'kortLasbara') ? s(gs, 'namnLasbara') + ' → ' : ''}${s(jamforda, 'namnLasbara')} av ${s(jamforda, 'kortLasbara')}` : '';
+    console.log(`  totalt: rätt namn ${s(gs, 'namn')} → ${s(jamforda, 'namn')} av ${s(jamforda, 'kort')} kort${lasb}, fel namn ${s(gs, 'felNamn')} → ${s(jamforda, 'felNamn')}, falska ${s(gs, 'falska')} → ${s(jamforda, 'falska')}`
       + (jamforda.some(r => r.videoLagdaAv != null || r.videoBortaAv != null) ? `\n  förloppet: utlagda med namn ${s(gs, 'videoLagda')} → ${s(jamforda, 'videoLagda')} av ${s(jamforda, 'videoLagdaAv')} kort, borttagna ${s(gs, 'videoBorta')} → ${s(jamforda, 'videoBorta')} av ${s(jamforda, 'videoBortaAv')} kort, ordning ${s(gs, 'videoOrdning')} → ${s(jamforda, 'videoOrdning')}, fel namn under förloppet ${s(gs, 'videoFelUnder')} → ${s(jamforda, 'videoFelUnder')}` : ''));
     if (battre.length) console.log('  bättre:\n    ' + battre.join('\n    '));
     if (samre.length) console.log('  sämre:\n    ' + samre.join('\n    '));
