@@ -1,11 +1,12 @@
 /* Riktat prov för kamSkalas lås (MES-342, granskningens fynd 1 och 2): leken och första kortet inom 8 %,
-   en blink på 1 s, två värden som fladdrar mot varandra, ett nytt värde som står sig, korten borta.
+   en blink på 1 s, två värden som fladdrar mot varandra, ett nytt värde som står sig, ett kort som bärs (kam.prel),
+   korten borta.
    Kör: node dev/kamskala-las.cjs [index.html]. Slutkod 1 vid FEL. .cjs eftersom package.json säger "type": "module". */
 'use strict';
 const fs = require('fs');
 const HTML = process.argv[2] || require('path').join(__dirname, '..', 'index.html');
 const src = fs.readFileSync(HTML, 'utf8');
-const a = src.indexOf('function kamSkala(p)'), b = src.indexOf('function kamTillMatta', a);
+const a0 = src.indexOf('function kamKortsida('), a = a0 >= 0 ? a0 : src.indexOf('function kamSkala(p)'), b = src.indexOf('function kamTillMatta', a);   // kamKortsida (MES-342) står före kamSkala där den finns
 const kod = src.slice(a, b);
 let fel = 0;
 const ok = (namn, villkor, info) => { console.log(`${villkor ? 'OK ' : 'FEL'}  ${namn}${info ? '  (' + info + ')' : ''}`); if (!villkor) fel++; };
@@ -14,7 +15,7 @@ function ny() {
   const kamSkala = new Function('Date', `const MATTA = { CW: 178 }; const kamUpplosning = { w: 1920, h: 1080 }; const kamSkalaFryst = () => null;\n${kod}\nreturn kamSkala;`)({ now: () => klocka.t });
   const p = { id: 'p1', cards: [], bibHog: null };
   /* Spela: varje 0,1 s ett anrop med kortens bredder enligt fn(t) (null = inga kort), lek = lekens bredd. */
-  const spela = (t0, t1, fn, lek) => { const ut = []; for (let t = t0; t <= t1 + 1e-9; t += 100) { klocka.t = t; const w = fn(t); p.cards = w == null ? [] : [].concat(w).map(x => ({ kam: { w: x, h: x * 1.397 / (1080 / 1920) } })); p.bibHog = lek ? { kam: { w: lek, h: lek * 1.397 / (1080 / 1920) } } : null; ut.push([t, kamSkala(p)]); } return ut; };
+  const spela = (t0, t1, fn, lek) => { const ut = []; for (let t = t0; t <= t1 + 1e-9; t += 100) { klocka.t = t; const w = fn(t); p.cards = w == null ? [] : [].concat(w).map(x => typeof x === 'object' ? { kam: Object.assign({}, x) } : { kam: { w: x, h: x * 1.397 / (1080 / 1920) } });   /* ett objekt är en låda som den är: { w, h, prel } */ p.bibHog = lek ? { kam: { w: lek, h: lek * 1.397 / (1080 / 1920) } } : null; ut.push([t, kamSkala(p)]); } return ut; };
   return { spela };
 }
 const S = w => Math.round(178 / w);
@@ -56,6 +57,22 @@ const unika = l => [...new Set(l.map(x => Math.round(x[1])))];
   const r = spela(9100, 14000, () => [0.090]);
   const byte = r.find(x => Math.round(x[1]) === S(0.090));
   ok('3 · nytt värde som står sig: byts efter 3 s', !!byte && byte[0] - 9100 >= 3000 && byte[0] - 9100 <= 3300, byte ? `efter ${((byte[0] - 9100) / 1000).toFixed(1)} s` : 'byttes aldrig');
+}
+/* 5. Handen bär det enda kortet i 4 s (kam.prel, lådan nästan fyrkantig med handen): skalan står kvar.
+      Kortet läggs ned med en låda inom 8 %: står kvar. (golden 12, 38,55–41,25 s) */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075]);
+  const bars = spela(3100, 7100, () => [{ w: 0.136, h: 0.256, prel: 1 }]);
+  const ned = spela(7200, 12000, () => [0.078]);
+  ok('5 · kortet bärs 4 s (prel) och läggs ned: skalan står still', unika(bars.concat(ned)).length === 1 && unika(bars)[0] === S(0.075), 'skalor ' + unika(bars.concat(ned)).join(', '));
+}
+/* 5b. Två kort: det ena bärs (prel, fel låda) — det vilande bär skalan. */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075, 0.076]);
+  const r = spela(3100, 9000, () => [0.075, { w: 0.15, h: 0.16, prel: 1 }]);
+  ok('5b · ett kort bärs, ett vilar: det vilande bär skalan', unika(r).length === 1, 'skalor ' + unika(r).join(', '));
 }
 /* 4. Korten lämnar bordet (ingen lek): skalan står kvar. */
 {
