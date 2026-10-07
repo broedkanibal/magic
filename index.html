@@ -9083,16 +9083,25 @@ function kamSkala(p) {
      ersätter aldrig ett mätt värde — när korten lämnat bordet står kameran där den stod (MES-342). */
   if (!las || (las.kalla === 'gissning' && kalla !== 'gissning')) { minne.set(p.id, { v: ny, kalla, kand: null }); return ny; }
   if (kalla === 'gissning') { las.kand = null; return las.v; }
-  if (Math.abs(ny / las.v - 1) <= 0.08) { las.kand = null; return las.v; }   // 8 %: mindre är detektorns darr i kortens bredd
+  /* 8 %: mindre är detektorns darr i kortens bredd. Kortens värde inom 8 % av lekens tar över låset som kortens —
+     annars fick nästa fladder lekens genväg förbi 3-sekundersregeln nedan (granskningen av MES-342). */
+  if (Math.abs(ny / las.v - 1) <= 0.08) { las.kand = null; if (kalla === 'kort') las.kalla = 'kort'; return las.v; }
   /* Ett nytt värde måste stå sig 3 s innan skalan byts (MES-342): ett byte flyttar alla kort på mattan, och
      medianen slog fram och tillbaka mellan två värden när kort kom och gick (passet 2026-09-22, 212–218 s: alla
-     Swamp hoppade tre gånger på sex sekunder). Från leken till de första korten byts den direkt. */
+     Swamp hoppade tre gånger på sex sekunder). "Stå sig" = varje värde sedan dess har legat mer än 8 % från
+     låset; då byts skalan till deras median. Två värden som fladdrar mot varandra, båda långt från låset, byter
+     den alltså också (förut nollställdes väntan vid varje fladder, och skalan satt fast). Från leken till de
+     första korten byts den direkt. */
+  let v = ny;
   if (las.kalla === 'kort' || kalla !== 'kort') {
-    if (!las.kand || Math.abs(ny / las.kand.v - 1) > 0.08) { las.kand = { v: ny, sedan: nu }; return las.v; }
+    if (!las.kand) { las.kand = { sedan: nu, varden: [ny] }; return las.v; }
+    las.kand.varden.push(ny); if (las.kand.varden.length > 64) las.kand.varden.shift();
     if (nu - las.kand.sedan < 3000) return las.v;
+    const s = las.kand.varden.slice().sort((x, y) => x - y);
+    v = s[s.length >> 1];
   }
-  minne.set(p.id, { v: ny, kalla, kand: null });
-  return ny;
+  minne.set(p.id, { v, kalla, kand: null });
+  return v;
 }
 function kamTillMatta(kam, skala) {
   const asp = kamUpplosning && kamUpplosning.w && kamUpplosning.h ? kamUpplosning.h / kamUpplosning.w : 4 / 3;
