@@ -52,8 +52,8 @@ pre{white-space:pre-wrap;background:#0a0d12;padding:8px;border:1px solid var(--l
       <thead><tr>
         <th></th><th>Fall</th><th title="antal spår som inte är skräp / synliga kort i facit (dolda räknas inte)">Hittade</th>
         <th title="spår som täcker ett facitkort (IoU ≥ 0,3) / facitkort med ruta. – när facit bara har namn">Rätt plats</th>
-        <th title="kort i facit som fått rätt namn med SÄKERT svar / synliga kort i facit. Inom parentes: rätt namn men osäkert (går till granskning)">Rätt namn</th>
-        <th title="säkert svar med FEL namn — på rätt plats, eller på ett falskt spår. Det värsta som kan hända">Fel namn</th>
+        <th title="kort i facit som fått rätt namn med SÄKERT svar / synliga kort i facit. Inom parentes: rätt namn men osäkert (går till granskning). · N/M läsbara: samma räkning utan kort som facit märkt oläsbara (olasbar). (+N/M token): ritade tokens som fick säkert tokenens namn — utanför Kort">Rätt namn</th>
+        <th title="säkert svar med FEL namn — på rätt plats, på ett falskt spår, eller ett annat namn än tokenens på en ritad token. Räknas också på oläsbara kort. Det värsta som kan hända">Fel namn</th>
         <th title="spår som inte motsvarar något facitkort. Inom parentes: spår vid rutans kant som facit ursäktar som avskurna, och dolda kort som ändå hittats">Falska</th>
         <th title="spår på rätt plats med rätt tap-läge / facitkort med ruta">Tappad</th>
         <th title="högar i facit (samma hog-bokstav, minst två synliga kort) där kameran har alla korten, vet vem som ligger över vem (rapportens under) så att ordningen nedifrån stämmer med facits z, och har de säkra namnen rätt / mätta högar. Inom parentes: ordningen rätt men namn saknas · ordningen okänd · fel (ordning som motsäger facit, eller säkert fel namn)">Högar</th>
@@ -355,20 +355,51 @@ async function byggPool() {
   if (!r.ok) throw new Error('lek.txt saknas');
   /* Antalet framför namnet (K6: "2 Plains") är lekens antal — priorn på
      telefonen (kamLekAntal). Nyckeln till poolen bär bara namnen, som förut. */
+  /* En rad kan peka på en TRYCKNING med samma svans som en inklistrad lek
+     från Moxfield/Arena/ManaBox: "Soldier (TFRC) 3" — set inom parentes och
+     samlarnummer (appens lekRad känner igen och skalar bort just den svansen).
+     Utan nummer, "Soldier (TFRC)", tas namnet i det setet. Annars slås namnet
+     upp med Scryfalls fuzzy som förut — "Soldier" ensamt ger den dubbelsidiga
+     Goblin // Soldier (tgk1) med Goblin som framsida. */
   const rader = (await r.text()).split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'))
-    .map(l => { const m = l.match(/^(\d+)\s*[xX]?\s+/); return { namn: m ? l.slice(m[0].length) : l, n: m ? +m[1] : 1 }; });
+    .map(l => {
+      const m = l.match(/^(\d+)\s*[xX]?\s+/); let s = m ? l.slice(m[0].length) : l;
+      const t = s.match(/\s*\(([A-Za-z0-9]{2,6})\)\s*([A-Za-z0-9\-★]*)\s*$/);
+      if (t) s = s.slice(0, t.index).trim();
+      return { namn: s, n: m ? +m[1] : 1, set: t ? t[1].toLowerCase() : null, nr: t && t[2] ? t[2] : null };
+    });
   if (UTAN_LEKEN.size) for (let i = rader.length - 1; i >= 0; i--) if (UTAN_LEKEN.has(rader[i].namn.toLowerCase())) rader.splice(i, 1);
   const namn = rader.map(x => x.namn);
   if (!namn.length) throw new Error('lek.txt är tom');
-  let h = 2166136261; for (const c of namn.join('\n')) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  /* Nyckeln bär tryckningen: byts den, byggs poolen om. En rad utan tryckning
+     ger samma text som förut, så en oförändrad lek behåller sin pool. */
+  const nyckelText = rader.map(x => x.namn + (x.set ? ` (${x.set})${x.nr ? ' ' + x.nr : ''}` : '')).join('\n');
+  let h = 2166136261; for (const c of nyckelText) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  /* Tryckningen: set + nummer (eller namnet i setet) ger Scryfalls id, och
+     kortet hämtas sedan med appens lookupId — samma kortform och cache som en
+     tryckning i handen. Bär tryckningen ett annat namn än raden är raden fel. */
+  const SF = w.eval('SF');
+  const slaUppTryck = async x => {
+    let raw;
+    try { raw = await SF.raw(x.nr ? `/cards/${encodeURIComponent(x.set)}/${encodeURIComponent(x.nr)}` : `/cards/named?exact=${encodeURIComponent(x.namn)}&set=${encodeURIComponent(x.set)}`); }
+    catch (e) { const ut = new Error(e && e.message || String(e)); ut.tillfallig = !!(e && (e.offline || e.status === 429 || e.status >= 500)); throw ut; }
+    const ansikten = String(raw.name || '').split(' // ').map(norm);
+    if (!ansikten.includes(norm(x.namn)) && norm(raw.name) !== norm(x.namn)) throw new Error(`(${x.set}) ${x.nr || ''} är ${raw.name}, inte ${x.namn}`);
+    let c;
+    try { c = await w.lookupId(raw.id); }
+    catch (e) { const ut = new Error(e && e.message || String(e)); ut.tillfallig = !/not found/.test(ut.message); throw ut; }
+    if (!w.imgOf(c, 0, 'small')) throw new Error(`(${x.set}) ${x.nr || ''} har ingen bild`);
+    return c;
+  };
   const kort = [], saknas = [];
   for (let i = 0; i < namn.length; i++) {
-    status(`Slår upp leken: ${i + 1} av ${namn.length} — ${namn[i]}`);
-    try { const c = await w.lookup(namn[i]); kort.push({ sid: c.id, name: c.name, small: w.imgOf(c, 0, 'small'), n: rader[i].n }); }
+    const x = rader[i], visa = namn[i] + (x.set ? ` (${x.set.toUpperCase()})${x.nr ? ' ' + x.nr : ''}` : '');
+    status(`Slår upp leken: ${i + 1} av ${namn.length} — ${visa}`);
+    try { const c = x.set ? await slaUppTryck(x) : await w.lookup(namn[i]); kort.push({ sid: c.id, name: c.name, small: w.imgOf(c, 0, 'small'), n: x.n }); }
     /* Appens lookup skiljer på ett nätglapp/429 (tillfällig) och ett namn
        som inte finns (404): det första läker av en omladdning, det andra
        ska rättas i lek.txt. */
-    catch (e) { saknas.push({ namn: namn[i], tillfallig: !!(e && e.tillfallig) }); }
+    catch (e) { saknas.push({ namn: visa + (x.set && !(e && e.tillfallig) && e && e.message ? ' — ' + e.message : ''), tillfallig: !!(e && e.tillfallig) }); }
     /* Appens kö håller 95 ms mellan anropen, vilket är precis Scryfalls tak
        (10 i sekunden). Uppmätt: 27 uppslag i följd gav 429 på det sista och
        på baslandsfrågan efter. Lite luft till, namnen cachas ändå. */
@@ -1158,7 +1189,21 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
   const tokTagnaK = new Map(), tokTagnaT = new Set();
   for (const p of tokenPar) { if (tokTagnaK.has(p.ki) || tokTagnaT.has(p.ti)) continue; tokTagnaK.set(p.ki, p); tokTagnaT.add(p.ti); }
   const falska = falskaAlla.filter((t, i) => !tokTagnaT.has(i));
-  const tokenLista = tokenRitade.map((k, ki) => { const p = tokTagnaK.get(ki), t = p ? falskaAlla[p.ti] : null; return { namn: k.namn, spar: t ? t.id : null, iou: p ? +p.v.toFixed(2) : null, namn2: t && t.namn ? t.namn + (t.saker ? '' : '?') : null }; });
+  /* Tokens som facit (2026-10-07, Jespers beslut): ett spår på en ritad token
+     med SÄKERT namn = tokenens namn ("token Soldier" → Soldier) är ett rätt
+     tokennamn — räknas i tokNamn, inte i Rätt namn (nämnaren är facits
+     synliga kort och ska stå kvar) och inte som fel namn. Ett säkert ANNAT
+     namn på en token är ett fel namn, som förut; inget namn som förut. */
+  const tokenNamnet = k => String(k.namn).replace(/^token\s+/i, '');
+  const tokenRatt = new Set();   // index i falskaAlla
+  for (const [ki, p] of tokTagnaK) { const t = falskaAlla[p.ti]; if (t.saker && t.namn && norm(t.namn) === norm(tokenNamnet(tokenRitade[ki]))) tokenRatt.add(p.ti); }
+  const tokenLista = tokenRitade.map((k, ki) => { const p = tokTagnaK.get(ki), t = p ? falskaAlla[p.ti] : null; return { namn: k.namn, spar: t ? t.id : null, iou: p ? +p.v.toFixed(2) : null, namn2: t && t.namn ? t.namn + (t.saker ? '' : '?') : null, dom: !t ? null : tokenRatt.has(p.ti) ? 'rätt' : t.saker && t.namn ? 'fel' : null }; });
+  /* Oläsbara (2026-10-07, Jespers beslut): ett facitkort med "olasbar": "<orsak>"
+     går inte att läsa ens för ögat. Rätt namn räknas som förut på alla; rätt
+     namn av läsbara har nämnaren utan dem. Fel namn räknas på ALLA kort — ett
+     säkert namn på ett utbränt kort är fortfarande ett fel. Flaggan sätts i
+     facit, aldrig här. */
+  const lasbar = k => !k.olasbar;
   const medRuta = synliga.filter(harRuta);
   /* K5/MODE-5: lägesfelet — spårets mitt mot facitrutans mitt i analyspixlar,
      delat med spårets bredd; medianen över rutträffarna. */
@@ -1190,14 +1235,17 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     hittade: spar.length,
     plats: synligaTraffar.filter(p => p.plats).length, platsAv: medRuta.length,
     namn: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k)).length,
+    /* Rätt namn av läsbara: samma räkning utan facits oläsbara kort (olasbar), i båda leden. */
+    kortLasbara: synliga.filter(lasbar).length, namnLasbara: synligaTraffar.filter(p => lasbar(p.k) && p.t.saker && ratt(p.t, p.k)).length,
+    olasbara: synliga.some(k => !lasbar(k)) ? synliga.filter(k => !lasbar(k)).map(k => ({ namn: k.namn, orsak: k.olasbar, hittad: harTraff(k), namn2: (() => { const p = synligaTraffar.find(q => q.k === k); return p && p.t.namn ? p.t.namn + (p.t.saker ? '' : '?') : null; })() })) : null,
     osakra: synligaTraffar.filter(p => !p.t.saker && ratt(p.t, p.k)).length,
     /* Fel namn: ett SÄKERT svar som inte är kortet — på rätt plats med fel
        namn, eller ett falskt spår som fått ett namn. Båda hamnar på bordet
        utan att någon frågas; det är det värsta som kan hända. */
-    felNamn: synligaTraffar.filter(p => p.t.saker && p.t.namn && !ratt(p.t, p.k)).length + falskaAlla.filter(t => t.saker && t.namn).length,
+    felNamn: synligaTraffar.filter(p => p.t.saker && p.t.namn && !ratt(p.t, p.k)).length + falskaAlla.filter((t, i) => t.saker && t.namn && !tokenRatt.has(i)).length,
     falska: falska.length, kant: kant.length,
     /* Tokens (MES-331): spår på en ritad token, ur Falska; null = facit har ingen token ritad. */
-    tokens: tokenRitade.length ? tokTagnaT.size : null, tokensAv: tokenRitade.length || null, tokenLista: tokenRitade.length ? tokenLista : null, doldaHittade: doldaTraffar.length, skrap: alla.length - spar.length,
+    tokens: tokenRitade.length ? tokTagnaT.size : null, tokensAv: tokenRitade.length || null, tokNamn: tokenRitade.length ? tokenRatt.size : null, tokenLista: tokenRitade.length ? tokenLista : null, doldaHittade: doldaTraffar.length, skrap: alla.length - spar.length,
     tappad: synligaTraffar.filter(p => p.plats && p.t.tappad === !!p.k.tappad).length, tappadAv: synligaTraffar.filter(p => p.plats).length,
     lageFel: lageFel.length ? +lageFel[lageFel.length >> 1].toFixed(2) : null,
     missade: synliga.filter(k => !harTraff(k)).map(k => k.namn),
@@ -1297,7 +1345,10 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
   /* Säkra namn på kort som aldrig var i partiet: varken utspelade eller kvar
      på bordet i slutet. Det är fel namn under förloppet — de syns inte i
      slutläget, men datorn har visat dem. */
-  const iPartiet = new Set(h.map(x => x.spelar || x.tar_bort || x.flyttar || x.tappar || x.otappar).concat(f.facit.kort.map(k => k.namn)).filter(Boolean).map(norm));
+  /* Tokens i facit (rita.ovriga "token X", tokens[].typ) är med i partiet: ett säkert tokennamn är inget fel under förloppet. */
+  const tokenNamnen = ((f.facit.rita && f.facit.rita.ovriga) || []).filter(o => /^token\s+/i.test(String(o.namn || ''))).map(o => String(o.namn).replace(/^token\s+/i, ''))
+    .concat((f.facit.tokens || []).map(x => x && x.typ));
+  const iPartiet = new Set(h.map(x => x.spelar || x.tar_bort || x.flyttar || x.tappar || x.otappar).concat(f.facit.kort.map(k => k.namn), tokenNamnen).filter(Boolean).map(norm));
   const felUnder = [];
   for (const l of logg) for (const e of l.sakra) if (!iPartiet.has(norm(e.namn))) felUnder.push({ spar: l.id, namn: e.namn, s: e.s });
   const dts = namngivna.map(x => x.dt).sort((a, b) => a - b);
@@ -1525,6 +1576,17 @@ function forloppCell(r, forra) {
   return `<td class="${bra ? 'bra' : ''}" title="fördröjning ${r.videoFordrojning == null || r.videoLagda * 2 < r.videoLagdaAv ? '–' : r.videoFordrojning + ' s'} (median; – när färre än hälften av de utlagda fick namn), ${r.videoFelUnder} säkra namn på kort som aldrig var i partiet">`
     + `${del(r.videoLagda, r.videoLagdaAv, 'videoLagda')} utlagda med namn · ${del(r.videoBorta, r.videoBortaAv, 'videoBorta')} borttagna · ordning ${del(r.videoOrdning, r.videoOrdningAv, 'videoOrdning')}</td>`;
 }
+/* Rätt namn av läsbara (facitkort utan olasbar): bara där fallet har oläsbara kort — annars är det samma tal. */
+function lasbaraText(r, forra) {
+  if (r.kortLasbara == null || r.kortLasbara === r.kort) return '';
+  const d = forra && forra.namnLasbara != null && forra.namnLasbara !== r.namnLasbara ? ` (var ${forra.namnLasbara})` : '';
+  const tips = (r.olasbara || []).map(k => `${k.namn}: ${k.orsak}`).join('\n');
+  return ` <span class="dim" title="rätt namn av läsbara — oläsbara i facit:\n${esc(tips)}">· ${r.namnLasbara}/${r.kortLasbara} läsbara${d}</span>`;
+}
+/* Tokens som facit ritat: hur många fick säkert tokenens namn — utanför Kort, så nämnaren står kvar. */
+function tokNamnText(r) {
+  return r.tokensAv ? ` <span class="dim" title="ritade tokens (rita.ovriga) med säkert rätt tokennamn — räknas inte i Rätt namn eller Kort">(+${r.tokNamn || 0}/${r.tokensAv} token)</span>` : '';
+}
 function ritaTabell() {
   const tb = $('#rader'); tb.innerHTML = '';
   for (const f of fall) {
@@ -1542,7 +1604,7 @@ function ritaTabell() {
       tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}${flaggor ? ' ' + flaggor : ''}</td>`
         + cell(r.hittade, r.kort, r.hittade === r.kort, forra, 'hittade', r.kort)
         + (r.platsAv ? cell(r.plats, r.platsAv, r.plats === r.platsAv, forra, 'plats') : '<td class="dim" title="facit har bara namn — rita rutor i markera.html för att prova platsen">–</td>')
-        + cell(r.namn, r.kort, r.kort > 0 && r.namn === r.kort, forra, 'namn').replace('</td>', (r.osakra ? ` <span class="dim">(+${r.osakra} osäkra)</span>` : '') + (r.namnViaOcr ? ` <span class="dim" title="säkra rätta namn som namnläsaren också läste rätt">· ${r.namnViaOcr} via namn</span>` : '') + (r.namnViaAi ? ` <span class="dim">· ${r.namnViaAi} via ai</span>` : '') + '</td>')
+        + cell(r.namn, r.kort, r.kort > 0 && r.namn === r.kort, forra, 'namn').replace('</td>', lasbaraText(r, forra) + tokNamnText(r) + (r.osakra ? ` <span class="dim">(+${r.osakra} osäkra)</span>` : '') + (r.namnViaOcr ? ` <span class="dim" title="säkra rätta namn som namnläsaren också läste rätt">· ${r.namnViaOcr} via namn</span>` : '') + (r.namnViaAi ? ` <span class="dim">· ${r.namnViaAi} via ai</span>` : '') + '</td>')
         + cell(r.felNamn, null, r.felNamn === 0, forra, 'felNamn')
         + cell(r.falska, null, r.falska === 0, forra, 'falska').replace('</td>', (r.tokens ? ` <span class="dim" title="spår på en token som facit ritat (rita.ovriga) — räknas inte som falska, MES-331">(+${r.tokens} token)</span>` : '') + (r.kant ? ` <span class="dim">(+${r.kant} vid kanten)</span>` : '') + (r.doldaHittade ? ` <span class="dim">(+${r.doldaHittade} dolda)</span>` : '') + (r.skrap ? ` <span class="dim">· ${r.skrap} skräp</span>` : '') + '</td>')
         + (r.tappadAv ? cell(r.tappad, r.tappadAv, r.tappad === r.tappadAv, forra, 'tappad') : '<td class="dim">–</td>')
@@ -1555,7 +1617,7 @@ function ritaTabell() {
   const rs = [...resultat.values()].filter(r => !r.fel);
   const sum = k => rs.reduce((s, r) => s + (r[k] || 0), 0);   // videofältens summa: de saknas i stillbildsraderna
   $('#totRad').innerHTML = rs.length
-    ? `<td></td><td>${rs.length} fall</td><td>${sum('hittade')}/${sum('kort')}</td><td>${sum('platsAv') ? sum('plats') + '/' + sum('platsAv') : '–'}</td><td>${sum('namn')}/${sum('kort')}</td><td>${sum('felNamn')}</td><td>${sum('falska')}${sum('tokens') ? ` <span class="dim">(+${sum('tokens')} token)</span>` : ''}${sum('kant') ? ` <span class="dim">(+${sum('kant')} vid kanten)</span>` : ''}</td><td>${sum('tappadAv') ? sum('tappad') + '/' + sum('tappadAv') : '–'}</td>`
+    ? `<td></td><td>${rs.length} fall</td><td>${sum('hittade')}/${sum('kort')}</td><td>${sum('platsAv') ? sum('plats') + '/' + sum('platsAv') : '–'}</td><td>${sum('namn')}/${sum('kort')}${rs.some(r => r.kortLasbara != null && r.kortLasbara !== r.kort) ? ` <span class="dim">· ${sum('namnLasbara')}/${sum('kortLasbara')} läsbara</span>` : ''}${sum('tokensAv') ? ` <span class="dim">(+${sum('tokNamn')}/${sum('tokensAv')} token)</span>` : ''}</td><td>${sum('felNamn')}</td><td>${sum('falska')}${sum('tokens') ? ` <span class="dim">(+${sum('tokens')} token)</span>` : ''}${sum('kant') ? ` <span class="dim">(+${sum('kant')} vid kanten)</span>` : ''}</td><td>${sum('tappadAv') ? sum('tappad') + '/' + sum('tappadAv') : '–'}</td>`
       + (sum('hogAv') ? `<td>${sum('hogRatt')}/${sum('hogAv')} <span class="dim">(${sum('hogOrdning')} ordning rätt, namn saknas · ${sum('hogOkand')} okänd · ${sum('hogFel')} fel)</span></td>` : '<td class="dim">–</td>')
       + (sum('videoLagdaAv') ? `<td>${sum('videoLagda')}/${sum('videoLagdaAv')} utlagda med namn · ${sum('videoBorta')}/${sum('videoBortaAv')} borttagna · ordning ${sum('videoOrdning')}/${sum('videoOrdningAv')}</td>` : '<td class="dim">–</td>')
       + '<td></td><td></td>'
