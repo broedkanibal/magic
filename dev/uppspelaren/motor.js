@@ -333,6 +333,18 @@
                   rect, cx: rect.x + rect.w / 2, cy: rect.y + rect.h / 2,
                   skarm: { l: sk.left, t: sk.top, r: sk.right, b: sk.bottom } });
     }
+    /* Det mattan visar för ett spår som inte är ett kort än (platshållaren,
+       nyckeln p:<spår>): samma uppgifter, med plats: true. Partiet genom
+       kedjan (p0921k) har få namn, och då är det det här som ligger där
+       kortet ligger. */
+    for (const el of gridEl.children) {
+      const m = el._mat; if (!m || !m.nyckel || !m.nyckel.startsWith('p:')) continue;
+      const l = parseFloat(el.style.left) || 0, tp = parseFloat(el.style.top) || 0, w = parseFloat(el.style.width) || CW(), h = parseFloat(el.style.height) || 248;
+      const sk = el.getBoundingClientRect(), sp = m.nyckel.slice(2);
+      kort.push({ cid: null, namn: '', spar: sp === '' ? null : (isFinite(+sp) ? +sp : sp), lyft: false, tappad: w > h, plats: true,
+                  rect: { x: l, y: tp, w, h }, cx: l + w / 2, cy: tp + h / 2,
+                  skarm: { l: sk.left, t: sk.top, r: sk.right, b: sk.bottom } });
+    }
     L.ogon.push({ namn, s: U.sek(virt), vp: { l: r.left, t: r.top, r: r.right, b: r.bottom }, z: g.z, kort });
   }
 

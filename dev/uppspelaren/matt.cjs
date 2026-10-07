@@ -11,6 +11,7 @@ const VILA_TOL = 0.25;             // kortbredder: kortet "ligger på sin plats"
 const FLYTT_MIN = 0.5;             // kortbredder: så långt ska viloläget ändras för att en flytt ska räknas som speglad
 const RUTA_S = 1 / 15;             // en videoruta
 const OMLOTT = 0.2;                // två kortrutor på mattan ligger omlott när de delar en femtedel av den mindre (som jamfor.cjs)
+const NARA_PX = 60;                // bildpunkter: telefonens spår ligger där facits kort ligger (p0921k; ett kort är ~98 px brett där)
 
 /* Måtten, i den ordning de skrivs. riktning: vad som är bättre. */
 const MATT = [
@@ -59,18 +60,25 @@ function berakna(fall, logg) {
   const kort = logg.kort.map(k => Object.assign({}, k));
   const harFacit = fall.slag !== 'facit';
   const facit = harFacit ? fall.facit.slice().sort((a, b) => a.t - b.t) : [];
-  const detalj = { utspel: [], borta: [], flytt: [], utbytta: [], extra: [], fel: [], hopp: logg.hopp };
+  /* Mätningen börjar (fall.matFran, partiet genom kedjan p0921k): det som
+     hände på mattan före dess är uppstarten — kedjan startar kall med kort på
+     bordet — och räknas inte: födslar, nedtoningar, hopp, platshållare,
+     laddtexter, mattans rörelser och kort utanför kanten före T0. Utan
+     matFran är T0 −∞ och allt räknas, som förut. */
+  const T0 = fall.matFran != null ? fall.matFran : -Infinity;
+  const hoppen = logg.hopp.filter(h => h.s >= T0);
+  const detalj = { utspel: [], borta: [], flytt: [], utbytta: [], extra: [], fel: [], hopp: hoppen };
 
   /* Födslar och förluster. Ett element som byts mot ett nytt för samma kort
      i samma ögonblick (matSynk byter tagg) är en utbytt DOM-nod, ingen ny
      födsel. Förlusten är första nedtoningen eller döden. */
   const ersatt = new Set(kort.filter(k => k.dodSom === 'utbytt element').map(k => k.cid + '@' + k.dod));
-  const fodslar = kort.filter(k => !ersatt.has(k.cid + '@' + k.fodd));
-  const domNod = kort.filter(k => k.dodSom === 'utbytt element').length;
+  const fodslar = kort.filter(k => !ersatt.has(k.cid + '@' + k.fodd) && k.fodd >= T0);
+  const domNod = kort.filter(k => k.dodSom === 'utbytt element' && k.dod >= T0).length;
   const forluster = [];
   for (const k of kort) {
-    const l = k.lyft.length ? k.lyft[0][0] : null;
-    const d = k.dod != null && k.dodSom !== 'utbytt element' ? k.dod : null;
+    const l0 = k.lyft.find(([a]) => a >= T0), l = l0 ? l0[0] : null;
+    const d = k.dod != null && k.dodSom !== 'utbytt element' && k.dod >= T0 ? k.dod : null;
     const t = l != null && (d == null || l <= d) ? l : d;
     if (t != null) forluster.push({ t, k, som: l != null && t === l ? 'nedtonad' : k.dodSom });
   }
@@ -78,8 +86,8 @@ function berakna(fall, logg) {
 
   const m = {};
   /* ── hopp ── */
-  m.hopp = logg.hopp.filter(h => h.slag === 'utan rörelse').length;
-  m.hoppSnabba = logg.hopp.filter(h => h.slag === 'snabb').length;
+  m.hopp = hoppen.filter(h => h.slag === 'utan rörelse').length;
+  m.hoppSnabba = hoppen.filter(h => h.slag === 'snabb').length;
 
   /* Viloläget och när kortet låg där: läget (lx, ly) vid tref, och första
      tiden efter t0 från vilken det synliga läget (vx, vy) ligger inom
@@ -106,6 +114,15 @@ function berakna(fall, logg) {
     (sparNamn.get(String(t.id)) || sparNamn.set(String(t.id), []).get(String(t.id))).push([r.s, n]);
   }
   const sparBar = (id, namn, a, b) => (sparNamn.get(String(id)) || []).some(([s, n]) => s >= a && s <= b && n.has(namn));
+  /* Var ett spår låg i bilden: id → [[s, x, y]] i bildpunkter. Bara när
+     facit har kortets läge i bilden (x, y — partiet genom kedjan, p0921k). */
+  const B = fall.upplosning || null, sparLage = new Map();
+  if (B && facit.some(h => Number.isFinite(h.x))) for (const r of fall.rader || []) for (const t of r.spar || []) {
+    if (t.vx == null && t.x == null) continue;
+    const x = (t.vx != null ? t.vx : t.x + t.w / 2) * B.w, y = (t.vy != null ? t.vy : t.y + t.h / 2) * B.h;
+    (sparLage.get(String(t.id)) || sparLage.set(String(t.id), []).get(String(t.id))).push([r.s, x, y]);
+  }
+  const sparDar = (id, h, a, b) => (sparLage.get(String(id)) || []).some(([s, x, y]) => s >= a && s <= b && Math.hypot(x - h.x * B.w, y - h.y * B.h) <= NARA_PX);
 
   if (harFacit) {
     /* ── utspel: något syns, och kortet ligger på sin plats ── */
@@ -132,6 +149,10 @@ function berakna(fall, logg) {
       let q = k ? kandidat.find(q => k.sparFodd != null && q.spar != null && String(q.spar) === String(k.sparFodd)) : null;
       if (!q && kPos) q = kandidat.filter(q => Math.hypot(q.sx - kPos[3], q.sy - kPos[4]) / cw <= 1.5).sort((a, b) => a.fodd - b.fodd)[0] || null;
       if (!q && !k) q = kandidat.filter(q => q.spar != null && sparBar(q.spar, h.kort, h.t - FORE, h.t + EFTER)).sort((a, b) => a.fodd - b.fodd)[0] || null;
+      /* Har facit kortets läge i bilden (p0921k) räknas också det vars spår
+         låg där kortet ligger (högst NARA_PX) i fönstret — kedjan på en
+         bild i 704 px sätter sällan namn, men spåret är kortet. */
+      if (!q && !k && Number.isFinite(h.x) && sparLage.size) q = kandidat.filter(q => q.spar != null && sparDar(q.spar, h, h.t - FORE, h.t + EFTER)).sort((a, b) => a.fodd - b.fodd)[0] || null;
       if (q) for (const p of logg.platser) if (p.spar != null && String(p.spar) === String(q.spar) && p.fodd >= q.fodd && p.fodd <= slut + 1e-9) tagnaP.add(p);
       const syns = [k && k.fodd, q && q.fodd].filter(v => v != null);
       const tref = k ? Math.min(h.t + EFTER, nastaFor(h.kort, h.t) - 0.01, k.dod != null ? k.dod - 0.001 : Infinity) : null;
@@ -153,7 +174,11 @@ function berakna(fall, logg) {
     for (const h of facit.filter(h => h.typ === 'tar_bort')) {
       const f = forluster.find(f => !tagnaL.has(f) && f.k.namn === h.kort && f.t >= h.t - FORE && f.t <= h.t + EFTER);
       if (f) tagnaL.add(f);
-      detalj.borta.push({ t: h.t, kort: h.kort, till: h.till, dt: f ? r2(f.t - h.t) : null, som: f ? f.som : null });
+      /* fanns: ett kort med namnet låg på mattan när det togs bort (diagnos —
+         i p0921k låg kortet oftast bara som platshållare, och då kan ingen
+         borttagning av kortet synas). */
+      const fanns = kort.some(k => k.namn === h.kort && k.fodd <= h.t && (k.dod == null || k.dod >= h.t - FORE));
+      detalj.borta.push({ t: h.t, kort: h.kort, till: h.till, dt: f ? r2(f.t - h.t) : null, som: f ? f.som : null, fanns });
     }
     /* En borttagning som syns först efter fönstret: raden står kvar (missad,
        taket i tiden), men nedtoningen är ingen fel nedtoning — kortet var
@@ -216,19 +241,20 @@ function berakna(fall, logg) {
   }
 
   /* ── mattans rörelser ── */
-  const g = logg.grid, min = (fall.till - fall.fran) / 60;
+  const g = logg.grid, min = (fall.till - Math.max(fall.fran, T0)) / 60;
   let zoom = 0, pan = 0, hopp = 0;
   for (let i = 1; i < g.length; i++) {
     const a = g[i - 1], b = g[i];
+    if (b.s < T0) continue;
     if (a.z != null && b.z != null && Math.abs(a.z - b.z) > 1e-4) zoom++; else pan++;
     if (!b.glider) hopp++;
   }
   m.zoomPerMin = r2(zoom / min); m.panPerMin = r2(pan / min); m.zoomUtanGlid = hopp;
-  detalj.grid = g;
+  detalj.grid = g.filter((x, i) => x.s >= T0 || (g[i + 1] && g[i + 1].s >= T0));
 
   /* ── platshållare och laddtexter ── */
   const episoder = [];
-  for (const q of logg.platser.filter(q => q.slag === 'p').sort((a, b) => a.fodd - b.fodd)) {
+  for (const q of logg.platser.filter(q => q.slag === 'p' && q.fodd >= T0).sort((a, b) => a.fodd - b.fodd)) {
     const e = episoder.find(e => e.spar === q.spar && e.dod != null && Math.abs(e.dod - q.fodd) < 1e-6);
     const slut = q.dod != null ? q.dod : fall.till;
     if (e) { e.dod = q.dod; e.slut = slut; for (const t of q.texter) if (!e.texter.includes(t)) e.texter.push(t); }
@@ -238,25 +264,29 @@ function berakna(fall, logg) {
   m.platshallareS = r2(episoder.reduce((a, e) => a + (e.slut - e.fodd), 0));
   const LADD = /^(Reading…|Moving…)$/, LADDP = /Reading the card…|Asking Claude…/;
   let ladd = 0;
-  for (const k of kort) for (const c of k.chip) if (LADD.test(c[0])) ladd++;
+  for (const k of kort) for (const c of k.chip) if (LADD.test(c[0]) && c[1] >= T0) ladd++;
   for (const e of episoder) if (e.texter.some(t => LADDP.test(t))) ladd++;
   m.laddtexter = ladd;
   detalj.platser = episoder;
 
   /* ── utanför kanten ── */
-  m.utanforKort = new Set(logg.utanfor.map(x => x[1])).size;
-  m.utanforS = r2(logg.utanfor.length * RUTA_S);
+  const utanfor = logg.utanfor.filter(x => x[0] >= T0);
+  m.utanforKort = new Set(utanfor.map(x => x[1])).size;
+  m.utanforS = r2(utanfor.length * RUTA_S);
 
   /* ── partiet 2026-09-21: mattan mot v2-facit i var tionde sekund ── */
   if (fall.v2) {
-    const fel = [], omlott = [], ut = [], saknas = [];
+    const fel = [], omlott = [], ut = [], saknas = [], somPlats = [];
     const tack = (p, q) => {
       const iw = Math.min(p.x + p.w, q.x + q.w) - Math.max(p.x, q.x), ih = Math.min(p.y + p.h, q.y + q.h) - Math.max(p.y, q.y);
       return iw <= 0 || ih <= 0 ? 0 : iw * ih / Math.min(p.w * p.h, q.w * q.h);
     };
     for (const o of logg.ogon) {
       const ruta = fall.v2.find(r => String(r.ruta) === o.namn); if (!ruta) continue;
-      const par = ruta.kort.map(f => ({ f, m: o.kort.find(k => k.spar === f.id && !k.lyft) })).filter(x => { if (!x.m) saknas.push({ ruta: ruta.ruta, id: x.f.id }); return !!x.m; });
+      /* Kortet med facit-kortets spår, annars det mattan visar för spåret i
+         stället (platshållaren, plats: true — bara i p0921k, där kedjan
+         sällan sätter namn; p0921 har inga). */
+      const par = ruta.kort.map(f => ({ f, m: o.kort.find(k => k.spar === f.id && !k.lyft && !k.plats) || o.kort.find(k => k.spar === f.id && k.plats) })).filter(x => { if (!x.m) saknas.push({ ruta: ruta.ruta, id: x.f.id }); else if (x.m.plats) somPlats.push({ ruta: ruta.ruta, id: x.f.id }); return !!x.m; });
       for (let i = 0; i < par.length; i++) for (let j = i + 1; j < par.length; j++) {
         const a = par[i], b = par[j];
         const dBord = bordAvstand(a.f, b.f), dMatta = Math.hypot(a.m.cx - b.m.cx, a.m.cy - b.m.cy) / cw;
@@ -271,16 +301,18 @@ function berakna(fall, logg) {
     }
     m.avstandMedian = r2(median(fel)); m.avstandP90 = r2(kvantil(fel, 0.9));
     m.falskaOmlott = omlott.length; m.utanforRutor = ut.length; m.saknasRutor = saknas.length;
-    detalj.v2 = { par: fel.length, omlott, utanfor: ut, saknas };
+    detalj.v2 = { par: fel.length, omlott, utanfor: ut, saknas, somPlats };
   } else for (const n of ['avstandMedian', 'avstandP90', 'falskaOmlott', 'utanforRutor', 'saknasRutor']) m[n] = null;
 
   return { matt: m, detalj, n: { steg: logg.steg, rapporter: logg.rapporter, hjartslag: logg.hjartslag, timrar: logg.timrar, prov: logg.prov, kort: kort.length, fel: logg.fel } };
 }
 
-/* Totalt över fallen med telefonens ström (golden och passet): antal
+/* Totalt över fallen med telefonens ström (golden och passet; inte p0921,
+   facit som ideal telefon, och inte p0921k, kedjan på skärminspelningens
+   kamerabild — de står i egna kolumner): antal
    summeras, tider räknas ur alla händelser ihop, per minut ur summan. */
 function totalt(res) {
-  const R = res.filter(r => r.slag !== 'facit');
+  const R = res.filter(r => r.slag !== 'facit' && r.slag !== 'kedja');
   const t = {};
   const alla = key => R.map(r => r.matt[key]).filter(v => v != null);
   for (const [key, , , enh] of MATT) {
