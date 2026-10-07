@@ -31770,7 +31770,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
        kommer tillbaka klart där det låg — med samma id eller ett nytt. Kortet som syns igen slår
        gissningen utan namn: tillbaka (aterstallFlytt) och bundet till ledaren. Förut hittade ledigt
        inget A, ett andra A skapades, och rättelsen lade sedan A på samma spår som dubbletten. */
-    if (!k) {
+    if (!k && !sparrat(g)) {   // ett spår spelaren tagit bort tar inte tillbaka något, som ledigt nedan
       const a = mig.cards.find(c => c.flyttFran && c.name === g.namn && paBordet(c)
         && g.spar.some(t => t.id === c.flyttFran.spar || (t.w != null && tackning(kamRekt(c.flyttFran.kam), t) >= SAMMA_KORT_TACKNING)));
       if (a) { aterstallFlytt(a); k = a; }
