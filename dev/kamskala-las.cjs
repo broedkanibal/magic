@@ -74,6 +74,13 @@ const unika = l => [...new Set(l.map(x => Math.round(x[1])))];
   const r = spela(3100, 9000, () => [0.075, { w: 0.15, h: 0.16, prel: 1 }]);
   ok('5b · ett kort bärs, ett vilar: det vilande bär skalan', unika(r).length === 1, 'skalor ' + unika(r).join(', '));
 }
+/* 5c. Sex kort, händerna bär tre (prel) i 4 s, de tre som vilar har en annan median: skalan står kvar. (passet 2026-09-22, 158,7–162 s) */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.070, 0.072, 0.075, 0.075, 0.078, 0.080]);
+  const r = spela(3100, 7100, () => [0.066, 0.067, 0.068, { w: 0.09, h: 0.2, prel: 1 }, { w: 0.09, h: 0.2, prel: 1 }, { w: 0.09, h: 0.2, prel: 1 }]);
+  ok('5c · tre av sex kort bärs: skalan står kvar', unika(r).length === 1, 'skalor ' + unika(r).join(', '));
+}
 /* 4. Korten lämnar bordet (ingen lek): skalan står kvar. */
 {
   const { spela } = ny();
