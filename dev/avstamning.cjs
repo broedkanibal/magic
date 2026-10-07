@@ -1181,7 +1181,7 @@ prov('GR3d en värd som kameran skickat till handen (MES-343): auran går till g
   assert.ok(app.handVal(v.cid, 'kvar'));
   assert.equal(app.kort[0], v, 'tillbaka först i listan, där det låg'); assert.equal(app.handRad[0].val, 'kvar');
 });
-prov('GR3e värden till handen tar auran till graveyard; högvaktens efterskott flyttar värden från raden till graveyard', () => {
+prov('GR3e värden till handen tar auran till graveyard; högens ändring efteråt kan vara auran, så värden stannar i handen — utan aura flyttar efterskottet värden till graveyard', () => {
   app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
   /* Arket förut, nu flyttaTill: graveyard för värden går genom aurorFoljer. */
   app.kort.push({ cid: 'v', name: 'Grizzly Bears', flipped: 0, x: 10, y: 10 },
@@ -1198,8 +1198,15 @@ prov('GR3e värden till handen tar auran till graveyard; högvaktens efterskott 
   klocka.t += 150; stamG([], hog(0));             // spåret dog: borta
   klocka.t += 3100; stamG([], hog(0));            // till handen
   assert.ok(iHanden(ukud), 'värden gick inte till handen'); assert.equal(app.kort[0].zon, 'grav', 'auran följde till graveyard');
-  klocka.t += 1000; stamG([], hog(1));            // högen ändras inom fönstret: efterskottet
-  assert.equal(ukud.zon, 'grav'); assert.ok(ukud.gravAuto); assert.ok(app.kort.includes(ukud)); assert.equal(app.handRad.length, 0);
+  klocka.t += 1000; stamG([], hog(1));            // högen ändras inom fönstret: det kan vara auran som lades där (Tc2) — värden stannar i handen
+  assert.ok(iHanden(ukud)); assert.notEqual(ukud.zon, 'grav');
+  /* Utan aura: efterskottet skickar värden till graveyard (GR6). */
+  app.nollstall(); klocka.t = 1e6;
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  const u2 = app.kort[0];
+  klocka.t += 150; stamG([], hog(0)); klocka.t += 3100; stamG([], hog(0));
+  klocka.t += 1000; stamG([], hog(1));
+  assert.equal(u2.zon, 'grav'); assert.ok(u2.gravAuto); assert.ok(app.kort.includes(u2)); assert.equal(app.handRad.length, 0);
 });
 prov('GR4 två kort försvinner, högen ändras en gång: båda frågas', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT })], hog(0));
@@ -2743,6 +2750,62 @@ prov('T8 fall 8 med tre spår: ingenting ändras, och korten binds om på namnet
   assert.equal(app.kort.length, 3); assert.equal(app.handRad.length, 0);
   klocka.t += 2000; stam([klar(11, 'Ukud Cobra', { sen: 0, ...PORT }), klar(12, 'Grizzly Bears', { sen: 0, ...LANGT }), klar(13, 'Forest', { sen: 0, ...LAND_ })]);
   assert.equal(app.kort.length, 3); assert.ok(app.kort.every(c => c.spar != null && c.slappt == null));
+});
+
+/* Tb/Tc — kontrollgranskningen av 50f4e6a (2026-10-07): ur raden bara på ett säkert namn, aurorna och högen. */
+prov('Tb1 ur raden aldrig på en gissning (steg 5): ett okänt spår som gissar A lämnar A i raden; blir spåret klart som ett annat kort är A fortfarande i handen', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const a = app.kort[0];
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.ok(iHanden(a));
+  klocka.t += 1000; stam([vilande(2, NY_PLATS, { tillstand: 'okand', gissning: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.5 }] })]);
+  assert.ok(iHanden(a), 'A togs tillbaka ur raden på en gissning'); assert.equal(app.kort.length, 0);
+  klocka.t += 1000; stam([klar(2, 'Grizzly Bears', { sen: 0, ...NY_PLATS })]);
+  assert.ok(!app.kort.includes(a) && iHanden(a), 'A blev ett spöke på mattan'); assert.deepEqual(app.kort.map(c => c.name), ['Grizzly Bears']);
+});
+prov('Tb2 två Swamp: S1 gick till handen (raden står), S2 flimrar och kommer tillbaka — S2 binds om, raden står kvar', () => {
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT }), klar(2, 'Swamp', { sen: 0, ...LANGT })]);
+  const s1 = app.kort.find(c => c.spar === 1), s2 = app.kort.find(c => c.spar === 2);
+  klocka.t += 150; stam([klar(2, 'Swamp', { sen: 0, ...LANGT })]);
+  klocka.t += 3100; stam([klar(2, 'Swamp', { sen: 0, ...LANGT })]);
+  assert.ok(iHanden(s1));
+  klocka.t += 150; stam([]);                                            // S2 flimrar
+  klocka.t += 300; stam([klar(3, 'Swamp', { sen: 0, ...LANGT })]);
+  assert.equal(s2.spar, 3); assert.ok(iHanden(s1)); assert.equal(app.kort.length, 1);
+});
+prov('Tc1 auran tillbaka på värden när auran redan skapats igen på mattan (eget spår): den i graveyard stannar där', () => {
+  app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
+  const PA = box(PORT.x + 0.01, PORT.y + 0.03, 0.063, 0.088);
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Pacifism', { sen: 0, ...PA })]);
+  const a = app.kort.find(c => c.name === 'Ukud Cobra'), p = app.kort.find(c => c.name === 'Pacifism');
+  p.attachedTo = a.cid;
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.ok(iHanden(a)); assert.equal(p.zon, 'grav');
+  klocka.t += 1000; stam([klar(5, 'Pacifism', { sen: 0, ...LANGT })]);   // auran läggs på bordet igen, ensam
+  assert.ok(app.handVal(a.cid, 'kvar'));
+  assert.equal(app.kort.filter(c => c.name === 'Pacifism' && c.zon !== 'grav').length, 1, 'två Pacifism på mattan');
+  assert.equal(p.zon, 'grav'); assert.equal(p.attachedTo, undefined);
+});
+prov('Tc2 studsad varelse med aura: värden till handen, auran till graveyard — högen växer av auran, och värden stannar i handen', () => {
+  app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
+  const PA = box(PORT.x + 0.01, PORT.y + 0.03, 0.063, 0.088);
+  stamG([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Pacifism', { sen: 0, ...PA })], hog(0));
+  const a = app.kort.find(c => c.name === 'Ukud Cobra'), p = app.kort.find(c => c.name === 'Pacifism');
+  p.attachedTo = a.cid;
+  klocka.t += 150; stamG([], hog(0)); klocka.t += 3100; stamG([], hog(0));
+  assert.ok(iHanden(a)); assert.equal(p.zon, 'grav');
+  klocka.t += 800; stamG([], hog(1));                                   // auran lades i graveyard
+  assert.notEqual(a.zon, 'grav', 'värden (i handen) skickades till graveyard av aurans högändring'); assert.ok(iHanden(a));
+});
+prov('Tc3 värden tillbaka via Still on the table efter att högen tagit auran: ingen dubblett av auran', () => {
+  app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
+  const PA = box(PORT.x + 0.01, PORT.y + 0.03, 0.063, 0.088);
+  stamG([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Pacifism', { sen: 0, ...PA })], hog(0));
+  const a = app.kort.find(c => c.name === 'Ukud Cobra'), p = app.kort.find(c => c.name === 'Pacifism');
+  p.attachedTo = a.cid;
+  klocka.t += 150; stamG([], hog(0)); klocka.t += 3100; stamG([], hog(0));
+  assert.ok(app.handVal(a.cid, 'kvar'));
+  assert.equal(app.kort.filter(c => c.name === 'Pacifism').length, 1); assert.equal(p.attachedTo, a.cid); assert.equal(p.zon, undefined);
 });
 
 console.log([...ok, ...fel].join('\n'));

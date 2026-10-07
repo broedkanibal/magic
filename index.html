@@ -30367,6 +30367,8 @@ function handRadTillbaka(mig, h, val, nu) {
   const k = h.kort;
   mig.cards.splice(Math.min(h.i, mig.cards.length), 0, k);
   for (const a of h.auror || []) {
+    /* Auran har redan skapats igen ur ett eget spår (lades ut ensam): den i graveyard stannar där (Tc1). */
+    if (!a.tok && mig.cards.some(c => c !== a.kort && c.name === a.kort.name && c.spar != null && paBordetZon(c))) continue;
     if (a.tok) { if (!mig.cards.includes(a.kort)) mig.cards.splice(mig.cards.indexOf(k) + 1, 0, a.kort); }
     else if (a.kort.zon === ZON_GRAV) delete a.kort.zon;
     a.kort.attachedTo = k.cid;
@@ -31594,16 +31596,19 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      graveyard digitalt) kommer efter. Samma ordning som kortSomKomTillbaka. */
   /* …och ett kort som gick till handen nyss, med raden kvar (MES-343, fall 9 inom HAND_RAD_MS): det som
      syns igen är samma kort — tillbaka ur raden (med sina auror), inte ett nytt kort bredvid det gamla
-     (granskningen T3, T6: counters och tap-rättningar följer med). Raden bekräftar "is back on the table". */
+     (granskningen T3, T6: counters och tap-rättningar följer med). Raden bekräftar "is back on the table".
+     Bara på ett SÄKERT namn (sakert: ledaren i steg 3, spelarens svar i kortSomKomTillbaka) — aldrig på en
+     gissning i steg 5: säger det klara namnet sedan något annat hade kortet blivit ett spöke på mattan med
+     raden stängd (kontrollgranskningen Tb1). */
   const urRaden = namn => {
     const h = namn ? handRad.find(h => !h.val && !h.tok && h.namn === namn) : null;
     if (!h || !handRadTillbaka(mig, h, 'kvar', nu)) return null;
     andrat = true;
     return h.kort;
   };
-  const ledigt = namn => {
+  const ledigt = (namn, sakert) => {
     const fria = namn ? mig.cards.filter(c => c.name === namn && (paBordet(c) || c.fysisk) && (c.spar == null || !synliga.has(c.spar))) : [];
-    return fria.find(c => c.spar != null && paBordet(c)) || fria.find(c => c.spar != null) || fria[0] || urRaden(namn) || null;
+    return fria.find(c => c.spar != null && paBordet(c)) || fria.find(c => c.spar != null) || fria[0] || (sakert ? urRaden(namn) : null) || null;
   };
   /* Ett kort som ligger i graveyard och dyker upp på mattan igen är SAMMA
      kort på väg tillbaka i spel (MES-248): reanimator, recursion, en
@@ -31773,7 +31778,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
         && g.spar.some(t => t.id === c.flyttFran.spar || (t.w != null && tackning(kamRekt(c.flyttFran.kam), t) >= SAMMA_KORT_TACKNING)));
       if (a) { aterstallFlytt(a); k = a; }
     }
-    if (!k && !sparrat(g)) k = ledigt(g.namn);
+    if (!k && !sparrat(g)) k = ledigt(g.namn, !!ledare.saker);   // ur raden bara på ett säkert namn
     if (k && k.spar !== ledare.id) binder(k, ledare);
     g.kort = k;
     /* Sammanfattningen räknar kortet här, ur ledaren, en gång per cid —
@@ -32031,6 +32036,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
       .concat(mig.cards.filter(c => c !== k && paBordet(c) && c.borta && gravTid.has(c.cid)).map(c => gravTid.get(c.cid)))
       .concat(mig.cards.filter(c => c !== k && paBordet(c) && c.slappt != null).map(c => c.slappt))
       .concat(handRad.filter(h => h.kort !== k && !h.val && !h.tok).map(h => h.borta0))
+      /* Auror som följde ett kort till handen (till graveyard, aurorFoljer) kan vara det som lades på högen:
+         de räknas, så att värden i handen inte tar aurans ändring (kontrollgranskningen Tc2). */
+      .concat(handRad.flatMap(h => !h.val ? (h.auror || []).filter(a => !a.tok && a.kort !== k).map(() => h.borta0) : []))
       .filter(t => Math.abs(t - tid) <= GRAV_EFTER - GRAV_TIDIGAST);
     if (tider.length > mina.length) return null;
     if (tider.filter(t => Math.abs(t - tid) < SAMTIDIGT_MS).length >= 3) return null;
