@@ -1021,6 +1021,55 @@ prov('O15 läsningen gissar kortet i väntans namn: det är kortet sett igen, in
   tid(klocka.t + 100);
   assert.deepEqual(ofrSlag(), []);
 });
+/* MES-346: korten i en landhög. Telefonens under (MES-331) säger vilka spår som ligger ÖVER ett spår; ett spår som
+   setts ligga över ett annat är ett annat kort. Högen: ett Plains (PORT), och kort ovanpå förskjutna en bit nedåt. */
+const OVANPA = box(PORT.x, PORT.y + 0.02, 0.063, 0.088);
+prov('O16 (MES-346) ett nytt land läggs på en hög: landet under täcks och dess spår dör, men det nya syns — oframkallat, också när läsningen gissar samma namn', () => {
+  stam([klar(1, 'Plains', { sen: 0, ...PORT })]);
+  const a = app.kort[0];
+  klocka.t += 150; stam([klar(1, 'Plains', { sen: 0, under: [2], ...PORT }), ovila(2, { vilar: false, ...OVANPA })]);   // handen lägger det nya ovanpå
+  klocka.t += 150; stam([klar(1, 'Plains', { sen: 0, under: [2], ...PORT }), ovila(2, OVANPA)]);                        // det nya ligger still; telefonen ser det över det gamla
+  klocka.t += 150; stam([ovila(2, OVANPA)]);                                                                           // det gamla täcks helt: spåret dör, kortet väntar
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), ['2'], 'ett nytt land på en hög ska synas oframkallat');
+  assert.equal(a.spar, 1, 'kortet under binds inte till det nya spåret');
+  klocka.t += 150; stam([ovila(2, { tillstand: 'okand', gissning: 'Plains', cands: [{ name: 'Plains', score: 0.4 }], ...OVANPA })]);   // läst: osäkert Plains, som landet under
+  tid(klocka.t + 100);
+  assert.deepEqual(ofrSlag(), ['2#'], 'samma namn som landet under gör det inte till samma kort');
+});
+prov('O17 (MES-346) samma hög, men utan att telefonen sett det nya spåret över det gamla: kortet sett igen (som O13), inget oframkallat kort', () => {
+  stam([klar(1, 'Plains', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([klar(1, 'Plains', { sen: 0, ...PORT }), ovila(2, OVANPA)]);   // syns samtidigt, men ingen relation: okänt
+  klocka.t += 150; stam([ovila(2, OVANPA)]);
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), []);
+});
+prov('O18 (MES-346) det bakre kortet i en hög: dess spår dör och föds om medan det främre ligger kvar — det oframkallade kortet följer med, i stället för att gå för att det främre "ligger där"', () => {
+  stam([klar(1, 'Plains', { sen: 0, ...OVANPA }), ovila(3, { under: [1], ...PORT })]);   // främre Plains (1) över det bakre, olästa (3)
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), ['3']);
+  const id = app.ofr[0].id;
+  klocka.t += 150; stam([klar(1, 'Plains', { sen: 0, ...OVANPA })]);                    // det bakres spår dör (bara titelraden syns, detektorn tappar den)
+  assert.deepEqual(ofrSlag(), ['3'], 'det främre kortet är grannen, inte det bakre');
+  klocka.t += 300; stam([klar(1, 'Plains', { sen: 0, ...OVANPA }), ovila(4, { under: [1], ...PORT })]);   // föds om på samma plats
+  assert.equal(app.ofr.length, 1); assert.equal(app.ofr[0].id, id); assert.equal(app.ofr[0].spar, 4);
+  // dör det och inget föds om går det efter nåden, som förut
+  klocka.t += 150; stam([klar(1, 'Plains', { sen: 0, ...OVANPA })]);
+  tid(klocka.t + 1500);
+  assert.deepEqual(ofrSlag(), []);
+});
+prov('O19 (MES-346) en tappad hög med två kort: spåren föds om, och det nya främre syns över det gamla bakre — inget oframkallat kort på någon av dem', () => {
+  const BAK = PORT, FRAM = OVANPA;
+  stam([klar(1, 'Swamp', { sen: 0, under: [2], ...BAK }), klar(2, 'Swamp', { sen: 0, ...FRAM })]);
+  const [b, f] = app.kort;
+  klocka.t += 150; stam([klar(1, 'Swamp', { sen: 0, ...BAK })]);                                            // det främres spår dör (vrids)
+  klocka.t += 150; stam([klar(1, 'Swamp', { sen: 0, under: [12], ...BAK }), ovila(12, FRAM)]);              // föds om: telefonen ser det över det bakre
+  klocka.t += 150; stam([ovila(12, FRAM)]);                                                                 // det bakres spår dör
+  klocka.t += 150; stam([ovila(12, FRAM), ovila(11, BAK)]);                                                 // och föds om
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), [], 'ett oframkallat kort ovanpå en hög som bara tappats');
+  assert.ok(app.kort.includes(b) && app.kort.includes(f));
+});
 prov('O11 namnet kommer på ett spår som fötts om bredvid: kortet tar över, ingen post blir kvar bredvid', () => {
   stam([ovila(1)]);
   tid(klocka.t + 600);

@@ -695,8 +695,8 @@ const PROV = async () => {
     r.push(S(43, null, 0.64, 0.25, { tillstand: 'okand', gissning: 'Serra Angel', cands: [{ name: 'Serra Angel', score: 0.4 }] }));
     avstamBord(r, false);
     await vanta(650);
-    const u = ofrEl(43), mark = u && u.querySelector('.ofrmark');
-    ok('aldrig något namn: oframkallat med "Name this card", utan kamerans gissning', !!u && !!mark && mark.textContent === 'Name this card' && !/Serra/.test(u.outerHTML), u ? u.textContent : 'inget');
+    const u = ofrEl(43), mark = gridEl.querySelector(':scope > .ofrmark[data-ofr="43"]');   // etiketten är ett eget element i brädet (MES-346)
+    ok('aldrig något namn: oframkallat med "Name this card", utan kamerans gissning', !!u && !!mark && mark.textContent === 'Name this card' && mark.dataset.pend === u.dataset.pend && !/Serra/.test(u.outerHTML + mark.outerHTML), u ? u.textContent : 'inget');
     ok('ingen platshållare och ingen laddtext på mattan', !gridEl.querySelector('.plats') && !/Reading|Asking Claude|Moving…/.test(gridEl.textContent), '');
     /* Motståndarna: bordsraden bär det oframkallade kortet som en post utan namn, med en liten suddig bild. */
     for (let i = 0; i < 20 && !(ofrLista()[0] || {}).liten; i++) await vanta(25);
@@ -743,6 +743,27 @@ const PROV = async () => {
     ok('minskad rörelse: det oframkallade kortet tonas in, framkallningen är linjär', !!oL && /opacity/.test(aO) && !/translate|scale/.test(aO) && eas === 'linear', `${aO} · ${eas}`);
     window.__mattLugn = false;
     for (let i = 0; i < 100 && lugn(); i++) await vanta(20);
+    /* MES-346: tre oframkallade kort omlott, alla i granskningen. Etiketterna är egna element i brädet och läggs
+       ut så att de inte täcker varandra; var och en syns överst där den står, och klicket öppnar sökrutan
+       bredvid sitt eget kort. Kontrollen: på sina vanliga platser (--ofrdy borttaget) krockar de. */
+    const tata = [61, 62, 63];
+    tata.forEach((id, i) => r.push(S(id, null, 0.66 + 0.012 * i, 0.3 + 0.01 * i, { tillstand: 'okand', cands: [{ name: 'Forest', score: 0.4 }] })));
+    avstamBord(r, false);
+    await vanta(650);
+    const etik = tata.map(id => gridEl.querySelector(`:scope > .ofrmark[data-ofr="${id}"]`));
+    const rekt = el => el.getBoundingClientRect(), skar = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    const par = f => etik.flatMap((a, i) => etik.slice(i + 1).map(b => f(rekt(a), rekt(b))));
+    const fore = etik.every(Boolean) ? (() => { for (const el of etik) el.style.removeProperty('--ofrdy'); const k = par(skar).some(Boolean); ofrMarkLagg(); return k; })() : false;
+    ok('kort omlott: utan utläggningen täcker etiketterna varandra (kontrollen)', fore, etik.map(el => el ? 'etikett' : 'ingen').join(','));
+    ok('… med den: tre etiketter, ingen täcker en annan', etik.every(Boolean) && !par(skar).some(Boolean), etik.filter(Boolean).map(el => { const q = rekt(el); return `${Math.round(q.left)},${Math.round(q.top)}`; }).join(' '));
+    const overst = el => { const q = rekt(el), t = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return !!t && (t === el || el.contains(t)); };
+    ok('… och var och en ligger överst där den står (går att läsa och klicka på)', etik.every(el => el && overst(el)), etik.map(el => el && overst(el) ? 'ja' : 'nej').join(','));
+    const mitt = etik[1], mittKort = ofrEl(62);
+    if (mitt) mitt.click();
+    const sok2 = document.querySelector('.ofrsok'), kr = mittKort && rekt(mittKort), sr2 = sok2 && rekt(sok2);
+    ok('klicket på den mittersta etiketten öppnar sökrutan för just det kortet, bredvid det', !!sok2 && ofrSok && ofrSok.pend === mitt.dataset.pend && mittKort.dataset.pend === mitt.dataset.pend && (sr2.right <= kr.left || sr2.left >= kr.right),
+      sok2 ? `pend ${ofrSok && ofrSok.pend} / ${mitt.dataset.pend}, ruta ${Math.round(sr2.left)}–${Math.round(sr2.right)}, kort ${Math.round(kr.left)}–${Math.round(kr.right)}` : 'ingen ruta');
+    ofrSokStang();
   } catch (e) { ok('framkallningen: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); }
   return rad;
 };
