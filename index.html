@@ -30960,6 +30960,14 @@ let losaSpar = new Set();    // spår-id ur senaste bordet som inte räknades ti
 let sparSedd = new Map();    // spår-id → Date.now() när datorn först såg spåret
 let sparLage = new Map();    // spår-id → { x, y, andrad, klar }: var spåret låg senast, när det senast dök upp eller flyttade sig, och när det fick sitt utfall
 const AUTO_RORLIGT_S = 3;    // ett spår som är 'ny' (rör sig) längre än så är en hand eller ett kort på väg, inte något som läses
+/* Dödzonen (princip 6, MES-341/342): mätt 2026-10-07 i uppspelaren på golden, passet och partiet.
+   Stilla kort darrar under 0,02 lådbredder i 99,9 % av rutorna (som mest 0,20), och knuffarna i facit
+   är 0,06–0,5 kortbredder — med 0,15 syns ungefär hälften av dem inte. Men både hela konstanten på
+   0,05/0,10 och en delad (0,08 bara för mattans läge i kamLage, 0,15 kvar för bindningen) gör
+   uppspelaren sämre: tid till rätt plats 1,98 → 2,12 s, g12:s flytt 0,37 → 9,97 s, g07:s zoom
+   10,6 → 13,3/min — kortet knuffas på mattan i små steg och kommer aldrig till ro i måttets mening.
+   0,25 gör partiet (p0921) sämre. 0,15 står kvar; en mindre dödzon kräver att små knuffar samlas
+   ihop till en rörelse (eller ett annat mått) innan den går in. */
 const AUTO_FLYTT = 0.15;     // ett spår vars hörn gått längre än så av dess bredd har spelaren flyttat — mindre är detektorns darr
 const AUTO_EFTER_S = 4;      // notisen om ett kort står kvar så länge efter att kortet hamnade i granskningen
 const AUTO_LYFT_S = 6;       // "syns inte längre" står så länge efter nedtoningen — bordet visar det nedtonade kortet ändå
