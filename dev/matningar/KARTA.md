@@ -253,12 +253,12 @@ hela kedjan och kan bara säga *att* något blev sämre. Delproven säger *var*.
 
 Python-delproven körs med `~/.mesa/detektor-venv/bin/python`.
 
-## 7. Det som inte är på main, och det som är gammalt
+## 7. Det som är arkiverat eller borttaget
 
 | Vad | Läge |
 |---|---|
-| **Högbänken** `dev/hogbank.cjs` | finns bara på grenen `mes-250-hoglasning` (2026-09-24). Den provar högläsningen som byggdes på samma gren (`hogBand`, `hogLas` i `index.html`), och den klarade inte sin grind. Bänken kan inte flyttas till main ensam, för koden den provar finns inte där. Högarna mäts i stället med `hogbank_remsor.py` mot samma 68 fall |
-| **Matcher-bänken** `dev/bench.html` | från första committen 2026-09-02 och aldrig ändrad. Den provar `dev/matcher.js`, en gammal kopia av appens bildjämförelse som inte hålls i takt med appen. Inget annat använder den |
+| **Högbänken** `dev/hogbank.cjs` | arkiverad 2026-10-08 som taggen `arkiv/mes-250-hoglasning`. Den provade en gammal idé, att räkna kortkanterna i en hög, som inte klarade sin grind. Samma 68 högar mäts i dag av delprovet *Högarna*, med dagens sätt att läsa |
+| **Matcher-bänken** `dev/bench.html` | borttagen 2026-10-08. Den provade en gammal kopia av bildjämförelsen. Den finns kvar i git (`git show 6dfb2b1:dev/bench.html`) |
 
 ## 8. Kända luckor
 
