@@ -9224,6 +9224,7 @@ function matVyFor(p) {
    pan stå som man lämnade dem. Bara ett nytt spel — det första besöket efter att spelet skapats — börjar i
    utgångsläget (hela kamerabilden när den är känd). Vyn hör till ett spel, inte till en spelare: spelar-id är
    detsamma i alla spel. Minnet sparas inte till disk; en omladdning börjar om. */
+let matVyIntrade = false;   // sant tills matStegStart skapat utgångsläget för ett spel som gåtts in i utan minne
 const matVyPerSpel = new Map();   // spel-id → matVyFor-posten som den stod när man lämnade spelet
 function matVyLamna() {
   if (!spelLage) return;
@@ -9231,11 +9232,15 @@ function matVyLamna() {
   if (v && v.steg && v.steg.nyckel === spelLage.mig + '|' + spelLage.id) matVyPerSpel.set(spelLage.id, v);
 }
 /* Vyn tillbaka för spelet man går in i, eller ingen (matVyer rensas, nytt spel). Kamerabilden är okänd tills
-   telefonen rapporterat igen, och när skalan blir känd flyttar sig mattan inte (matStegBeslut): kamerabilden tar
-   bara över på knappen Fit camera view. */
+   telefonen rapporterat igen. Ett spel man varit i får sin zoom och pan tillbaka, och när skalan blir känd flyttar sig
+   mattan inte (matStegBeslut): kamerabilden tar bara över på knappen Fit camera view. Utan minne (ett spel man inte
+   varit i, eller efter en omladdning) hoppar mattan till hela kamerabilden direkt när skalan först blir känd, utan
+   glidning (matVyIntrade → s.hopp) — samma läge som knappen ger. */
 function matVyAterta(spelId, mig) {
   const v = matVyPerSpel.get(spelId);
-  if (!v) { matVyer.delete(mig); return false; }
+  if (!v) { matVyer.delete(mig); matVyIntrade = true; return false; }
+  matVyIntrade = false;
+  if (v.steg) v.steg.hopp = false;   // ett spel med minne ligger kvar, också om kamerabilden aldrig hann bli känd
   matVyer.set(mig, v);
   return true;
 }
@@ -9405,7 +9410,8 @@ function matStegStart(p, v, vp, ram) {
   const cam = matKamRam(p), omr = forenaRam(cam, ram), nyckel = p.id + '|' + (spelLage ? spelLage.id : '');
   let s = v.steg;
   if (!s || s.nyckel !== nyckel) {
-    s = v.steg = { nyckel, bas: zstegBas(vp), z: 1, pan: { x: 0, y: 0 }, kam: !!cam, ram, ny: true };
+    s = v.steg = { nyckel, bas: zstegBas(vp), z: 1, pan: { x: 0, y: 0 }, kam: !!cam, ram, ny: true, hopp: matVyIntrade };
+    matVyIntrade = false;
     zstegGrund(s, vp, cam, ram, omr);
     v.zoomManual = null; v.pan = { x: s.pan.x, y: s.pan.y }; v.ramHall = null;
     s.omrHall = cam;
@@ -9448,6 +9454,21 @@ function matStegBeslut(p, v) {
     const vy = matVyFor(p), stod = !v.manuell && Math.abs(vy.pan.x - s.pan.x) < 1 && Math.abs(vy.pan.y - s.pan.y) < 1;
     zstegGrund(s, vp, grund, ram, omr);
     if (stod) { s.ny = true; andrat = true; }
+  } else if (cam && s.hopp) {
+    /* Ett spel utan minne: hela kamerabilden, direkt och utan glidning, när den blir känd — och med den skalan som
+       mäts om de första sekunderna (leken, sedan korten) följer mattan med, till spelaren rör den själv. Första
+       gången också om hon redan zoomat. Ett spel med minne (matVyAterta) har s.hopp falskt och ligger kvar. */
+    const vy = matVyFor(p), stod = !s.kam || (!v.manuell && Math.abs(vy.pan.x - s.pan.x) < 1 && Math.abs(vy.pan.y - s.pan.y) < 1);
+    if (!stod) s.hopp = false;
+    else {
+      const z0 = s.z, x0 = s.pan.x, y0 = s.pan.y;
+      zstegGrund(s, vp, cam, ram, omr);
+      if (!s.kam || Math.abs(s.z - z0) > 1e-4 || Math.abs(s.pan.x - x0) >= 1 || Math.abs(s.pan.y - y0) >= 1) {
+        vy.zoomManual = null; vy.pan = { x: s.pan.x, y: s.pan.y }; vy.ramHall = null;
+        s.ny = true; andrat = true;   // ny: ritat på plats, ingen glidning
+      }
+      s.kam = true;
+    }
   }
   s.ram = ram;
   if (andrat && !v.manuell) {

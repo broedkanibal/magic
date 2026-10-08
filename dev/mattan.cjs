@@ -497,13 +497,18 @@ const PROV = async () => {
     /* Ett nytt spel börjar i hela kamerabilden, utan egen zoom. */
     lamna(); await gaIn('mattprov-tillbaka-nytt', true);
     ok('nytt spel: knappen syns innan kamerabilden är känd, och ingen vy återställs', !matKamRam(mig) && knapp() && !matVy(mig).manuell, `kamerabilden ${matKamRam(mig) ? 'känd' : 'okänd'}`);
-    const TN = gridEl._matT;
     avstamBord(tb2, false); await vanta(900);
-    ok('nytt spel: när kamerabilden blir känd ligger mattan kvar, utan egen zoom', !!matKamRam(mig) && !matVy(mig).manuell && lika(gridEl._matT, TN) && !gar(gridEl), `${TN} → ${gridEl._matT}`);
+    { const hb = helaBilden(); ok('nytt spel: när kamerabilden blir känd hoppar mattan till hela kamerabilden, utan egen zoom', !!matKamRam(mig) && hb.ok && !matVy(mig).manuell && !gar(gridEl), hb.txt); }
     fitView(); await vanta(450);
-    { const hb = helaBilden(); ok('nytt spel: 0 tar mattan till hela kamerabilden, utan egen zoom', hb.ok && !matVy(mig).manuell, hb.txt); }
+    { const hb = helaBilden(); ok('nytt spel: 0 ger samma hela kamerabild', hb.ok && !matVy(mig).manuell, hb.txt); }
+    /* In i ett spel utan minne (en omladdning, eller ett spel man inte varit i), med korten redan på mattan: när
+       kamerabilden blir känd hoppar mattan direkt till hela kamerabilden — ingen glidning (500 ms). */
+    lamna(); await gaIn('mattprov-tillbaka-ominl', false);
+    avstamBord(tb, false); await vanta(250);   // kamerabilden blir känd; en glidning på 500 ms skulle fortfarande pågå
+    { const A = gridEl._matZoom, glider = !!A && A.playState === 'running', hb = helaBilden();
+      ok('in i ett spel utan minne: när kamerabilden blir känd hoppar mattan direkt till hela kamerabilden, utan glidning', !!matKamRam(mig) && !glider && hb.ok && !matVy(mig).manuell, `${glider ? 'glider' : 'ingen glidning'}; ${hb.txt}`); }
     /* Ett spel där kamerabilden aldrig hann bli känd, men spelaren flyttat mattan: tillbaka dit ska den heller inte
-       hoppa till kamerabilden när telefonen ansluter (s.kam sätts i matVyAterta). */
+       hoppa till kamerabilden när telefonen ansluter (matVyAterta tar bort s.hopp). */
     lamna(); await gaIn('mattprov-tillbaka-rort', true);
     zoomBy(0.8); await vanta(450); gridEl.classList.remove('glider');
     const T1 = gridEl._matT;
