@@ -3072,6 +3072,64 @@ prov('LS9 klockan börjar om när telefonen lär sig ljuset', () => {
   assert.ok(iHanden(a));
 });
 
+/* Kortet sett igen bredvid, på läsningens namn (Jespers bild 2, 2026-10-08). Kortets spår dör (en hand, blänket)
+   och ett nytt spår föds strax bredvid, men blir stilla först efter nåden — flyttens fönster (steg 3b) har
+   stängts. Läsningen säger "not sure (Militant Inquisitor)", utan platsens ledtråd. Förut väntade kortet på sitt
+   döda spår för alltid (namnet syntes ju annanstans) och spåret gick till granskningen: två kort på mattan,
+   ett fysiskt. Nu tar spåret kortet som en gissad flytt. */
+const VILA_ = { kortlik: true, vilar: true }, BREDVID = box(0.43, 0.41, 0.063, 0.088);
+const borjaV = () => { const mi = klar(1, 'Militant Inquisitor', { sen: 10, ...PORT, ...VILA_ }); stam([mi]); tick(2000, [mi]); return app.kort[0]; };
+const nyttV = (tillstand, rest) => Object.assign({ id: 2, tillstand, namn: null, saker: false, gissning: null, cands: null, tappad: false, sen: 10, ...BREDVID, kortlik: true, vilar: tillstand !== 'ny' }, rest || {});
+const osakertV = (namn, rest) => nyttV('okand', Object.assign({ namn, cands: [{ name: namn, score: 0.5 }] }, rest || {}));
+const medClaude = namn => ({ ai: { svar: [{ namn, sakerhet: 'medel', saker: false }] } });
+const fodV = () => { tick(4000, [nyttV('ny')]); tick(1000, [nyttV('stilla')]); tick(8000, [nyttV('okand', { provas: true })]); };
+prov('V1 osäkert spår bredvid med kortets namn från Claude, efter nåden: samma kort, flyttat — ingen granskning', () => {
+  const k = borjaV(); fodV();
+  assert.equal(k.spar, 1, 'kortet väntar på sitt döda spår medan det nya läses');
+  tick(3000, [osakertV('Militant Inquisitor', medClaude('Militant Inquisitor'))]);
+  assert.equal(app.kort.length, 1); assert.equal(k.spar, 2); assert.equal(app.pending.length, 0);
+  assert.ok(Math.abs(k.kam.x - (BREDVID.x + BREDVID.w / 2)) < 1e-9, 'kortet står där spåret ligger');
+});
+prov('V2 läsningen säger ett annat namn: kortet väntar orört, spåret till granskningen (som förut)', () => {
+  const k = borjaV(); fodV();
+  tick(3000, [osakertV('Flutterfox')]);
+  assert.equal(k.spar, 1); assert.equal(app.pending.length, 1);
+});
+prov('V3 två väntande kort med namnet: inget binds på namnet, spåret till granskningen', () => {
+  const a = klar(1, 'Militant Inquisitor', { sen: 10, ...PORT, ...VILA_ }), b = klar(3, 'Militant Inquisitor', { sen: 10, ...LANGT, ...VILA_ });
+  stam([a, b]); tick(2000, [a, b]);
+  assert.equal(app.kort.length, 2);
+  fodV(); tick(3000, [osakertV('Militant Inquisitor', medClaude('Militant Inquisitor'))]);
+  assert.ok(app.kort.every(c => c.spar !== 2)); assert.equal(app.pending.length, 1);
+});
+prov('V4 en senare säker läsning med ett annat namn: flytten ångras, kortet tillbaka där det låg', () => {
+  const k = borjaV(); const kam0 = Object.assign({}, k.kam); fodV();
+  tick(3000, [osakertV('Militant Inquisitor', medClaude('Militant Inquisitor'))]);
+  assert.equal(k.spar, 2);
+  tick(1000, [klar(2, 'Flutterfox', { sen: 10, ...BREDVID, ...VILA_ })]);
+  assert.ok(Math.abs(k.kam.x - kam0.x) < 1e-9 && k.spar === 1, 'kortet tillbaka på sin plats och sitt döda spår');
+  assert.ok(app.kort.some(c => c.name === 'Flutterfox' && c.spar === 2), 'det nya kortet får spåret');
+});
+prov('V5 platsen täckt av ett annat kort: kortet ligger kvar under, binds inte på namnet', () => {
+  const k = borjaV();
+  const tackare = klar(4, 'Mirran Bardiche', { sen: 10, ...flytt(PORT, 0.004), ...VILA_ });
+  tick(4000, [tackare, nyttV('ny')]); tick(1000, [tackare, nyttV('stilla')]); tick(8000, [tackare, nyttV('okand', { provas: true })]);
+  tick(3000, [tackare, osakertV('Militant Inquisitor', medClaude('Militant Inquisitor'))]);
+  assert.equal(k.spar, 1); assert.equal(app.pending.length, 1);
+});
+prov('V6 samma fall utan Claudes svar: läsningens osäkra namn binder inte, spåret till granskningen', () => {
+  const k = borjaV(); fodV();
+  tick(3000, [osakertV('Militant Inquisitor')]);
+  assert.equal(k.spar, 1); assert.equal(app.pending.length, 1);
+});
+prov('V7 Claude osäker (lag) eller fler kort i svaret: binder inte', () => {
+  const k = borjaV(); fodV();
+  tick(3000, [osakertV('Militant Inquisitor', { ai: { svar: [{ namn: 'Militant Inquisitor', sakerhet: 'lag', saker: false }] } })]);
+  assert.equal(k.spar, 1);
+  tick(1000, [osakertV('Militant Inquisitor', { ai: { svar: [{ namn: 'Militant Inquisitor', sakerhet: 'medel', saker: false }, { namn: 'Flutterfox', sakerhet: 'medel', saker: false }] } })]);
+  assert.equal(k.spar, 1); assert.equal(app.pending.length, 1);
+});
+
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);

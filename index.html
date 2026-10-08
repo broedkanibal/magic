@@ -33290,6 +33290,28 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      nedtonat kort som kommer tillbaka och ett som hålls av ett osäkert spår;
      bara ett — ett Swamp i högen, båda spåren färska i 0,45 s — hade
      färskhetsundantaget kunnat ta. (postensNamn står före steg 3b, som också läser den.) */
+  /* Kortet sett igen bredvid, på Claudes namn (Jespers bild 2, 2026-10-08). Kortets spår dör (en hand,
+     blänket) och ett nytt spår föds strax bredvid, men blir stilla först efter nåden: flyttens fönster
+     (steg 3b) har stängts, kortet går inte till handen (namnAnnanstans ser namnet på det nya spåret), och
+     ledtråden ovan binder bara på platsens gissning. Mattan visade kortet och "Name this card" för samma
+     fysiska kort. Nu bär spåret kortet som en gissad flytt (flyttBuren: en senare säker läsning med ett
+     annat namn ångrar den) — men bara med Claudes stöd: exakt ett kort i svaret, medel eller hog, med
+     kortets namn. Läsningens eget osäkra namn räcker inte: det flyttade Night's Whisper ur graveyard till
+     ett okänt kort i uppspelarens parti-kedjan. Och bara utan tvekan: kortet är det enda med namnet på
+     bordet, platsen är inte täckt (då ligger det kvar under), och inget annat löst osäkert spår bär namnet.
+     Före loopen: tacktAvKort är en const längre ned. */
+  const vantarPaNamn = t => {
+    if (!pol.flytt || t.provas || t.w == null || t.h == null || franHelbild(t) || !t.kortlik || t.ned || t.skymd || hoppade.has(t.id)) return null;
+    const svar = t.ai && t.ai.svar;
+    if (!svar || svar.length !== 1 || (svar[0].sakerhet !== 'medel' && svar[0].sakerhet !== 'hog') || !svar[0].namn || svar[0].namn !== t.namn) return null;
+    const namn = svar[0].namn, medNamn = mig.cards.filter(c => c.name === namn && paBordet(c));
+    if (medNamn.length !== 1) return null;
+    const k = medNamn[0];
+    if ((k.spar != null && synliga.has(k.spar)) || !k.kam || k.fysisk || k.attachedTo || annatKort(k, t)) return null;
+    if (spar.some(u => u !== t && u.w != null && !franHelbild(u) && !u.skymd && (u.tillstand === 'klar' || u.kortlik) && tackning(kamRekt(k.kam), u) >= SAMMA_KORT_TACKNING)) return null;
+    if (spar.some(u => u !== t && u.tillstand !== 'klar' && !iFysiskt.has(u.id) && !bunden(u.id) && postensNamn(u).has(namn))) return null;
+    return k;
+  };
   const sammaSomKlart = new Set();
   for (const t of spar) {
     if (iFysiskt.has(t.id)) continue;
@@ -33309,6 +33331,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
          nytt land på högen är inte det nya landet, hur lika de än heter. */
       k = t.provas ? null : ledigt(t.gissning, false, c => annatKort(c, t));
       if (k) binder(k, t);
+      else if ((k = vantarPaNamn(t))) flyttBuren(k, t);
     }
     /* Ett spår som prövas väntar på Claude: "inget kort" gör det till skräp
        på telefonen, ett namn med 'hog' till ett kort. Posten läggs först när
