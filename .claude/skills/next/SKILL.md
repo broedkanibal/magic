@@ -1,9 +1,9 @@
 ---
-name: nasta
-description: Visar vad som är på tur i Todo i Linear, förklarar kort problemet och lösningen i vardagsspråk, föreslår modell och effort och ställer frågor som gör prompten bra — och startar först när Jesper svarat. Kollar blockeringar och krockar med det som redan pågår (sessioner, orkestrerare, golden), bygger i en egen worktree, låter en fristående granskare läsa diffen och lämnar issuen i rätt kolumn. Använd när Jesper säger "nästa", "ta nästa", "/nästa", "jobba på något", "plocka en issue" eller "vad kan du göra nu". En issue per anrop.
+name: next
+description: Visar vad som är på tur i Todo i Linear, förklarar kort problemet och lösningen i vardagsspråk, föreslår modell och effort och ställer frågor som gör prompten bra — och startar först när Jesper svarat. Kollar blockeringar och krockar med det som redan pågår (sessioner, orkestrerare, golden), bygger i en egen worktree, låter en fristående granskare läsa diffen och lämnar issuen i rätt kolumn. Använd när Jesper säger "next", "/next", "nästa", "ta nästa", "jobba på något", "plocka en issue" eller "vad kan du göra nu". En issue per anrop.
 ---
 
-# /nästa — ta nästa issue ur Todo
+# /next — ta nästa issue ur Todo
 
 Todo innehåller bara det en agent kan göra utan Jesper (CLAUDE.md, "Triage,
 Backlog och Todo"). Den här skillen tar den första som går att börja på *nu*,
@@ -31,7 +31,7 @@ Gå nerifrån `KÖN` i ordning. Den första som klarar alla fyra tas:
 | **Blockerad?** | flaggan i nasta.cjs, plus beskrivning och kommentarer ("kräver att X finns") | `agent.blockeraIssue(id, orsak, { blockeradAv })` → nästa |
 | **Krockar?** | flaggan "samma område" betyder *läs båda*. Krock = samma funktioner i `index.html`, samma del av kedjan, eller något tabellen "Kodområde / Kan gå parallellt med" i `dev/plan/orkestrering.md` säger inte får köras samtidigt. Jämför också med sessionerna i `ListAgents` | lämna den i Todo → nästa, och säg vilken den krockade med |
 | **Behöver Jesper?** | läs beskrivningen: ett beslut, ett konto, en inspelning, ett prov som måste göras *innan* bygget | `agent.markeraBehoverJesper(id, vad)` → nästa |
-| **Fortfarande Todo?** | kontrolleras igen i steg 4, precis före start — en orkestrerare eller en annan `/nästa` kan ha tagit den medan Jesper svarade | nästa, och säg det |
+| **Fortfarande Todo?** | kontrolleras igen i steg 4, precis före start — en orkestrerare eller en annan `/next` kan ha tagit den medan Jesper svarade | nästa, och säg det |
 
 Efter fem överhoppade: stanna och säg vad som stoppar kön.
 
@@ -127,7 +127,7 @@ In Progress får aldrig bli kvar efter att sessionen slutat (CLAUDE.md).
 ## Gör inte
 
 - Starta något innan Jesper svarat på frågorna i steg 3.
-- Ta mer än en issue per `/nästa`.
+- Ta mer än en issue per `/next`.
 - Plocka ur något annat än Todo, eller flytta något ur Triage eller Backlog.
 - Flytta en issue som en annan session har i In Progress.
 - Pusha till main medan en orkestrerare kör, utan att ha frågat den.

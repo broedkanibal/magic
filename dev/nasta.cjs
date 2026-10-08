@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-/* Underlaget för /nästa: kön i Todo i den ordning en agent ska ta den, det
+/* Underlaget för /next: kön i Todo i den ordning en agent ska ta den, det
    som pågår just nu (Linear och den här datorn), och en flagga per kandidat
    för det som ser ut att krocka. Skriver ingenting — valet och bedömningen
-   gör sessionen enligt .claude/skills/nasta/SKILL.md och CLAUDE.md.
+   gör sessionen enligt .claude/skills/next/SKILL.md och CLAUDE.md.
 
    Krockflaggorna är en grov första sållning, inte en dom: samma område som en
    issue i In Progress (etiketterna spelvyn, kortigenkänning, telefonen,

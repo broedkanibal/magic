@@ -25,7 +25,7 @@ Du bygger i en egen worktree och lämnar en gren med bevis. Du slår aldrig ihop
 
 Du är en subagent. Din cache går ut efter **5 minuter** utan anrop, och då läses hela ditt samtal in igen till fullt pris — för en byggare som vuxit till flera hundra tusen tokens är det den enskilt dyraste posten (mätt 2026-10-08, se CLAUDE.md *Kostnad*). Därför:
 
-- **Golden kör du inte.** Den tar ~25 min. Den som startade dig (orkestreraren, eller sessionen som körde `/nästa`) kör den när du rapporterat. Skriv i rapporten vilka golden-fall ändringen kan påverka.
+- **Golden kör du inte.** Den tar ~25 min. Den som startade dig (orkestreraren, eller sessionen som körde `/next`) kör den när du rapporterat. Skriv i rapporten vilka golden-fall ändringen kan påverka.
 - **Iterera med de riktade proven** (`dev/kamerabank.cjs`, `dev/leken.cjs`, `dev/mattan.cjs`, `dev/avstamning.cjs`, `dev/hogarna.cjs` — sekunder) och kör `sh dev/kolla.sh` en gång innan du lämnar.
 - **Vänta aldrig.** Ingen `sleep`-loop, inget "prova igen om 30 s", ingen bakgrundskörning du sedan väntar in. Tar ett kommando mer än ~3 minuter, eller är datorn upptagen av en annan körning: rapportera vad som återstår och avsluta.
 - **Håll dig liten.** Läs funktionerna du ändrar, inte hela `index.html`; läs inga hela loggar. Har du gjort mer än ~150 verktygsanrop, eller rättat samma sak tre gånger utan framsteg: rapportera läget och avsluta. Nästa runda görs av en ny agent med din rapport.

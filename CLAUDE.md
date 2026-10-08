@@ -83,7 +83,7 @@ Jesper ser dem utan att leta i Linear.
 Det finns **ett** ställe att titta på: lagets Issues, grupperad på status,
 ordnad på **Priority**, med "visa sub-issues" avslagen. Ordnad på Priority
 kan ett kort aldrig hamna ovanför en högre prio, och det Jesper drar ändrar
-ordningen inom prion (`prioritySortOrder`, som `/nästa` läser). Inga sparade vyer — en vy som bara filtrerar
+ordningen inom prion (`prioritySortOrder`, som `/next` läser). Inga sparade vyer — en vy som bara filtrerar
 på status är statusen förklädd till navigation.
 
 **Testet för ett projekt: kan du säga "klart" och mena det, med ett datum?**
@@ -211,11 +211,11 @@ schemalagd körning om en sådan sätts upp.
    Behöver dig (`markeraBehoverJesper`), och nästa i kön.
 4. En issue per session, om inte en orkestrerande session delar ut flera.
 
-Skillen **`/nästa`** (`.claude/skills/nasta/`) gör hela vägen: underlaget
+Skillen **`/next`** (`.claude/skills/next/`) gör hela vägen: underlaget
 (`node dev/nasta.cjs` + `ListAgents`), valet, `paborjaIssue`, bygget i en
 egen worktree, fristående granskning, och rätt kolumn efteråt. Den och en
 orkestrerare kan köra samtidigt: In Progress är låset, och kör en
-orkestrerare slår `/nästa` inte ihop själv utan lämnar grenen till den.
+orkestrerare slår `/next` inte ihop själv utan lämnar grenen till den.
 
 ### Innan en issue plockas upp ur Todo
 
@@ -402,7 +402,7 @@ Tre vanor:
 
 1. **Prioriteten sätts när issuen flyttas till Todo**, inte senare.
 2. **Inom samma prioritet bestämmer ordningen i kolumnen** — Jesper drar
-   korten, och `/nästa` följer ordningen.
+   korten, och `/next` följer ordningen.
 3. **När en High blir klar lyfts en Medium till High.** En agent får
    föreslå vilken, aldrig göra det själv.
 
