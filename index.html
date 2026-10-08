@@ -2486,6 +2486,8 @@ body:not(.debug) .dbg{display:none!important}
 .kedjatl th{font:600 10.5px var(--sans);color:var(--dim2);text-align:left;padding:0 10px 3px 0;text-transform:uppercase;letter-spacing:.04em}
 .kedjatl td{padding:1px 12px 1px 0}
 .kedjatl td.n{color:var(--dim2)}
+.kedjatl tr.mk td{color:#7fb0e8;font-weight:500}
+.kedjatl .vant{margin-top:5px;color:#7fb0e8;font-weight:500}
 .kedjatl td.t{text-align:right}
 .kedjatl .dom{margin-top:6px;padding-top:6px;border-top:1px solid #ffffff1f;font-weight:600}
 .kamskruv .kalbild{margin:0 4px 8px;height:104px;min-height:0;border-radius:var(--rs);border:1px solid var(--line)}
@@ -8342,7 +8344,9 @@ function kedjaLas(k) {
     kor.push(r); korSlut = Math.max(kor.length > 1 ? korSlut : -1, slutAv(r));
   }
   const tid = kor.length ? Math.max(...kor.map(slutAv)) - kor[0].a : 0;
-  return { rader, nu, tid, ai: kor.some(r => r.ai && r.slut !== 'timeout') };
+  /* Markeringarna (k.m): kortet rörde sig senast / ser ut som ett kort / räknat som stilla. */
+  const mk = (Array.isArray(k.m) ? k.m : []).map((a, i) => a == null ? null : { mk: ['rorelse', 'skugga', 'stilla'][i], a, namn: ['Card last moved', 'Looks like a card', 'Counted as still'][i] }).filter(Boolean);
+  return { rader, nu, tid, ai: kor.some(r => r.ai && r.slut !== 'timeout'), mk, start: kor.length ? kor[0].a : null };
 }
 /* Domen i ord: namnet och om det är säkert, eller varför det inte blev något. */
 function kedjaDom(k) {
@@ -8361,7 +8365,12 @@ function kedjaTidslinje(k) {
   const L = kedjaLas(k), d = L.nu.length ? null : kedjaDom(k), t0 = L.rader.length ? L.rader[0].a : 0;   // medan något arbetar är domen inte färdig
   const rad = (r, n) => `<tr class="${r.ms == null ? 'nu' : ''}"><td class="n">${n}</td><td class="st">${esc(r.namn)}</td><td class="t">+${((r.a - t0) / 1000).toFixed(2)} s</td>`
     + `<td class="t">${r.slut === 'timeout' ? '<span class="nej">timeout</span>' : esc(r.utanTid ? '—' : r.ms == null ? kedjaPagar(k, r) : kedjaMs(r.ms))}</td><td class="${r.ai ? 'ai' : 'lok'}">${r.ai ? 'Claude' : 'local'}</td></tr>`;
-  return `<table><tr><th></th><th>Step</th><th>Start</th><th>Time</th><th></th></tr>${L.rader.map((r, i) => rad(r, i + 1)).join('')}</table>`
+  /* Markeringarna står mellan stegen, i tidsordning: rader utan nummer och utan tid. */
+  const mrad = m => `<tr class="mk"><td class="n">◆</td><td class="st">${esc(m.namn)}</td><td class="t">${m.a - t0 < 0 ? '−' : '+'}${(Math.abs(m.a - t0) / 1000).toFixed(2)} s</td><td></td><td></td></tr>`;
+  const alla = L.rader.map((r, i) => ({ a: r.a, h: rad(r, i + 1), o: 1 })).concat(L.mk.map(m => ({ a: m.a, h: mrad(m), o: 0 }))).sort((p, q) => (p.a - q.a) || (p.o - q.o));
+  const rorM = L.mk.find(m => m.mk === 'rorelse'), vantat = rorM && L.start != null ? L.start - rorM.a : null;
+  const vantRad = vantat == null ? '' : `<div class="vant">${vantat >= 0 ? `Read started ${esc(kedjaMs(vantat))} after the card last moved` : `Read started ${esc(kedjaMs(-vantat))} before the card last moved`}</div>`;
+  return `<table><tr><th></th><th>Step</th><th>Start</th><th>Time</th><th></th></tr>${alla.map(x => x.h).join('')}</table>${vantRad}`
     + `<div class="dom">${d ? `<span class="${d.kl}">${esc(d.txt)}</span>` : '<span class="nu">reading…</span>'}${k.varfor ? ` <span class="lok">· ${esc(k.varfor)}</span>` : ''}`
     + ` <span class="lok">·</span> ${esc(kedjaMs(L.tid))} <span class="lok">·</span> ${L.ai ? '<span class="ai">with Claude</span>' : '<span class="lok">without Claude</span>'}</div>`;
 }
@@ -24715,8 +24724,15 @@ const Kamera = (() => {
   /* Per spår: loggen som [del, start, ms (null = arbetar), slut ('timeout')], t (ms sedan loggens början, nu —
      så att en del som arbetar kan visa hur länge den hållit på) och domen — namnet, om det är säkert,
      tillståndet och domskälet (varfor) — så att etiketten kan säga vad som till sist avgjorde. */
-  const kedjaAv = t => ({ id: t.id, l: kedjaLogg(t).map(e => [e.s, e.a, e.ms, e.slut || null]), t: Date.now() - t.kedjaT0, namn: t.namn || null, saker: !!t.saker,
-                          tillstand: t.tillstand, varfor: t.varfor || null });
+  /* m: tre tidsstämplar ur latensmätningen (stampla/rorde, samma klocka som loggen), som ms sedan loggens
+     början, null = inte än — rorelse: senaste ruta där kortet rörde sig (eller handen vid det), skugga:
+     första rapporten där spåret är kortlikt, stilla: räknat som stilla (stillaMs). De visar hur mycket av
+     tiden före läsningen som är kortet i rörelse och hur mycket som är väntan. */
+  const kedjaAv = t => {
+    const ts = t.ts || {}, rel = v => v != null && t.kedjaT0 ? Math.round(v - t.kedjaT0) : null;
+    return { id: t.id, l: kedjaLogg(t).map(e => [e.s, e.a, e.ms, e.slut || null]), t: Date.now() - t.kedjaT0, m: [rel(ts.rorelse), rel(ts.skugga), rel(ts.stilla)],
+             namn: t.namn || null, saker: !!t.saker, tillstand: t.tillstand, varfor: t.varfor || null };
+  };
   function kedjaSkicka() {
     if (!kedjaPa || !cb.kedja || kedjaTimer) return;
     kedjaTimer = setTimeout(() => { kedjaTimer = null; kedjaSist = Date.now(); if (kedjaPa && cb.kedja) cb.kedja(spar.map(kedjaAv)); }, Math.max(0, kedjaSist + KEDJA_MS - Date.now()));
