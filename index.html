@@ -31026,6 +31026,7 @@ function glomSpar() {
   /* Remsans minne av spåren hör till samma numrering som bindningen. */
   losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map();
   sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); flyttVantan = new Map(); platsMinne = new Map();   // tvivelSteg, dubblettväntan och platsminnet: samma numrering
+  losKort = new Map();   // kort utan spår: klockan börjar om när kameran ska läsa om bordet
   const mig = minSpelare(); if (!mig) return;
   let andrat = false;
   for (const k of mig.cards) {
@@ -31115,6 +31116,16 @@ let gravHandelser = [], gravSistaN = null, gravTid = new Map();
 const HAND_RAD_MS = 6000;       // raden står så länge; sedan står handen fast
 const HAND_RAD_SVAR_MS = 1800;  // bekräftelsen efter ett val ("is back on the table") står så länge
 let handRad = [];               // [{ cid, kort, i, borta0, nar, tok, namn, val? }], nyast sist
+/* Kort utan spår på ett speglat bord (Jesper 2026-10-08: "bordet ska alltid vara up to date"). Bara ett
+   bundet kort kunde lämna mattan — det har ett spår som kan dö. Bindningen släpps när sidan laddas om
+   (spar sparas inte), när telefonen nollställer sig och i fall 8 (telefonen knuffad), i tron att kameran
+   binder om på namnet. Låg kortet inte kvar fysiskt fanns inget spår att binda, och det stod på mattan för
+   alltid: Maul of the Skyclaves, Faithful Pikemaster, Plains och Thriving Heath på mattan, ett Swamp i bild.
+   Nu: ett kort kameran lagt ut (kam) som legat obundet i LOS_MS riktiga bord, utan att något i bild kan
+   vara det, går till handen som ett lyft kort (tillHanden, raden med Still on the table). Klockan nollas
+   när bordet inte stäms av (ljuset, uppstarten, glomSpar): kameran ska ha hunnit läsa om bordet. */
+const LOS_MS = 8000;            // BORTA_NAD plus en läsning, som GRAV_ATER_MS
+let losKort = new Map();        // cid → när kortet först sågs obundet i ett riktigt bord
 /* Raderna som gått ut tas bort; sant när något togs bort. */
 function handRadStada(nu) {
   const n = handRad.length;
@@ -32459,11 +32470,11 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   spar = spar.filter(t => !gravIgnorerad(t));
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
-  if (nollstall) { gravGlomPlatser(); glomSpar(); ofrGlom(); gravHandelser = []; gravSistaN = null; gravTomNar = 0; gravTomSparr = false; gravFoljdaSpar = new Map(); gravTid = new Map(); sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); flyttVantan = new Map(); platsMinne = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
+  if (nollstall) { gravGlomPlatser(); glomSpar(); ofrGlom(); losKort = new Map(); gravHandelser = []; gravSistaN = null; gravTomNar = 0; gravTomSparr = false; gravFoljdaSpar = new Map(); gravTid = new Map(); sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); flyttVantan = new Map(); platsMinne = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
   /* Medan telefonen lär sig ljuset spårar den redan, men bordet tas emot
      först när fasen bytt: det som kommer under sekunden är preliminärt, och
      telefonen skickar hela bordet igen så fort referensen är klar. */
-  if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { renderMode(); uppdateraPbStatus(); return; }
+  if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { losKort = new Map(); renderMode(); uppdateraPbStatus(); return; }
   const nu = Date.now();
   gravTaEmot(grav, nu);
   handRadStada(nu);   // raden vid nederkanten (MES-343): valet som gått ut står fast — handen
@@ -32477,7 +32488,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      (senasteSpar, sparSedd) så att steg 4 ser provkortet, men mitt bord
      rörs inte: inga nya kort, inga frågor, ingen tap, inget till graveyard. */
   if (oppstartSparr()) {
-    gravHandelser = []; losaSpar = new Set(); clearTimeout(lyftT);
+    gravHandelser = []; losaSpar = new Set(); losKort = new Map(); clearTimeout(lyftT);
     for (const t of spar) if (!sparSedd.has(t.id)) sparSedd.set(t.id, nu);
     for (const id of [...sparSedd.keys()]) if (!spar.some(t => t.id === id)) sparSedd.delete(id);
     senasteSpar = spar; renderMode(); uppdateraPbStatus(); return;
@@ -32501,7 +32512,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      nya Forest bredvid de fyra gamla. Bara graveyard är utanför. */
   const paBordet = c => zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil';
   const bunden = id => mig.cards.find(c => c.spar === id);
-  const binder = (k, t) => { k.spar = t.id; delete k.borta; delete k.slappt; andrat = true; };
+  const binder = (k, t) => { k.spar = t.id; delete k.borta; delete k.slappt; delete k.kvarSagt; losKort.delete(k.cid); andrat = true; };
   /* Ett ledigt kort med rätt namn: ett vars spår inte finns i meddelandet,
      annars ett utan spår — det som ligger kvar efter en omkoppling, eller
      lades in för hand eller ur en skärmdump innan kameran såg det. Förut
@@ -33097,6 +33108,24 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     if (pol.saknas && k.spar == null && paBordet(k) && gravAutoOm(k, k.slappt)) { delete k.slappt; continue; }
     if (nu - k.slappt > GRAV_EFTER) delete k.slappt;
   }
+  /* Kort utan spår (LOS_MS): efter efterskottet, så att högen hinner ta ett släppt kort först. Väntar
+     vidare som ett kort i väntan (orort) — namnet syns någon annanstans, platsen är täckt, en hand är
+     nära — och så länge något kortformat i bild inte är färdigläst, när det föddes spelar ingen roll: efter
+     en omladdning är alla spår nya. Ett kort spelaren sagt ligger kvar (Still on the table, kvarSagt) och
+     ett kort kameran aldrig lagt ut (inget kam: lagt för hand) rörs inte. */
+  if (pol.saknas) {
+    const olastNagot = spar.some(t => t.w != null && !franHelbild(t) && !bunden(t.id) && !t.ned && !!t.kortlik && t.tillstand !== 'klar'
+      && !hoppade.has(t.id) && !borttagna.has(t.id) && !sammaSomKlart.has(t.id));
+    for (const k of mig.cards.slice().sort((a, b) => (a.attachedTo ? 1 : 0) - (b.attachedTo ? 1 : 0))) {
+      if (k.spar != null || !paBordet(k) || !k.kam || k.fysisk || k.kvarSagt || k.slappt != null || k.attachedTo || tackt(k)) { losKort.delete(k.cid); continue; }
+      if (!losKort.has(k.cid)) { losKort.set(k.cid, nu); continue; }
+      if (nu - losKort.get(k.cid) < LOS_MS || olastNagot || namnAnnanstans(k) || tacktAvKort(k) || handNara(k, sparRa)) continue;
+      losKort.delete(k.cid);
+      /* borta0 null: högvakten parar ingen ändring av graveyard med det här kortet — det lyftes inte nu. */
+      if (tillHanden(mig, k, null, nu)) andrat = true;
+    }
+    for (const cid of [...losKort.keys()]) if (!mig.cards.some(c => c.cid === cid)) losKort.delete(cid);
+  }
   /* En token som gick till graveyard ovan — själv (gravAutoOm, besvärjelsen)
      eller som aura på sin värd — upphör att finnas (MES-105), som i
      flyttaTill. Förut låg den kvar i högen. Här och inte i gravAutoOm:
@@ -33137,6 +33166,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   /* Ett kort som väntar vidare efter väntan (orört: en hand nära, platsen täckt, något oläst, vid kanten,
      MES-343) driver ingen timer — det prövas i varje rapport och hjärtslag; annars fyrade timern var 100:e ms. */
   const frister = mig.cards.filter(k => k.borta && nu - k.borta <= BORTA_NAD).map(k => { const v = nu - k.borta; return k.borta + (v <= SLAPP_MS ? SLAPP_MS : BORTA_NAD); });
+  for (const t0 of losKort.values()) if (nu - t0 < LOS_MS) frister.push(t0 + LOS_MS);   // kort utan spår: på millisekunden, inte vid nästa hjärtslag
   /* Dubblettväntan (steg 4) tar slut i tid också när telefonen är tyst; spår som försvunnit glöms. */
   for (const id of [...flyttVantan.keys()]) if (!synliga.has(id)) flyttVantan.delete(id);
   /* Platsminnet (steg 3b): var varje spår låg senast, FLYTT_VILA bakåt. Timerns omspelning av samma
@@ -33292,6 +33322,7 @@ function handRadVal(cid, val) {
   if (val === 'kvar' || val === 'angra') {
     angraPunkt();
     h.val = null; handRadTillbaka(mig, h, val, h.nar);   // kortet och dess auror tillbaka där de låg
+    k.kvarSagt = 1;   // spelaren har sagt att det ligger kvar: regeln för kort utan spår (LOS_MS) rör det inte förrän kameran bundit det
     save(); renderAll(true);
     const el = kortEl(k.cid); if (el) matGlidFranHand(el);
   } else if (val === 'exil') {

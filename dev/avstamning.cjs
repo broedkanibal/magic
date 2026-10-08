@@ -159,7 +159,7 @@ return {
   losBifogade() { return losBifogade(state.players[0].cards); },
   /* Raden vid nederkanten (MES-343): korten kameran skickat till handen, med valet kvar. */
   get handRad() { return handRad; },
-  handVal(cid, val) { /* kvar/angra: kortet och dess auror tillbaka (handRadTillbaka), som handRadVal i appen; exil/bib: bara valet */ const h = handRad.find(x => x.cid === cid && !x.val); if (!h) return false; if (val === 'kvar' || val === 'angra') return handRadTillbaka(state.players[0], h, val, Date.now()); h.val = val; h.nar = Date.now(); return true; },
+  handVal(cid, val) { /* kvar/angra: kortet och dess auror tillbaka (handRadTillbaka), som handRadVal i appen; exil/bib: bara valet */ const h = handRad.find(x => x.cid === cid && !x.val); if (!h) return false; if (val === 'kvar' || val === 'angra') { const r = handRadTillbaka(state.players[0], h, val, Date.now()); h.kort.kvarSagt = 1; return r; } h.val = val; h.nar = Date.now(); return true; },
   tillbaka(namn, utom) { return kortSomKomTillbaka(state.players[0].cards, namn, utom); },
   /* Nollställningen går genom avstamBord: det är där "senaste kortet"
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
@@ -2995,6 +2995,81 @@ prov('Tc3 värden tillbaka via Still on the table efter att högen tagit auran: 
   klocka.t += 150; stamG([], hog(0)); klocka.t += 3100; stamG([], hog(0));
   assert.ok(app.handVal(a.cid, 'kvar'));
   assert.equal(app.kort.filter(c => c.name === 'Pacifism').length, 1); assert.equal(p.attachedTo, a.cid); assert.equal(p.zon, undefined);
+});
+
+/* LS — kort utan spår (LOS_MS, Jesper 2026-10-08): bindningen släpps (omladdning, nollställning, fall 8) och
+   kortet ligger inte kvar fysiskt. Förut stod det på mattan för alltid. */
+const LOS = 8000;
+const losgor = () => { for (const c of app.kort) delete c.spar; };   // som en omladdning: spar sparas inte
+const tick = (ms, spar = []) => { for (let t = 0; t < ms; t += 1000) { klocka.t += 1000; stam(spar); } };
+prov('LS1 omladdning, kortet borta ur bild: kvar i LOS_MS, sedan till handen', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Plains', { sen: 0, ...LANGT })]);
+  const a = app.kort.find(c => c.name === 'Ukud Cobra'), b = app.kort.find(c => c.name === 'Plains'); losgor();
+  stam([klar(5, 'Plains', { sen: 0, ...LANGT })]);                      // Plains syns igen, Ukud Cobra inte
+  assert.equal(b.spar, 5);
+  klocka.t += LOS - 200; stam([klar(5, 'Plains', { sen: 0, ...LANGT })]);
+  assert.ok(app.kort.includes(a), 'för tidigt');
+  klocka.t += 400; stam([klar(5, 'Plains', { sen: 0, ...LANGT })]);
+  assert.ok(iHanden(a)); assert.ok(app.kort.includes(b));
+});
+prov('LS2 omladdning, kortet syns på en ny plats: binds, går inte till handen', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const [a] = app.kort; losgor();
+  tick(LOS * 2, [klar(9, 'Ukud Cobra', { sen: 0, ...LANGT })]);
+  assert.equal(a.spar, 9); assert.ok(app.kort.includes(a)); assert.equal(app.handRad.length, 0);
+  assert.equal(app.kort.filter(c => c.name === 'Ukud Cobra').length, 1);
+});
+prov('LS3 platsen täckt av ett annat kort: väntar (ligger under)', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const [a] = app.kort; losgor();
+  tick(LOS * 2, [klar(4, 'Grizzly Bears', { sen: 0, ...PORT })]);
+  assert.ok(app.kort.includes(a));
+});
+prov('LS4 något kortformat i bild är inte färdigläst: väntar', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const [a] = app.kort; losgor();
+  tick(LOS * 2, [vilande(7, NY_PLATS, { tillstand: 'ny' })]);
+  assert.ok(app.kort.includes(a));
+  tick(LOS + 1000, [klar(7, 'Grizzly Bears', { sen: 0, ...NY_PLATS })]);
+  assert.ok(iHanden(a) || !app.kort.includes(a));
+});
+prov('LS5 Still on the table: står kvar efter LOS_MS, tills kameran bundit det', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const [a] = app.kort; losgor();
+  stam([]); tick(LOS);
+  assert.ok(iHanden(a));
+  assert.ok(app.handVal(a.cid, 'kvar'));
+  tick(LOS * 2);
+  assert.ok(app.kort.includes(a), 'gick till handen igen');
+});
+prov('LS6 kort utan kamerans läge (lagt för hand) rörs inte', () => {
+  app.kort.push({ cid: 'm', name: 'Forest', flipped: 0 });
+  stam([]); tick(LOS * 2);
+  assert.equal(app.kort.length, 1);
+});
+prov('LS7 Use camera to add cards: kameran tar aldrig bort', () => {
+  app.spelsatt = 'skarm';
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  losgor(); stam([]); tick(LOS * 2);
+  assert.equal(app.kort.length, 1);
+});
+prov('LS8 fall 8 och korten kommer aldrig tillbaka: till handen efter efterskottet och LOS_MS', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Grizzly Bears', { sen: 0, ...LANGT }), klar(3, 'Forest', { sen: 0, ...NY_PLATS })]);
+  const alla = app.kort.slice();
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.equal(app.kort.length, 3);                                      // fall 8: ingenting ändras än
+  tick(5000 + LOS + 1000);
+  assert.ok(alla.every(iHanden));
+});
+prov('LS9 klockan börjar om när telefonen lär sig ljuset', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const [a] = app.kort; losgor();
+  stam([]); klocka.t += LOS - 1000; stam([]);
+  klocka.t += 500; app.avstamBord([], false, 'ljus');
+  klocka.t += 1000; stam([]);
+  assert.ok(app.kort.includes(a), 'klockan räknade genom ljuset');
+  klocka.t += LOS + 100; stam([]);
+  assert.ok(iHanden(a));
 });
 
 console.log([...ok, ...fel].join('\n'));
