@@ -260,8 +260,8 @@ const PROV = async () => {
   visaVy('app'); renderAll(true);
   ok('efter en ritning medan mattan var dold ritas zoomen på plats', gridEl.style.transform !== tDold && !gar(gridEl), `${tDold} → ${gridEl.style.transform}`);
 
-  /* Mattans zoom när ett kort läggs långt ut: zoomstegen (MES-338) har
-     ett eget avsnitt sist i provet, med en kamerabild av känd storlek. */
+  /* Mitt speglade bords utgångsläge (hela kamerabilden, MES-338) har ett
+     eget avsnitt sist i provet, med en kamerabild av känd storlek. */
 
   /* En hög som post i matSynk (grunden för leken och graveyard i steg 3–5):
      egen nyckel, samma element, och den glider när läget ändras. */
@@ -350,6 +350,7 @@ const PROV = async () => {
   oppSatt({ klar: true });
   mig.cards = [normaliseraKort({ cid: 'mattprov-n1', name: 'Plains', x: 60, y: 70, z: 1, tapped: 0, cts: [] }, 0)];
   matVyer.delete(mig.id);   // brädet räknas om för det nya partiets kort, så att zoomen säkert ändras
+  if (kamSkala.las) kamSkala.las.delete(mig.id);   // och utan kamerabild börjar partiet på 100 % (utgångsläget), inte i samma bild som förut
   opp.cards = [normaliseraKort({ cid: 'o9', name: 'Island', x: 900, y: 700, z: 1, tapped: 0, cts: [] }, 0)];
   renderAll(true);
   const oNy = document.querySelector('#oppMattor .obrade');
@@ -357,16 +358,16 @@ const PROV = async () => {
     gridEl.style.transform !== tParti && !gar(gridEl) && !!oNy && oNy.style.transform !== oParti && !gar(oNy),
     `min ${tParti} → ${gridEl.style.transform}; hens ${oParti} → ${oNy && oNy.style.transform}`);
 
-  /* ── Zoomsteg (MES-338) ───────────────────────────────────────────────
-     Mitt speglade bord zoomar i fasta steg: 100 %, 86 %, 75 % och 65 % av
-     bordets 100 %, och sist golvet — hela kamerabilden (dev/plan/
-     spegelmattan-principer.md, Mattan: zoomsteg; prototypens zoomFor). Ett
-     kort som inte får plats ger ett steg ut som glider 500 ms (UT), till den
-     första nivån där korten ryms med ungefär två kort till åt det håll bordet
-     växte. Aldrig in av sig själv — bara i ett nytt parti. Ensam vid bordet
-     (100 % = zoom 1). Kamerabilden 16:9 och ett kort en tiondel av dess
+  /* ── Utgångsläget (MES-338, Jesper 2026-10-08) ─────────────────────────
+     Mitt speglade bord sätts i ett utgångsläge: hela kamerabilden, så stor
+     den får plats — bredden eller höjden fyller mattan — och centrerad, så att
+     ingen del av bilden är dold. Det sätts när kamerabilden blir känd (leken
+     läggs ut, eller det första kortet ger skalan), och 0 eller knappen
+     "Fit camera view (0)" tar tillbaka det. Sedan styr spelaren zoomen själv:
+     ett kort som läggs ut utanför vyn zoomar inte mattan (förut zoomstegen).
+     Ensam vid bordet. Kamerabilden 16:9 och ett kort en tiondel av dess
      bredd: skalan 1780, bilden 1780 × 1001 på brädet från (198, 50).
-     Kastar något (en index.html utan zoomstegen, --fil) faller avsnittet som
+     Kastar något (en index.html utan utgångsläget, --fil) faller avsnittet som
      en kontroll i stället för att hela provet dör. */
   try {
   await vanta(600);
@@ -381,63 +382,88 @@ const PROV = async () => {
   const zr = [zs(21, 'Llanowar Elves', 0.25, 0.4), zs(22, 'Forest', 0.35, 0.4)];
   avstamBord(zr, false);
   await vanta(700);
-  const NIVA = [1, 0.86, 0.75, 0.65], KANT = MATTA.KANT, TOPP = MATTA.TOPP;
+  const KANT = MATTA.KANT, TOPP = MATTA.TOPP;
   const yta = () => { const vp = matVy(mig).vp; return { w: vp.w - 2 * KANT, h: vp.h - TOPP - KANT, vp }; };
   const bild = () => { const sk = kamSkala(mig), a = kamTillMatta({ x: 0, y: 0 }, sk), b = kamTillMatta({ x: 1, y: 1 }, sk); return { x0: a.x, y0: a.y, x1: b.x, y1: b.y }; };
   const golvNu = () => { const a = yta(), b = bild(); return Math.max(MATTA.ZOOM_MIN, Math.min(1, a.w / (b.x1 - b.x0), a.h / (b.y1 - b.y0))); };
+  const kamZ = () => { const a = yta(), b = bild(); return Math.max(MATTA.ZOOM_MIN, Math.min(MATTA.ZOOM_MAX, a.w / (b.x1 - b.x0), a.h / (b.y1 - b.y0))); };
   /* Vyn i brädets koordinater, ur transformen som skrivits (inte ur appens tillstånd). */
   const vyn = () => { const m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)\s*scale\(([\d.]+)\)/.exec(gridEl._matT || ''), a = yta();
     const px = +m[1], py = +m[2], z = +m[3]; return { z, x0: (KANT - px) / z, x1: (a.vp.w - KANT - px) / z, y0: (TOPP - py) / z, y1: (a.vp.h - KANT - py) / z }; };
   const syns = () => { const w = gridWrap.getBoundingClientRect(); return [...gridEl.querySelectorAll('.card[data-cid]')].every(el => { const r = el.getBoundingClientRect(); return r.left >= w.left - 1 && r.right <= w.right + 1 && r.top >= w.top - 1 && r.bottom <= w.bottom + 1; }); };
   const pct = z => Math.round(z * 100) + ' %', avZ = () => vyn().z;
-  const ram = () => matRam(mig);
-  const zA = avZ();
-  ok('zoomsteg: två kort mitt i bilden — 100 % fit, och de syns', Math.abs(zA - 1) < 1e-6 && syns() && !matVy(mig).manuell, pct(zA) + ', bilden ' + JSON.stringify(bild()));
+  /* Hela kamerabilden: zoomen som får den att fylla bredden eller höjden, bilden inne i vyn och mitt i den. */
+  const helaBilden = () => { const v = vyn(), b = bild(), t = 2 / v.z;
+    const inne = v.x0 <= b.x0 + t && v.x1 >= b.x1 - t && v.y0 <= b.y0 + t && v.y1 >= b.y1 - t;
+    const mitt = Math.abs((v.x0 + v.x1) / 2 - (b.x0 + b.x1) / 2) < t && Math.abs((v.y0 + v.y1) / 2 - (b.y0 + b.y1) / 2) < t;
+    const fyller = Math.abs((v.x1 - v.x0) - (b.x1 - b.x0)) < 2 * t || Math.abs((v.y1 - v.y0) - (b.y1 - b.y0)) < 2 * t;
+    return { ok: Math.abs(v.z - kamZ()) < 1e-3 && inne && mitt && fyller, txt: `${pct(v.z)} (väntat ${pct(kamZ())}), vyn ${[v.x0, v.y0, v.x1, v.y1].map(Math.round).join(',')}, bilden ${[b.x0, b.y0, b.x1, b.y1].map(Math.round).join(',')}, inne ${inne} mitt ${mitt} fyller ${fyller}` }; };
+  { const h = helaBilden();
+    ok('utgångsläget: hela kamerabilden när den blir känd — fyller bredden eller höjden, centrerad, ritat på plats', h.ok && !matVy(mig).manuell && !gar(gridEl) && syns(), h.txt); }
+  const skLek = kamSkala.las.get(mig.id);
 
-  /* Ett kort långt till höger: ett steg ut, och det glider 500 ms med UT. */
-  zr.push(zs(23, 'Serra Angel', 0.72, 0.4));
-  avstamBord(zr, false);
-  const zB = avZ(), A = gridEl._matZoom, tim = A && A.effect.getTiming();
-  ok('zoomsteg: ett kort som inte får plats ger ett steg ut som glider 500 ms (UT)', zB < zA - 0.01 && !!A && A.playState === 'running' && tim.duration === 500 && /cubic-bezier\(0?\.2,\s*0?\.8,\s*0?\.3,\s*1\)/.test(tim.easing),
-    `${pct(zA)} → ${pct(zB)}, ${A ? tim.duration + ' ms ' + tim.easing : 'ingen glidning'}`);
-  const nivaer = () => { const g = golvNu(); return NIVA.filter(s => s > g * 1.03).concat([g]); };
-  ok('zoomsteg: nivån är en av de fasta (100/86/75/65 % eller golvet)', nivaer().some(n => Math.abs(n - zB) < 1e-4), `${pct(zB)}; nivåerna ${nivaer().map(pct).join(', ')}`);
-  /* Brickan och frågan behåller sin storlek medan zoomen glider: --matz följer zoomen som syns. */
-  await vanta(150);
-  const syntZ = (() => { const m = /matrix\(\s*([-\d.e]+),\s*([-\d.e]+)/.exec(getComputedStyle(gridEl).transform); return m ? Math.hypot(+m[1], +m[2]) : NaN; })();
-  const matz = parseFloat(gridEl.style.getPropertyValue('--matz'));
-  ok('zoomsteg: --matz följer zoomen medan den glider (brickorna behåller sin storlek)', gar(gridEl) && Math.abs(matz - syntZ) < 0.006 && syntZ > zB + 0.02, `--matz ${matz.toFixed(3)}, zoomen som syns ${syntZ.toFixed(3)}, målet ${zB.toFixed(3)}`);
-  { const lag = gridWrap.querySelector(':scope > .kamlager');
-    ok('zoomsteg: kamerans lager glider i takt med brädet (samma transform mitt i steget)', !!lag && getComputedStyle(lag).transform === getComputedStyle(gridEl).transform && parseFloat(lag.style.getPropertyValue('--matz')) === matz,
-      lag ? `${getComputedStyle(lag).transform} / ${getComputedStyle(gridEl).transform}` : 'inget lager'); }
-  await vanta(500);
-  const vB = vyn(), rB = ram(), bB = bild();
-  ok('zoomsteg: efter steget syns alla kort, och --matz är målet', syns() && Math.abs(parseFloat(gridEl.style.getPropertyValue('--matz')) - zB) < 1e-3, JSON.stringify(vB));
-  /* Plats för ungefär två kort till åt höger (prototypens MARG, två kortbredder och 60 px, eller hela bilden),
-     och nivån innanför hade inte haft den. */
-  const behov = Math.min(rB.x1 + 2 * MATTA.CW + 60, bB.x1);
-  const inne = nivaer().filter(n => n > zB + 1e-4).pop();
-  const yB = yta();
-  ok('zoomsteg: steget ger plats för två kort till åt höger, och nivån innanför hade inte räckt',
-    vB.x1 >= behov - 1 && (inne == null || yB.w / inne < behov - rB.x0 + 1),
-    `vyn ${Math.round(vB.x0)}–${Math.round(vB.x1)}, korten ${Math.round(rB.x0)}–${Math.round(rB.x1)}, behov till ${Math.round(behov)}; nivån innanför ${inne ? pct(inne) + ' rymmer ' + Math.round(yB.w / inne) : '–'}`);
-
-  /* Aldrig in av sig själv: kortet långt ut går till graveyard, och ett nytt kort mitt i — zoomen står kvar. */
-  const tB = gridEl._matT;
-  flyttaTill(mig.cards.findIndex(c => c.spar === 23), ZON_GRAV);
-  zr.pop(); zr.push(zs(24, 'Wood Elves', 0.3, 0.6));
+  /* Ingen zoom när kort läggs ut: inzoomad av spelaren, och ett kort långt till höger utanför vyn. */
+  zoomTill(1.6); await vanta(450); gridEl.classList.remove('glider');
+  const tIn = gridEl._matT;
+  zr.push(zs(23, 'Serra Angel', 0.9, 0.4));
   avstamBord(zr, false);
   await vanta(600);
-  ok('zoomsteg: aldrig in av sig själv (kortet längst ut gick, ett nytt kom mitt i)', gridEl._matT === tB && syns(), `${tB} → ${gridEl._matT}`);
-
-  /* Golvet: kort ut mot bildens kanter — vänster, höger, uppåt, men inne i bilden. Zoomen går aldrig längre
-     ut än hela bilden. */
+  ok('ingen zoom när ett kort läggs ut utanför vyn (inzoomad av spelaren)', gridEl._matT === tIn && !(gridEl._matZoom && gridEl._matZoom.playState === 'running'), `${tIn} → ${gridEl._matT}`);
+  /* … och inte heller i utgångsläget, flyttat av spelaren: kort ut mot bildens kanter. */
+  fitView(); await vanta(450); gridEl.classList.remove('glider');
+  { const vy = matVyFor(mig); vy.pan = { x: vy.pan.x + 260, y: vy.pan.y + 40 }; matSkriv(mig); }
+  const tFlytt = gridEl._matT;
   zr.push(zs(25, 'Plains', 0.06, 0.5), zs(26, 'Island', 0.94, 0.5), zs(27, 'Swamp', 0.5, 0.13));
   for (let i = 0; i < 3; i++) { avstamBord(zr.slice(0, zr.length - 2 + i), false); await vanta(250); }
   await vanta(600);
-  const vG = vyn(), bG = bild(), g = golvNu();
-  ok('zoomsteg: vid golvet syns hela kamerabilden, och aldrig längre ut', Math.abs(vG.z - g) < 1e-3 && vG.x0 <= bG.x0 + 1 && vG.x1 >= bG.x1 - 1 && vG.y0 <= bG.y0 + 1 && vG.y1 >= bG.y1 - 1 && syns(),
-    `${pct(vG.z)}, golvet ${pct(g)}, vyn ${[vG.x0, vG.y0, vG.x1, vG.y1].map(Math.round).join(',')}, bilden ${[bG.x0, bG.y0, bG.x1, bG.y1].map(Math.round).join(',')}`);
+  ok('ingen zoom och ingen panorering när kort läggs ut (utgångsläget, flyttat av spelaren)', gridEl._matT === tFlytt && !matVy(mig).manuell, `${tFlytt} → ${gridEl._matT}`);
+
+  /* 0 och knappen: tillbaka till hela kamerabilden, utan egen zoom — efter egen zoom och ett eget drag. */
+  zoomTill(1.4); await vanta(450);
+  { const vy = matVyFor(mig); vy.pan = { x: vy.pan.x - 150, y: vy.pan.y + 70 }; matSkriv(mig); }
+  fitView(); await vanta(450);
+  { const h = helaBilden();
+    ok('tangenten 0: hela kamerabilden igen, centrerad, utan egen zoom (efter egen zoom och ett drag)', h.ok && !matVy(mig).manuell && syns(), h.txt); }
+  const t0 = gridEl._matT, knapp = $('#mattaChrome [data-mat="kamvy"]');
+  zoomTill(1.5); await vanta(450);
+  { const k = $('#mattaChrome [data-mat="kamvy"]'); if (k) k.click(); }
+  await vanta(450);
+  ok('knappen "Fit camera view (0)" i mattans list gör som 0', !!knapp && /^Fit camera view \(0\)$/.test(knapp.textContent.trim()) && gridEl._matT === t0 && !matVy(mig).manuell,
+    knapp ? `"${knapp.textContent.trim()}", ${gridEl._matT} / ${t0}` : 'ingen knapp');
+  /* Mirror my table: inget Untap all, inget Tidy up, inget U i tipsraden — och U ställer inte upp något. */
+  { const tk = mig.cards.find(c => c.spar === 21); tk.tapped = 1;
+    untapAlla(); stadaUpp();
+    const hint = $('#hintUntap');
+    ok('Mirror my table: inget Untap all eller Tidy up i listan, inget U i tipsraden, och U gör ingenting',
+      !$('#mattaChrome [data-mat="untap"]') && !$('#mattaChrome [data-mat="tidy"]') && !!hint && hint.hidden && tk.tapped === 1,
+      `untap ${!!$('#mattaChrome [data-mat="untap"]')}, tidy ${!!$('#mattaChrome [data-mat="tidy"]')}, tipsraden ${hint ? (hint.hidden ? 'dold' : 'syns') : 'saknas'}, tappad ${tk.tapped}`);
+    tk.tapped = 0; renderAll(true); await vanta(300); gridEl.classList.remove('glider'); }
+
+  /* Leken läggs ut medan kort redan ligger på mattan och spelaren zoomat själv: kamerabilden blir känd, och mattan
+     glider till hela kamerabilden (500 ms, UT) — den egna zoomen släpps. */
+  { const sp0 = spelLage, kort0 = mig.cards;
+    spelLage = Object.assign({}, spelLage, { id: 'mattprov-zoom-lek' }); oppSatt({ klar: true });
+    kamSkala.las.delete(mig.id);
+    mig.cards = [normaliseraKort({ cid: 'zl1', name: 'Grizzly Bears', x: 500, y: 300, z: 1, tapped: 0, cts: [] }, 0), normaliseraKort({ cid: 'zl2', name: 'Forest', x: 720, y: 300, z: 2, tapped: 0, cts: [] }, 1)];
+    renderAll(true);
+    zoomBy(0.8); await vanta(450); gridEl.classList.remove('glider');
+    const zFore = avZ(), manFore = matVy(mig).manuell;
+    kamSkala.las.set(mig.id, skLek); renderAll(true);
+    const A = gridEl._matZoom, tim = A && A.effect.getTiming();
+    ok('leken läggs ut: mattan glider till kamerabilden (500 ms, UT)', !!matKamRam(mig) && !!A && A.playState === 'running' && tim.duration === 500 && /cubic-bezier\(0?\.2,\s*0?\.8,\s*0?\.3,\s*1\)/.test(tim.easing),
+      `${pct(zFore)} → ${pct(avZ())}, ${A ? tim.duration + ' ms ' + tim.easing : 'ingen glidning'}`);
+    /* Brickan och frågan behåller sin storlek medan zoomen glider: --matz följer zoomen som syns. */
+    await vanta(150);
+    const syntZ = (() => { const m = /matrix\(\s*([-\d.e]+),\s*([-\d.e]+)/.exec(getComputedStyle(gridEl).transform); return m ? Math.hypot(+m[1], +m[2]) : NaN; })();
+    const matz = parseFloat(gridEl.style.getPropertyValue('--matz'));
+    ok('leken läggs ut: --matz följer zoomen medan den glider (brickorna behåller sin storlek)', gar(gridEl) && Math.abs(matz - syntZ) < 0.006 && Math.abs(syntZ - avZ()) > 0.02, `--matz ${matz.toFixed(3)}, zoomen som syns ${syntZ.toFixed(3)}, målet ${avZ().toFixed(3)}`);
+    { const lag = gridWrap.querySelector(':scope > .kamlager');
+      ok('leken läggs ut: kamerans lager glider i takt med brädet (samma transform mitt i glidningen)', !!lag && getComputedStyle(lag).transform === getComputedStyle(gridEl).transform && parseFloat(lag.style.getPropertyValue('--matz')) === matz,
+        lag ? `${getComputedStyle(lag).transform} / ${getComputedStyle(gridEl).transform}` : 'inget lager'); }
+    await vanta(500);
+    const h = helaBilden();
+    ok('leken läggs ut: hela kamerabilden, och spelarens egna zoom är släppt', manFore && h.ok && !matVy(mig).manuell && Math.abs(parseFloat(gridEl.style.getPropertyValue('--matz')) - avZ()) < 1e-3, h.txt);
+    spelLage = sp0; mig.cards = kort0; renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
 
   /* ── Kamerans yta (MES-338, Jespers val B 2026-10-07) ──
      En kontur runt kamerabilden i brädets koordinater, bordet utanför svagt mörkare. Den följer mattans zoom och
@@ -468,7 +494,7 @@ const PROV = async () => {
   ok('kamerans yta: tonas in när mattan visar bord utanför bilden, ut när vyn ligger inne i den (200 ms)',
     utSyns && vyInne && !synsYta() && /opacity/.test(getComputedStyle(kamYta()).transitionProperty) && getComputedStyle(kamYta()).transitionDuration.split(',')[0].trim() === '0.2s',
     `utzoomad ${utSyns}, inzoomad (vyn inne i bilden ${vyInne}) ${synsYta()}, ${getComputedStyle(kamYta()).transitionProperty} ${getComputedStyle(kamYta()).transitionDuration}`);
-  /* Tillbaka till "fit" med zoomknapparna: zoomstegens egen vy, också panoreringen — efter egen zoom, och efter ett
+  /* Tillbaka till "fit" med zoomknapparna: utgångsläget, också panoreringen — efter egen zoom, och efter ett
      eget drag (+ och − tillbaka). */
   const stegT = () => { const s = matVyFor(mig).steg; return `translate(${Math.round(s.pan.x)}px,${Math.round(s.pan.y)}px) scale(${s.z})`; };
   matVyFor(mig).pan = { x: matVyFor(mig).pan.x + 140, y: matVyFor(mig).pan.y + 60 }; matSkriv(mig);
@@ -479,17 +505,14 @@ const PROV = async () => {
   await vanta(450);
   const draget = gridEl._matT, ytaDraget = ytaStammer(bild());
   zoomBy(1.25); zoomBy(0.8);
-  ok('kamerans yta: tillbaka till "fit" med zoomknapparna ger zoomstegens vy, också panoreringen (efter egen zoom och efter ett drag)',
+  ok('kamerans yta: tillbaka till "fit" med zoomknapparna ger utgångsläget, också panoreringen (efter egen zoom och efter ett drag)',
     efterZoom === stegT() && draget !== stegT() && gridEl._matT === stegT() && !matVy(mig).manuell,
-    `efter zoom ${efterZoom}, efter draget ${draget}, efter + och − ${gridEl._matT}, stegens ${stegT()}`);
+    `efter zoom ${efterZoom}, efter draget ${draget}, efter + och − ${gridEl._matT}, utgångsläget ${stegT()}`);
   await vanta(450);
   ok('kamerans yta: följer panoreringen (ett eget drag, och tillbaka)', ytaDraget && ytaStammer(bild()));
-  /* Tangenten 0 gör som förut: Tidy up-vyn (luftigVy), inte zoomstegens vy. */
-  fitView();
-  const t0 = gridEl._matT, m0 = matVyFor(mig).zoomManual;
-  matVyFor(mig).pan = { x: matVyFor(mig).pan.x + 90, y: matVyFor(mig).pan.y - 30 }; matSkriv(mig);
-  luftigVy(mig); matSkriv(mig);
-  ok('tangenten 0: Tidy up-vyn som förut (luftigVy), inte zoomstegens', t0 === gridEl._matT && t0 !== stegT(), `0 gav ${t0} (egen zoom ${m0 != null ? m0.toFixed(3) : 'nej'}), luftigVy ger ${gridEl._matT}, stegens ${stegT()}`);
+  /* Tangenten 0: utgångsläget (hela kamerabilden), samma vy som "fit" med zoomknapparna. */
+  zoomBy(1.25); fitView();
+  ok('tangenten 0: samma vy som "fit" med zoomknapparna (utgångsläget)', gridEl._matT === stegT() && !matVy(mig).manuell, `${gridEl._matT} / ${stegT()}`);
   zoomTill(matVy(mig).fit); await vanta(450);
   gridEl.classList.remove('glider');
   /* Kamerabilden blir mindre mitt i partiet (skalan låses om till 80 %): mattan står still, ytan krymper. Kortet
@@ -499,7 +522,7 @@ const PROV = async () => {
   await vanta(500);
   { const las = kamSkala.las.get(mig.id), tFore = gridEl._matT, sk0 = las.v;
     /* Först utzoomad till gränsen (×0,87): gränsen räknas ur bilden som den varit i partiet och stiger inte när bilden
-       krymper, så zoomen hoppar inte in. Sedan tillbaka till fit: zoomstegens vy har stått still. */
+       krymper, så zoomen hoppar inte in. Sedan tillbaka till fit: utgångsläget har stått still. */
     for (let i = 0; i < 4; i++) zoomBy(0.8);
     await vanta(450);
     const tUt = gridEl._matT;
@@ -510,7 +533,7 @@ const PROV = async () => {
     const a = kamTillMatta({ x: 0, y: 0 }, sk0 * 0.8), b = kamTillMatta({ x: 1, y: 1 }, sk0 * 0.8), mindre = { x0: a.x, y0: a.y, x1: b.x, y1: b.y };
     ok('kamerans yta: kamerabilden blir mindre mitt i partiet, utzoomad till gränsen — zoomen står still',
       tUtEfter === tUt && kamSkala.las.get(mig.id).v === sk0 * 0.8, `${tUt} → ${tUtEfter}`);
-    ok('kamerans yta: kamerabilden blir mindre mitt i partiet — zoomstegens vy står still, ytan visar var kameran ser',
+    ok('kamerans yta: kamerabilden blir mindre mitt i partiet — utgångsläget står still, ytan visar var kameran ser',
       gridEl._matT === tFore && ytaStammer(mindre) && kamYta().getBoundingClientRect().width < ytaVantad(bY).r - ytaVantad(bY).l - 50,
       `${tFore} → ${gridEl._matT}, skalan ${Math.round(sk0)} → ${Math.round(kamSkala.las.get(mig.id).v)}`);
     kamSkala.las.set(mig.id, { v: sk0, kalla: 'kort', kand: null }); renderAll(true); await vanta(600);
@@ -546,34 +569,37 @@ const PROV = async () => {
       !matKamRam(mig) && !ytaOmatt && Math.abs(zOmatt - MATTA.ZOOM_MIN) < 1e-6, `${pct(zOmatt)}, ytan ${ytaOmatt}`);
     matVyFor(mig).zoomManual = null; spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, las0);
     renderAll(true); await vanta(450); }
-  gridEl.classList.remove('glider');   // zoomknapparnas övergång (zoomTill, fitView) får inte ta stegens glidning nedan
+  gridEl.classList.remove('glider');   // zoomknapparnas övergång (zoomTill, fitView) får inte ta glidningen nedan
 
-  /* Minskad rörelse: steget är en toning (mattan till 0,35, bytet vid 150 ms, tillbaka vid 400). */
+  /* Minskad rörelse: när leken läggs ut är glidningen en toning (mattan till 0,35, bytet vid 150 ms, tillbaka vid 400). */
   window.__mattLugn = true;
   for (let i = 0; i < 100 && !lugn(); i++) await vanta(20);
   ok('kamerans yta med minskad rörelse: ingen egen rörelse (ingen övergång)', !!kamYta() && parseFloat(getComputedStyle(kamYta()).transitionDuration) === 0, kamYta() ? getComputedStyle(kamYta()).transitionDuration : 'ingen');
-  spelLage = Object.assign({}, spelLage, { id: 'mattprov-zoom-lugn' });
-  oppSatt({ klar: true });
-  zr.length = 2; mig.cards = mig.cards.filter(c => c.spar === 21 || c.spar === 22);
-  renderAll(true); await vanta(100);
-  const zL = avZ();
-  zr.push(zs(28, 'Grizzly Bears', 0.72, 0.4));
-  avstamBord(zr, false);
-  const L = gridEl._matZoom, kf = L ? L.effect.getKeyframes() : [];
-  ok('zoomsteg med minskad rörelse: mattan tonas (0,35) och zoomen byts mitt i, 400 ms', lugn() && avZ() < zL - 0.01 && !!L && L.effect.getTiming().duration === 400 && kf.some(k => +k.opacity === 0.35) && !kf.some(k => k.easing && /cubic/.test(k.easing)),
-    L ? `${pct(zL)} → ${pct(avZ())}, ${kf.map(k => k.offset.toFixed(3) + ':' + k.opacity).join(' ')}` : `ingen rörelse: ${pct(zL)} → ${pct(avZ())}, lugn ${lugn()}, klasser ${gridEl.className}, kort ${mig.cards.map(c => c.spar).join(',')}`);
-  window.__mattLugn = false;
-  for (let i = 0; i < 100 && lugn(); i++) await vanta(20);
+  { const sp0 = spelLage, kort0 = mig.cards, las0 = kamSkala.las.get(mig.id);
+    spelLage = Object.assign({}, spelLage, { id: 'mattprov-zoom-lugn' }); oppSatt({ klar: true });
+    kamSkala.las.delete(mig.id);
+    mig.cards = [normaliseraKort({ cid: 'zu1', name: 'Grizzly Bears', x: 500, y: 300, z: 1, tapped: 0, cts: [] }, 0)];
+    renderAll(true); await vanta(100);
+    const zL = avZ();
+    kamSkala.las.set(mig.id, las0); renderAll(true);
+    const L = gridEl._matZoom, kf = L ? L.effect.getKeyframes() : [];
+    ok('leken läggs ut med minskad rörelse: mattan tonas (0,35) och zoomen byts mitt i, 400 ms', lugn() && Math.abs(avZ() - zL) > 0.01 && !!L && L.effect.getTiming().duration === 400 && kf.some(k => +k.opacity === 0.35) && !kf.some(k => k.easing && /cubic/.test(k.easing)),
+      L ? `${pct(zL)} → ${pct(avZ())}, ${kf.map(k => k.offset.toFixed(3) + ':' + k.opacity).join(' ')}` : `ingen rörelse: ${pct(zL)} → ${pct(avZ())}, lugn ${lugn()}, klasser ${gridEl.className}`);
+    window.__mattLugn = false;
+    for (let i = 0; i < 100 && lugn(); i++) await vanta(20);
+    await vanta(500);
+    spelLage = sp0; mig.cards = kort0; renderAll(true); }
 
-  /* Ett nytt parti börjar på 100 % igen, på plats (korten mitt i ryms; kortet långt ut är borta). */
+  /* Ett nytt parti med kamerabilden redan känd (en omladdning mitt i): hela kamerabilden direkt, på plats. */
   await vanta(500);
-  const zFore = avZ();
+  zoomTill(1.5); await vanta(450); gridEl.classList.remove('glider');
   spelLage = Object.assign({}, spelLage, { id: 'mattprov-zoom-2' });
   oppSatt({ klar: true });
   mig.cards = mig.cards.filter(c => c.spar === 21 || c.spar === 22);
   renderAll(true);
-  ok('zoomsteg: ett nytt parti börjar på 100 %, ritat på plats', zFore < 0.99 && Math.abs(avZ() - 1) < 1e-6 && !gar(gridEl), `${pct(zFore)} → ${pct(avZ())}`);
-  } catch (e) { ok('zoomsteg: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); window.__mattLugn = false; }
+  { const h = helaBilden();
+    ok('ett nytt parti med känd kamerabild börjar i hela kamerabilden, ritat på plats', h.ok && !matVy(mig).manuell && !gar(gridEl), h.txt); }
+  } catch (e) { ok('utgångsläget: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); window.__mattLugn = false; }
   kamUpplosning = null;
 
   /* ── Till handen (MES-343): scenen "Ta upp i handen" på sida 3 ──
