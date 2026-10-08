@@ -25,6 +25,34 @@ När en ändring är beställd:
 
 Hur golden setet och AI-evalen körs: `dev/golden/SNABBGUIDE.md`.
 
+## Claude är reserven, aldrig ett villkor (Jespers beslut 2026-10-09)
+
+Mesa ska klara ett parti på telefonens egen igenkänning. Claude är en reserv
+som gör det snabbare, inte en del av motorn.
+
+**Regeln:** ingen regel i koden får kräva ett svar från Claude för att slå
+till. Varje regel ska fungera med AI-hjälpen avstängd — då hamnar det osäkra
+hos spelaren ("Name this card"), inte i ett fel eller en dubblett. Claude får
+korta vägen, aldrig vara den enda vägen.
+
+| Får | Får inte |
+|---|---|
+| fråga Claude om ett kort telefonen inte kunnat namnge, och använda svaret | en regel som bara slår till när `t.ai` eller `t.ai.svar` finns |
+| låta Claudes svar göra ett osäkert kort säkert snabbare | ett ändrat flöde som skickar fler kort eller bilder till Claude (en ny väg till `okand` som frågar, automatiska helbilder) utan att Jesper sagt ja |
+
+**Varför:** varje fråga kostar (~0,9 cent för en beskärning, ~3 cent för en
+helbild), taket är 300 frågor per konto och månad, och en app som blir sämre
+utan Claude går inte att skala. Den 9 oktober höll dubbletten på spegelmattan
+på att byggas så att kortet bara flyttades när Claude svarat samma namn —
+utan Claude hade dubbletten stått kvar.
+
+**Så provas det:** Mat test (`dev/mattest`) och golden utan `--ai` kör utan
+Claude, och en ny regel ska hålla där. Behövs ett andra vittne: ta det lokalt
+— samma korts egen bild från nyss (minnet av remsor, `T.remsaMinne`), lekens
+antal, flera läsningar över tid — eller låt spelaren välja.
+
+Ser en ändring ut att behöva Claude som villkor: föreslå den och fråga.
+
 ## Worktrees: städa direkt efter att något pushats till main
 
 En worktree är tillfällig. Den finns för att en session ska kunna bygga i
