@@ -27,7 +27,7 @@ function sh(cmd) {
 async function hamta(statusNamn) {
   const d = await agent.graphql(
     `query($team: ID!, $namn: String!) { issues(first: 100, filter: { team: { id: { eq: $team } }, state: { name: { eq: $namn } } }) {
-       nodes { identifier title priority sortOrder
+       nodes { identifier title priority prioritySortOrder
          labels { nodes { name } } project { name } projectMilestone { name }
          inverseRelations(first: 30) { nodes { type issue { identifier state { name type } } } } } } }`,
     { team: TEAM, namn: statusNamn }
@@ -38,11 +38,14 @@ async function hamta(statusNamn) {
 const omradenAv = i => i.labels.nodes.map(l => l.name).filter(n => OMRADEN.includes(n));
 /* Linears priority: 1 Urgent … 4 Low, 0 = ingen. Ingen sorteras sist. */
 const prioRang = p => (p === 0 ? 9 : p);
+/* Inom samma prio: ordningen på brädan när den sorteras på Priority — det är
+   prioritySortOrder Linear ändrar när Jesper drar ett kort där. sortOrder hör
+   till ordningen Manual och skulle glida isär från brädan. */
 
 (async () => {
   const [todo, pagar] = await Promise.all([hamta('Todo'), hamta('In Progress')]);
 
-  todo.sort((a, b) => prioRang(a.priority) - prioRang(b.priority) || a.sortOrder - b.sortOrder);
+  todo.sort((a, b) => prioRang(a.priority) - prioRang(b.priority) || a.prioritySortOrder - b.prioritySortOrder);
   const pagOmr = pagar.map(i => ({ id: i.identifier, omr: omradenAv(i) }));
 
   console.log('PÅGÅR I LINEAR — In Progress (' + pagar.length + ')');

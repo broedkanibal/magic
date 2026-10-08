@@ -81,7 +81,9 @@ Jesper ser dem utan att leta i Linear.
 ### En bräda, och testet för vad som är ett projekt
 
 Det finns **ett** ställe att titta på: lagets Issues, grupperad på status,
-med "visa sub-issues" avslagen. Inga sparade vyer — en vy som bara filtrerar
+ordnad på **Priority**, med "visa sub-issues" avslagen. Ordnad på Priority
+kan ett kort aldrig hamna ovanför en högre prio, och det Jesper drar ändrar
+ordningen inom prion (`prioritySortOrder`, som `/nästa` läser). Inga sparade vyer — en vy som bara filtrerar
 på status är statusen förklädd till navigation.
 
 **Testet för ett projekt: kan du säga "klart" och mena det, med ett datum?**
