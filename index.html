@@ -2464,6 +2464,16 @@ body:not(.ispel) .spelknapp{display:none}
 .kamskruv-hd .meta{margin-left:auto;font:10px var(--mono);color:var(--dim2)}
 /* Byggarytan (MES-97): utvecklarverktygen syns bara med ?debug. */
 body:not(.debug) .dbg{display:none!important}
+/* Igenkänningskedjan vid varje kort (bara ?debug, ritaKedja): delen som arbetar nu (gul, pulsar) och delarna
+   som körts (☑). I brädet ovanför kortets överkant, i skärmens storlek oavsett mattans zoom (--matz, som
+   .ofrmark), och aldrig i vägen för pekaren. */
+.kedjalag{position:absolute;left:0;top:0;width:0;height:0;z-index:960;pointer-events:none}
+.kedjaet{position:absolute;transform:translate(-50%,-100%) scale(calc(1 / var(--matz, 1))) translateY(var(--kdy, -4px));transform-origin:50% 100%;
+  display:flex;flex-wrap:wrap;gap:0 6px;width:max-content;max-width:150px;padding:2px 5px;border-radius:6px;background:#0d1117eb;border:1px solid #ffffff26;
+  font:600 10px/1.35 var(--mono);color:var(--dim2);white-space:nowrap}
+.kedjaet .nu{flex-basis:100%;color:#e8b33a}
+.kedjaet .nu::before{content:'';display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:#e8b33a;vertical-align:1px;animation:kampuls 1s ease-in-out infinite}
+.kedjaet .klar{color:#5fbf7f}
 .kamskruv .kalbild{margin:0 4px 8px;height:104px;min-height:0;border-radius:var(--rs);border:1px solid var(--line)}
 /* Stor: bilden får popoverns hela bredd i 16:10 och upp till 290 px. Det är
    den som svarar på om kameran ser korten — 104 px gjorde det inte. */
@@ -8284,6 +8294,58 @@ function ofrMarkLagg() {
     if (m.e.style.getPropertyValue('--ofrdy') !== v) m.e.style.setProperty('--ofrdy', v);
   }
 }
+/* ── Igenkänningskedjan vid varje kort (bara ?debug) ──────────────────
+   Telefonen skickar per spår vilka delar av läsningen som arbetar just nu och vilka som körts ('kedja',
+   Kamera.kedjaAv). Datorn sätter en etikett ovanför kortet på min matta — kortet med namn eller det
+   oframkallade — och skriver samma sak vid rutorna i kameravyn (ritaPbLager). Rör inget annat. */
+/* [del, namnet medan den arbetar, kort namn i bockarna] */
+const KEDJA_DELAR = [['det', 'Detector', 'Det'], ['modell', 'Image model', 'Model'], ['orb', 'ORB', 'ORB'], ['titel', 'Title box', 'Title'],
+                     ['remsa', 'Name strip', 'Strip'], ['claude', 'Claude · card', 'Claude'], ['helbild', 'Claude · whole table', 'Whole']];
+let kamKedja = new Map();   // spårets id → { nu: [del], klar: [del] }
+function tagEmotKedja(m) {
+  if (!DEBUG) return;
+  kamKedja = new Map((Array.isArray(m.spar) ? m.spar : []).map(k => [k.id, k]));
+  ritaKedja(); ritaPbLager();
+}
+/* Delarnas namn i kedjans ordning: { nu (långa namn), klar (korta) } — en del som arbetar igen (en omläsning) står bara som nu. */
+function kedjaText(k) {
+  const nu = new Set(k.nu || []), klar = new Set(k.klar || []);
+  return { nu: KEDJA_DELAR.filter(([d]) => nu.has(d)).map(([, n]) => n), klar: KEDJA_DELAR.filter(([d]) => klar.has(d) && !nu.has(d)).map(([, , n]) => n) };
+}
+function ritaKedja() {
+  if (!DEBUG) return;
+  let lag = gridEl.querySelector(':scope > .kedjalag');
+  const mig = minSpelare();
+  if (!kamKedja.size || !spelLage || !mig || player() !== mig || !kamAnsluten) { if (lag) lag.remove(); return; }
+  if (!lag) lag = gridEl.appendChild(Object.assign(document.createElement('div'), { className: 'kedjalag' }));
+  const kort = new Map(mig.cards.filter(c => c.spar != null).map(c => [c.cid, c.spar]));
+  const ofr = new Map(ofrNu().map(q => [String(q.id), q.spar]));
+  let h = '';
+  for (const el of gridEl.querySelectorAll(':scope > .card[data-cid], :scope > .ofr[data-ofr]')) {
+    const id = el.dataset.ofr != null ? ofr.get(el.dataset.ofr) : kort.get(el.dataset.cid);
+    const k = id != null ? kamKedja.get(id) : null; if (!k) continue;
+    const d = kedjaText(k); if (!d.nu.length && !d.klar.length) continue;
+    /* Överkanten mitt på, som kortet syns: ett tappat kort är vridet kring sin mitt. */
+    const w = el.offsetWidth, hh = el.offsetHeight, ligg = el.classList.contains('tappad');
+    const x = (parseFloat(el.style.left) || 0) + w / 2, y = (parseFloat(el.style.top) || 0) + hh / 2 - (ligg ? w : hh) / 2;
+    h += `<div class="kedjaet" style="left:${Math.round(x)}px;top:${Math.round(y)}px">`
+      + (d.nu.length ? `<span class="nu">${esc(d.nu.join(' · '))}</span>` : '')
+      + d.klar.map(n => `<span class="klar">☑${esc(n)}</span>`).join('') + '</div>';
+  }
+  if (lag._h !== h) { lag._h = h; lag.innerHTML = h; }
+  /* Etiketter på kort som ligger tätt täcker varandra: den som krockar flyttas uppåt (--kdy, skärm-px), som
+     ofrMarkLagg gör med "Name this card". Rutorna i brädets px; etiketten är i skärmens storlek (1/--matz). */
+  const z = gridEl._matzMal || 1, lagda = [];
+  const etiketter = [...lag.children].map(e => ({ e, x: parseFloat(e.style.left), y: parseFloat(e.style.top), w: e.offsetWidth / z, h: e.offsetHeight / z }))
+    .sort((p, q) => (q.y - p.y) || (p.x - q.x));
+  for (const m of etiketter) {
+    const rekt = k => ({ x0: m.x - m.w / 2, x1: m.x + m.w / 2, y1: m.y - (4 + k * (m.h * z + 2)) / z, y0: m.y - (4 + k * (m.h * z + 2)) / z - m.h });
+    let k = 0;
+    while (k < 8 && lagda.some(b => rekt(k).x0 < b.x1 && b.x0 < rekt(k).x1 && rekt(k).y0 < b.y1 && b.y0 < rekt(k).y1)) k++;
+    lagda.push(rekt(k));
+    m.e.style.setProperty('--kdy', -(4 + k * (m.h * z + 2)) + 'px');
+  }
+}
 /* Rutan runt de oframkallade korten på mitt bord, i brädets px (matRam) — null utan. */
 function ofrRam() {
   let r = null;
@@ -8936,7 +8998,7 @@ function renderGrid(force) {
   const lagen = cards.map(c => c.x + ',' + c.y + ',' + c.z).join('|')
     + '/' + [...ofrPos].map(([k, q]) => k + ':' + q.x + ',' + q.y).join(',');
   const sig = strukt + '#' + lagen;
-  if (!force && sig === gridSig) { renderSel(); return; }
+  if (!force && sig === gridSig) { renderSel(); if (DEBUG) ritaKedja(); return; }
   if (DEBUG && ofr.length) try { LatensDator.platser(ofr.map(q => ({ spar: q.spar, slag: 'ofr' }))); } catch (e) {}   // skuggan på datorn (MES-242): det oframkallade kortet ritas i den här omritningen
   const baraLagen = !force && strukt === gridStrukt;
   gridSig = sig; gridStrukt = strukt;
@@ -8967,6 +9029,7 @@ function renderGrid(force) {
     }
     matFlyttaEl(flytt, animera);
     ofrMarkLagg();
+    if (DEBUG) ritaKedja();
     renderSel(); renderPill();
     return;
   }
@@ -9014,6 +9077,7 @@ function renderGrid(force) {
   const vy = v.vp.riktig && vyMal && vyNu ? { x0: Math.max(vyMal.x0, vyNu.x0), y0: Math.max(vyMal.y0, vyNu.y0), x1: Math.min(vyMal.x1, vyNu.x1), y1: Math.min(vyMal.y1, vyNu.y1) } : null;
   matSynk(gridEl, poster, { animera, vy });
   ofrMarkLagg();
+  if (DEBUG) ritaKedja();
 
   renderGravHog(cards, d, !!p.gravHog);
   /* Ett nytt kort (e.ny) ritas om efter 2,5 s, när det slutat vara nytt. */
@@ -24504,6 +24568,34 @@ const Kamera = (() => {
              remsa: svar && svar.remsa ? { namn: svar.remsa.namn, saker: !!svar.remsa.saker, marginal: svar.remsa.marginal, varfor: svar.remsa.varfor, minne: svar.remsa.minne || null } : null });
     if (l.length > 6) l.shift();
   };
+  /* Igenkänningskedjan per spår (bara ?debug, satKedja): vilken del som
+     arbetar just nu och vilka som körts — etiketten vid varje kort på
+     datorn. det: detektorn gav spåret en region; modell: bildmodellen;
+     orb: ORB (på modellens tre, eller Matcher + ORB); titel: titelraden
+     (textläsaren); remsa: namnremsan; claude: Claude på kortets
+     beskärning; helbild: Claude på hela bilden. Går som ett eget
+     meddelande (cb.kedja), högst ett per KEDJA_MS: bordet, dess signatur
+     och domen rörs inte. */
+  let kedjaPa = false, kedjaTimer = null, kedjaSist = 0;
+  const KEDJA_MS = 250;
+  const kedjaAv = t => {
+    const nu = Object.keys(t.kedjaNu || {}), klar = Object.keys(t.kedjaKlar || {});
+    if (t.regionNar != null && !klar.includes('det')) klar.push('det');
+    if (arHelbild(t) && !klar.includes('helbild')) klar.push('helbild');
+    if (t.provas) nu.push('claude');
+    if (helbildPagar && t.tillstand !== 'skrap') nu.push('helbild');
+    return { id: t.id, nu, klar };
+  };
+  function kedjaSkicka() {
+    if (!kedjaPa || !cb.kedja || kedjaTimer) return;
+    kedjaTimer = setTimeout(() => { kedjaTimer = null; kedjaSist = Date.now(); if (kedjaPa && cb.kedja) cb.kedja(spar.map(kedjaAv)); }, Math.max(0, kedjaSist + KEDJA_MS - Date.now()));
+  }
+  const kedjaBorja = (t, s) => { if (!kedjaPa || !t) return; const n = t.kedjaNu || (t.kedjaNu = {}); n[s] = (n[s] || 0) + 1; kedjaSkicka(); };
+  const kedjaKlar = (t, s) => {
+    if (!kedjaPa || !t) return;
+    const n = t.kedjaNu; if (n && n[s] && --n[s] <= 0) delete n[s];
+    (t.kedjaKlar || (t.kedjaKlar = {}))[s] = true; kedjaSkicka();
+  };
   /* Stegtiden som histogram (4 ms per fack, sista facket 400 ms och över),
      räknat sedan latens slogs på: datorn tar skillnaden mellan passets
      början och slut och får median och p95 för just passet. */
@@ -28565,6 +28657,7 @@ const Kamera = (() => {
   function rapportera() {
     if (!cb.bord) return;
     sandSignatur = tillstandsSignatur();
+    kedjaSkicka();   // igenkänningskedjan (?debug): ett spår som kom, gick eller bytte tillstånd
     /* Latensmätningen (MES-242): skuggan när spåret först är kortlikt utan
        namn (datorn ritar platsen då), och ett säkert namn som ingen väg
        stämplat får en rad ändå, med vägen 'okand' — så syns hålet. */
@@ -29017,8 +29110,12 @@ const Kamera = (() => {
        identiskt inramade, så bakgrundslikheten mellan två OLIKA kort är högre än mellan två lådremsor, och minnets
        tröskel (0,10) mättes på lådremsor (pass 6). Mäts om i remsexp innan 'remsa minne' får vara säker på geo-prov. */
     const minnenLika = geo ? [] : minnen.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: provLika(e) })).filter(e => e.prov.length);
-    const rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo, tackt: s.tackt, utom: s.utom, vittneBara: !!(o && o.vittneBara),
-                                              minnen: minnenLika.length ? minnenLika : null, minneSkal: m.skal || (minnen.length && !minnenLika.length ? (geo ? 'geo: minnets tröskel omätt' : 'annan skärning') : null) });
+    kedjaBorja(t, 'remsa');
+    let rs;
+    try {
+      rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo, tackt: s.tackt, utom: s.utom, vittneBara: !!(o && o.vittneBara),
+                                          minnen: minnenLika.length ? minnenLika : null, minneSkal: m.skal || (minnen.length && !minnenLika.length ? (geo ? 'geo: minnets tröskel omätt' : 'annan skärning') : null) });
+    } finally { kedjaKlar(t, 'remsa'); }
     if (rs && rs.saker && rs.varfor === 'remsa minne') minneStat.sakra++;
     return rs;
   }
@@ -29530,6 +29627,7 @@ const Kamera = (() => {
        avstämning läser dem som syskon — Claude har sagt att de är olika kort. */
     t.ai = Object.assign({ kort: svar ? svar.length : 0, klunga: id }, info || {});
     t.provas = false;                                  // svaret har kommit, vilket det än är
+    kedjaKlar(t, 'claude');
     /* Inget svar (nätet, servern, oläsbart): den lokala domen står. */
     if (!svar) { rapportera(); return; }
     /* Spärren mot säkra fel ur en maskad beskärning (MES-330): när det
@@ -29688,12 +29786,12 @@ const Kamera = (() => {
     const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
     x.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
     const gen = helbildGen, t0 = performance.now();
-    helbildPagar = true; helbildSedan = 0; helbildSist = t0;
+    helbildPagar = true; helbildSedan = 0; helbildSist = t0; kedjaSkicka();
     helbildBild = senasteG ? Float32Array.from(senasteG) : null;
     helbildSig = egenSignatur();
     let res = null;
     try { res = await cb.helbild(c, { skal }); } catch (e) { res = null; }
-    finally { helbildPagar = false; }
+    finally { helbildPagar = false; kedjaSkicka(); }
     if (!res || !Array.isArray(res.svar) || gen !== helbildGen) return false;
     const info = Object.assign({ helbild: true, skal, ms: Math.round(performance.now() - t0) }, res.info || {}, { kort: res.svar.length });
     tillampaHelbild(res.svar, info, performance.now());
@@ -29788,7 +29886,7 @@ const Kamera = (() => {
         || inne[0]
         || spar.find(t => !arHelbild(t) && !bort.has(t) && t.tillstand !== 'skrap' && t.namn === k.namn && nara(p, t.box));
       if (eget && eget.tillstand !== 'skrap') {
-        tagna.add(eget);
+        tagna.add(eget); kedjaKlar(eget, 'helbild');
         if (!(eget.tillstand === 'klar' && eget.saker)) {
           const saker = farSakert(k, eget);
           eget.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((eget.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
@@ -29969,6 +30067,10 @@ const Kamera = (() => {
               varken upplösning eller takt. */
            satMatare: f => { matare = typeof f === 'function' ? f : null; },
            satLatens: v => { latens = !!v; stegHist.fill(0); detHist.fill(0); },
+           /* Igenkänningskedjan (?debug): satKedja slår på, kedjaSteg(id, del, pa) säger att en del av
+              appens läsning (kamIdentifiera) börjar (pa) eller är klar på spåret. */
+           satKedja: v => { kedjaPa = !!v; if (kedjaPa) kedjaSkicka(); },
+           kedjaSteg: (id, s, pa) => { const t = spar.find(x => x.id === id); if (pa) kedjaBorja(t, s); else kedjaKlar(t, s); },
            get stegHist() { return latens ? stegHist.slice() : null; },   // MES-242: stegtiden sedan latens slogs på, 4 ms per fack
            get detHist() { return latens ? detHist.slice() : null; },     // MES-329: detektorns tid per bild sedan latens slogs på, 4 ms per fack
            /* Steget som pågår (den tränade detektorn räknar asynkront, MES-329) — golden väntar in det innan rutan döms. */
@@ -30084,7 +30186,8 @@ async function oppnaKamera(gameId) {
          rådet om avståndet väntar då på Claudes svar innan det säger något. */
       aiPa: () => AI.mode === 'server' && !!prefs.aiAuto,
       helbild: (canvas, o) => kamHelbild(canvas, o),
-      foto: (id, canvas) => kamSkickaFoto(id, canvas)   // det oframkallade kortets foto till datorn (MES-344)
+      foto: (id, canvas) => kamSkickaFoto(id, canvas),   // det oframkallade kortets foto till datorn (MES-344)
+      kedja: spar => Moln.sandKam('kedja', { spar })     // igenkänningskedjan per spår, bara ?debug (satKedja)
     });
   } catch (e) {
     kamSag('fel', 'The camera could not start');
@@ -30111,6 +30214,7 @@ async function oppnaKamera(gameId) {
      så fort poolen är klar. */
   byggKamPool();
   Kamera.satLatens(DEBUG);   // latensmätningen (MES-215): tidsstämplar i rapporten bara bakom ?debug
+  Kamera.satKedja(DEBUG);    // igenkänningskedjan per kort: etiketten på datorns matta, bara bakom ?debug
   /* Telefonen kopplades in igen med Connect again (MES-350): datorn ombeds slå
      på kameran — i B stängde den av den. En gång till efter några sekunder,
      om kamerakanalen inte hunnit ansluta vid första. */
@@ -30329,6 +30433,12 @@ function kamSparEnsamt(id) {
 async function kamIdentifyAt(img, box, hint) {
   return domIdentifyAt(await LasWorker.skanna(img, box, hint, Pool.idx, ORB_ACCEPT + 4), box);
 }
+/* En del av läsningen till igenkänningskedjans etikett (?debug, Kamera.kedjaSteg): arbetar medan f går,
+   klar när den är klar. Utan ?debug gör Kamera ingenting med det. */
+async function kamKedjaUnder(id, s, f) {
+  Kamera.kedjaSteg(id, s, true);
+  try { return await f(); } finally { Kamera.kedjaSteg(id, s, false); }
+}
 /* o.spek: en tidig läsning (Kamera, K4) — svaret är inte spårets än, så
    ingen beskärning går till datorns granskning. */
 async function kamIdentifiera(canvas, id, gissning, kort, o) {
@@ -30352,17 +30462,17 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      mellan stegen nedan, i performance.now(). */
   const tq = DEBUG ? { t0: performance.now() } : null;
   /* Namnet läses i workern medan illustrationen matchas på huvudtråden. */
-  const namnP = Namn.las(canvas, namnUtanBaksida());
+  const namnP = kamKedjaUnder(id, 'titel', () => Namn.las(canvas, namnUtanBaksida()));
   /* Bildmodellen rangordnar och ORB kontrollerar de tre bästa (MES-225);
      dagens Matcher + ORB är reserven — modulen inte laddad, leken inte
      inbäddad än, eller ett fel i körningen. */
   let v = null;
   if (tq) tq.fore = performance.now();
   if (KamEmbed.redo()) {
-    try { const e = await Embed.identifiera(canvas, KamEmbed.idx); if (e && e.namn) v = await identifyMedModell(canvas, box, e, kamSparEnsamt(id)); } catch (e) { v = null; }
+    try { const e = await kamKedjaUnder(id, 'modell', () => Embed.identifiera(canvas, KamEmbed.idx)); if (e && e.namn) v = await kamKedjaUnder(id, 'orb', () => identifyMedModell(canvas, box, e, kamSparEnsamt(id))); } catch (e) { v = null; }
   }
   if (tq) tq.modell = performance.now();
-  if (!v) { try { v = await kamIdentifyAt(canvas, box, 0); } catch (e) { return null; } }
+  if (!v) { try { v = await kamKedjaUnder(id, 'orb', () => kamIdentifyAt(canvas, box, 0)); } catch (e) { return null; } }
   if (tq) tq.bild = performance.now();
   let namn = null; try { namn = await namnP; } catch (e) { namn = null; }
   if (tq) tq.namn = performance.now();
@@ -30381,7 +30491,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   if (v.modell && !v.accept) {
     const etta = v.rec.cands[0], hallerMed = namn && namn.namn && etta && namn.namn === etta.name && namn.poang >= 0.5 && namn.marginal >= 0.15;
     if (!hallerMed) {
-      let v2 = null; try { v2 = await kamIdentifyAt(canvas, box, 0); } catch (e) { v2 = null; }
+      let v2 = null; try { v2 = await kamKedjaUnder(id, 'orb', () => kamIdentifyAt(canvas, box, 0)); } catch (e) { v2 = null; }
       const c2 = v2 && v2.rec.cands[0];
       if (v2 && v2.accept && c2 && v.rec.cands.slice(0, MODELL_NAMN).some(c => c.name === c2.name)) v = Object.assign(v2, { efterModell: v.modell });
     }
@@ -30396,7 +30506,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   if ((!namn || namn.poang < 0.6) && !(namn && namn.hoppad)) {
     const rot = ((((v.rec && v.rec.rot) || 0) % 360) + 360) % 360;
     if (Math.abs(rot - 180) < 45) {
-      let namn2 = null; try { namn2 = await Namn.las(canvas, namnUtanBaksida(), true); } catch (e) { namn2 = null; }
+      let namn2 = null; try { namn2 = await kamKedjaUnder(id, 'titel', () => Namn.las(canvas, namnUtanBaksida(), true)); } catch (e) { namn2 = null; }
       if (namn2 && (!namn || namn2.poang > namn.poang)) namn = namn2;
     }
   }
@@ -34556,6 +34666,15 @@ function ritaPbLager() {
     x.setLineDash(t.skymd ? [5, 4] : []);
     x.strokeRect(-w / 2, -h / 2, w, h);
     x.restore();
+    /* Igenkänningskedjan (?debug, kedjaText): delen som arbetar nu och delarna som körts, i rutans övre vänstra hörn. */
+    const k = DEBUG && kamKedja.get(t.id), d = k ? kedjaText(k) : null;
+    if (d && (d.nu.length || d.klar.length)) {
+      const c = Math.abs(Math.cos(vinkel)), sn = Math.abs(Math.sin(vinkel));
+      const rader = (d.nu.length ? [['#e8b33a', '● ' + d.nu.join(' · ')]] : []).concat(d.klar.length ? [['#5fbf7f', d.klar.map(n => '☑' + n).join(' ')]] : []);
+      const bx = p.x - (w * c + h * sn) / 2 + 3, by = p.y - (w * sn + h * c) / 2 + 3, bw = Math.max(...rader.map(r => x.measureText(r[1]).width)) + 8;
+      x.fillStyle = '#0d1117d9'; x.fillRect(bx, by, bw, rader.length * 13 + 4);
+      rader.forEach(([f, txt], i) => { x.fillStyle = f; x.fillText(txt, bx + 4, by + 15 + i * 13); });
+    }
   }
 }
 /* Lagret ovanpå bilden i steg 4 (MES-122): provkortets etikett, graveyard-
@@ -34841,7 +34960,7 @@ function kamTogsEmot(m) {
     if (m.bib !== undefined) kamBib = m.bib;
     if (bibLyft() !== foreLyft) renderBibHog();     // leken lyftes eller lades tillbaka
     /* Telefonen startade om (se kamStromIgen): förhandsbilden begärs igen. */
-    if (m.nollstall) { kamStromIgen(); if (DEBUG) InspDator.omstart(); }   // telefonen startade om (MES-190: passet blir oanvändbart)
+    if (m.nollstall) { kamStromIgen(); kamKedja.clear(); if (DEBUG) InspDator.omstart(); }   // telefonen startade om (MES-190: passet blir oanvändbart)
     /* Kostnadsboken följer med varje bord, fasbytet och hjärtslaget också.
        Före fasbytets retur, och bara medan auto är på — som bordet självt. */
     if (m.bok && prefs.autoLage !== false) autoSumBok(m.bok);
@@ -34888,6 +35007,7 @@ function kamTogsEmot(m) {
   }
   if (m.typ === 'beskarning') return tagEmotBeskarning(m);
   if (m.typ === 'foto') return tagEmotFoto(m);
+  if (m.typ === 'kedja') return tagEmotKedja(m);   // igenkänningskedjan per spår (bara ?debug)
   /* Leken kan sparas från telefonen — fotot ligger där. Utan den här raden
      satt datorn kvar med en inaktuell minLek och skrev en gammal lek över
      den nya nästa gång dialogen sparades. */
