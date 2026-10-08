@@ -6861,6 +6861,7 @@ let kamGrund;
 let kamGrundRad = null;       // grundläget i spelets rad (camera_setups), för popovern innan telefonen rapporterat
 let kamHarVarit = false;      // har en telefon någonsin svarat i det här spelet?
 let kamTappadNar = 0;         // när tappades den? — bordet är fruset sedan dess
+let kamFrasktVantar = false;  // telefonen kom tillbaka efter att ha tappats: mattan byggs om vid nästa riktiga bord (frasktBord)
 let kamLast = 0, kamTot = 0;  // lästa kort av upptäckta spår, ur varje bordsmeddelande
 /* Sant medan en fjärruppdatering appliceras. renderGrid sorterar manan och
    sparar mitt i sin egen rendering — utan den här spärren skulle varje
@@ -12049,7 +12050,9 @@ function renderKamPop() {
   }
   const lt = $('#kamLageTxt'); if (lt.textContent !== LAGE_TXT[m.lage]) lt.textContent = LAGE_TXT[m.lage];
   const felHtml = fel === 'tappad'
-      ? `<p class="poptxt">The cards on the mat stay as they are — frozen as they looked ${sedan(kamTappadNar)}. Check that the phone's screen is on and Mesa is open on it, then reconnect.</p>`
+      ? (bord
+        ? `<p class="poptxt">The cards on the mat are frozen as they looked ${sedan(kamTappadNar)}. When the phone is back, the mat is rebuilt from what the camera sees. Check that the phone's screen is on and Mesa is open on it, then reconnect.</p>`
+        : `<p class="poptxt">The cards on the mat stay as they are — frozen as they looked ${sedan(kamTappadNar)}. Check that the phone's screen is on and Mesa is open on it, then reconnect.</p>`)
         + (kamQrTvinga ? '' : '<div class="kamfelknappar"><button type="button" class="btn prim" data-mode="visaqr">Reconnect</button></div>')
     : fel === 'gammal'
       ? '<p class="poptxt">Your phone runs an older version of Mesa. Reload the page on the phone — the camera carries on where it stopped.</p>'
@@ -33412,6 +33415,7 @@ async function stangAvAuto(fraga) {
   kamAnsluten = false;
   renderBibHog();
   kamHarVarit = false;            // avstängd är inte tappad — bordet ljuger inte
+  kamFrasktVantar = false;
   kamTappadNar = 0; kamLast = kamTot = kamSer = 0; kamFas = ''; kamSma = 0; kamUpplosning = null;
   prefs.autoLage = false; savePrefs();
   glomSpar();
@@ -34672,7 +34676,7 @@ function kamNarvaro(kameror) {
      skillnaden mellan att inget har hänt än och att bordet på skärmen ljuger.
      Funktionen visste den redan — fanns är exakt den frågan — men värdet
      kastades när den returnerade, och kvar blev bara en toast som försvann. */
-  if (kamAnsluten) { kamHarVarit = true; normaliseraKamRad(); }
+  if (kamAnsluten) { if (kamHarVarit) kamFrasktVantar = true; kamHarVarit = true; normaliseraKamRad(); }
   else if (kamHarVarit) kamTappadNar = Date.now();
   if (!kamAnsluten) {
     kamLast = kamTot = 0;
@@ -34689,6 +34693,30 @@ function kamNarvaro(kameror) {
   if (kamAnsluten) kamStromIgen();   // telefonen kom tillbaka: den strömmar inte förrän den blir ombedd
   renderMode();
   if (!kamAnsluten) toast('The camera was disconnected', 'err');
+}
+/* Telefonen kom tillbaka efter att ha tappats (Jespers beslut 2026-10-08):
+   i Mirror my table byggs mattan om ur det kameran ser nu. Förut stod det
+   frusna bordet kvar, och kamerans kort band om till det (glomSpar) — kort
+   som lyfts medan telefonen var borta låg kvar för alltid, utan spår att dö.
+   Allt på mattan tas bort: kort, tokens, counters, auror, raden vid
+   nederkanten och granskningens poster (deras spår hör till den gamla
+   numreringen). Avstämningen skapar sedan korten på nytt ur spåren.
+   Graveyard och exile står kvar: kameran kan inte läsa vad som ligger i
+   högen, och en tömd hög hade varit fel på riktigt. Grundläget,
+   graveyard-platsen och leken står också kvar — telefonen har dem i
+   camera_setups. Use camera to add cards rörs inte: där leder skärmen, och
+   kameran tar aldrig bort något (spelPolicy). Ångra lägger tillbaka mattan. */
+function frasktBord() {
+  const mig = minSpelare(); if (!mig || !spelPolicy(mig).saknas) return;
+  angraPunkt(mig);
+  const bort = new Set(mig.cards.filter(paMattan).map(c => c.cid));
+  for (let j = mig.cards.length - 1; j >= 0; j--) if (bort.has(mig.cards[j].cid)) mig.cards.splice(j, 1);
+  for (const c of mig.cards) if (c.attachedTo && bort.has(c.attachedTo)) delete c.attachedTo;
+  mig.pending = [];
+  handRad = [];
+  ofrGlom();
+  if (player() === mig) state.sel = clamp(state.sel, 0, Math.max(0, hand().length - 1));
+  save(); renderAll(true);
 }
 /* En bildruta från telefonen. Måtten är telefonens egna; pbW/pbH följer dem. */
 let kamBildW = 0, kamBildH = 0;
@@ -34746,6 +34774,13 @@ function kamTogsEmot(m) {
     if (m.grund !== undefined) grundTillRad();   // telefonens grundläge till raden (MES-334, granskningen av sida 5: V3)
     if (m.dia) provbordData(m);
     if (DEBUG) LatensDator.bord(m, Date.now());   // latensmätningen (MES-215): mottaget, och ritat i nästa ritning
+    /* Telefonen kom tillbaka (frasktBord): mattan töms före avstämningen, som då skapar korten på nytt.
+       Inte medan telefonen lär sig ljuset eller uppstarten står framme — då rör avstämningen inte bordet,
+       och mattan hade stått tom. */
+    if (kamFrasktVantar && !m.nollstall) {
+      const fas = m.fas || kamFas;
+      if (fas !== 'ljus' && fas !== 'lar' && fas !== 'ingen' && !oppstartSparr()) { kamFrasktVantar = false; frasktBord(); }
+    }
     return avstamBord(m.spar || [], m.nollstall, m.fas, m.yta, m.rad, m.grav);
   }
   if (m.typ === 'grund') return tagEmotGrundSvar(m);
@@ -35641,7 +35676,7 @@ async function lamnaSpelet() {
   kamAnsluten = false; kamOppen = false;
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man
      ens hunnit koppla en telefon: flaggan mindes ett spel som var slut. */
-  kamHarVarit = false; kamTappadNar = 0; kamLast = kamTot = 0;
+  kamHarVarit = false; kamTappadNar = 0; kamFrasktVantar = false; kamLast = kamTot = 0;
   { const i = $('#pbImg'), v = $('#pbVantar'); if (i) i.removeAttribute('src'); if (v) v.hidden = false; }
   stangKamSkruv();
   /* En tom spelarlista är inget läge appen kan vara i: player() returnerar
