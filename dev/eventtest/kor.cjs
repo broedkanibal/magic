@@ -214,10 +214,11 @@ for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(130)
   const fel = await kor(`(resultat.get(${JSON.stringify(ID)}) || {}).fel || null`);
   if (fel) throw new Error('fallet gick inte att köra: ' + fel);
   const nycklar = await kor(`Object.keys(resultat.get(${JSON.stringify(ID)}))`);
-  /* Allt serialiseras i sidan och hämtas i bitar om 4 M tecken: ett enda
-     svar på tiotals MB stänger förbindelsen till Chrome. Partiet 2026-09-21
-     efter Remsan först dog tre gånger av tre på bordsloggens 250 bord per
-     svar. */
+  /* Allt serialiseras i sidan och hämtas i bitar om 4 M tecken, bordsloggen
+     100 bord åt gången. Partiet 2026-09-21 efter Remsan först tappade
+     förbindelsen till Chrome tre gånger av tre när bordsloggen hämtades 250
+     bord per svar (det största svaret var bara ~2,3 M tecken, så orsaken är
+     inte utredd); med bitarna gick det igenom. */
   const R = `resultat.get(${JSON.stringify(ID)})`;
   const hamta = async uttryck => {
     const len = await kor(`(window.__ut = JSON.stringify(${uttryck}) || 'null').length`);
