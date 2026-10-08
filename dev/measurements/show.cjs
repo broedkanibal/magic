@@ -121,6 +121,8 @@ function goldenHistorik() {
       namn: +namn[1], fel: fel ? +fel[1] : null, hittade: hitt ? +hitt[1] : null,
       fran: kl ? kl[1].replace('.', ':') : null, till: kl ? kl[2].replace('.', ':') : null,
       vad: ren(c[1]).replace(/\s+/g, ' '),
+      /* "bara 13, 17, 18": totalen är de fallen + resten ur baslinjen */
+      del: ((c[3].match(/\bbara [\d, och]*\d/) || [])[0]) || null,
     });
   }
   return rader.map(r => ({ ...r, main: paMain(r.commit), tid: svDatum(r.dag, r.fran) }));
@@ -272,6 +274,7 @@ function oversikt(medClaude) {
     ut.push(`  ${W('Golden, alla 18 fall', 26)}${W('11 foton + 7 videor', 22)}rätt namn ${s.namn}/119 · fel namn ${s.fel}` +
       `${g.forra ? `   förra ${g.forra.namn} (${g.forra.vad})` : ''}   mål 0 fel`);
     ut.push(`  ${' '.repeat(48)}mätt ${s.dag} ${s.fran || ''}${s.till ? '–' + s.till : ''} · ${s.commit}${varning(kodAndrad(s.commit))}`);
+    if (s.del) ut.push(`  ${' '.repeat(48)}delkörning: ${s.del} — övriga fall ur baslinjen`);
     if (g.bas) ut.push(`  ${' '.repeat(48)}varav ren kamera ${g.bas.renNamn}/${g.bas.renKort} (ur baslinjen, se nedan)`);
     if (g.bas && g.bas.namn !== s.namn) ut.push(`  ${' '.repeat(48)}senaste körningen är inte sparad som baslinje (senaste.json = ${g.bas.namn}/119, ${g.bas.fil.h})`);
     if (g.gren) ut.push(`  ${' '.repeat(48)}senaste på en gren: ${g.gren.namn}/119 · fel namn ${g.gren.fel} · ${g.gren.commit} · ${g.gren.dag} ${g.gren.fran || ''}`);
@@ -338,10 +341,10 @@ function detaljGolden() {
   const g = golden();
   const ut = ['GOLDEN', ''];
   ut.push('Senaste hela körningarna (dev/golden/historik.md, utan Claude):');
-  ut.push('  datum       tid          commit    main  hittade  rätt namn  fel namn  vad');
+  ut.push('  datum       tid          commit    main  hittade  rätt namn  fel namn  vad (* = delkörning)');
   const rader = goldenHistorik().filter(r => !r.ai).slice(-8);
   for (const r of rader) {
-    ut.push(`  ${W(r.dag, 12)}${W((r.fran || '') + (r.till ? '–' + r.till : ''), 13)}${W(r.commit || '–', 10)}${W(r.main ? 'ja' : 'gren', 6)}${W(r.hittade != null ? r.hittade + '/119' : '–', 9)}${W(r.namn + '/119', 11)}${W(r.fel, 10)}${r.vad.slice(0, 70)}`);
+    ut.push(`  ${W(r.dag, 12)}${W((r.fran || '') + (r.till ? '–' + r.till : ''), 13)}${W(r.commit || '–', 10)}${W(r.main ? 'ja' : 'gren', 6)}${W(r.hittade != null ? r.hittade + '/119' : '–', 9)}${W(r.namn + '/119' + (r.del ? '*' : ''), 11)}${W(r.fel, 10)}${r.vad.slice(0, 70)}`);
   }
   for (const b of [g.bas, g.basAi].filter(Boolean)) {
     ut.push('');
