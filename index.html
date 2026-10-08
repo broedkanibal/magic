@@ -2076,6 +2076,9 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .ofrsok .sok-t span,.ofrsok .sok-t b{white-space:pre}
 .ofrsok .sok-t b{color:var(--pa-acc);font-weight:650}
 .ofrsok .sok-tom{font-size:12px;color:#66748a;padding:4px 8px}
+.ofrsok .sok-fot{display:flex;justify-content:flex-end;padding-top:8px;border-top:1px solid #ffffff14}
+.ofrsok .sok-nej{height:28px;padding:0 10px;border-radius:7px;border:1px solid var(--line);background:#1b2230;color:#c8d2e0;font:12.5px var(--sans);cursor:pointer}
+.ofrsok .sok-nej:hover{background:#232c3c;color:var(--txt)}
 .kalupp{display:flex;align-items:center;gap:6px;font:12px var(--sans);color:var(--dim)}
 .kalupp .btn.on{background:var(--acc-d);color:var(--pa-acc);border-color:var(--acc)}
 .kamskruv .kalupp{padding:2px 9px 8px;flex-wrap:wrap}
@@ -8233,9 +8236,12 @@ function malIndex(i) {
 
 /* De oframkallade korten just nu (MES-344, ofrSteg i avstämningen): bara på mitt eget bord, medan auto
    är på och telefonen är med. Någon annans bord får dem ur bordsraden (ofrDelat), som en liten suddig bild. */
-function ofrNu() {
+function ofrPaMattan() {
   const mig = minSpelare();
-  if (!mig || player() !== mig || !kamAnsluten || prefs.autoLage === false || oppstartPagar()) return [];
+  return !!mig && player() === mig && kamAnsluten && prefs.autoLage !== false && !oppstartPagar();
+}
+function ofrNu() {
+  if (!ofrPaMattan()) return [];
   return ofrLista();
 }
 /* Kortet ligger som kortet ligger (MES-226): tappat när spåret är det — men bara där kortet sedan också
@@ -11150,7 +11156,10 @@ gridWrap.addEventListener('pointerdown', ev => {
   if (ev.target.closest(MATT_UI)) return;
   const hand = ev.button === 0 && (!!matHand || matVerktyg === 'pan'), hoger = ev.button === 2 && !urHogTryck(ev);
   if (!hand && !hoger && ev.button !== 1) {
-    if (ev.button === 0 && !ev.target.closest('.card,.ofr,.grav,.bib,.empty,.lekhog,.lekute,.gravd1,.nedkort')) { closeCounters(); lassoStart(ev); }
+    /* .ofrmark: "Name this card" är ett eget element sedan MES-346. Utan den i listan startade ett tryck på
+       etiketten lassot, som fångar pekaren (setPointerCapture) — och då går klicket till gridWrap, inte till
+       knappen, och sökrutan öppnades aldrig. */
+    if (ev.button === 0 && !ev.target.closest('.card,.ofr,.ofrmark,.grav,.bib,.empty,.lekhog,.lekute,.gravd1,.nedkort')) { closeCounters(); lassoStart(ev); }
     return;
   }
   closeCounters();
@@ -13122,9 +13131,16 @@ function renderTom() {
    miniatyrerna, Review och Discard. Raden säger bara vad som återstår att
    göra — "1 kort att fylla i"; hur många som hittades totalt (också de som
    redan fick namn ur samma bild) står i title. Fältets synlighet avgörs i
-   renderAutoBar, som Auto-delen delar raden med. */
+   renderAutoBar, som Auto-delen delar raden med.
+   Kamerans kort räknas inte medan de namnges på mattan (ofrPaMattan: mitt bord, auto på, telefonen med —
+   MES-344): de ligger där oframkallade med "Name this card", och raden "N cards to fill in" ska inte säga
+   samma sak en gång till (Jesper 2026-10-08, designytan "Mesa Name This Card"). Raden står kvar för
+   skärmdumpens kort. Inte per post (bara de som redan har ett oframkallat kort): en post kommer ofta före sitt
+   oframkallade kort, raden blinkade då förbi, och mattans ruta bytte höjd varje gång — uppspelaren mätte 39
+   zoom- och panoreringshopp i partiet genom kedjan, mot 0. */
 function renderPending() {
-  const p = player(), q = p.pending || [];
+  const p = player(), kamPaMattan = ofrPaMattan();
+  const q = (p.pending || []).filter(x => !(kamPaMattan && x.spar != null));
   const del = $('#pendBar');
   del.hidden = q.length === 0;
   if (q.length) {
@@ -13755,7 +13771,8 @@ function ofrSokOppna(pend) {
   el.innerHTML = '<div class="sok-hu"><label class="sok-l" for="ofrSokIn">Which card is this?</label>'
     + '<button type="button" class="sok-x" aria-label="Close" data-sokstang><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg></button></div>'
     + '<input id="ofrSokIn" class="sok-in" type="text" autocomplete="off" spellcheck="false" placeholder="Type a card name">'
-    + '<div class="sok-res"></div>';
+    + '<div class="sok-res"></div>'
+    + '<div class="sok-fot"><button type="button" class="sok-nej" data-soknej title="The camera stops asking about it">Not a card</button></div>';
   zp.appendChild(el);
   ofrSok = { pend, el, inp: el.querySelector('.sok-in'), res: el.querySelector('.sok-res'), traffar: [], idx: 0, seq: 0 };
   ofrSok.inp.addEventListener('input', () => ofrSokSok());
@@ -13768,6 +13785,7 @@ function ofrSokOppna(pend) {
   });
   el.addEventListener('click', ev => {
     if (ev.target.closest('[data-sokstang]')) { ofrSokStang(); return; }
+    if (ev.target.closest('[data-soknej]')) { if (ofrSok) ofrInteKort(ofrSok.pend); return; }
     const b = ev.target.closest('[data-soki]');
     if (b && ofrSok) { const t = ofrSok.traffar[+b.dataset.soki]; if (t) ofrNamnge(ofrSok.pend, t.namn, t.sid); }
   });
@@ -13816,6 +13834,19 @@ function ofrNamnge(pend, name, sid) {
   save(); resolveAll();
   if (sammaKort) toast(`${name} is already on the board`);
   renderAll(true);
+}
+/* Not a card (Jesper 2026-10-08, designytan "Mesa Name This Card"): granskningsradens Discard flyttade hit, men
+   för ett kort i taget. Samma svar som arkets "It's not a card": spåret spärras tills det lyfts (borttagna), och
+   det oframkallade kortet går. */
+function ofrInteKort(pend) {
+  ofrSokStang();
+  const p = malSpelare(), q = pendById(pend);
+  if (!q) return;
+  if (q.spar != null) borttagna.add(q.spar);
+  p.pending.splice(p.pending.indexOf(q), 1);
+  const post = ofrLista().find(o => o.pend === pend);
+  if (post) ofrMinne.delete(post.id);
+  save(); renderAll(true);
 }
 addEventListener('pointerdown', ev => { if (ofrSok && !ev.target.closest('.ofrsok,.ofr.fraga,.ofrmark')) ofrSokStang(); }, true);
 /* Etiketten och dess kort (MES-346): pekaren på "Name this card" lyser upp kortet den hör till. */

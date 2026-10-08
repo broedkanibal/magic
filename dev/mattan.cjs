@@ -93,6 +93,14 @@ const PROV = async () => {
   const vanta = ms => new Promise(r => setTimeout(r, ms));
   const els = () => new Map([...gridEl.querySelectorAll('.card[data-cid]')].map(e => [e.dataset.cid, e]));
   const gar = el => el.getAnimations().some(a => a.playState === 'running');
+  /* Ett riktigt musklick mitt på elementet (Node skickar trycket och släppet, se vakt). */
+  const riktigtKlick = async el => {
+    const q = el.getBoundingClientRect(), nr = (window.__mattKlick ? window.__mattKlick.nr : 0) + 1;
+    window.__mattKlick = { x: q.left + q.width / 2, y: q.top + q.height / 2, nr };
+    for (let i = 0; i < 300 && window.__mattKlickKlar !== nr; i++) await vanta(10);
+    await vanta(30);
+    return window.__mattKlickKlar === nr;
+  };
   const anim = el => el.getAnimations().map(a => Object.keys((a.effect.getKeyframes() || [])[0] || {}).filter(k => !['offset', 'easing', 'composite', 'computedOffset'].includes(k)).join('+')).join(',');
   ok('sidan är synlig (annars animerar matSynk inget)', !document.hidden, document.visibilityState);
 
@@ -820,6 +828,7 @@ const PROV = async () => {
     const u = ofrEl(43), mark = gridEl.querySelector(':scope > .ofrmark[data-ofr="43"]');   // etiketten är ett eget element i brädet (MES-346)
     ok('aldrig något namn: oframkallat med "Name this card", utan kamerans gissning', !!u && !!mark && mark.textContent === 'Name this card' && mark.dataset.pend === u.dataset.pend && !/Serra/.test(u.outerHTML + mark.outerHTML), u ? u.textContent : 'inget');
     ok('ingen platshållare och ingen laddtext på mattan', !gridEl.querySelector('.plats') && !/Reading|Asking Claude|Moving…/.test(gridEl.textContent), '');
+    ok('raden "N cards to fill in" står inte där: kortet namnges på mattan (designytan Mesa Name This Card)', mig.pending.length === 1 && $('#pendBar').hidden, `${mig.pending.length} i granskningen, raden ${$('#pendBar').hidden ? 'dold' : 'synlig'}`);
     /* Motståndarna: bordsraden bär det oframkallade kortet som en post utan namn, med en liten suddig bild. */
     for (let i = 0; i < 20 && !(ofrLista()[0] || {}).liten; i++) await vanta(25);
     const delat = hogDelat(mig).filter(h => h.hog === 'ofr');
@@ -832,7 +841,7 @@ const PROV = async () => {
     const oo = document.querySelectorAll('#oppMattor .ofr');
     ok('motståndaren ser det oframkallade kortet (den lilla bilden), och inget för hens nedvända kort', oo.length === 1 && oppO.cards.length === 1 && !!oo[0].querySelector('.ofram .ofoto') && !oo[0].querySelector('.ofrmark'), `${oo.length} oframkallade, ${oppO.cards.length} kort`);
     state.players = spelare0; renderAll(true);
-    mark.click();
+    await riktigtKlick(gridEl.querySelector(':scope > .ofrmark[data-ofr="43"]'));   // ett riktigt klick: lassot fick inte ta det (pekarfångsten)
     const sok = document.querySelector('.ofrsok'), ur = u.getBoundingClientRect(), sr = sok && sok.getBoundingClientRect();
     ok('klicket öppnar sökrutan bredvid kortet, inte över det', !!sok && (sr.right <= ur.left || sr.left >= ur.right) && document.activeElement === sok.querySelector('.sok-in'), sr ? `ruta ${Math.round(sr.left)}–${Math.round(sr.right)}, kort ${Math.round(ur.left)}–${Math.round(ur.right)}` : 'ingen ruta');
     ok('… med leken först och inget förvalt (inga gissningar)', /From your deck/.test(sok.textContent) && sok.querySelectorAll('.sok-t').length === 3 && !sok.querySelector('.sok-t.on'), sok.textContent.slice(0, 80));
@@ -881,10 +890,19 @@ const PROV = async () => {
     const overst = el => { const q = rekt(el), t = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return !!t && (t === el || el.contains(t)); };
     ok('… och var och en ligger överst där den står (går att läsa och klicka på)', etik.every(el => el && overst(el)), etik.map(el => el && overst(el) ? 'ja' : 'nej').join(','));
     const mitt = etik[1], mittKort = ofrEl(62);
-    if (mitt) mitt.click();
+    if (mitt) await riktigtKlick(mitt);
     const sok2 = document.querySelector('.ofrsok'), kr = mittKort && rekt(mittKort), sr2 = sok2 && rekt(sok2);
     ok('klicket på den mittersta etiketten öppnar sökrutan för just det kortet, bredvid det', !!sok2 && ofrSok && ofrSok.pend === mitt.dataset.pend && mittKort.dataset.pend === mitt.dataset.pend && (sr2.right <= kr.left || sr2.left >= kr.right),
       sok2 ? `pend ${ofrSok && ofrSok.pend} / ${mitt.dataset.pend}, ruta ${Math.round(sr2.left)}–${Math.round(sr2.right)}, kort ${Math.round(kr.left)}–${Math.round(kr.right)}` : 'ingen ruta');
+    ok('… och raden "N cards to fill in" står fortfarande inte där (tre kort i granskningen, alla på mattan)', mig.pending.length === 3 && $('#pendBar').hidden, `${mig.pending.length} i granskningen, raden ${$('#pendBar').hidden ? 'dold' : 'synlig'}`);
+    /* Not a card (granskningsradens Discard, för ett kort i taget): kortet går, och kameran frågar inte mer om spåret. */
+    const nej = sok2 && sok2.querySelector('[data-soknej]'), pend62 = mitt && mitt.dataset.pend;
+    if (nej) await riktigtKlick(nej);
+    avstamBord(r, false);
+    await vanta(50);
+    ok('Not a card i sökrutan: kortet och dess etikett går, granskningen har de två andra, och spåret frågas inte igen', !!nej && !ofrEl(62) && !gridEl.querySelector(':scope > .ofrmark[data-ofr="62"]') && !document.querySelector('.ofrsok')
+      && mig.pending.length === 2 && !mig.pending.some(q => q.id === pend62 || q.spar === 62) && borttagna.has(62) && !!ofrEl(61) && !!ofrEl(63),
+      `${nej ? 'knapp' : 'ingen knapp'}, ${mig.pending.length} i granskningen, oframkallade ${[61, 62, 63].filter(id => ofrEl(id)).join(',')}`);
     ofrSokStang();
   } catch (e) { ok('framkallningen: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); }
   return rad;
@@ -1004,13 +1022,24 @@ const TIDPROV = async () => {
          Den kan slås på och av flera gånger (mattans rörelser, zoomstegen). */
       let provKlart = false;
       const r0 = c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')()', awaitPromise: true, returnByValue: true }).finally(() => { provKlart = true; });
+      /* Riktiga musklick (window.__mattKlick, riktigtKlick i provet): Chrome får tryck och släpp som från en mus,
+         så att pekarfångsten (setPointerCapture) gäller som för en spelare. En syntetisk el.click() går förbi
+         pointerdown — så missade provet att lassot svalde klicket på "Name this card". */
+      let klickNr = 0;
       const vakt = (async () => {
         let pa = false;
         const slut = Date.now() + 120000;
         while (!provKlart && Date.now() < slut) {
-          const v = await c.cdp('Runtime.evaluate', { expression: 'window.__mattLugn', returnByValue: true }).catch(() => null), x = v && v.result.value;
+          const v = await c.cdp('Runtime.evaluate', { expression: '[window.__mattLugn, window.__mattKlick || null]', returnByValue: true }).catch(() => null), [x, k] = (v && v.result.value) || [];
           if (x === true && !pa) { pa = true; await c.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] }); }
           if (x === false && pa) { pa = false; await c.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] }); }
+          if (k && k.nr !== klickNr) {
+            klickNr = k.nr;
+            await c.cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: k.x, y: k.y });
+            await c.cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: k.x, y: k.y, button: 'left', buttons: 1, clickCount: 1 });
+            await c.cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: k.x, y: k.y, button: 'left', buttons: 0, clickCount: 1 });
+            await c.cdp('Runtime.evaluate', { expression: `window.__mattKlickKlar = ${k.nr}` });
+          }
           await vanta(5);
         }
       })();

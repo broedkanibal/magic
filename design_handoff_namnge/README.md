@@ -13,8 +13,8 @@ Jespers val 2026-10-08: **F2** (kortet) + **H2** (texten). Bygger vidare på MES
 | Den skarpa ramen runt suddet är kamerafotots egen kant (`.ofoto`), suddet ligger i en fast `clip-path` | Beskärningen tar med en bordsremsa, och ligger kortet snett sticker bordet ut på sidan. "Ser B ut" | Mesa ritar ramen själv; fotot förstoras 1,18 så att bordet hamnar utanför |
 | Hela den unika ytan suddig | Man ser inte kortet man ska namnge | Skarpt i mitten, suddigt mot kanterna |
 | Etiketten "Name this card" | Konstigt när namnet syns på bilden; säger inte att kameran misslyckats | "NOT IDENTIFIED" överst på kortet + knappen "Enter name" |
-| Bannern "N cards to fill in" ovanför mattan | Dubblerar etiketten på kortet | Räknar inte kort som ligger på mattan |
-| Klicket på etiketten | Öppnar ingenting i produktionen | Öppnar sökrutan (buggen rättas först) |
+| Bannern "N cards to fill in" ovanför mattan | Dubblerar etiketten på kortet | Räknar inte kort som ligger på mattan — **byggt 2026-10-08**, se *Det som inte ändras* |
+| Klicket på etiketten | Öppnar ingenting i produktionen | Öppnar sökrutan — **rättat 2026-10-08:** lassot fångade pekaren (`.ofrmark` saknades i undantagen i `gridWrap`:s pointerdown); `dev/mattan.cjs` klickar nu på riktigt |
 
 ## Lägena
 
@@ -31,7 +31,8 @@ Ritade på spec-tavlan, i samma ordning.
    - rubriken **Enter card name**
    - kamerafotot skarpt överst (120 px brett, beskärningen utan zoom)
    - **Not a card** längst ned, som gör vad Discard gör, men bara för den här posten: spåret blir
-     skräp och kortet går från mattan
+     skräp och kortet går från mattan — **byggt 2026-10-08** (`ofrInteKort`, `.sok-nej`); rubriken och
+     fotot återstår
 
    Knappen "Enter name" döljs medan rutan är öppen. Etiketten står kvar.
 6. **Liten zoom:** är kortet lägre än 120 px på skärmen döljs etiketten. Knappen står kvar.
@@ -58,7 +59,10 @@ Ritade på spec-tavlan, i samma ordning.
 - **Motståndarens vy:** `ofrLiten`, 22 × 31 px, suddig, utan text. Det skarpa fotot är bara ägarens
   (MES-305: ingen dold information läcker).
 - **Bannern för bilder:** poster ur "Add cards from an image" (I), som inte har något kort på mattan,
-  visar `#pendBar` som idag. Bara poster med `ofrPos` räknas bort.
+  visar `#pendBar` som idag. **Byggt 2026-10-08:** kamerans poster räknas bort så länge de namnges på
+  mattan (`ofrPaMattan`: mitt bord, auto på, telefonen med) — inte per post med `ofrPos`. En post kommer
+  ofta före sitt oframkallade kort; per post blinkade raden förbi och mattans ruta bytte höjd, 39 zoom-
+  och panoreringshopp i uppspelarens parti genom kedjan mot 0.
 - **Sökningen:** leken först, sedan alla kort (`ofrSokSok`). Inga gissningar visas.
 
 ## Det som inte byggs
@@ -73,9 +77,10 @@ Ritade på spec-tavlan, i samma ordning.
 
 `ofrLager`, `ofrHtml`, `ofrMarkHtml`, `ofrMarkAnkare`, `ofrMarkLagg`, `ofrSokOppna`, `renderPending`, CSS
 `.ofram`/`.ofsudd`/`.oglans`/`.ofrmark`/`.ofrsok` i `index.html`. Klicket går genom lyssnaren på
-`gridEl` som söker `.ofr.fraga, .ofrmark[data-pend]` och anropar `ofrSokOppna(q.id)`. Felsök den
-vägen först: `redigerbar()`, `pendById` och `ofrSokPlacera`, som stänger rutan direkt om den inte
-hittar kortets element.
+`gridEl` som söker `.ofr.fraga, .ofrmark[data-pend]` och anropar `ofrSokOppna(q.id)`. Felet var
+lassot (`gridWrap`:s pointerdown fångade pekaren) och är rättat. Ett nytt klickbart element på mattan
+— etiketten "NOT IDENTIFIED", "Enter name" — måste stå i lassots undantagslista, och provas med
+`riktigtKlick` i `dev/mattan.cjs`, inte `el.click()`.
 
 ## Prova
 
