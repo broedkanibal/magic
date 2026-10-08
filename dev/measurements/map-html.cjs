@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-/* Kartan som webbsida: läser dev/matningar/KARTA.md och skriver en HTML-sida
+/* Kartan som webbsida: läser dev/measurements/MAP.md och skriver en HTML-sida
    (för Artifact-publicering) där markdownen renderas i webbläsaren med marked.
-   KARTA.md är källan — sidan har ingen egen text.
+   MAP.md är källan — sidan har ingen egen text.
 
-     node dev/matningar/karta-html.cjs <ut.html> */
+     node dev/measurements/map-html.cjs <ut.html> */
 'use strict';
 const fs = require('fs'), path = require('path');
 const ut = process.argv[2];
-if (!ut) { console.error('Ange utfil: node dev/matningar/karta-html.cjs <ut.html>'); process.exit(2); }
-const md = fs.readFileSync(path.join(__dirname, 'KARTA.md'), 'utf8');
+if (!ut) { console.error('Ange utfil: node dev/measurements/map-html.cjs <ut.html>'); process.exit(2); }
+const md = fs.readFileSync(path.join(__dirname, 'MAP.md'), 'utf8');
 
 const sida = `<title>Mesas mätkarta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -1,51 +1,51 @@
 #!/usr/bin/env node
 'use strict';
-/* Mätningarna: de senaste talen från varje mätverktyg, på en skärm.
+/* Measurements: de senaste talen från varje mätverktyg, på en skärm.
    Läser verktygens egna resultatfiler och git. Kör inga mätningar.
 
-   Kartan över vad verktygen är: dev/matningar/KARTA.md.
-   Körs av skillen /mätningarna (.claude/skills/matningarna/SKILL.md).
+   Kartan över vad verktygen är: dev/measurements/MAP.md.
+   Körs av skillen /measurements (.claude/skills/measurements/SKILL.md).
 
-     node dev/matten.cjs                  översikten, utan Claude (förval)
-     node dev/matten.cjs --claude         översikten med båda: utan och med Claude
-     node dev/matten.cjs golden           ett verktyg i detalj (golden, lekgolden,
-                                          handelseprovet, mattprovet, latens, delprov)
+     node dev/measurements/show.cjs                översikten, utan Claude (förval)
+     node dev/measurements/show.cjs --claude       översikten med båda: utan och med Claude
+     node dev/measurements/show.cjs golden         ett verktyg i detalj (golden, deckgolden,
+                                                   eventtest, mattest, latency, components)
 
-   Delproven har inga egna resultatfiler med ett fast format. Den som kör ett
-   delprov skriver in talet i registret dev/matt/register.jsonl:
+   Component tests har inga egna resultatfiler med ett fast format. Den som kör
+   ett component test skriver in talet i registret dev/measurements/register.jsonl:
 
-     node dev/matten.cjs --registrera kamerans-regler "251/251 OK" --kalla "node dev/kamerabank.cjs"
+     node dev/measurements/show.cjs --register camera-rules "251/251 OK" --source "node dev/kamerabank.cjs"
 
    ⚠ = koden (index.html) har ändrats sedan mätningen. */
 const fs = require('fs');
 const path = require('path');
 const { execSync, spawnSync } = require('child_process');
 
-const ROT = path.join(__dirname, '..');
+const ROT = path.join(__dirname, '..', '..');
 const p = (...d) => path.join(ROT, ...d);
 
 /* Mapparna byter namn (prompt H): det första som finns används. */
 const MAPPAR = {
   golden: ['dev/golden'],
-  handelseprovet: ['dev/handelseprovet', 'dev/spegelfacit'],
-  mattprovet: ['dev/mattprovet', 'dev/uppspelaren'],
-  lekgolden: ['dev/lekgolden'],
-  latens: ['dev/latens'],
+  eventtest: ['dev/eventtest', 'dev/spegelfacit'],
+  mattest: ['dev/mattest', 'dev/uppspelaren'],
+  deckgolden: ['dev/lekgolden'],
+  latency: ['dev/latens'],
 };
 const mapp = (v) => MAPPAR[v].find(m => fs.existsSync(p(m))) || MAPPAR[v][0];
-const REGISTER = 'dev/matt/register.jsonl';
+const REGISTER = 'dev/measurements/register.jsonl';
 
-/* Materialet per golden-fall, ur KARTA.md avsnitt 4. */
+/* Materialet per golden-fall, ur MAP.md avsnitt 4. */
 const SKARM = ['01', '02', '07', '09', '10', '11', '12'];
 const KONSTGJORT = ['08'];
 const material = (id) => SKARM.includes(id) ? 'skärminspelning' : KONSTGJORT.includes(id) ? 'konstgjort' : 'ren kamera';
 
 const DELPROV = [
-  { id: 'kamerans-regler', namn: 'Kamerans regler', fil: null, kor: 'node dev/kamerabank.cjs' },
-  { id: 'helkort', namn: 'Bildmodellen, hela kort', fil: /^helkort-jamfor-.*\.txt$/, dir: 'dev/remsa/resultat', kor: 'dev/remsa/helkort_jamfor.py' },
-  { id: 'remsor', namn: 'Bildmodellen, remsor', fil: /^remsregel-.*\.txt$/, dir: 'dev/remsa/resultat', kor: 'dev/remsa/remsexp.py + remsregel.py' },
-  { id: 'detektorn', namn: 'Detektorn', fil: /-par-summa\.json$/, dir: 'dev/detektor/resultat', kor: 'dev/detektor/tran/parprov.py' },
-  { id: 'hogarna', namn: 'Högarna', fil: /^hogbank-remsor\.json$/, dir: 'dev/remsa/resultat', kor: 'dev/remsa/hogbank_remsor.py' },
+  { id: 'camera-rules', namn: 'Camera rules', fil: null, kor: 'node dev/kamerabank.cjs' },
+  { id: 'wholecard', namn: 'Image model, whole cards', fil: /^helkort-jamfor-.*\.txt$/, dir: 'dev/remsa/resultat', kor: 'dev/remsa/helkort_jamfor.py' },
+  { id: 'strips', namn: 'Image model, strips', fil: /^remsregel-.*\.txt$/, dir: 'dev/remsa/resultat', kor: 'dev/remsa/remsexp.py + remsregel.py' },
+  { id: 'detector', namn: 'Detector', fil: /-par-summa\.json$/, dir: 'dev/detektor/resultat', kor: 'dev/detektor/tran/parprov.py' },
+  { id: 'piles', namn: 'Piles', fil: /^hogbank-remsor\.json$/, dir: 'dev/remsa/resultat', kor: 'dev/remsa/hogbank_remsor.py' },
 ];
 
 // ---------- git och tid ----------
@@ -159,9 +159,9 @@ function golden() {
   return { sen, forra, gren, bas, basAi: goldenBaslinje('senaste-ai.json') };
 }
 
-// ---------- mattprovet ----------
+// ---------- Mat test ----------
 function mattprovet() {
-  const rel = mapp('mattprovet') + '/baslinje/baslinje.json';
+  const rel = mapp('mattest') + '/baslinje/baslinje.json';
   if (!fs.existsSync(p(rel))) return null;
   const d = lasJson(rel);
   const fc = filCommit(rel);
@@ -173,9 +173,9 @@ function mattprovet() {
   return { d, fil: fc, forra, rel };
 }
 
-// ---------- händelseprovet ----------
+// ---------- Event test ----------
 function handelseprovet() {
-  const dir = mapp('handelseprovet') + '/resultat';
+  const dir = mapp('eventtest') + '/resultat';
   if (!fs.existsSync(p(dir))) return {};
   const ut = {};
   for (const f of fs.readdirSync(p(dir)).filter(f => f.endsWith('.md'))) {
@@ -196,9 +196,9 @@ function handelseprovet() {
   return ut;
 }
 
-// ---------- lekgolden ----------
+// ---------- Deck golden ----------
 function lekgolden() {
-  const dir = mapp('lekgolden');
+  const dir = mapp('deckgolden');
   const ut = {};
   if (!fs.existsSync(p(dir + '/historik.md'))) return ut;
   for (const l of las(dir + '/historik.md').split('\n')) {
@@ -213,9 +213,9 @@ function lekgolden() {
   return ut;
 }
 
-// ---------- latens ----------
+// ---------- Latency ----------
 function latens(analys = true) {
-  const dir = mapp('latens');
+  const dir = mapp('latency');
   if (!fs.existsSync(p(dir))) return null;
   const filer = fs.readdirSync(p(dir)).filter(f => /^latens-.*\.json$/.test(f)).map(f => {
     try { const d = lasJson(dir + '/' + f); return { f, start: d.start, rader: (d.rader || []).length }; } catch (e) { return null; }
@@ -237,7 +237,7 @@ function latens(analys = true) {
   return { pass, namn: rad('namn'), borta: rad('borta'), syns: rad('något syns (skugga eller namn)'), del: del.trim(), andrad: kodAndradSedan(pass.start) };
 }
 
-// ---------- delprov ----------
+// ---------- Component tests ----------
 function register() {
   if (!fs.existsSync(p(REGISTER))) return [];
   return las(REGISTER).split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
@@ -245,7 +245,7 @@ function register() {
 function delprov() {
   const reg = register();
   return DELPROV.map(dp => {
-    const sen = reg.filter(r => r.delprov === dp.id).pop() || null;
+    const sen = reg.filter(r => r.test === dp.id).pop() || null;
     let fil = null;
     if (dp.fil && fs.existsSync(p(dp.dir))) {
       fil = fs.readdirSync(p(dp.dir)).filter(f => dp.fil.test(f))
@@ -263,7 +263,7 @@ const tidRad = (t) => `${svTid(t)} (${sedan(t)})`;
 function oversikt(medClaude) {
   const g = golden(), m = mattprovet(), h = handelseprovet(), l = lekgolden(), lat = latens(medClaude), dp = delprov();
   const ut = [];
-  ut.push(`MÄTNINGARNA — ${medClaude ? 'utan och med Claude' : 'utan Claude'} · ${GREN} ${HEAD} · ${svTid(new Date())}`);
+  ut.push(`MEASUREMENTS — ${medClaude ? 'utan och med Claude' : 'utan Claude'} · ${GREN} ${HEAD} · ${svTid(new Date())}`);
   ut.push('');
 
   ut.push('KAMERAN LÄSER KORTEN');
@@ -283,10 +283,10 @@ function oversikt(medClaude) {
   }
   if (l.hela) {
     if (medClaude) {
-      ut.push(`  ${W('Lekgolden', 26)}${W('15 foton, 10 set', 22)}rätt ${l.hela.ratt}/${l.hela.av} · fel namn ${l.hela.fel} · exakt ${l.hela.exakt}` +
+      ut.push(`  ${W('Deck golden', 26)}${W('15 foton, 10 set', 22)}rätt ${l.hela.ratt}/${l.hela.av} · fel namn ${l.hela.fel} · exakt ${l.hela.exakt}` +
         `${l.ram ? `   ram ${l.ram.ratt}/${l.ram.av}` : ''}`);
       ut.push(`  ${' '.repeat(48)}mätt ${l.datum || l.hela.dag} · ${l.hela.commit || '–'}${varning(kodAndrad(l.hela.commit))}`);
-    } else ut.push(`  ${W('Lekgolden', 26)}${W('15 foton, 10 set', 22)}finns bara med Claude — /mätningarna med claude`);
+    } else ut.push(`  ${W('Deck golden', 26)}${W('15 foton, 10 set', 22)}finns bara med Claude — /measurements med claude`);
   }
   ut.push('');
 
@@ -299,9 +299,9 @@ function oversikt(medClaude) {
   for (const [slag, rubrik] of [['lokal', ''], ['ai', '  med Claude']]) {
     if (slag === 'ai' && !medClaude) continue;
     const x = h[slag];
-    const namn = slag === 'lokal' ? 'Händelseprovet' : rubrik;
+    const namn = slag === 'lokal' ? 'Event test' : rubrik;
     if (!x) { ut.push(`  ${W(namn, 48)}ingen körning`); continue; }
-    ut.push(`  ${W(namn, 26)}${W(slag === 'lokal' ? 'Parti 22/9, video' : '', 22)}syntes på mattan ${x.syntes}/${x.av} · rätt kort ${x.rattKort}/${x.av}`);
+    ut.push(`  ${W(namn, 26)}${W(slag === 'lokal' ? 'Game 22/9, video' : '', 22)}syntes på mattan ${x.syntes}/${x.av} · rätt kort ${x.rattKort}/${x.av}`);
     ut.push(`  ${' '.repeat(48)}mätt ${tidRad(x.kord)}${varning(kodAndradSedan(x.kord))}`);
   }
   ut.push('');
@@ -309,28 +309,28 @@ function oversikt(medClaude) {
   ut.push('MATTAN VISAR BORDET (inspelade loggar, Claude ingår inte)');
   if (m) {
     const t = m.d.totalt, f = m.forra && m.forra.totalt;
-    ut.push(`  ${W('Mattprovet', 26)}${W(m.d.fall.length + ' fall', 22)}utspel med namn ${t.utspelKort.n}/${t.utspelKort.av} · hopp ${t.hopp + t.hoppSnabba}` +
+    ut.push(`  ${W('Mat test', 26)}${W(m.d.fall.length + ' fall', 22)}utspel med namn ${t.utspelKort.n}/${t.utspelKort.av} · hopp ${t.hopp + t.hoppSnabba}` +
       `${f ? `   förra ${f.utspelKort.n}/${f.utspelKort.av} · hopp ${f.hopp + f.hoppSnabba}` : ''}   mål 0 hopp`);
     ut.push(`  ${' '.repeat(48)}baslinjen ${m.d.meta.datum} · kod ${m.d.meta.commit}${varning(kodAndrad(m.d.meta.commit))} · sparad ${m.fil ? tidRad(m.fil.t) : '–'}`);
   }
   ut.push('');
 
   ut.push('FART PÅ RIKTIG TELEFON');
-  if (!lat) ut.push('  Latens                    ingen fil');
-  else if (!medClaude) ut.push(`  ${W('Latens', 26)}${W('riktiga pass', 22)}finns bara med Claude — /mätningarna med claude   (senast ${svTid(lat.pass.start).slice(0, 10)}${lat.andrad ? ' ⚠' : ''})`);
+  if (!lat) ut.push('  Latency                   ingen fil');
+  else if (!medClaude) ut.push(`  ${W('Latency', 26)}${W('riktiga pass', 22)}finns bara med Claude — /measurements med claude   (senast ${svTid(lat.pass.start).slice(0, 10)}${lat.andrad ? ' ⚠' : ''})`);
   else {
-    ut.push(`  ${W('Latens', 26)}${W('riktigt pass', 22)}släpp → namn median ${lat.namn ? lat.namn.median + ' ms · inom 0,3 s ' + lat.namn.inom + ' (' + lat.namn.n + ' kort)' : '–'}   mål 300 ms`);
+    ut.push(`  ${W('Latency', 26)}${W('riktigt pass', 22)}släpp → namn median ${lat.namn ? lat.namn.median + ' ms · inom 0,3 s ' + lat.namn.inom + ' (' + lat.namn.n + ' kort)' : '–'}   mål 300 ms`);
     ut.push(`  ${' '.repeat(48)}${lat.pass.f} · ${tidRad(lat.pass.start)}${lat.andrad ? ' ⚠' : ''}`);
   }
   ut.push('');
 
-  ut.push('DELPROV (diagnos, inte grind — förklarar varför en grind rörde sig)');
+  ut.push('COMPONENT TESTS (diagnos, inte grind — förklarar varför en grind rörde sig)');
   for (const d of dp) {
     if (d.sen) ut.push(`  ${W(d.namn, 26)}${W(d.sen.tal, 40)}${svTid(d.sen.tid)} · ${d.sen.commit || '–'}${varning(d.andrad)}`);
     else ut.push(`  ${W(d.namn, 26)}${W('inget i registret', 40)}${d.senFil ? 'senaste fil ' + path.basename(d.senFil.f) + ' ' + svTid(d.senFil.t).slice(0, 10) : ''}`);
   }
   ut.push('');
-  ut.push('⚠ = index.html har ändrats sedan mätningen.  Detaljer: node dev/matten.cjs <golden|lekgolden|handelseprovet|mattprovet|latens|delprov>');
+  ut.push('⚠ = index.html har ändrats sedan mätningen.  Detaljer: node dev/measurements/show.cjs <golden|deckgolden|eventtest|mattest|latency|components>');
   return ut.join('\n');
 }
 
@@ -362,8 +362,8 @@ function detaljGolden() {
 
 function detaljMatt() {
   const m = mattprovet();
-  if (!m) return 'MATTPROVET — ingen baslinje';
-  const ut = [`MATTPROVET — baslinjen ${m.d.meta.datum}, kod ${m.d.meta.commit}${varning(kodAndrad(m.d.meta.commit))} · ${m.rel}`, ''];
+  if (!m) return 'MAT TEST — ingen baslinje';
+  const ut = [`MAT TEST — baslinjen ${m.d.meta.datum}, kod ${m.d.meta.commit}${varning(kodAndrad(m.d.meta.commit))} · ${m.rel}`, ''];
   const md = las(m.rel.replace(/\.json$/, '.md'));
   const tab = md.split('\n').filter(l => /^\| (Mått|---|[A-ZÅÄÖ])/.test(l) && !/^\| (Fall|Kod) /.test(l));
   ut.push(...tab.filter(l => l.split('|').length > 6));
@@ -373,7 +373,7 @@ function detaljMatt() {
 
 function detaljHandelse() {
   const h = handelseprovet();
-  const ut = ['HÄNDELSEPROVET — Parti 22/9, det digitala bordet mot händelselistan', ''];
+  const ut = ['EVENT TEST — Game 22/9, det digitala bordet mot händelselistan', ''];
   for (const [slag, rub] of [['lokal', 'Utan Claude'], ['ai', 'Med Claude']]) {
     const x = h[slag];
     if (!x) { ut.push(`${rub}: ingen körning`, ''); continue; }
@@ -385,7 +385,7 @@ function detaljHandelse() {
 
 function detaljLek() {
   const l = lekgolden();
-  const ut = [`LEKGOLDEN — bara med Claude · senaste baslinjen ${l.datum || '–'}`, ''];
+  const ut = [`DECK GOLDEN — bara med Claude · senaste baslinjen ${l.datum || '–'}`, ''];
   for (const k of ['hela', 'ram']) {
     const x = l[k];
     if (!x) continue;
@@ -398,37 +398,37 @@ function detaljLek() {
 
 function detaljLatens() {
   const lat = latens();
-  if (!lat) return 'LATENS — ingen fil';
-  return [`LATENS — ${lat.pass.f} · ${tidRad(lat.pass.start)}${lat.andrad ? ' ⚠ koden har ändrats sedan passet' : ''}`,
+  if (!lat) return 'LATENCY — ingen fil';
+  return [`LATENCY — ${lat.pass.f} · ${tidRad(lat.pass.start)}${lat.andrad ? ' ⚠ koden har ändrats sedan passet' : ''}`,
     'Bara med Claude (riktigt pass, telefonen frågar Claude). Mål: namn 0,3 s efter släppet.', '',
     'Från att handen släpper (ms):', lat.del, '',
     `Hela rapporten: node dev/latens/analys.cjs dev/latens/${lat.pass.f}`].join('\n');
 }
 
-function detaljDelprov() {
+function detaljComponents() {
   const reg = register();
-  const ut = ['DELPROVEN — diagnos, inte grind', ''];
+  const ut = ['COMPONENT TESTS — diagnos, inte grind', ''];
   for (const d of delprov()) {
     ut.push(`${d.namn}  (${d.kor})`);
-    const egna = reg.filter(r => r.delprov === d.id).slice(-3);
+    const egna = reg.filter(r => r.test === d.id).slice(-3);
     if (!egna.length) ut.push('  inget i registret');
     for (const r of egna) ut.push(`  ${svTid(r.tid)} · ${r.commit || '–'}${varning(kodAndrad(r.commit))} · ${r.tal}${r.kalla ? ' · ' + r.kalla : ''}${r.not ? ' — ' + r.not : ''}`);
     if (d.senFil) ut.push(`  senaste resultatfil: ${d.senFil.f} (${svTid(d.senFil.t)})`);
     ut.push('');
   }
-  ut.push(`Registrera ett nytt tal: node dev/matten.cjs --registrera <${DELPROV.map(d => d.id).join('|')}> "<tal>" [--kalla "<fil eller kommando>"] [--not "<text>"] [--tid <iso> --commit <h> (bara i efterhand)]`);
+  ut.push(`Registrera ett nytt tal: node dev/measurements/show.cjs --register <${DELPROV.map(d => d.id).join('|')}> "<tal>" [--source "<fil eller kommando>"] [--note "<text>"] [--time <iso> --commit <h> (bara i efterhand)]`);
   return ut.join('\n');
 }
 
 function registrera(args) {
   const [id, tal] = args;
   if (!DELPROV.some(d => d.id === id) || !tal) {
-    console.error(`Användning: node dev/matten.cjs --registrera <${DELPROV.map(d => d.id).join('|')}> "<tal>" [--kalla …] [--not …]`);
+    console.error(`Användning: node dev/measurements/show.cjs --register <${DELPROV.map(d => d.id).join('|')}> "<tal>" [--source …] [--note …]`);
     process.exit(2);
   }
   const opt = (n) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
-  /* --tid och --commit bara när ett äldre resultat förs in i efterhand. */
-  const rad = { delprov: id, tal, tid: opt('--tid') ? new Date(opt('--tid')).toISOString() : new Date().toISOString(), commit: opt('--commit') || HEAD, gren: opt('--commit') ? null : GREN, kalla: opt('--kalla'), not: opt('--not') };
+  /* --time och --commit bara när ett äldre resultat förs in i efterhand. */
+  const rad = { test: id, tal, tid: opt('--time') ? new Date(opt('--time')).toISOString() : new Date().toISOString(), commit: opt('--commit') || HEAD, gren: opt('--commit') ? null : GREN, kalla: opt('--source'), not: opt('--note') };
   fs.mkdirSync(p(path.dirname(REGISTER)), { recursive: true });
   fs.appendFileSync(p(REGISTER), JSON.stringify(rad) + '\n');
   console.log('registrerat: ' + JSON.stringify(rad));
@@ -436,13 +436,12 @@ function registrera(args) {
 
 // ---------- main ----------
 const args = process.argv.slice(2);
-if (args[0] === '--registrera') registrera(args.slice(1));
+if (args[0] === '--register') registrera(args.slice(1));
 else {
-  const vad = (args.find(a => !a.startsWith('--')) || '').toLowerCase();
+  const vad = (args.find(a => !a.startsWith('--')) || '').toLowerCase().replace(/[\s_-]/g, '');
   const medClaude = args.includes('--claude');
   const DETALJ = {
-    golden: detaljGolden, lekgolden: detaljLek, lekfotot: detaljLek, handelseprovet: detaljHandelse, spegelfacit: detaljHandelse,
-    mattprovet: detaljMatt, uppspelaren: detaljMatt, latens: detaljLatens, delprov: detaljDelprov, bankarna: detaljDelprov,
+    golden: detaljGolden, deckgolden: detaljLek, eventtest: detaljHandelse, mattest: detaljMatt, latency: detaljLatens, components: detaljComponents,
   };
   if (!vad) console.log(oversikt(medClaude));
   else if (DETALJ[vad]) console.log(DETALJ[vad]());
