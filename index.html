@@ -2193,6 +2193,23 @@ body.ispel:not(.lasvy) .handbar{display:none}
    sluta avkoda, och då får analysen inga rutor. Ett tryck visar bilden
    med texten. "Keep the picture on" stänger av det (golden-inspelningar). */
 .kammork{display:none}
+/* Kameran frånkopplad (MES-350, MES-332). Mörk som den mörka kameravyn —
+   telefonen ligger ofta kvar i hållaren — och stor nog att läsas därifrån. */
+.kamfran{
+  position:absolute;inset:0;z-index:40;background:var(--bg);color:#e6ecf5;
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding:calc(env(safe-area-inset-top,0px) + 18vh) 24px calc(env(safe-area-inset-bottom,0px) + 22px);
+}
+.kamfran[hidden]{display:none}
+.kamfranik{width:64px;height:64px;border-radius:50%;background:var(--bg3);color:#b9c6d8;display:flex;align-items:center;justify-content:center}
+.kamfran h2{margin:20px 0 8px;font:600 23px/1.25 var(--sans);color:#fff}
+.kamfrantxt{margin:0 0 18px;font:14.5px/1.5 var(--sans);color:#b9c6d8;max-width:320px;white-space:pre-line}
+.kamfranav{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border:1px solid #3a4658;border-radius:999px;font:12.5px var(--sans);color:#b9c6d8}
+.kamfranav span{width:8px;height:8px;border-radius:50%;background:#6b7686}
+.kamfranfot{margin-top:auto;width:100%;max-width:360px;display:flex;flex-direction:column;gap:9px}
+.kamfranfot .kamfrantxt{margin:0 auto 6px}
+.kamfranfot .btn{width:100%;justify-content:center;height:46px;font-size:15px}
+.kamfranfot .btn:not(.prim){color:#e6ecf5}
 #vyKamera.ren.mork:not(.visa) #kamVideo{inset:auto;left:0;top:0;width:2px;height:2px}
 #vyKamera.ren.mork:not(.visa) .kamoverlay{display:none}
 #vyKamera.ren.mork:not(.visa) .kammork{
@@ -3432,6 +3449,23 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
     <div class="kamsenast" id="kamSenast" hidden>
       <img id="kamSenastBild" alt="">
       <span id="kamSenastTxt"></span>
+    </div>
+  </div>
+
+  <!-- Kameran är frånkopplad (MES-350, MES-332): spelet avslutat, datorn
+       stängde av kameran eller Disconnect här. Samma skärm, orsaken skiljer. -->
+  <div class="kamfran" id="kamFran" hidden>
+    <span class="kamfranik" aria-hidden="true">
+      <svg id="kamFranFlagga" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1 -7 0a5 5 0 0 0 -7 0z"/><path d="M5 21v-7"/></svg>
+      <svg id="kamFranSladd" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16l-4 4"/><path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5z"/><path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5z"/><path d="M3 21l2.5 -2.5"/><path d="M18.5 5.5l2.5 -2.5"/><path d="M10 11l-2 2"/><path d="M13 14l-2 2"/><path d="M16 16l4 4"/></svg>
+    </span>
+    <h2 id="kamFranRub"></h2>
+    <p class="kamfrantxt" id="kamFranTxt"></p>
+    <span class="kamfranav"><span></span>Camera off</span>
+    <div class="kamfranfot">
+      <p class="kamfrantxt" id="kamFranRad" hidden>You can take the phone off the stand.</p>
+      <button class="btn prim big" id="kamFranIgen">Connect again</button>
+      <button class="btn big" id="kamFranHem">Go to Home</button>
     </div>
   </div>
 </div>
@@ -5816,6 +5850,7 @@ const Moln = (() => {
   let konf = null;          // svaret från /api/config
   let session = null;
   let kanal = null;         // realtidsprenumerationen: spelets kanal
+  let kanalSpel = null;     // spelet kanalen hör till (avslutaSpel säger till på den)
   let kamKan = null;        // kamerakanalen: kontots egen, privat (MES-305)
   const lyssnare = { spelare: null, bord: null, sparat: null };
 
@@ -6198,7 +6233,26 @@ const Moln = (() => {
       .update({ avslutad: new Date().toISOString() })
       .eq('id', gameId).eq('vard', minId());
     if (error) { console.warn('Spelet kunde inte avslutas', error.message); return false; }
+    /* Telefonerna i spelet får veta direkt (MES-332): games ligger inte i
+       realtime, så utan det här märkte de det först vid nästa koll (spelSlut).
+       Händelsen är bara en knuff — telefonen tror inte på den förrän raden
+       säger avslutad, så vem som helst i kanalen kan inte stänga någons kamera. */
+    if (kanal && kanalSpel === gameId) { try { kanal.send({ type: 'broadcast', event: 'slut', payload: {} }); } catch (e) {} }
     return true;
+  }
+  /* Är spelet avslutat, och av vem? Telefonen frågar (MES-332): vid knuffen
+     ovan, var 20:e sekund och när den vaknar. null = vet inte (inget nät). */
+  async function spelSlut(gameId) {
+    const s = await klient(); if (!s || !inloggad()) return null;
+    const { data, error } = await s.from('games').select('avslutad, vard').eq('id', gameId).maybeSingle();
+    if (error || !data) return null;
+    if (!data.avslutad) return { avslutad: false };
+    let vardNamn = null;
+    if (data.vard && data.vard !== minId()) {
+      const r = await s.from('game_players').select('namn').eq('game_id', gameId).eq('user_id', data.vard).maybeSingle();
+      vardNamn = (r.data && r.data.namn) || null;
+    }
+    return { avslutad: true, jag: data.vard === minId(), vardNamn };
   }
 
   /* ── Flera lekar (dev/plan/lagen.md, D5-1) ─────────────────────────
@@ -6432,6 +6486,8 @@ const Moln = (() => {
     lyssnare.kam = cb.kam; lyssnare.narvaro = cb.narvaro;
     lyssnare.kamfel = cb.kamfel || null;
     lyssnare.roll = cb.roll || null;
+    lyssnare.slut = cb.slut || null;
+    kanalSpel = gameId;
     kanal = s.channel('spel:' + gameId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: 'game_id=eq.' + gameId },
           p => lyssnare.bord && lyssnare.bord(p.new || p.old, p.eventType))
@@ -6441,6 +6497,7 @@ const Moln = (() => {
           p => lyssnare.scan && lyssnare.scan(p.new || p.old, p.eventType))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'camera_setups', filter: 'game_id=eq.' + gameId },
           p => lyssnare.kal && lyssnare.kal(p.new || p.old))
+      .on('broadcast', { event: 'slut' }, () => lyssnare.slut && lyssnare.slut())   // värden avslutade spelet (MES-332)
       /* Närvaro svarar på den enda fråga gränssnittet egentligen ställer:
          sitter det en kamera i det här spelet just nu? Utan den fick datorn
          gissa utifrån om det råkat komma en bild. */
@@ -6645,7 +6702,7 @@ const Moln = (() => {
     if (kamKan) { try { await kamKan.unsubscribe(); } catch (e) {} kamKan = null; }
     if (!kanal) return;
     try { await kanal.unsubscribe(); } catch (e) {}
-    kanal = null;
+    kanal = null; kanalSpel = null;
   }
 
   /* Tabeller som inte finns (migrationen ej körd) svarar med de här koderna.
@@ -6716,7 +6773,7 @@ const Moln = (() => {
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt, token,
            skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
-           avslutaSpel, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
+           avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
@@ -30011,6 +30068,8 @@ async function oppnaKamera(gameId) {
     kal: rad => { if (rad && rad.user_id === Moln.minId()) tillampaKalibrering(rad); },
     scan: rad => { if (rad && rad.user_id === Moln.minId() && rad.status !== 'ny') kamDatorSvarade(); },
     kam: m => kamKommando(m),
+    slut: () => kamSlutKoll(),           // värden avslutade spelet (MES-332)
+    uppkopplad: () => kamSlutKoll(),     // tillbaka efter tappad socket: kan ha avslutats under tiden
     /* Den privata kamerakanalen nekades (MES-305): bilderna når ingen dator.
        Sägs i statusraden i stället för att kameran tyst filmar i ett svart hål. */
     kamfel: () => kamSag('fel', 'The camera channel was refused — this phone cannot reach the computer')
@@ -30062,6 +30121,16 @@ async function oppnaKamera(gameId) {
      så fort poolen är klar. */
   byggKamPool();
   Kamera.satLatens(DEBUG);   // latensmätningen (MES-215): tidsstämplar i rapporten bara bakom ?debug
+  /* Telefonen kopplades in igen med Connect again (MES-350): datorn ombeds slå
+     på kameran — i B stängde den av den. En gång till efter några sekunder,
+     om kamerakanalen inte hunnit ansluta vid första. */
+  if (sessionStorage.getItem('sthv.camIgen') === '1') {
+    sessionStorage.removeItem('sthv.camIgen');
+    Moln.sandKam('pa'); setTimeout(() => { if (kamLage) Moln.sandKam('pa'); }, 3000);
+  }
+  /* Avslutat spel (MES-332): knuffen på spelets kanal säger det direkt, men
+     ett spel som avslutas från Home har ingen kanal öppen. Raden frågas också. */
+  setInterval(kamSlutKoll, 20000);
   /* Hjärtslag: hela tillståndet igen var tredje sekund. En dator som just
      öppnats eller tappat sockeln kommer i fas utan att fråga. */
   setInterval(() => { if (kamLage && senastBord) Moln.sandKam('bord', Object.assign({ spar: senastBord, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null, grund: grundGrader() }, bordExtra())); }, 3000);
@@ -30875,11 +30944,7 @@ function kamKommando(m) {
        ett svar som kom efter det senaste bordet är annars oräknat, och ute
        säger hur många frågor som fortfarande är på väg. */
     Moln.sandKam('bok', { bok: kamAiBokLage() });
-    stoppaStrom(); Kamera.stopp(); kamLage = null;
-    Moln.lamnaKanal();
-    kamSag('ingen', 'The computer turned off the camera');
-    kamFinDel.dator = kamFinDel.pool = '';
-    satKamFin('fas', 'You can close this tab. The camera is turned on again from the menu on the computer.');
+    kamFran('dator');
     return;
   }
 }
@@ -34837,6 +34902,12 @@ function kamTogsEmot(m) {
      satt datorn kvar med en inaktuell minLek och skrev en gammal lek över
      den nya nästa gång dialogen sparades. */
   if (m.typ === 'lek') { minLek = null; return; }
+  /* Telefonen kopplades in igen med Connect again (MES-350): kameran på igen,
+     också om datorn stängde av den (Turn off camera). */
+  if (m.typ === 'pa') {
+    if (spelLage && prefs.autoLage !== true) { prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); }
+    return;
+  }
   if (m.typ === 'av') {
     kamAnsluten = false;
     renderBibHog();
@@ -35200,20 +35271,60 @@ $('#kamMork').onclick = () => {
 };
 $('#vyKamera').addEventListener('pointerdown', ev => {
   const v = $('#vyKamera');
-  if (!v.classList.contains('ren') || ev.target.closest('button,a,input')) return;
+  if (!v.classList.contains('ren') || !$('#kamFran').hidden || ev.target.closest('button,a,input')) return;
   if (v.classList.contains('visa')) { clearTimeout(kamVisaT); v.classList.remove('visa'); }
   else kamVisaText(8000);
 });
-$('#kamStang').onclick = async () => {
-  stoppaStrom();
-  Kamera.stopp();
+$('#kamStang').onclick = () => {
   /* Säg till innan kanalen rivs, annars får datorn bara veta att någon
      försvann och kan inte skilja frånkoppling från tappat nät. */
   Moln.sandKam('av');
-  await Moln.lamnaKanal();
-  kamLage = null; spelLage = null;
-  location.href = location.origin + location.pathname;
+  kamFran('du');
 };
+/* Kameran frånkopplad (MES-350, MES-332): allt släpps — strömmen, kameran
+   (och med den skärmlåset), kanalen — och skärmen säger varför.
+   orsak: 'slut' (värden avslutade spelet; o = svaret ur Moln.spelSlut),
+   'dator' (Turn off camera på datorn) eller 'du' (Disconnect här).
+   Tappat nät hör inte hit: då fortsätter kameran, och pricken säger det. */
+let kamFranSpel = null;
+function kamFran(orsak, o = {}) {
+  if (!kamLage && !kamFranSpel) return;
+  if (kamLage) kamFranSpel = { id: kamLage.id, kod: kamLage.kod, namn: (spelLage && spelLage.namn) || ('Game ' + kamLage.kod) };
+  stoppaStrom(); Kamera.stopp();
+  kamLage = null;
+  Moln.lamnaKanal();
+  const g = kamFranSpel, slut = orsak === 'slut';
+  const vem = o.jag ? 'You' : (o.vardNamn || 'The host');
+  $('#kamFranRub').textContent = slut ? 'The game is over' : 'Camera disconnected';
+  $('#kamFranTxt').textContent = slut ? `${vem} ended ${g.namn} · ${g.kod}`
+    : `${orsak === 'dator' ? 'Your computer turned off the camera.' : 'You disconnected this phone.'}\n${g.namn} · ${g.kod} is still on.`;
+  $('#kamFranFlagga').style.display = slut ? '' : 'none';
+  $('#kamFranSladd').style.display = slut ? 'none' : '';
+  $('#kamFranRad').hidden = !slut;
+  $('#kamFranIgen').hidden = slut;
+  $('#kamFranHem').classList.toggle('prim', slut);
+  $('#kamFran').hidden = false;
+}
+/* Connect again: sidan laddas om med samma inbjudan som QR-koden gav, så att
+   kameran startar som första gången. Flaggan säger åt telefonen att be datorn
+   slå på kameran igen (kamTogsEmot 'pa') — i B har datorn stängt av den. Är
+   spelet avslutat under tiden vägrar gaMed, och man landar på Home med felet. */
+$('#kamFranIgen').onclick = () => {
+  if (!kamFranSpel) return;
+  sessionStorage.setItem('sthv.camIgen', '1');
+  location.href = location.origin + location.pathname + '?join=' + encodeURIComponent(kamFranSpel.kod) + '&cam=1';
+};
+$('#kamFranHem').onclick = () => { location.href = location.origin + location.pathname; };
+/* Är spelet avslutat? Svaret kommer ur spelraden, aldrig ur knuffen ensam. */
+let kamSlutFragar = false;
+async function kamSlutKoll() {
+  if (!kamLage || kamSlutFragar) return;
+  kamSlutFragar = true;
+  try { const r = await Moln.spelSlut(kamLage.id); if (r && r.avslutad && kamLage) kamFran('slut', r); }
+  catch (e) {}
+  finally { kamSlutFragar = false; }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) kamSlutKoll(); });
 const portalFel = (id, txt) => {
   const el = $(id); el.textContent = txt || ''; el.hidden = !txt;
 };
