@@ -24811,6 +24811,7 @@ const Kamera = (() => {
      nollställs. Se planeraHelbild(), helbild() och tillampaHelbild(). */
   const HELBILD_MAXW = 1080;        // bildens bredd till servern: golden-fotona är 1080 px; uppmätt 3 197 indatatokens för 1080×1440
   const HELBILD_STILLA_MS = 3000;   // så länge bordet ska ha stått stilla innan hela bilden skickas — en hand som lägger ut ett kort ska inte fotograferas
+  const HELBILD_AUTO = false;       // automatiska helbilder av sedan 2026-10-08 (Jesper): detektorn och lokala kedjan klarar bordet, och varje helbild kostar ~3 cent. Knappen (helbild('knapp')) och provbordet fungerar som förut. true = som före
   const HELBILD_MIN_MS = 30000;     // minsta avstånd mellan två AUTOMATISKA helbilder: 3 cent och 9 s styck med Opus, alltså högst två i minuten
   const HELBILD_KORT = 0.15;        // standardmåttet när inga säkra egna spår finns: kortsidan i andel av analysbredden (uppmätt på fotona 03/04/06 på 40 cm: 0,12–0,17; videons kalibreringsruta i 01/02: 0,21–0,35)
   const HELBILD_KVOT = 0.72;        // ett Magic-kort är 63×88 mm
@@ -29837,7 +29838,7 @@ const Kamera = (() => {
   }
   function bildSkickad() { stromG = senasteG; }
   function planeraHelbild(nu, g) {
-    if (!cb.helbild || helbildPagar || !ref) { helbildSedan = 0; helbildForra = null; return; }
+    if (!HELBILD_AUTO || !cb.helbild || helbildPagar || !ref) { helbildSedan = 0; helbildForra = null; return; }
     const ror = helbildForra ? andelOver(g, helbildForra, T.utseende) : 0;
     helbildForra = g;
     const egna = spar.filter(t => t.tillstand !== 'skrap' && !arHelbild(t));
