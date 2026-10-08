@@ -25,6 +25,32 @@ När en ändring är beställd:
 
 Hur golden setet och AI-evalen körs: `dev/golden/SNABBGUIDE.md`.
 
+## Worktrees: städa direkt efter att något pushats till main
+
+En worktree är tillfällig. Den finns för att en session ska kunna bygga i
+fred, och den ska bort så fort arbetet ligger på `origin/main`. Annars
+blir `.claude/worktrees/` en kyrkogård av gamla grenar som ingen vågar röra.
+
+**När en gren pushats till main, i samma session och före sista svaret:**
+
+1. Kontrollera att commiten ligger på main: `git fetch` och
+   `git log origin/main --oneline -3`.
+2. Ta bort worktreen: `git worktree remove <sökväg>`.
+3. Ta bort grenen: `git branch -d <gren>`. Vägrar `-d` är grenen inte
+   ihopslagen — stanna då och undersök, tvinga inte med `-D`.
+4. Synka main-mappen: `git merge --ff-only origin/main`.
+5. Städa egna temporära filer (`dev/_*.cjs` och liknande) och säg i
+   slutsvaret att inget ligger kvar.
+
+**Bara dina egna.** Rör aldrig en worktree som en annan session skapat eller
+som är låst (`git worktree list` visar `locked`). Ser en ut att vara
+övergiven: nämn den för Jesper, ta inte bort den. Samma resonemang som för
+In Progress i Linear (se nedan).
+
+**Slutar sessionen utan att något pushats** ligger arbetet kvar i
+worktreen. Skriv då i slutsvaret vilken gren och sökväg det gäller, så att
+nästa session hittar den.
+
 ## Linear: skriv som "Claude AI agent", inte som Jesper
 
 Skapar, ändrar eller tar bort du (Claude Code) en Linear-issue, eller lägger
