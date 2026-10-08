@@ -27487,6 +27487,19 @@ const Kamera = (() => {
      färg och står sedan kvar. magic = leken är Magic-baksidan (bildmodellen
      sa 'baksida' om lekens eget spår) — då ritar datorn baksidan, inte färgen. */
   const LEK_STILLA_MS = 1500, LEK_BORTA_MS = 1500, LEK_TOM_MS = 2000, LEK_TOM = 0.2, LEK_START_MS = 3000, LEK_FARG_N = 8, LEK_FARG_MS = 350;
+  /* Ett ensamt nedvänt kort har lekens sleeves (blänket, Jespers bild 2026-10-08): ett uppvänt kort som ett
+     blänk bränt ut blev en vit baksidelåda, och datorn ritade ett nedvänt kort i mörkgröna sleeves. Kortets
+     medianfärg (lekFargProv) mot lekens (lek.farg): ljusheten (summan av R, G, B) inom NED_LJUS gånger
+     lekens, och färgtonen (R, G, B delat med summan) högst NED_TON från lekens. Gissade gränser, vida så att
+     skugga och lampa på samma sleeves går igenom: mörkgröna sleeves (40, 70, 50) mot ett utbränt kort
+     (230, 230, 230) är 4,3 gånger ljusare. Utan lekens färg (inte mätt än, leken i en ficka utan sleeves
+     som inte hunnit mätas) gäller ingen färgregel. */
+  const NED_LJUS = [0.4, 2.5], NED_TON = 0.12;
+  const nedFargLik = (p, f) => {
+    const s1 = p[0] + p[1] + p[2] + 1, s2 = f.r + f.g + f.b + 1, ljus = s1 / s2;
+    const ton = Math.hypot(p[0] / s1 - f.r / s2, p[1] / s1 - f.g / s2, p[2] / s1 - f.b / s2);
+    return ljus >= NED_LJUS[0] && ljus <= NED_LJUS[1] && ton <= NED_TON;
+  };
   let lek = null;        // { id, box, ref {cx,cy,w,h}, stillaFran, sist, lag (låg senast still), forra/forraNar (platsen före steg 3:s flytt, och när), tomFran, upp, farg, prov [[r,g,b]…], provNar, magic }
   /* Lekens egen ruta (granskningen runda 1, fynd 1): Mesa sätter den själv
      när leken hittats och flyttar den med leken. Inga nya spår föds där
@@ -27885,8 +27898,14 @@ const Kamera = (() => {
          handen blinkar då inte förbi som nedvänt. */
     if (lek && !lek.upp) {
       const lekSaknas = lek.sist !== nu;
+      /* Färgen mäts i rutor där högen syns; mellan dem står den senaste domen (fargOk). */
+      const fargOk = k => {
+        if (!lek.farg) return true;
+        if (k.sist === nu && lekRgba) { const p = lekFargProv(k.box); if (p) { k.fargOk = nedFargLik(p, lek.farg); k.fargProv = p; } }
+        return k.fargOk !== false;
+      };
       const nedOk = k => (k.box.n || 1) === 1 && ladIou(k.box, lek.box) < 0.3 && !lekUte.some(u => ladIou(k.box, u.box) >= 0.3)
-        && !(lekSaknas && k.fodd > lek.sist)
+        && !(lekSaknas && k.fodd > lek.sist) && fargOk(k)
         && !spar.some(t => t.box && t.tillstand !== 'skrap' && ((t.tillstand === 'klar' && t.namn) || t.klass !== 'baksida') && ladIou(t.box, k.box) >= 0.5);
       for (const k of lekKand) {
         if (k.sist === nu) k.ned = nedOk(k) && !kant(k.box) && form(k.box) && (!!k.ned || (hogSkuggklar(k.box, k) && (!k.urLek || (k.formN || 0) >= R(1))));

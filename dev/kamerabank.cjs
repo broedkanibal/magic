@@ -2338,6 +2338,33 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     }
     check(`LK12 sleevesens färg: ${JSON.stringify(l12 && l12.farg)}`, !!l12 && l12.lage === 'nere' && !!l12.farg && Math.abs(l12.farg.r - 40) <= 2 && Math.abs(l12.farg.g - 140) <= 2 && Math.abs(l12.farg.b - 80) <= 2 && l12.farg.magic === false);
 
+    // LK12b (blänket, Jespers bild 2026-10-08): leken med gröna sleeves (färgen mätt som i LK12) och en ensam baksidelåda bredvid.
+    //   Lådan VIT (ett uppvänt kort som blänket bränt ut): inget nedvänt kort. Lådan grön som leken, i skugga (60 %): ett nedvänt kort.
+    {
+      const N7 = { x: 60, y: 40, w: 30, h: 42 };
+      const rgba7 = farg => { const d = rgbaRuta(false); for (let y = N7.y; y < N7.y + N7.h; y++) for (let x = N7.x; x < N7.x + N7.w; x++) { const i = 4 * (y * W + x); d[i] = farg[0]; d[i + 1] = farg[1]; d[i + 2] = farg[2]; } return d; };
+      const ned7 = async farg => {
+        let l = null;
+        for (let i = 0; i < 20; i++) {
+          nu += TAKT; const g = matta(W, H, 100, 3, lcg(2100 + nu)); hog(L)(g); hog(N7)(g);
+          Kamera.steg(g, nu, H, undefined, V, det([lada(L, 'baksida'), lada(N7, 'baksida')]), rgba7(farg));
+          await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+          l = Kamera.lek;
+        }
+        return l;
+      };
+      await kor(26, [], []);
+      const vit = await ned7([235, 235, 230]);
+      await kor(26, [hog(L)], [lada(L, 'baksida')]);
+      const gron = await ned7([24, 84, 48]);
+      check(`LK12b nedvänt kort i lekens färg: lekens färg ${JSON.stringify(vit && vit.farg)}; vit låda ned ${JSON.stringify(vit && vit.ned)}; grön låda i skugga ned ${JSON.stringify(gron && gron.ned)}`,
+            !!vit && !!vit.farg && vit.ned.length === 0 && !!gron && gron.ned.length === 1 && Math.abs(gron.ned[0].ruta.x * W - N7.x) < 2);
+      /* Färgerna gäller bara sin ruta: i appen sätter loop() dem varje ruta, här står de kvar tills nästa steg med färger.
+         En tom bild släpper dem, så att proven efter inte mäter sleeves och nedvända kort i LK12b:s bild. */
+      nu += TAKT; Kamera.steg(matta(W, H, 100, 3, lcg(2200 + nu)), nu, H, undefined, V, det([]), new Uint8ClampedArray(0));
+      await new Promise(r => setImmediate(r));
+    }
+
     // ── Granskningen runda 1 (MES-334 steg 3): fynd 2, 3 och 5 som bänkfall (granskarens GP1–GP3) och fynd 1 (lekens ruta) ──
     // LK13 (GP1): grundläget ur leken nollas av en skrivning av raden utan grundläge (tillampaKalRad → satGrund(null)) — telefonen tar lekens vinkel igen
     await nyttBord('h');
