@@ -59,9 +59,9 @@ kartans avsnitt, eller förklara kort ur kartan.
 | Latency | nyaste passet i `dev/latens/`, genom `analys.cjs` |
 | Component tests | registret `dev/measurements/register.jsonl` |
 
-Mapparna `dev/spegelfacit` och `dev/uppspelaren` byter namn till
-`dev/eventtest` och `dev/mattest` (prompt H). Skriptet tar det namn som finns
-(konstanten `MAPPAR`).
+Mapparna `dev/spegelfacit` och `dev/uppspelaren` bytte namn till
+`dev/eventtest` och `dev/mattest` 2026-10-08 (prompt H); de gamla namnen är
+symlänkar. Skriptet tar det första namn som finns (konstanten `MAPPAR`).
 
 ## Component tests och registret
 

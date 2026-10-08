@@ -53,5 +53,5 @@ steg mattan node dev/mattan.cjs
 steg leken node dev/leken.cjs
 steg hogarna node dev/hogarna.cjs
 steg kamerabank node dev/kamerabank.cjs
-steg uppspelaren node dev/uppspelaren/kor.cjs --fall g07,g09,g10,g11,g12,p0921,parti-kedjan > /dev/null
-echo "uppspelaren: kördes"
+steg mattest node dev/mattest/kor.cjs --fall g07,g09,g10,g11,g12,p0921,parti-kedjan > /dev/null
+echo "mattest: kördes"

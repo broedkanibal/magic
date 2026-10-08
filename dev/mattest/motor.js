@@ -417,7 +417,7 @@
   }
   /* Händelserna: rapporterna och telefonens hjärtslag (var tredje sekund
      från första rapporten, senaste bordet igen — index.html, setInterval på
-     telefonen), som dev/dubbletter.cjs och dev/spegelfacit/jamfor.cjs. */
+     telefonen), som dev/dubbletter.cjs och dev/eventtest/jamfor.cjs. */
   function handelser(fall) {
     const rader = fall.rader, ut = [];
     rader.forEach((r, i) => ut.push({ t: U.ms(r.s), slag: 'rapport', r, nr: i }));

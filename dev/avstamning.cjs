@@ -1654,7 +1654,7 @@ prov('VN14 besvärjelsen räknas från när den plockades upp: ett instant som p
    reanimator, recursion, Trusty Retriever. Samma kort flyttar tillbaka,
    och bara när ett nytt kort skulle ge fler exemplar än leken har. */
 const iGrav = namn => app.kort.filter(c => c.zon === 'grav' && c.name === namn).length;
-/* TV (dev/spegelfacit, passet 2026-09-22): ett klart spår som stått utan
+/* TV (dev/eventtest, passet 2026-09-22): ett klart spår som stått utan
    region i minst 2 s och lägger sig en bit bort är inte längre ett bevis
    för kortet — men bara när ett annat kort kan förklara det (tvivelSteg,
    annatKortDar). vila(t, dx) = spåret vilar dx bildandelar till höger om PORT. */

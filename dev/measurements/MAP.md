@@ -6,14 +6,15 @@ förklaringar. De senaste siffrorna visar skillen `/measurements`
 
 ## Namnen
 
-Namnen är på engelska (Jespers beslut 2026-10-08). Två mappar byter namn i
-prompt H; tills dess gäller den gamla mappen.
+Namnen är på engelska (Jespers beslut 2026-10-08). Två mappar bytte namn i
+prompt H; de gamla namnen är symlänkar till de nya så länge öppna grenar
+använder dem.
 
 | Namn | Mapp och kommando | Hette förut |
 |---|---|---|
 | **Golden** | `dev/golden/` | |
-| **Event test** | `dev/spegelfacit/`, blir `dev/eventtest/` | händelseprovet, spegelfacit |
-| **Mat test** | `dev/uppspelaren/`, blir `dev/mattest/` | mattprovet, uppspelaren |
+| **Event test** | `dev/eventtest/` | händelseprovet, spegelfacit |
+| **Mat test** | `dev/mattest/` | mattprovet, uppspelaren |
 | **Deck golden** | `dev/lekgolden/` (byter inte namn) | lekfotot, lekgolden |
 | **Latency** | `dev/latens/` | latens |
 | **Component tests** | se avsnitt 6 | delprov, bänkarna |
@@ -84,7 +85,7 @@ filmen behöver kameran se?". Att datorn eller telefonen är långsam syns aldri
 här. En suddig eller hårt komprimerad video gör siffran sämre. Fall 18:s 34 s
 var komprimeringen: samma inspelning i en skarpare fil gav 1 s.
 
-### Event test: ett helt parti (`dev/spegelfacit/`)
+### Event test: ett helt parti (`dev/eventtest/`)
 
 - **Vad:** ett riktigt parti (Game 22/9) körs genom kameran. Sedan
   spelas telefonens rapporter upp genom **datorns** avstämning, den kod som
@@ -97,12 +98,12 @@ var komprimeringen: samma inspelning i en skarpare fil gav 1 s.
 - **Körs när:** vid utredningar av spegelläget. Det finns ingen baslinje och
   ingen grind.
 - **Tid:** ~25 min plus några sekunder för jämförelsen.
-- **Kommando:** `node dev/spegelfacit/kor.cjs` och sedan
-  `node dev/spegelfacit/jamfor.cjs` · guide: `dev/spegelfacit/LÄS-MIG.md`
-- **Resultat:** `dev/spegelfacit/resultat/<pass>-lokal.md` (utan Claude) och
+- **Kommando:** `node dev/eventtest/kor.cjs` och sedan
+  `node dev/eventtest/jamfor.cjs` · guide: `dev/eventtest/LÄS-MIG.md`
+- **Resultat:** `dev/eventtest/resultat/<pass>-lokal.md` (utan Claude) och
   `…-ai.md` (med Claude).
 
-### Mat test: mattan (`dev/uppspelaren/`)
+### Mat test: mattan (`dev/mattest/`)
 
 - **Vad:** spelar upp vad kameran **redan sa**, en inspelad logg, genom
   appens riktiga mattkod med en simulerad klocka. Kameran körs inte. Den
@@ -112,8 +113,8 @@ var komprimeringen: samma inspelning i en skarpare fil gav 1 s.
   (`--jamfor` mot baslinjen). `dev/kolla.sh` kör den också före varje push,
   men bara för att se att den fungerar. Jämförelsen mot baslinjen görs där inte.
 - **Tid:** ~25 s.
-- **Kommando:** `node dev/uppspelaren/kor.cjs` · guide: `dev/uppspelaren/LÄS-MIG.md`
-- **Resultat:** `dev/uppspelaren/baslinje/baslinje.md`
+- **Kommando:** `node dev/mattest/kor.cjs` · guide: `dev/mattest/LÄS-MIG.md`
+- **Resultat:** `dev/mattest/baslinje/baslinje.md`
 
 Fallen:
 

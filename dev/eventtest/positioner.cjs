@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Positionerna (MES-342): ligger korten på mattan där de ligger på bordet?
 
-   Kör:  node dev/spegelfacit/positioner.cjs [--html fil] [--fall 13,18,p0921] [--lager app|alla|geometri] [--detalj] [--json ut.json]
+   Kör:  node dev/eventtest/positioner.cjs [--html fil] [--fall 13,18,p0921] [--lager app|alla|geometri] [--detalj] [--json ut.json]
 
    Mäter mattans lägen mot facits RITADE lägen (rita.html, MES-286: kortens fyra
    hörn i bilden, ett läge per händelse) på telefonens RIKTIGA ström:
@@ -16,7 +16,7 @@
    Bordsloggen för 13 och 18 är golden-körningens (dev/golden/senaste.json, utan
    Claude). Den spelas upp genom datorns RIKTIGA avstamBord ur index.html med
    klockan på rapporternas tid, hjärtslaget var tredje sekund och nådtimern (som
-   dev/spegelfacit/jamfor.cjs), och efter varje steg genom datorns RIKTIGA
+   dev/eventtest/jamfor.cjs), och efter varje steg genom datorns RIKTIGA
    speglaKamPos, kamSkala, kamTillMatta och clampKort (som skala.cjs).
 
    Tre lager, så att felet går att lägga där det uppstår:
@@ -118,7 +118,7 @@ function lasLagen(fil, tMax) {
 }
 /* Bordsloggen fryst i uppspelarens underlag (ur dev/golden/senaste.json, commit 5505933), så att talen inte
    flyttar sig när golden sparas om. */
-const UNDERLAG = path.join(ROT, 'dev', 'uppspelaren', 'underlag', 'golden-13-18-bordlogg.json.gz');
+const UNDERLAG = path.join(ROT, 'dev', 'mattest', 'underlag', 'golden-13-18-bordlogg.json.gz');
 let underlag = null;
 function golden(nr, lagenFil, tMax) {
   if (!underlag) underlag = JSON.parse(require('zlib').gunzipSync(fs.readFileSync(UNDERLAG)).toString('utf8'));
@@ -146,9 +146,9 @@ function golden(nr, lagenFil, tMax) {
   return { id: 'g' + nr, rader, upplosning: { w: +m[1], h: +m[2] }, facit };
 }
 function p0921() {
-  const { lasFall } = require(path.join(ROT, 'dev', 'uppspelaren', 'fall.cjs'));
+  const { lasFall } = require(path.join(ROT, 'dev', 'mattest', 'fall.cjs'));
   const f = lasFall('p0921'); const B = 705, H = 438;
-  const kortB = y => 98 + 14.6 * (y - 0.27);   // som dev/uppspelaren/fall.cjs
+  const kortB = y => 98 + 14.6 * (y - 0.27);   // som dev/mattest/fall.cjs
   const lagen = f.v2.map(q => ({ t: q.ruta, kort: q.kort.map(k => {
     const bw = kortB(k.y), bh = bw * 1.43, w = k.tappad ? bh : bw, h = k.tappad ? bw : bh, x0 = k.x * B - w / 2, y0 = k.y * H - h / 2;
     return { namn: 'Kort ' + String(k.id).padStart(2, '0'), id: k.id, hog: k.hog, tappad: k.tappad, cx: k.x, cy: k.y, kortPx: bw, poly: [[x0, y0], [x0 + w, y0], [x0 + w, y0 + h], [x0, y0 + h]] };

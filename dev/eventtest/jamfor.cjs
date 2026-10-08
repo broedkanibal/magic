@@ -2,8 +2,8 @@
 /* Spegelläget mot händelsefacit, steg 2: det digitala bordet över tid,
    jämfört med facit rad för rad.
 
-   Kör:  node dev/spegelfacit/jamfor.cjs [--pass …] [--korning fil.json] [--md rapport.md] [--tsv bordet.tsv] [--json allt.json]
-         node dev/spegelfacit/jamfor.cjs --logg ~/Downloads/pass-….json   (en bordslogg sparad ur appen i ett riktigt pass)
+   Kör:  node dev/eventtest/jamfor.cjs [--pass …] [--korning fil.json] [--md rapport.md] [--tsv bordet.tsv] [--json allt.json]
+         node dev/eventtest/jamfor.cjs --logg ~/Downloads/pass-….json   (en bordslogg sparad ur appen i ett riktigt pass)
 
    Källan är telefonens bordslogg ur steg 1 (kor.cjs) — eller ur ett riktigt
    pass, sparad med "Spara bordsloggen". Varje bord spelas upp genom datorns
@@ -142,7 +142,7 @@ function lasKalla() {
     const R = JSON.parse(fs.readFileSync(path.resolve(LOGG), 'utf8'));
     logg = Array.isArray(R) ? R : R.bordLogg; namn = path.basename(LOGG);
   } else {
-    if (!fs.existsSync(KORNING)) throw new Error(`${KORNING} finns inte — kör steg 1 först: node dev/spegelfacit/kor.cjs`);
+    if (!fs.existsSync(KORNING)) throw new Error(`${KORNING} finns inte — kör steg 1 först: node dev/eventtest/kor.cjs`);
     const R = JSON.parse(fs.readFileSync(KORNING, 'utf8'));
     logg = R.resultat.bordLogg; namn = path.relative(ROT, KORNING);
     extra = { ai: R.ai, pool: R.pool, skapad: R.skapad, aiFel: R.aiFel, modell: R.resultat.ai, promptv: R.resultat.promptv, namnViaAi: R.resultat.namnViaAi };
@@ -464,7 +464,7 @@ function rapport(k, res, spel, rader) {
 
 /* ── kör ── */
 let k;
-try { k = lasKalla(); } catch (e) { console.error('spegelfacit/jamfor.cjs: ' + e.message); process.exit(2); }
+try { k = lasKalla(); } catch (e) { console.error('eventtest/jamfor.cjs: ' + e.message); process.exit(2); }
 const rader = lasFacit(PASS);
 const lek = UTAN_LEK ? null : lekAntal();
 const spel = spelaUpp(k.logg, lek);

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Spegelläget: glider korten isär på det digitala bordet? (MES-293, beslut 5)
 
-   Kör:  node dev/spegelfacit/skala.cjs [--korning fil.json] [--html index.html] [--S 0.16] [--json ut.json]
+   Kör:  node dev/eventtest/skala.cjs [--korning fil.json] [--html index.html] [--S 0.16] [--json ut.json]
 
    Spelar upp telefonens bordslogg (steg 1, kor.cjs) genom datorns RIKTIGA
    avstamBord — samma utdrag och miljö som jamfor.cjs — och efter varje steg

@@ -19,7 +19,7 @@ verktygen i `dev/` — kod och data hålls isär. Kolumnen *Verktyg* säger var.
 |---|---|---|---|
 | `2026-09-19-mes-246-las-fore-slapp` | MES-246: kameraappen i 4K 60, vidvinkel, **inga spårrutor i bilden**. Jesper följde ett manus: tokens, fästa kort, landhögar | [`MANUS.md`](2026-09-19-mes-246-las-fore-slapp/MANUS.md) (vad som gjordes), [`FACIT.md`](2026-09-19-mes-246-las-fore-slapp/FACIT.md) (tiden för varje steg), `kort.txt` (manuset som lista) | [`dev/las-fore-slapp/`](../../las-fore-slapp/RAPPORT.md) mätte den; ritverktyget ritar lägen i den |
 | `2026-09-20-ljust-tra-varmt-ljus-plastfickor` | Jespers tre foton: ljust trä, varmt ljus, plastfickor | [`UNDERLAG.md`](2026-09-20-ljust-tra-varmt-ljus-plastfickor/UNDERLAG.md) | blev golden-fall 14–16 |
-| `2026-09-22-1x-34cm-normaltempo` | ett parti i normalt tempo, 1x, 34 cm. Skärminspelning av Mesas kameravy, **med spårrutorna i bilden**. Jesper sa högt vad han gjorde | [`LÄS-MIG.md`](2026-09-22-1x-34cm-normaltempo/LÄS-MIG.md) | `handelser.tsv` är facit; `dev/spegelfacit/` mäter mot den; `granska.html` och ritverktyget visar den |
+| `2026-09-22-1x-34cm-normaltempo` | ett parti i normalt tempo, 1x, 34 cm. Skärminspelning av Mesas kameravy, **med spårrutorna i bilden**. Jesper sa högt vad han gjorde | [`LÄS-MIG.md`](2026-09-22-1x-34cm-normaltempo/LÄS-MIG.md) | `handelser.tsv` är facit; `dev/eventtest/` mäter mot den; `granska.html` och ritverktyget visar den |
 
 **Partiet 2026-09-21** (`dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/`)
 har sitt facit på grenen `natt-2026-09-22`, i mappen `2026-09-21-parti/`, som

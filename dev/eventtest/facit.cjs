@@ -14,7 +14,7 @@ const materialMapp = pass => path.join(ROT, 'dev', 'material', 'inspelningar', p
 /* En rad per handling: { nr (radnummer i filen, 2 = första raden efter
    rubriken), t, handelse, kort, till, plats, tal }. '-' och tomt blir null.
    fil: ett facit som inte ligger i passets mapp (kor.cjs --facit; partiet
-   2026-09-21 har sitt i dev/uppspelaren/underlag/). */
+   2026-09-21 har sitt i dev/mattest/underlag/). */
 function lasFacit(pass, fil) {
   fil = fil || path.join(facitMapp(pass), 'handelser.tsv');
   const rader = fs.readFileSync(fil, 'utf8').split('\n').filter(r => r.trim());
@@ -69,7 +69,7 @@ function lekRader() {
 }
 /* Passens lek som [{ name, n }] (uppspelarens parti-kedjan). */
 function passensLek() { return lekRader().ovan; }
-/* Namnen under gränsen (utanleken till golden-sidan, spegelfacit/kor.cjs). */
+/* Namnen under gränsen (utanleken till golden-sidan, eventtest/kor.cjs). */
 function utanforPassensLek() { return lekRader().under.map(x => x.name); }
 
 module.exports = { ROT, PASS_FORVAL, facitMapp, materialMapp, lasFacit, lekAntal, passensLek, utanforPassensLek };

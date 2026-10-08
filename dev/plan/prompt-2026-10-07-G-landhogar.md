@@ -8,7 +8,7 @@ Klistra in i en ny session (Opus 5.5, xhigh). MES-347 står i Todo (Jesper 2026-
 ## Läs först
 
 `CLAUDE.md`, `dev/plan/prompt-2026-10-07-E-mes-345-346.md` (avsnittet *Gemensamt* gäller också här),
-`dev/uppspelaren/LÄS-MIG.md`, MES-346 och MES-347 med kommentarer, commit-meddelandena `dc29c25` och `0dcfab4`,
+`dev/mattest/LÄS-MIG.md`, MES-346 och MES-347 med kommentarer, commit-meddelandena `dc29c25` och `0dcfab4`,
 och minnena `mes-346-landhogar-under-relationen`, `kontroller-som-ljuger`, `orkestrering-lardomar-2026-09-25` och
 `worktree-saknar-env-local`.
 
@@ -20,8 +20,8 @@ Bygg i en egen worktree på `origin/main`, och symlänka `dev/material`, `.env.l
 ## Steg 0 — mät med dagens telefon (ingen kod)
 
 p0921k i uppspelaren spelar en bordslogg som är fryst med telefonkoden från före Remsan först (MES-340). Frys om den:
-kör kedjan utan Claude på partiets video (`dev/spegelfacit/LÄS-MIG.md`:
-`dev/spegelfacit/kor.cjs --video kamera-180-540.mp4 --fran 180`) och sedan `node dev/uppspelaren/frys-kedja.cjs`.
+kör kedjan utan Claude på partiets video (`dev/eventtest/LÄS-MIG.md`:
+`dev/eventtest/kor.cjs --video kamera-180-540.mp4 --fran 180`) och sedan `node dev/mattest/frys-kedja.cjs`.
 Kör inget av det samtidigt som golden, `kolla.sh` eller en annan kedja (kolla `ps` först).
 
 Jämför den gamla och den nya loggen: antalet saknade kort, och de sju landfallen (290, 330, 440, 450 ×2, 500, 510,
@@ -63,7 +63,7 @@ i samma situation? Inga tidsgränser valda för att p0921k ska gå över.
 ## Grinden före ihopslagning (som prompt E)
 
 - `sh dev/kolla.sh` grön.
-- `node dev/uppspelaren/kor.cjs --fil index.html --jamfor` med slutkod 0 mot baslinjen på main.
+- `node dev/mattest/kor.cjs --fil index.html --jamfor` med slutkod 0 mot baslinjen på main.
 - Spegelfacit (passet 09-22) får inte fler fel, och `dev/dubbletter.cjs --fall 07` ingen ny dubblett.
 - Avstämningens O13–O22, granskarens F1–F5, G1–G2 och P1–P2, och de nya T1/T6 är gröna.
 

@@ -200,7 +200,7 @@ Det här är inga designval, men allt ovan bygger på dem.
 | 5 | **Perspektivrättningen** | `kamTillMatta` i dag är rak skalning |
 
 **Uppspelarens underlag finns redan:**
-- `dev/spegelfacit` spelar upp bordsloggen genom `avstamBord`.
+- `dev/eventtest` spelar upp bordsloggen genom `avstamBord`.
 - `dev/dubbletter.cjs` spelar upp rapporter.
 - v2-facit för partiet 2026-09-21 beskriver varje kort i varje ruta.
 

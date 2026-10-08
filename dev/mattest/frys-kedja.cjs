@@ -4,11 +4,11 @@
    bord står sig mot v2-facit — en engångsanalys av strömmen, inget mått i
    uppspelaren.
 
-   Kör:  node dev/uppspelaren/frys-kedja.cjs [spegel-lokal.json] [--start 180] [--ut fil.json.gz] [--bara-analys]
+   Kör:  node dev/mattest/frys-kedja.cjs [spegel-lokal.json] [--start 180] [--ut fil.json.gz] [--bara-analys]
 
    Förval: dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/spegel-lokal.json,
-   körd med dev/spegelfacit/kor.cjs --video kamera-180-540.mp4 --fran 180
-   (dev/spegelfacit/LÄS-MIG.md). --start är videons start i partiets tid:
+   körd med dev/eventtest/kor.cjs --video kamera-180-540.mp4 --fran 180
+   (dev/eventtest/LÄS-MIG.md). --start är videons start i partiets tid:
    bordsloggen bär videons tid, fall.cjs lägger till start. En logg körd med
    Claude fryses inte (parti-kedjan är utan). .cjs eftersom package.json säger
    "type": "module". */
@@ -66,7 +66,7 @@ console.log(`  spår i hela körningen                      ${ids.size}, mediant
 if (process.argv.includes('--bara-analys')) process.exit(0);
 
 const U = {
-  kalla: 'dev/spegelfacit/kor.cjs på dev/material/inspelningar/' + J.pass + '/' + J.facit.video.fil.split('/').pop(),
+  kalla: 'dev/eventtest/kor.cjs på dev/material/inspelningar/' + J.pass + '/' + J.facit.video.fil.split('/').pop(),
   pass: J.pass, skapad: J.skapad, ai: J.ai, pool: J.pool, metod: J.metod,
   start: START, upplosning: B,
   video: { sekunder: J.resultat.videoSekunder, langd: J.resultat.videoLangd, takt_ms: J.facit.video.takt_ms },

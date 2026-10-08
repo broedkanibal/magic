@@ -11,18 +11,22 @@ Den är grinden för spegelmattans issues (MES-341, 338, 342, 343, 344):
 
 Ingenting i `index.html`, `api/` eller `dev/golden/*.cjs` ändras. Allt bor här.
 
+Mappen hette `dev/uppspelaren/` till 2026-10-08 (prompt H). `dev/uppspelaren` är en
+symlänk hit, så att gamla kommandon, grenar och promptfiler fortsätter fungera.
+**Symlänken tas bort när inga öppna grenar använder det gamla namnet.**
+
 ## Kör
 
 | Kommando | Gör | Tid |
 |---|---|---|
-| `node dev/uppspelaren/kor.cjs` | alla åtta fallen mot `index.html`, tabellen | ~25 s |
-| `node dev/uppspelaren/kor.cjs --fil /tmp/x.html --jamfor` | samma mot en annan `index.html`, rad för rad mot baslinjen. **Slutkod 1 om något mått i totalt-kolumnen eller i p0921 är sämre, eller något av parti-kedjans grindrader** (geometrin, hoppen, zoomhoppen — se *Grinden*); övriga parti-kedjan-rader är diagnos | ~25 s |
-| `node dev/uppspelaren/kor.cjs --jamfor --alla` | jämförelsen med alla rader, också de oförändrade | |
-| `node dev/uppspelaren/kor.cjs --fall g09,p0921 --detalj g09` | bara de fallen, och vad som räknades händelse för händelse | några s |
-| `node dev/uppspelaren/kor.cjs --spara` | skriver baslinjen (`baslinje/baslinje.json` och `baslinje.md`) — bara när en ändring ska bli den nya baslinjen | |
-| `node dev/uppspelaren/kor.cjs --json ut.json` | allt: motorns logg och måtten per fall | |
-| `node dev/uppspelaren/kor.cjs --visa --fall g09` | visaren i ett Chrome-fönster | |
-| `node dev/uppspelaren/kor.cjs --bilder <mapp> [--vid g12:7.5,g12:7.85]` | skärmdumpar ur visaren, huvudlöst | ~10 s |
+| `node dev/mattest/kor.cjs` | alla åtta fallen mot `index.html`, tabellen | ~25 s |
+| `node dev/mattest/kor.cjs --fil /tmp/x.html --jamfor` | samma mot en annan `index.html`, rad för rad mot baslinjen. **Slutkod 1 om något mått i totalt-kolumnen eller i p0921 är sämre, eller något av parti-kedjans grindrader** (geometrin, hoppen, zoomhoppen — se *Grinden*); övriga parti-kedjan-rader är diagnos | ~25 s |
+| `node dev/mattest/kor.cjs --jamfor --alla` | jämförelsen med alla rader, också de oförändrade | |
+| `node dev/mattest/kor.cjs --fall g09,p0921 --detalj g09` | bara de fallen, och vad som räknades händelse för händelse | några s |
+| `node dev/mattest/kor.cjs --spara` | skriver baslinjen (`baslinje/baslinje.json` och `baslinje.md`) — bara när en ändring ska bli den nya baslinjen | |
+| `node dev/mattest/kor.cjs --json ut.json` | allt: motorns logg och måtten per fall | |
+| `node dev/mattest/kor.cjs --visa --fall g09` | visaren i ett Chrome-fönster | |
+| `node dev/mattest/kor.cjs --bilder <mapp> [--vid g12:7.5,g12:7.85]` | skärmdumpar ur visaren, huvudlöst | ~10 s |
 | `--solo` | bara mitt bord, ingen motståndare (inte baslinjens läge — bara för felsökning) | |
 
 Slutkod: 0 = gick (och inget sämre med `--jamfor`), 1 = sämre än baslinjen,
@@ -46,9 +50,9 @@ ligger där), annars faller fallet p0922 med slutkod 2.
 | Fall | Vad | Telefonens ström? |
 |---|---|---|
 | g07, g09, g10, g11, g12 | golden-videofallen. Bordsloggen ur golden-körningen (utan Claude), fryst i `underlag/golden-bordlogg.json.gz` (ur `dev/golden/senaste.json`, commit 5505933) så att baslinjen inte flyttar sig när golden sparas om. Facit: `dev/golden/fall/<id>/facit.json` (`video.handelser`). Video: `dev/golden/fall/<id>/video.mp4` | ja |
-| p0922 | passet 2026-09-22. Bordsloggen ur `dev/spegelfacit/kor.cjs` på passets video, körd 2026-10-04 utan Claude (`dev/material/arbete/2026-10-04-hogarna-matning/baslinje/spegel-lokal.json`, 1262 bord). Facit: `dev/golden/inspelningar/2026-09-22-1x-34cm-normaltempo/handelser.tsv`. Ingen video här (Google Drive) — visaren visar kontaktarken, en ruta per sekund | ja |
+| p0922 | passet 2026-09-22. Bordsloggen ur `dev/eventtest/kor.cjs` på passets video, körd 2026-10-04 utan Claude (`dev/material/arbete/2026-10-04-hogarna-matning/baslinje/spegel-lokal.json`, 1262 bord). Facit: `dev/golden/inspelningar/2026-09-22-1x-34cm-normaltempo/handelser.tsv`. Ingen video här (Google Drive) — visaren visar kontaktarken, en ruta per sekund | ja |
 | p0921 | partiet 2026-09-21, sek 240–540. **Facit, inte telefonen:** v2-facit (`underlag/2026-09-21-v2-tabell.tsv`, kopia av den otrackade filen i huvudträdet) matas in som en idealiserad telefon — ett klart, säkert spår per kort var tionde sekund, kortets mitt ur facit och en låda i den storlek ett kort har där i bilden. Namnen är påhittade ("Kort 01"). Här mäts mattans geometri, inte kamerans fart | **nej** |
-| parti-kedjan (hette `p0921k` till 2026-10-07; det gamla id:t tas fortfarande emot) | partiet 2026-09-21, sek 230–540, **genom kedjan**: kamerabilden ur skärminspelningen `dator.mov` (Mesas kamerapanel, 704 × 438 px, Mesas spårramar i bilden) körd genom `dev/spegelfacit/kor.cjs` utan Claude från sek 180 (avsnittet nedan). Bordsloggen fryst i `underlag/2026-09-21-kedja-bordlogg.json.gz` med `node dev/uppspelaren/frys-kedja.cjs`. Facit: `underlag/2026-09-21-handelser.tsv` (händelser med namn och läge i bilden) och v2-tabellen. Visaren visar kamerans rutor, en per sekund | ja, men inte telefonens egen (se nedan) |
+| parti-kedjan (hette `p0921k` till 2026-10-07; det gamla id:t tas fortfarande emot) | partiet 2026-09-21, sek 230–540, **genom kedjan**: kamerabilden ur skärminspelningen `dator.mov` (Mesas kamerapanel, 704 × 438 px, Mesas spårramar i bilden) körd genom `dev/eventtest/kor.cjs` utan Claude från sek 180 (avsnittet nedan). Bordsloggen fryst i `underlag/2026-09-21-kedja-bordlogg.json.gz` med `node dev/mattest/frys-kedja.cjs`. Facit: `underlag/2026-09-21-handelser.tsv` (händelser med namn och läge i bilden) och v2-tabellen. Visaren visar kamerans rutor, en per sekund | ja, men inte telefonens egen (se nedan) |
 
 ### parti-kedjan: partiet genom kedjan
 
@@ -61,7 +65,7 @@ Graveyard-rutan är Mesas gula ruta i bilden, library-rutan den gröna leken.
 
 **Vad kedjan gör med den bilden** (körningen 2026-10-07, sek 180–540, 1992
 bord, utan Claude), mot v2 i de 31 rutorna 240–540. Det här är en
-**engångsanalys av telefonens bord** (`node dev/uppspelaren/frys-kedja.cjs
+**engångsanalys av telefonens bord** (`node dev/mattest/frys-kedja.cjs
 --bara-analys`), inga mått i uppspelaren — uppspelaren har till exempel
 inget tap-mått:
 
@@ -215,7 +219,7 @@ byte (provat 2026-10-07).
 Varje bord i loggen tas emot som `kamTogsEmot` gör (grundläget och
 library-rutan, sedan `avstamBord`). Telefonens hjärtslag härmas: senaste
 bordet igen var tredje sekund från första rapporten, som i
-`dev/dubbletter.cjs` och `dev/spegelfacit/jamfor.cjs`. Mätpunkterna går en
+`dev/dubbletter.cjs` och `dev/eventtest/jamfor.cjs`. Mätpunkterna går en
 gång per videoruta (1/15 s), och dessutom före och efter varje steg.
 
 ## Måtten
@@ -284,7 +288,7 @@ Varje mått stämdes av mot underlaget innan det kallades mätt:
 | Mått | Ögonblick | Vad jag såg |
 |---|---|---|
 | Tid till något syns / kortet kom | g09 Plains (facit 4,5 s) | Videon: handen släpper kortet ~4,0 s, fri vid 4,2. Loggen: spår 1 `ny` utan namn i rapporten 4,05 → platshållare 4,05 (−0,45); `klar` Plains 4,2 → kortet 4,2 (−0,3). Facit ligger ~0,5 s efter släppet här |
-| Tid till något syns | p0922, utspelen med kort | Kortets tid är densamma som `dev/spegelfacit/jamfor.cjs` ger på samma logg (Flutterfox +0,49, Pharika +2,13, Mirran +2,10, Trusty +0,73, Ancestral Blade +1,86) — ett annat verktyg, på ett utdrag ur avstämningen |
+| Tid till något syns | p0922, utspelen med kort | Kortets tid är densamma som `dev/eventtest/jamfor.cjs` ger på samma logg (Flutterfox +0,49, Pharika +2,13, Mirran +2,10, Trusty +0,73, Ancestral Blade +1,86) — ett annat verktyg, på ett utdrag ur avstämningen |
 | Något syns utan kort | p0922 Pharika 217,24 och Killing Glare 35,02 | Pharika: platshållaren +0,86 bär Pharika i spåret (jamfor: "bara en fråga i granskningen (Pharika's Chosen)"). Den förra regeln tog en annan platshållare −1,69. Killing Glare: spår 2 gissade Proctor's Gaze — räknas inte |
 | Tid till borta, borttagna som står kvar | g07 Fencing Ace 29,5 / Plains 32 | Videon: Fencing Ace borta 30,0, Plains lyfts 31,5–32,5. Mattan tonar ned Fencing Ace 36,15 (+6,65) — samma som `dev/dubbletter.cjs --fall 07`. Plains står kvar till slutet (dubbletter: "c6 Plains (i nåd)" i slutbordet) |
 | Nya kort utan utspel | g07 Swamp 31,8 | Videon 32,5–36,2: ett Swamp, som låg under Plains. Mattan skapar ett andra Swamp när Plains lyfts (dubbletter: c4 och c10 Swamp i slutbordet) |

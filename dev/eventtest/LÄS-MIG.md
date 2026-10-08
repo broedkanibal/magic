@@ -5,10 +5,14 @@ genom appens kamerakedja, telefonens bord genom datorns avstämning, och
 resultatet jämfört med händelsefacit rad för rad. Ett **mått**, inget prov:
 ingen baslinje, slutkod 0 vad siffrorna än blir. Ändrar ingenting i appen.
 
+Mappen hette `dev/spegelfacit/` till 2026-10-08 (prompt H). `dev/spegelfacit` är en
+symlänk hit, så att gamla kommandon, grenar och promptfiler fortsätter fungera.
+**Symlänken tas bort när inga öppna grenar använder det gamla namnet.**
+
 | Steg | Kommando | Gör | Tid |
 |---|---|---|---|
-| 1 | `node dev/spegelfacit/kor.cjs` | kör `kamera.mp4` genom kedjan som golden kör sina videofall (`dev/golden/kor.html`, huvudlös Chrome, en ruta i taget med videons klocka) och sparar telefonens bordslogg i `dev/material/inspelningar/<pass>/spegel-lokal.json` | ~25 min |
-| 2 | `node dev/spegelfacit/jamfor.cjs` | spelar upp loggen genom datorns riktiga `avstamBord`, loggar det digitala bordet över tid och jämför med `handelser.tsv` | sekunder |
+| 1 | `node dev/eventtest/kor.cjs` | kör `kamera.mp4` genom kedjan som golden kör sina videofall (`dev/golden/kor.html`, huvudlös Chrome, en ruta i taget med videons klocka) och sparar telefonens bordslogg i `dev/material/inspelningar/<pass>/spegel-lokal.json` | ~25 min |
+| 2 | `node dev/eventtest/jamfor.cjs` | spelar upp loggen genom datorns riktiga `avstamBord`, loggar det digitala bordet över tid och jämför med `handelser.tsv` | sekunder |
 
 Flaggor:
 
@@ -34,10 +38,10 @@ för varje sekund); `skala` spelar upp loggen själv:
 
 | Kommando | Mäter |
 |---|---|
-| `node dev/spegelfacit/tappade.cjs bord.json` | tappade kort på mattan mot på bordet (`diff_tappade`, MES-293) |
-| `node dev/spegelfacit/antal.cjs bord.json` | kort på mattan mot på bordet (`diff_kort`), samma sak utan de nedtonade, och hur många som är nedtonade (MES-291) |
-| `node dev/spegelfacit/granskning.cjs bord.json [--poster]` | granskningen ("N cards to fill in"): varje post som skapades, om den gissar ett kort som redan ligger på bordet — på samma plats, på annan plats eller nedtonat — och kön över tid (MES-294) |
-| `node dev/spegelfacit/skala.cjs [--korning logg.json]` | glider korten isär — skalan över tid (MES-293) |
+| `node dev/eventtest/tappade.cjs bord.json` | tappade kort på mattan mot på bordet (`diff_tappade`, MES-293) |
+| `node dev/eventtest/antal.cjs bord.json` | kort på mattan mot på bordet (`diff_kort`), samma sak utan de nedtonade, och hur många som är nedtonade (MES-291) |
+| `node dev/eventtest/granskning.cjs bord.json [--poster]` | granskningen ("N cards to fill in"): varje post som skapades, om den gissar ett kort som redan ligger på bordet — på samma plats, på annan plats eller nedtonat — och kön över tid (MES-294) |
+| `node dev/eventtest/skala.cjs [--korning logg.json]` | glider korten isär — skalan över tid (MES-293) |
 
 ## Vad som räknas
 
@@ -66,13 +70,13 @@ och körs som ett pass:
 ```bash
 swift dev/golden/video/koda.swift dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov \
   dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/kamera-180-540.mp4 1348 797 704 438 704 4000 15 180 540
-node dev/spegelfacit/kor.cjs --pass 2026-09-21-mes-238-parti-4k15-20min --video kamera-180-540.mp4 \
-  --facit dev/uppspelaren/underlag/2026-09-21-handelser.tsv --fran 180
+node dev/eventtest/kor.cjs --pass 2026-09-21-mes-238-parti-4k15-20min --video kamera-180-540.mp4 \
+  --facit dev/mattest/underlag/2026-09-21-handelser.tsv --fran 180
 ```
 
 Graveyard-rutan är Mesas egen gula ruta i bilden, library-rutan den gröna
 leken (`ZONER` i `kor.cjs`). Kedjan hittar korten och deras läge, men sätter
-nästan inga namn utan Claude — se `dev/uppspelaren/LÄS-MIG.md`.
+nästan inga namn utan Claude — se `dev/mattest/LÄS-MIG.md`.
 
 ## Fällor
 

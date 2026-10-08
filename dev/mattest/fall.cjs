@@ -6,7 +6,7 @@
    fran, till (sekunder), upplosning ({w,h}, kamerabildens mått), lek,
    media (för visaren), anm }.
 
-   Underlaget är fryst i dev/uppspelaren/underlag/ där det annars kan ändras
+   Underlaget är fryst i dev/mattest/underlag/ där det annars kan ändras
    under fötterna: golden-fallens bordslogg (ur dev/golden/senaste.json,
    som skrivs om varje gång golden sparas) och v2-facit för partiet
    2026-09-21 (otrackat i huvudträdet när uppspelaren byggdes), och
@@ -16,7 +16,7 @@
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const ROT = path.join(__dirname, '..', '..');
 const UNDERLAG = path.join(__dirname, 'underlag');
-const { passensLek } = require('../spegelfacit/facit.cjs');
+const { passensLek } = require('../eventtest/facit.cjs');
 
 /* ── golden 07, 09–12: telefonens riktiga bordslogg ur videokörningen ── */
 const GOLDEN = ['07', '09', '10', '11', '12'];
@@ -82,7 +82,7 @@ function pass0922() {
     rader, facit, fran: 0, till: +(rader[rader.length - 1].s + 3.5).toFixed(2),
     upplosning: storlek(R.resultat.kallStorlek) || { w: 1080, h: 610 }, lek: lekTxt(),
     media: { slag: 'stillbilder', bilder: stilla },
-    anm: 'telefonens bordslogg ur dev/spegelfacit/kor.cjs på passets video (videon ligger på Google Drive), utan Claude'
+    anm: 'telefonens bordslogg ur dev/eventtest/kor.cjs på passets video (videon ligger på Google Drive), utan Claude'
   };
 }
 
@@ -157,7 +157,7 @@ function parti0921() {
 /* ── partiet 2026-09-21 genom telefonens kedja (parti-kedjan) ──────────────
    Kamerabilden ur skärminspelningen dator.mov (Mesas kamerapanel, 704 ×
    438, samma utsnitt som rutor/kam-NNN.jpg och v2-facit), sek 180–540,
-   genom dev/spegelfacit/kor.cjs utan Claude 2026-10-07. Bordsloggen är fryst
+   genom dev/eventtest/kor.cjs utan Claude 2026-10-07. Bordsloggen är fryst
    i underlag/2026-09-21-kedja-bordlogg.json.gz; tiderna här är partiets
    (videons + 180). Facit: underlag/2026-09-21-handelser.tsv (ur
    handelser.tsv, platser.tsv, hogar-handelser.tsv och rutorna, se

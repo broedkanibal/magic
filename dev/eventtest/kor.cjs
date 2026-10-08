@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /* Spegelläget mot händelsefacit, steg 1: videon genom kamerakedjan.
 
-   Kör:  node dev/spegelfacit/kor.cjs [--pass 2026-09-22-1x-34cm-normaltempo] [--ai] [--port 8263] [--ut fil.json] [--konsol] [--tro "tapTapp:60"]
-   Sedan: node dev/spegelfacit/jamfor.cjs (läser filen och jämför med facit)
+   Kör:  node dev/eventtest/kor.cjs [--pass 2026-09-22-1x-34cm-normaltempo] [--ai] [--port 8263] [--ut fil.json] [--konsol] [--tro "tapTapp:60"]
+   Sedan: node dev/eventtest/jamfor.cjs (läser filen och jämför med facit)
 
    Kör passets kamera.mp4 (dev/material/inspelningar/<pass>/, utanför git)
    genom appens kamerakedja PRECIS som golden kör sina videofall: attrappen
@@ -37,9 +37,9 @@
 
    Partiet 2026-09-21 (MES-333, uppspelarens fall parti-kedjan):
      --pass 2026-09-21-mes-238-parti-4k15-20min --video kamera-180-540.mp4
-       --facit dev/uppspelaren/underlag/2026-09-21-handelser.tsv --fran 180
+       --facit dev/mattest/underlag/2026-09-21-handelser.tsv --fran 180
    --video: en annan fil än kamera.mp4 i passets mapp (där: kamerabilden
-   beskuren ur skärminspelningen dator.mov, se dev/uppspelaren/LÄS-MIG.md).
+   beskuren ur skärminspelningen dator.mov, se dev/mattest/LÄS-MIG.md).
    --facit: ett facit utanför passets mapp. --fran: videons start i facits
    tid (sekunder) — facits tider flyttas så att de stämmer med videons, och
    bordsloggen bär videons tid (från 0). */
@@ -53,7 +53,7 @@ const FACIT = arg('--facit', '') ? path.resolve(arg('--facit')) : null;
 const FRAN = +arg('--fran', 0);
 /* Golden 17:s namn och tokens (lek.txt från "# golden 17" och nedåt) hör inte till passens lek. */
 let UTAN_LEKEN;
-try { UTAN_LEKEN = utanforPassensLek(); } catch (e) { console.error('spegelfacit/kor.cjs: ' + e.message); process.exit(2); }
+try { UTAN_LEKEN = utanforPassensLek(); } catch (e) { console.error('eventtest/kor.cjs: ' + e.message); process.exit(2); }
 const AIFLAG = process.argv.includes('--ai');
 const TRO = arg('--tro', '');   // "tapTapp:60,tapOtapp:25" — valfria trösklar till Kamera.satTrosklar, som golden-kor.cjs --tro (MES-298)
 const PORT = +arg('--port', 8263);
@@ -228,7 +228,7 @@ for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(130)
   fs.writeFileSync(UT, JSON.stringify(ut) + '\n');
   console.log(`  ${n} bord i loggen, video ${res.videoSekunder} s av ${res.videoLangd} s${res.tak ? ' — TAKET SLOG TILL' : ''}; golden-förloppet: ${res.videoLagda}/${res.videoLagdaAv} spelade, ${res.videoBorta}/${res.videoBortaAv} borttagna, tap ${res.videoTapp}/${res.videoTappAv}, flytt ${res.videoFlytt}/${res.videoFlyttAv}, hög ${res.videoGrav}/${res.videoGravAv}`);
   if (AIFLAG) console.log(`  Claude: ${res.ai || 'inget svar'}${res.promptv != null ? ', systemprompt v' + res.promptv : ''}, ${res.namnViaAi || 0} namn via Claude${aiFel.n ? ` — VARNING: ${aiFel.n} misslyckades (${aiFel.forsta}); körningen mäter i praktiken den lokala kedjan` : ''}`);
-  console.log(`  sparat: ${path.relative(ROT, UT)}\n  jämför: node dev/spegelfacit/jamfor.cjs${arg('--ut') || AIFLAG ? ' --korning ' + path.relative(ROT, UT) : ''}`);
+  console.log(`  sparat: ${path.relative(ROT, UT)}\n  jämför: node dev/eventtest/jamfor.cjs${arg('--ut') || AIFLAG ? ' --korning ' + path.relative(ROT, UT) : ''}`);
   try { ws.close(); } catch (e) {}
   process.exit(0);
-})().catch(e => { console.error('\nspegelfacit/kor.cjs: ' + (e && e.message || e)); process.exit(2); });
+})().catch(e => { console.error('\neventtest/kor.cjs: ' + (e && e.message || e)); process.exit(2); });

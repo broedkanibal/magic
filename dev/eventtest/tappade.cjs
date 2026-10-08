@@ -3,8 +3,8 @@
    över tid (MES-293, beslut 1) — samma mått som v2-facit för partiet
    2026-09-21 (diff_tappade), men på ett pass som GÅR att spela upp.
 
-   Kör:  node dev/spegelfacit/jamfor.cjs --korning <logg.json> --json <bord.json>
-         node dev/spegelfacit/tappade.cjs <bord.json> [--pass …] [--steg 10] [--rader] [--json ut.json]
+   Kör:  node dev/eventtest/jamfor.cjs --korning <logg.json> --json <bord.json>
+         node dev/eventtest/tappade.cjs <bord.json> [--pass …] [--steg 10] [--rader] [--json ut.json]
 
    Mattan: antalet tappade kort räknas ur händelsefacit (tappar +1, otappar −1,
    tar_bort av ett tappat kort −1, per namn). Bordet: kort på mattan (inte
@@ -22,7 +22,7 @@ const fs = require('fs'), path = require('path');
 const { PASS_FORVAL, lasFacit } = require('./facit.cjs');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const JSONFIL = process.argv[2];
-if (!JSONFIL || JSONFIL.startsWith('--')) { console.error('Användning: node dev/spegelfacit/tappade.cjs <jamfor --json-fil> [--pass …] [--steg 10] [--rader]'); process.exit(2); }
+if (!JSONFIL || JSONFIL.startsWith('--')) { console.error('Användning: node dev/eventtest/tappade.cjs <jamfor --json-fil> [--pass …] [--steg 10] [--rader]'); process.exit(2); }
 const STEG = +arg('--steg', 10);
 const J = JSON.parse(fs.readFileSync(JSONFIL, 'utf8'));
 const h = lasFacit(arg('--pass', J.pass || PASS_FORVAL)).slice().sort((a, b) => a.t - b.t);

@@ -5,7 +5,7 @@
 'use strict';
 const { bordAvstand, bordRekt } = require('./fall.cjs');
 
-const FORE = 2, EFTER = 10;        // fönstret runt facits tid, som dev/spegelfacit/jamfor.cjs
+const FORE = 2, EFTER = 10;        // fönstret runt facits tid, som dev/eventtest/jamfor.cjs
 const UTBYTT_S = 10;               // ett nytt kort med samma namn inom så här lång tid efter att ett försvann = utbytt
 const VILA_TOL = 0.25;             // kortbredder: kortet "ligger på sin plats" inom så här långt från sitt viloläge
 const FLYTT_MIN = 0.5;             // kortbredder: så långt ska viloläget ändras för att en flytt ska räknas som speglad

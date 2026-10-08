@@ -3,8 +3,8 @@
    in", som v2-facit för partiet 2026-09-21 läste av skärmen, men på ett pass
    som GÅR att spela upp. Syskon till antal.cjs och tappade.cjs.
 
-   Kör:  node dev/spegelfacit/jamfor.cjs --korning <logg.json> --json <bord.json> [--html <index.html>]
-         node dev/spegelfacit/granskning.cjs <bord.json> [--steg 10] [--poster] [--json ut.json]
+   Kör:  node dev/eventtest/jamfor.cjs --korning <logg.json> --json <bord.json> [--html <index.html>]
+         node dev/eventtest/granskning.cjs <bord.json> [--steg 10] [--poster] [--json ut.json]
 
    Posterna: varje granskningspost som skapades under passet (en post som tas
    bort och läggs igen för samma spår räknas två gånger — det är två gånger
@@ -28,7 +28,7 @@ const fs = require('fs'), path = require('path');
 const { PASS_FORVAL, lasFacit } = require('./facit.cjs');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const JSONFIL = process.argv[2];
-if (!JSONFIL || JSONFIL.startsWith('--')) { console.error('Användning: node dev/spegelfacit/granskning.cjs <jamfor --json-fil> [--steg 10] [--poster] [--json ut.json]'); process.exit(2); }
+if (!JSONFIL || JSONFIL.startsWith('--')) { console.error('Användning: node dev/eventtest/granskning.cjs <jamfor --json-fil> [--steg 10] [--poster] [--json ut.json]'); process.exit(2); }
 const STEG = +arg('--steg', 10);
 const TACKNING = 0.3;   // SAMMA_KORT_TACKNING i index.html
 const J = JSON.parse(fs.readFileSync(JSONFIL, 'utf8'));

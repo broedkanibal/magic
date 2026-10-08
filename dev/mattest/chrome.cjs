@@ -26,7 +26,7 @@ function server(fil, extra) {
       if (u === '/app.html') {
         return fs.readFile(fil, 'utf8', (fel, html) => {
           if (fel) { ut.writeHead(404); return ut.end(); }
-          const tag = '<script src="/dev/uppspelaren/motor.js"></script>';
+          const tag = '<script src="/dev/mattest/motor.js"></script>';
           const m = /<head[^>]*>/i.exec(html);
           ut.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
           ut.end(m ? html.slice(0, m.index + m[0].length) + tag + html.slice(m.index + m[0].length) : tag + html);
@@ -59,7 +59,7 @@ function server(fil, extra) {
 async function chrome(opt) {
   opt = opt || {};
   if (!fs.existsSync(CHROME)) { const e = new Error('hittar inte Chrome på ' + CHROME + ' (sätt CHROME=…)'); e.kod = 2; throw e; }
-  const profil = fs.mkdtempSync(path.join(os.tmpdir(), 'mesa-uppspelaren-'));
+  const profil = fs.mkdtempSync(path.join(os.tmpdir(), 'mesa-mattest-'));
   const [bw, bh] = opt.storlek || [1400, 1000];
   const p = spawn(CHROME, [opt.visa ? '' : '--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profil, '--no-first-run',
     '--no-default-browser-check', '--autoplay-policy=no-user-gesture-required', `--window-size=${bw},${bh}`, 'about:blank'].filter(Boolean), { stdio: ['ignore', 'ignore', 'pipe'] });

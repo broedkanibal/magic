@@ -2,16 +2,16 @@
 /* Uppspelaren (MES-333): ett inspelat parti genom appens riktiga avstämning
    och appens riktiga matta, med simulerad klocka, och måtten ur det.
 
-   Kör:  node dev/uppspelaren/kor.cjs                  alla fall mot index.html, tabellen
-         node dev/uppspelaren/kor.cjs --fall g07,p0921 bara de fallen
-         node dev/uppspelaren/kor.cjs --fil /tmp/x.html en annan index.html
-         node dev/uppspelaren/kor.cjs --spara          skriver baslinjen (baslinje/baslinje.json och .md)
-         node dev/uppspelaren/kor.cjs --jamfor [--fil …]  rad för rad mot baslinjen; slutkod 1 om någon rad är sämre
-         node dev/uppspelaren/kor.cjs --json ut.json   allt: loggen och måtten per fall
-         node dev/uppspelaren/kor.cjs --detalj g09     vad som räknades, händelse för händelse
-         node dev/uppspelaren/kor.cjs --bilder <mapp>  skärmdumpar ur visaren (huvudlös): baslinjens tre,
+   Kör:  node dev/mattest/kor.cjs                  alla fall mot index.html, tabellen
+         node dev/mattest/kor.cjs --fall g07,p0921 bara de fallen
+         node dev/mattest/kor.cjs --fil /tmp/x.html en annan index.html
+         node dev/mattest/kor.cjs --spara          skriver baslinjen (baslinje/baslinje.json och .md)
+         node dev/mattest/kor.cjs --jamfor [--fil …]  rad för rad mot baslinjen; slutkod 1 om någon rad är sämre
+         node dev/mattest/kor.cjs --json ut.json   allt: loggen och måtten per fall
+         node dev/mattest/kor.cjs --detalj g09     vad som räknades, händelse för händelse
+         node dev/mattest/kor.cjs --bilder <mapp>  skärmdumpar ur visaren (huvudlös): baslinjens tre,
                                        eller --vid g12:7.5,g12:7.85 (fall:sekund)
-         node dev/uppspelaren/kor.cjs --visa [--fall p0921]  visaren i ett fönster (videon/rutorna och mattan)
+         node dev/mattest/kor.cjs --visa [--fall p0921]  visaren i ett fönster (videon/rutorna och mattan)
 
    Fallen (fall.cjs): golden 07, 09, 10, 11, 12 och passet 2026-09-22 —
    telefonens riktiga bordslogg — partiet 2026-09-21 sek 240–540, där
@@ -52,14 +52,14 @@ async function korAlla(ids) {
   const fall = [];
   for (const id of ids) {
     try { fall.push(lasFall(id)); }
-    catch (e) { console.error(`uppspelaren: fallet ${id} går inte att läsa — ${e.message}`); process.exitCode = 2; fall.push({ id, fel: e.message }); }
+    catch (e) { console.error(`mattest: fallet ${id} går inte att läsa — ${e.message}`); process.exitCode = 2; fall.push({ id, fel: e.message }); }
   }
   const extra = {};
   for (const f of fall) if (!f.fel) { const data = JSON.stringify(Object.assign({}, f, { media: undefined })); extra[`/__upp/fall/${f.id}.json`] = () => data; }
   const srv = await server(FIL, extra);
   const url = `http://127.0.0.1:${srv.address().port}/`;
   let c;
-  try { c = await chrome(); } catch (e) { console.error('uppspelaren: ' + e.message); srv.close(); process.exit(e.kod || 2); }
+  try { c = await chrome(); } catch (e) { console.error('mattest: ' + e.message); srv.close(); process.exit(e.kod || 2); }
   const res = [];
   try {
     for (const f of fall) {
@@ -71,9 +71,9 @@ async function korAlla(ids) {
         res.push({ id: f.id, namn: f.namn, slag: f.slag, kalla: f.kalla, anm: f.anm, minuter: (f.till - f.fran) / 60, ms: Date.now() - t0, matt: b.matt, detalj: b.detalj, n: b.n, logg });
         /* Ett undantag i appen, eller en läsning motorn inte kan tolka, gör
            måtten opålitliga: slutkod 2 i alla lägen, också med --jamfor. */
-        if (b.n.fel.length) { console.error(`uppspelaren: ${f.id}: ${b.n.fel.length} fel under uppspelningen (undantag i appen eller en läsning som inte går att tolka) — måtten gäller inte: ${b.n.fel.slice(0, 3).join(' | ')}`); process.exitCode = 2; }
+        if (b.n.fel.length) { console.error(`mattest: ${f.id}: ${b.n.fel.length} fel under uppspelningen (undantag i appen eller en läsning som inte går att tolka) — måtten gäller inte: ${b.n.fel.slice(0, 3).join(' | ')}`); process.exitCode = 2; }
       } catch (e) {
-        console.error(`uppspelaren: ${f.id} gick inte att köra — ${e.message}`);
+        console.error(`mattest: ${f.id} gick inte att köra — ${e.message}`);
         for (const k of c.konsol.splice(0)) console.error('     ' + k);
         res.push({ id: f.id, fel: e.message }); process.exitCode = 2;
       }
@@ -100,7 +100,7 @@ function tabell(res, tot) {
 function markdown(res, tot, meta) {
   const ok = res.filter(r => !r.fel);
   const L = [];
-  L.push(`# Uppspelarens baslinje — ${meta.datum}`);
+  L.push(`# Mat test, baslinjen — ${meta.datum}`);
   L.push('');
   L.push(`Kod: \`${meta.html}\` (sha256 ${meta.sha}, commit ${meta.commit || '?'}). Simulerad klocka: två körningar på samma fil ger samma tal. Spelet har en motståndare (bordsvyn), som ett riktigt parti. Grinden (\`--jamfor\`) är totalt-kolumnen och p0921; tider ±0,1 s, antal exakt. Definitionerna: [LÄS-MIG](../LÄS-MIG.md).`);
   L.push('');
@@ -141,15 +141,15 @@ function detaljUt(r) {
 
 /* ── visaren ── */
 async function visaren(ids, bilder) {
-  const fall = ids.map(id => { try { return lasFall(id); } catch (e) { console.error(`uppspelaren: ${id}: ${e.message}`); return null; } }).filter(Boolean);
+  const fall = ids.map(id => { try { return lasFall(id); } catch (e) { console.error(`mattest: ${id}: ${e.message}`); return null; } }).filter(Boolean);
   const extra = { '/__upp/fall.json': () => JSON.stringify(fall.map(f => ({ id: f.id, namn: f.namn, slag: f.slag, fran: f.fran, till: f.till, media: f.media, anm: f.anm, facit: f.facit }))) };
   for (const f of fall) { const data = JSON.stringify(Object.assign({}, f, { media: undefined })); extra[`/__upp/fall/${f.id}.json`] = () => data; }
   const srv = await server(FIL, extra);
-  const url = `http://127.0.0.1:${srv.address().port}/dev/uppspelaren/visa.html`;
+  const url = `http://127.0.0.1:${srv.address().port}/dev/mattest/visa.html`;
   if (!bilder) {
     const c = await chrome({ visa: true, storlek: [1680, 1000] });
     await c.cdp('Page.navigate', { url: url + '?fall=' + fall[0].id });
-    console.log(`uppspelaren --visa: ${url}?fall=${fall[0].id} — stäng fönstret eller Ctrl-C för att sluta`);
+    console.log(`mattest --visa: ${url}?fall=${fall[0].id} — stäng fönstret eller Ctrl-C för att sluta`);
     await new Promise(() => {});
   }
   fs.mkdirSync(bilder, { recursive: true });
@@ -180,22 +180,22 @@ const BILDER = [
 /* ── kör ── */
 (async () => {
   const ids = FALL || ALLA;
-  for (const id of ids) if (!ALLA.includes(id)) { console.error(`uppspelaren: okänt fall ${id} (finns: ${ALLA.join(', ')})`); process.exit(2); }
+  for (const id of ids) if (!ALLA.includes(id)) { console.error(`mattest: okänt fall ${id} (finns: ${ALLA.join(', ')})`); process.exit(2); }
   if (har('--visa')) { await visaren(FALL || ['p0921']); return; }
-  if (arg('--bilder')) { const vid = arg('--vid') ? [...new Set(arg('--vid').split(',').map(x => x.split(':')[0]))] : null; const l = await visaren(vid || FALL || [...new Set(BILDER.map(b => b[0]))], path.resolve(arg('--bilder'))); console.log('uppspelaren --bilder: ' + l.map(f => path.relative(process.cwd(), f)).join(', ')); return; }
+  if (arg('--bilder')) { const vid = arg('--vid') ? [...new Set(arg('--vid').split(',').map(x => x.split(':')[0]))] : null; const l = await visaren(vid || FALL || [...new Set(BILDER.map(b => b[0]))], path.resolve(arg('--bilder'))); console.log('mattest --bilder: ' + l.map(f => path.relative(process.cwd(), f)).join(', ')); return; }
 
   const t0 = Date.now();
   const res = await korAlla(har('--jamfor') && !FALL && fs.existsSync(BASLINJE) ? JSON.parse(fs.readFileSync(BASLINJE, 'utf8')).fall.map(f => fallId(f.id)) : ids);
   const ok = res.filter(r => !r.fel);
   const tot = totalt(ok);
   const meta = { datum: new Date().toLocaleDateString('sv-SE'), html: path.relative(ROT, FIL) || FIL, sha: sha(FIL), commit: FIL === path.join(ROT, 'index.html') ? gitHead() : null };
-  console.log(`Uppspelaren: ${meta.html} (sha256 ${meta.sha}), ${ok.length} fall på ${((Date.now() - t0) / 1000).toFixed(1)} s, simulerad klocka`);
+  console.log(`Mat test: ${meta.html} (sha256 ${meta.sha}), ${ok.length} fall på ${((Date.now() - t0) / 1000).toFixed(1)} s, simulerad klocka`);
   console.log(tabell(res, tot));
   for (const id of (arg('--detalj', '') || '').split(',').filter(Boolean)) { const r = ok.find(r => r.id === id); if (r) console.log('\n' + detaljUt(r)); }
   if (arg('--json')) { fs.writeFileSync(path.resolve(arg('--json')), JSON.stringify({ meta, totalt: tot, fall: res }) + '\n'); console.log(`allt skrivet till ${arg('--json')}`); }
 
   if (har('--spara')) {
-    if (res.some(r => r.fel || r.n.fel.length)) { console.error('uppspelaren --spara: ett fall gick inte att köra eller gav fel under uppspelningen — ingen baslinje skriven'); process.exit(2); }
+    if (res.some(r => r.fel || r.n.fel.length)) { console.error('mattest --spara: ett fall gick inte att köra eller gav fel under uppspelningen — ingen baslinje skriven'); process.exit(2); }
     fs.mkdirSync(path.dirname(BASLINJE), { recursive: true });
     const B = { meta, totalt: tot, fall: ok.map(r => ({ id: r.id, namn: r.namn, slag: r.slag, kalla: r.kalla, anm: r.anm, minuter: r.minuter, matt: r.matt, n: Object.assign({}, r.n, { fel: undefined, felAntal: r.n.fel.length }) })) };
     fs.writeFileSync(BASLINJE, JSON.stringify(B, null, 1) + '\n');
@@ -204,7 +204,7 @@ const BILDER = [
   }
 
   if (har('--jamfor')) {
-    if (!fs.existsSync(BASLINJE)) { console.error('uppspelaren --jamfor: ingen baslinje (' + path.relative(process.cwd(), BASLINJE) + ') — kör --spara först'); process.exit(2); }
+    if (!fs.existsSync(BASLINJE)) { console.error('mattest --jamfor: ingen baslinje (' + path.relative(process.cwd(), BASLINJE) + ') — kör --spara först'); process.exit(2); }
     const B = JSON.parse(fs.readFileSync(BASLINJE, 'utf8')); for (const f of B.fall) f.id = fallId(f.id);
     console.log(`\nJämfört med baslinjen ${B.meta.datum} (${B.meta.html}, sha256 ${B.meta.sha}, commit ${B.meta.commit || '?'}):`);
     /* Baslinjen ska vara main: har origin/main:s index.html ändrats sedan den
@@ -256,4 +256,4 @@ const BILDER = [
     if (saknas || saknasMatt) process.exitCode = 2;
     else if (samreN && process.exitCode !== 2) process.exitCode = 1;
   }
-})().catch(e => { console.error('uppspelaren: ' + (e && e.stack || e)); process.exit(2); });
+})().catch(e => { console.error('mattest: ' + (e && e.stack || e)); process.exit(2); });
