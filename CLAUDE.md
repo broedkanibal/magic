@@ -37,13 +37,15 @@ blir `.claude/worktrees/` en kyrkogård av gamla grenar som ingen vågar röra.
    `git log origin/main --oneline -3`.
 2. Ta bort worktreen: `git worktree remove <sökväg>`.
 3. Ta bort grenen: `git branch -d <gren>`. Vägrar `-d` är grenen inte
-   ihopslagen — stanna då och undersök, tvinga inte med `-D`.
+   ihopslagen — stanna då och undersök, tvinga inte med `-D`. Pushade du
+   grenen till origin (inte bara `HEAD:main`): ta bort den också med
+   `git push origin --delete <gren>`.
 4. Synka main-mappen: `git merge --ff-only origin/main`.
 5. Städa egna temporära filer (`dev/_*.cjs` och liknande) och säg i
    slutsvaret att inget ligger kvar.
 
-**Bara dina egna.** Rör aldrig en worktree som en annan session skapat eller
-som är låst (`git worktree list` visar `locked`). Ser en ut att vara
+**Bara dina egna.** Rör aldrig en worktree eller gren som en annan session
+skapat, eller en worktree som är låst (`git worktree list` visar `locked`). Ser en ut att vara
 övergiven: nämn den för Jesper, ta inte bort den. Samma resonemang som för
 In Progress i Linear (se nedan).
 
