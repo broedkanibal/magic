@@ -917,6 +917,11 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .arkknappar{display:flex;gap:6px}
 body.lasvy .kortark{display:none!important}
 .matta .empty{z-index:15}
+/* Texten följer kamerans yta (tomPlats); med zoomknapparna glider den som brädet. */
+.matta .empty.bredvid{overflow:visible;padding:12px}
+.matta .empty.trang{gap:8px}
+.matta .empty.trang .empty-icon{display:none}
+.matta .empty.glider{transition:left .32s cubic-bezier(.2,.8,.3,1),top .32s cubic-bezier(.2,.8,.3,1),width .32s cubic-bezier(.2,.8,.3,1),height .32s cubic-bezier(.2,.8,.3,1)}
 body.lasvy .mattachrome .btn{display:none!important}
 /* Bredden sätts av rutnätet ovan och följer fönstret: ett Magic-kort är 0.72
    gånger så brett som högt, så för att kortet ska fylla spalten måste spalten
@@ -9165,6 +9170,7 @@ function renderGrid(force) {
      står redan på mattan. */
   emptyEl.classList.toggle('hide', cards.length > 0 || ofr.length > 0);
   if (!cards.length) renderTom();
+  tomPlats(p);
   emptyLasEl.classList.toggle('hide', cards.length > 0);
   if (!cards.length && !redigerbar()) $('#emptyLasTxt').textContent =
     (player().name || 'The player') + ' has nothing on the table yet';
@@ -9398,6 +9404,35 @@ function matKamYta(p, v, fore) {
   if (el.hidden) { el.hidden = false; void el.offsetWidth; }   // tonas in också första gången, inte bara slås på
   el.classList.toggle('syns', utanfor);
 }
+/* Var texten på den tomma mattan (#emptyHand, renderTom) står (Jesper 2026-10-08): mitt i kamerans yta, och den
+   följer ytan när mattan zoomas och panoreras — men med samma storlek på skärmen. Ligger leken, graveyard eller
+   exile i ytan står texten mitt i den största fria delen bredvid dem (ovanför, under, till vänster eller höger),
+   aldrig ovanpå en hög. Utan kamerans yta (skalan inte mätt, Digital table) är ytan det mattan visar. */
+function tomPlats(p) {
+  const el = emptyEl, v = gridEl._matKamVy;
+  el.classList.toggle('glider', gridEl.classList.contains('glider'));
+  if (!p || !v || !(v.z > 0) || !v.vp || el.classList.contains('hide')) { if (el.dataset.plats) { el.style.cssText = ''; el.dataset.plats = ''; el.classList.remove('bredvid', 'trang'); } return; }
+  const z = v.z, vy = { x0: -v.pan.x / z, y0: -v.pan.y / z, x1: (v.vp.w - v.pan.x) / z, y1: (v.vp.h - v.pan.y) / z };
+  const R = kamYtaRam(p) || vy;
+  /* Högarna i ytan, med luft för brickan under högen och lite till (skärm-px, som brickan). */
+  const luft = 28 / z, hinder = lekPoster(p, false).map(x => x.ram).filter(Boolean)
+    .map(r => ({ x0: r.x0 - luft, y0: r.y0 - luft, x1: r.x1 + luft, y1: r.y1 + luft }))
+    .filter(r => r.x1 > R.x0 && r.x0 < R.x1 && r.y1 > R.y0 && r.y0 < R.y1);
+  let A = R;
+  if (hinder.length) {
+    const O = hinder.reduce((a, b) => ({ x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) }));
+    const delar = [{ x0: R.x0, y0: R.y0, x1: R.x1, y1: O.y0 }, { x0: R.x0, y0: O.y1, x1: R.x1, y1: R.y1 },
+      { x0: R.x0, y0: R.y0, x1: O.x0, y1: R.y1 }, { x0: O.x1, y0: R.y0, x1: R.x1, y1: R.y1 }];
+    /* Den del där två rader text (~380 × 100 skärm-px) får bäst plats. */
+    const plats = d => Math.min((d.x1 - d.x0) * z / 380, (d.y1 - d.y0) * z / 100);
+    A = delar.reduce((a, b) => plats(b) > plats(a) ? b : a);
+  }
+  /* Bredvid en hög rullar texten aldrig (då hade den kunnat hamna på högen), och i en låg del faller ikonen bort. */
+  el.classList.toggle('bredvid', A !== R);
+  el.classList.toggle('trang', A !== R && (A.y1 - A.y0) * z < 230);
+  const st = `left:${Math.round(v.pan.x + A.x0 * z)}px;top:${Math.round(v.pan.y + A.y0 * z)}px;width:${Math.max(0, Math.round((A.x1 - A.x0) * z))}px;height:${Math.max(0, Math.round((A.y1 - A.y0) * z))}px;right:auto;bottom:auto`;
+  if (el.dataset.plats !== st) { el.style.cssText = st; el.dataset.plats = st; }
+}
 /* Bordets 100 % i rutan: 1, eller i bordsvyn rutan mot mitt bord när det är stort. */
 function zstegBas(vp) { const ref = bordRef || vp; return Math.min(1, vp.w / ref.w, vp.h / ref.h); }
 /* Kamerabilden i brädkoordinater, eller null innan skalan är känd. Skalan läses — provkortets eller den låsta
@@ -9504,6 +9539,7 @@ function matSkriv(p, vy, glid) {
     s ? false : !!glid && fri);   // mitt speglade bord glider aldrig av sig själv (matStegBeslut)
   if (s) s.ny = false;
   matKamYta(p, v, gridEl._matKamVy); gridEl._matKamVy = { z: v.z, pan: { x: v.pan.x, y: v.pan.y }, vp: v.vp };
+  tomPlats(p);
   gridWrap.classList.toggle('inzoomad', v.z > v.fit + 0.005);
   renderChrome(v);
   ofrMarkLagg();   // etiketternas storlek på skärmen är fast, så zoomen avgör om de krockar (MES-346)
