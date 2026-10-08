@@ -1592,7 +1592,10 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       remsVektor: () => { fangster++; return Promise.resolve({ hel: vek(1), titel: vek(2), ms: 1 }); },
       lasRemsa: (c, id, o) => {
         const m = (o && o.minnen) || [];
-        remsFragor.push({ id, minnen: m.map(e => e.namn + '#' + e.sparId + '×' + e.prov.length) });
+        remsFragor.push({ id, omfodd: !!(o && o.omfodd), minnen: m.map(e => e.namn + '#' + e.sparId + '×' + e.prov.length) });
+        /* Ett otäckt spår (o.omfodd): minnet är bara ett vittne, som i kamLasRemsa — namnet och domen är remslekens. */
+        if (m.length && o && o.omfodd) return Promise.resolve({ namn: m[0].namn, sid: m[0].sid, saker: false, varfor: 'remsa osäker', marginal: 0.02, cands: [{ name: m[0].namn, sid: m[0].sid, score: 0.3 }],
+          minne: { provad: true, omfodd: true, namn: m[0].namn, saker: false, vittne: true, sparId: m[0].sparId, hel: 0.3, titel: 0.3, n: m.length } });
         return Promise.resolve(m.length
           ? { namn: m[0].namn, sid: m[0].sid, saker: true, varfor: 'remsa minne', marginal: 0.05, cands: [{ name: m[0].namn, sid: m[0].sid, score: 0.5 }], minne: { provad: true, namn: m[0].namn, saker: true, hel: 0.3, titel: 0.3, n: m.length } }
           : { namn: 'Pacifism', sid: 's2', saker: false, varfor: 'remsa osäker', marginal: 0.02, cands: [] });
@@ -1683,6 +1686,31 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const skal8 = Kamera.spar.map(t => ({ id: t.id, skal: t.minneSkal || null }));
     check(`RM8 grannens remsa i remsan: spår ${JSON.stringify(s)}, minne ${m8.length}, skäl ${JSON.stringify(skal8)}, fångster ${fangster}`,
           s.length === 2 && o8.st === 'klar' && m8.length === 0 && fangster === 0 && skal8.some(x => x.id === o8.id && x.skal === 'grannens remsa i remsan'));
+    // RM9: dubbletten på spegelmattan (Jespers bild 2, 2026-10-08) — kortet lyfts och ett nytt spår föds en kortbredd bredvid, HELT SYNLIGT:
+    //      minnet får tävla som vittne (o.omfodd, T.remsaMinneOmfodRadie), spåret blir inte säkert ur minnet, och vittnet når datorn i rapporten
+    s = await lagg({ spokMs: 2000 }); const idA9 = s[0] && s[0].id;
+    s = await lyft(LYFT);
+    namnSvar = osaker; remsFragor = []; const sakra9 = Kamera.minneStat.sakra, vittnen9 = Kamera.minneStat.vittnen;
+    const dx9 = 32, kortA9 = g => kort(g, W, A.x + dx9, A.y, A.w, A.h, 180), detA9 = det([lada(A.x + dx9, A.y, A.w, A.h)], [remsa(A.x + dx9, A.y, A.w, 6)]);
+    for (let i = 0; i < 20; i++) s = await rutaDet(kortA9, detA9);
+    const c9 = s[0] || {}, q9 = remsFragor.find(f => f.id === c9.id), r9 = (bord || []).find(t => t.id === c9.id) || {};
+    check(`RM9 otäckt omfödelse en kortbredd bort: spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}, rapportens minne ${JSON.stringify(r9.remsa && r9.remsa.minne)}`,
+          s.length === 1 && c9.id !== idA9 && c9.st === 'okand' && !!q9 && q9.omfodd && q9.minnen.length === 1 && q9.minnen[0].startsWith('Plains#' + idA9)
+          && !!(r9.remsa && r9.remsa.minne && r9.remsa.minne.vittne && r9.remsa.minne.sparId === idA9) && Kamera.minneStat.sakra === sakra9 && Kamera.minneStat.vittnen > vittnen9);
+    // RM9b: samma, men två och en halv kortbredd bort (utanför T.remsaMinneOmfodRadie): inget minne, inget vittne
+    s = await lagg({ spokMs: 2000 }); s = await lyft(LYFT);
+    namnSvar = osaker; remsFragor = [];
+    const dx9b = 75, kortA9b = g => kort(g, W, A.x + dx9b, A.y, A.w, A.h, 180), detA9b = det([lada(A.x + dx9b, A.y, A.w, A.h)], [remsa(A.x + dx9b, A.y, A.w, 6)]);
+    for (let i = 0; i < 20; i++) s = await rutaDet(kortA9b, detA9b);
+    const q9b = remsFragor.find(f => f.id === (s[0] || {}).id);
+    check(`RM9b otäckt omfödelse långt bort: spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}`, s.length === 1 && s[0].st === 'okand' && !!q9b && q9b.minnen.length === 0);
+    // RM9c: avstängt (T.remsaMinneOmfodd 0): det otäckta spåret får inget minne
+    s = await lagg({ spokMs: 2000, remsaMinneOmfodd: 0 }); s = await lyft(LYFT);
+    namnSvar = osaker; remsFragor = [];
+    for (let i = 0; i < 20; i++) s = await rutaDet(kortA9, detA9);
+    const q9c = remsFragor.find(f => f.id === (s[0] || {}).id);
+    check(`RM9c remsaMinneOmfodd 0: spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}`, s.length === 1 && s[0].st === 'okand' && !!q9c && !q9c.omfodd && q9c.minnen.length === 0);
+    Kamera.satTrosklar({ remsaMinneOmfodd: 1 });
     // RM6: avstängt (T.remsaMinne 0): ingen fångst, ingen kandidat
     fangster = 0;
     s = await lagg({ spokMs: 2000, remsaMinne: 0 }); s = await lyft(LYFT);

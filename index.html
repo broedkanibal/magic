@@ -24642,6 +24642,23 @@ const Kamera = (() => {
     remsaMinneRadie: 0.5,
     remsaMinneMs: 3000,
     remsaMinnePaus: 1000,
+    /* Minnet som VITTNE för ett otäckt spår som föds bredvid ett nyss dött
+       kort (dubbletten på spegelmattan, Jespers bild 2, 2026-10-08): kortets
+       spår dör under en hand eller ett blänk och föds om strax bredvid, helt
+       synligt — läsningen säger "not sure (kortets namn)". Minnet får tävla
+       också här, inom remsaMinneOmfodRadie remslängder, men gör ALDRIG namnet
+       säkert: domen blir ett vittne (minne.vittne) som datorns avstämning
+       läser tillsammans med läsningens namn (steg 5, vantarPaNamn). Vittne
+       bara när hela remsan och titeldelen pekar på minnets namn med marginal
+       > remsaMinneTroskel OCH remslekens egen etta på hela remsan är samma
+       namn. Bänken (remsexp.npz, minnen = helt synliga remsor inom 20 s, utan
+       radie): utan kravet på remslekens etta 279 rätt/7 fel på de hörnexakta
+       remsorna vid 0,10, och 28 rätt/39 fel när minnet bara rymmer ANDRA kort
+       (ett nytt kort där det gamla låg); med kravet 31/0 och 3/0. Gäller också
+       geo-skurna remsor, som minnet annars inte dömer på (minnets tröskel är
+       mätt på lådremsor) — vittnet är inte en dom. 0 stänger av. */
+    remsaMinneOmfodd: 1,
+    remsaMinneOmfodRadie: 1.5,
     /* Vem ligger ovanpå i en hög (MES-331 pass 2, fyndUrLador): två lådor
        som täcker varandra till minst hogTackning (av den mindre) ordnas
        efter FÖRSKJUTNINGEN mellan deras mittpunkter, i remsans två
@@ -24897,7 +24914,7 @@ const Kamera = (() => {
      namn, och med spåren vid varje nollställning. minneStat räknar för
      golden (--detalj, raden minne). */
   let remsMinne = [], minneSenast = 0;
-  const minneStat = { fangster: 0, fangstMs: 0, fragor: 0, medMinne: 0, sakra: 0 };
+  const minneStat = { fangster: 0, fangstMs: 0, fragor: 0, medMinne: 0, sakra: 0, vittnen: 0 };
   let nastaId = 1;
   /* Läsningar som pågår (MES-214). Förut ett lås: EN läsning i taget, och
      nästa kort väntade tills förra kortets titelrad var läst — 70–290 ms per
@@ -29313,19 +29330,21 @@ const Kamera = (() => {
      det är samma spår), som setts inom T.remsaMinneS sekunder, och vars
      remsa låg inom T.remsaMinneRadie remslängder från den nya remsans mitt.
      forra är rutans klocka: golden och bänken styr den själva. */
-  function minnenFor(t, mx, my, L) {
+  function minnenFor(t, mx, my, L, radie) {
     const alla = remsMinne.filter(e => e.prov.length && e.namn);
     if (!alla.length) return { minnen: [], skal: 'inga minnen' };
     const lever = alla.filter(e => e.sparId !== t.id && spar.some(q => q.id === e.sparId));
     const nyss = alla.filter(e => !lever.includes(e) && forra - e.sedd <= T.remsaMinneS * 1000);
-    const nara = nyss.filter(e => Math.hypot(e.mx - mx, e.my - my) <= T.remsaMinneRadie * L);
+    const nara = nyss.filter(e => Math.hypot(e.mx - mx, e.my - my) <= (radie || T.remsaMinneRadie) * L);
     /* skal: varför inget minne fick tävla (golden --detalj) — hur många som föll på varje villkor. */
     return { minnen: nara, skal: nara.length ? null : `${alla.length} minnen: ${lever.length} lever, ${alla.length - lever.length - nyss.length} för gamla, ${nyss.length - nara.length} för långt bort` };
   }
   async function lasRemsa(t, maskad, o) {
     if (!cb.lasRemsa) return null;
     const s = skarRemsa(t); if (!s) return null;
-    const m = !T.remsaMinne ? { minnen: [], skal: null } : arTackt(t, maskad) ? minnenFor(t, s.mx, s.my, s.L) : { minnen: [], skal: 'inte täckt' }, minnen = m.minnen;
+    /* Ett otäckt spår får minnet som vittne (T.remsaMinneOmfodd): bara nyss döda kort, som för ett täckt. */
+    const omfodd = !!T.remsaMinne && !arTackt(t, maskad) && !!T.remsaMinneOmfodd && !(o && o.vittneBara);
+    const m = !T.remsaMinne ? { minnen: [], skal: null } : arTackt(t, maskad) ? minnenFor(t, s.mx, s.my, s.L) : omfodd ? minnenFor(t, s.mx, s.my, s.L, T.remsaMinneOmfodRadie) : { minnen: [], skal: 'inte täckt' }, minnen = m.minnen;
     if (T.remsaMinne) { minneStat.fragor++; if (minnen.length) minneStat.medMinne++; }
     /* Minnets prov jämförs bara med samma skärning (granskningen fynd 6): ett prov taget ur geometrins remsa mot en
        fråga ur detektorns låda (återfallet) är två olika utsnitt av samma titel, och minnets tröskel (0,10, pass 6)
@@ -29334,14 +29353,15 @@ const Kamera = (() => {
     /* …och på en geo-skuren remsa får minnet inte döma alls än (granskningen runda 2): två geo-remsor på samma plats är
        identiskt inramade, så bakgrundslikheten mellan två OLIKA kort är högre än mellan två lådremsor, och minnets
        tröskel (0,10) mättes på lådremsor (pass 6). Mäts om i remsexp innan 'remsa minne' får vara säker på geo-prov. */
-    const minnenLika = geo ? [] : minnen.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: provLika(e) })).filter(e => e.prov.length);
+    const minnenLika = geo && !omfodd ? [] : minnen.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: provLika(e) })).filter(e => e.prov.length);
     kedjaBorja(t, 'remsa');
     let rs;
     try {
-      rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo, tackt: s.tackt, utom: s.utom, vittneBara: !!(o && o.vittneBara),
-                                          minnen: minnenLika.length ? minnenLika : null, minneSkal: m.skal || (minnen.length && !minnenLika.length ? (geo ? 'geo: minnets tröskel omätt' : 'annan skärning') : null) });
+      rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo, tackt: s.tackt, utom: s.utom, vittneBara: !!(o && o.vittneBara), omfodd,
+                                          minnen: minnenLika.length ? minnenLika : null, minneSkal: m.skal || (minnen.length && !minnenLika.length ? (geo && !omfodd ? 'geo: minnets tröskel omätt' : 'annan skärning') : null) });
     } finally { kedjaKlar(t, 'remsa'); }
     if (rs && rs.saker && rs.varfor === 'remsa minne') minneStat.sakra++;
+    if (rs && rs.minne && rs.minne.vittne) minneStat.vittnen++;   // ett otäckt spår som minnet känner igen (T.remsaMinneOmfodd)
     return rs;
   }
   /* Minnets vård, varje ruta (MES-331 pass 6): posten följer sitt spår så
@@ -30979,7 +30999,12 @@ async function kamLasRemsa(canvas, id, o) {
   let minne = minnen ? { provad: false, n: minnen.length } : (T.remsaMinne && o && o.minneSkal ? { provad: false, n: 0, skal: o.minneSkal } : null);   // skal: varför inget minne fick tävla (Kamera.minnenFor)
   if (!saker && minnen && e.vektor && titelVek) {
     try { minne = remsMinnesDom(e.vektor, titelVek, minnen, T); } catch (x) { minne = { provad: false, n: minnen.length, fel: String(x && x.message || x) }; }
-    if (minne && minne.saker && minne.namn && minne.namn !== BAKSIDA_NAMN) { saker = true; varfor = 'remsa minne'; cands = minne.cands; marginal = minne.marginal; }
+    /* Ett otäckt spår (o.omfodd, T.remsaMinneOmfodd): minnet är bara ett vittne, aldrig domen — och bara när
+       remslekens egen etta på hela remsan är samma namn (bänken: 28 rätt/39 fel utan kravet när minnet bara
+       rymde andra kort, 3/0 med). Namnet, förslagen och marginalen är remslekens som förut. */
+    if (o && o.omfodd) {
+      if (minne && minne.provad) { minne.vittne = !!(minne.saker && minne.namn && minne.namn !== BAKSIDA_NAMN && minne.namn === cands[0].name); minne.saker = false; minne.omfodd = true; }
+    } else if (minne && minne.saker && minne.namn && minne.namn !== BAKSIDA_NAMN) { saker = true; varfor = 'remsa minne'; cands = minne.cands; marginal = minne.marginal; }
   }
   let ocr = null;
   /* Textläsaren (0,4–1 s) bara när svaret ska dömas — inte när remsan läses som VITTNE åt 'modell land' (o.vittneBara,
@@ -33290,24 +33315,25 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      nedtonat kort som kommer tillbaka och ett som hålls av ett osäkert spår;
      bara ett — ett Swamp i högen, båda spåren färska i 0,45 s — hade
      färskhetsundantaget kunnat ta. (postensNamn står före steg 3b, som också läser den.) */
-  /* Kortet sett igen bredvid, på Claudes namn (Jespers bild 2, 2026-10-08). Kortets spår dör (en hand,
-     blänket) och ett nytt spår föds strax bredvid, men blir stilla först efter nåden: flyttens fönster
-     (steg 3b) har stängts, kortet går inte till handen (namnAnnanstans ser namnet på det nya spåret), och
-     ledtråden ovan binder bara på platsens gissning. Mattan visade kortet och "Name this card" för samma
-     fysiska kort. Nu bär spåret kortet som en gissad flytt (flyttBuren: en senare säker läsning med ett
-     annat namn ångrar den) — men bara med Claudes stöd: exakt ett kort i svaret, medel eller hog, med
-     kortets namn. Läsningens eget osäkra namn räcker inte: det flyttade Night's Whisper ur graveyard till
-     ett okänt kort i uppspelarens parti-kedjan. Och bara utan tvekan: kortet är det enda med namnet på
-     bordet, platsen är inte täckt (då ligger det kvar under), och inget annat löst osäkert spår bär namnet.
-     Före loopen: tacktAvKort är en const längre ned. */
+  /* Kortet sett igen bredvid (Jespers bild 2, 2026-10-08). Kortets spår dör (en hand, blänket) och ett
+     nytt spår föds strax bredvid, men blir stilla först efter nåden: flyttens fönster (steg 3b) har
+     stängts, kortet går inte till handen (namnAnnanstans ser namnet på det nya spåret), och ledtråden ovan
+     binder bara på platsens gissning. Mattan visade kortet och "Name this card" för samma fysiska kort.
+     Nu bär spåret kortet som en gissad flytt (flyttBuren: en senare säker läsning med ett annat namn ångrar
+     den) — med två lokala vittnen som är överens: läsningens osäkra namn, och telefonens minne av JUST
+     DET HÄR kortets remsa från när det låg synligt (remsa.minne.vittne, T.remsaMinneOmfodd: minnets spår är
+     kortets döda spår). Claude är inget villkor. Läsningens namn ensamt räcker inte: det bar Night's
+     Whisper till ett annat kort tre gånger i uppspelarens parti-kedjan (2026-10-09). Och bara utan tvekan:
+     kortet är det enda med namnet på bordet, platsen är inte täckt (då ligger det kvar under), och inget
+     annat löst osäkert spår bär namnet. Före loopen: tacktAvKort är en const längre ned. */
   const vantarPaNamn = t => {
     if (!pol.flytt || t.provas || t.w == null || t.h == null || franHelbild(t) || !t.kortlik || t.ned || t.skymd || hoppade.has(t.id)) return null;
-    const svar = t.ai && t.ai.svar;
-    if (!svar || svar.length !== 1 || (svar[0].sakerhet !== 'medel' && svar[0].sakerhet !== 'hog') || !svar[0].namn || svar[0].namn !== t.namn) return null;
-    const namn = svar[0].namn, medNamn = mig.cards.filter(c => c.name === namn && paBordet(c));
+    const v = t.remsa && t.remsa.minne;
+    if (!v || !v.vittne || !v.namn || v.namn !== t.namn || v.sparId == null) return null;
+    const namn = v.namn, medNamn = mig.cards.filter(c => c.name === namn && paBordet(c));
     if (medNamn.length !== 1) return null;
     const k = medNamn[0];
-    if ((k.spar != null && synliga.has(k.spar)) || !k.kam || k.fysisk || k.attachedTo || annatKort(k, t)) return null;
+    if (k.spar !== v.sparId || synliga.has(k.spar) || !k.kam || k.fysisk || k.attachedTo || annatKort(k, t)) return null;
     if (spar.some(u => u !== t && u.w != null && !franHelbild(u) && !u.skymd && (u.tillstand === 'klar' || u.kortlik) && tackning(kamRekt(k.kam), u) >= SAMMA_KORT_TACKNING)) return null;
     if (spar.some(u => u !== t && u.tillstand !== 'klar' && !iFysiskt.has(u.id) && !bunden(u.id) && postensNamn(u).has(namn))) return null;
     return k;

@@ -879,7 +879,7 @@ function avsluta(f, prov, tid, tak, takS) {
   /* Minnet av remsor (MES-331 pass 6): posterna när fallet är slut, och räknarna för FALLET — Kameras räknare löper över hela körningen, så förra fallets dras av. */
   try {
     const st = K.minneStat, f0 = avsluta.minneFore || {};
-    res.minne = { poster: st.poster, fangster: st.fangster - (f0.fangster || 0), fangstMs: st.fangstMs - (f0.fangstMs || 0), fragor: st.fragor - (f0.fragor || 0), medMinne: st.medMinne - (f0.medMinne || 0), sakra: st.sakra - (f0.sakra || 0), foljde: (st.foljde || 0) - (f0.foljde || 0),
+    res.minne = { poster: st.poster, fangster: st.fangster - (f0.fangster || 0), fangstMs: st.fangstMs - (f0.fangstMs || 0), fragor: st.fragor - (f0.fragor || 0), medMinne: st.medMinne - (f0.medMinne || 0), sakra: st.sakra - (f0.sakra || 0), vittnen: (st.vittnen || 0) - (f0.vittnen || 0), foljde: (st.foljde || 0) - (f0.foljde || 0),
                   lista: (K.remsMinne || []).map(e => ({ sparId: e.sparId, namn: e.namn, prov: e.prov, lever: e.lever })), rader: prov.minnesrader || [] };
     avsluta.minneFore = Object.assign({}, st);
   } catch (e) { res.minne = null; }
