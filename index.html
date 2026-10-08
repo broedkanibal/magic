@@ -2469,7 +2469,7 @@ body:not(.debug) .dbg{display:none!important}
    pekaren. I brädet, i skärmens storlek oavsett mattans zoom (--matz, som .ofrmark), aldrig i vägen för pekaren. */
 .kedjalag{position:absolute;left:0;top:0;width:0;height:0;z-index:960;pointer-events:none}
 .kedjaet{position:absolute;transform:translate(-50%,-100%) scale(calc(1 / var(--matz, 1))) translateY(var(--kdy, -4px));transform-origin:50% 100%;
-  width:max-content;max-width:260px;padding:3px 8px;border-radius:7px;background:#0d1117f0;border:1px solid #ffffff2e;
+  width:max-content;max-width:420px;padding:3px 8px;border-radius:7px;background:#0d1117f0;border:1px solid #ffffff2e;
   font:600 12px/1.4 var(--mono);color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 4px 12px -4px #000c}
 .kedjaet .nu,.kedjatl .nu{color:#e8b33a}
 .kedjaet .nu::before,.kedjatl .nu .st::before{content:'';display:inline-block;width:7px;height:7px;margin-right:6px;border-radius:50%;background:#e8b33a;vertical-align:1px;animation:kampuls 1s ease-in-out infinite}
@@ -8333,9 +8333,18 @@ function kedjaLas(k) {
   const rader = (Array.isArray(k.l) ? k.l : []).map(([s, a, ms, slut], i) => ({ s, a: a || 0, ms: s === 'det' && ms == null ? 0 : ms, utanTid: s === 'det' && ms == null, slut, i, namn: (KEDJA_DELAR[s] || [s])[0], ai: !!(KEDJA_DELAR[s] || [])[1] }))
     .sort((p, q) => (p.a - q.a) || (p.i - q.i));
   const nu = rader.filter(r => r.ms == null);
-  /* En del som arbetar räknas fram till när telefonen skickade (k.t). */
-  const tid = rader.length ? Math.max(...rader.map(r => r.a + (r.ms != null ? r.ms : Math.max(0, (k.t || 0) - r.a)))) - Math.min(...rader.map(r => r.a)) : 0;
-  return { rader, nu, tid, ai: rader.some(r => r.ai) };
+  /* Tiden är den SENASTE läsningen, inte hela spårets liv: rader med mer än 2 s lucka mellan sig är olika
+     läsningar (kortet lästes om efter en flytt, eller helbilden kom långt efteråt), och en lucka på minuter
+     är inte tid kortet tog att känna igen. Detektorn är en punkt (en bild) och räknas inte. En del som
+     arbetar räknas fram till när telefonen skickade (k.t). */
+  const slutAv = r => r.a + (r.ms != null ? r.ms : Math.max(0, (k.t || 0) - r.a));
+  let kor = [], korSlut = -1;
+  for (const r of rader.filter(r => r.s !== 'det')) {
+    if (kor.length && r.a > korSlut + 2000) kor = [];
+    kor.push(r); korSlut = Math.max(kor.length > 1 ? korSlut : -1, slutAv(r));
+  }
+  const tid = kor.length ? Math.max(...kor.map(slutAv)) - kor[0].a : 0;
+  return { rader, nu, tid, ai: kor.some(r => r.ai && r.slut !== 'timeout') };
 }
 /* Domen i ord: namnet och om det är säkert, eller varför det inte blev något. */
 function kedjaDom(k) {
@@ -29863,7 +29872,7 @@ const Kamera = (() => {
     x.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
     const gen = helbildGen, t0 = performance.now();
     helbildPagar = true; helbildSedan = 0; helbildSist = t0;
-    for (const t of spar) if (t.tillstand !== 'skrap') kedjaBorja(t, 'helbild');
+    for (const t of spar) if (t.tillstand !== 'skrap' && !(t.tillstand === 'klar' && t.saker)) kedjaBorja(t, 'helbild');   // ett säkert spår rörs inte av helbilden (tillampaHelbild)
     helbildBild = senasteG ? Float32Array.from(senasteG) : null;
     helbildSig = egenSignatur();
     let res = null;
