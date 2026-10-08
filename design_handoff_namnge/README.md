@@ -61,6 +61,14 @@ Ritade på spec-tavlan, i samma ordning.
   visar `#pendBar` som idag. Bara poster med `ofrPos` räknas bort.
 - **Sökningen:** leken först, sedan alla kort (`ofrSokSok`). Inga gissningar visas.
 
+## Det som inte byggs
+
+- **Inget chip för kort utanför vyn** (som "1 to name" på tavlan *Runt omkring*). Jesper 2026-10-08:
+  "Enter name" på kortet plus *Fit camera view (0)* räcker.
+- **Tavlorna A–H och *Runt omkring* är utforskningen.** De har den gamla verktygsraden ("Untap all",
+  "Tidy up"), och texterna "Name this card", "Which card?" och "Discard" som har ersatts. Bygg bara efter
+  *Spec* och den här filen. Verktygsraden i produktionen (välj/panorera, zoom, *Fit camera view*) ändras inte.
+
 ## Var i koden
 
 `ofrLager`, `ofrHtml`, `ofrMarkHtml`, `ofrMarkAnkare`, `ofrMarkLagg`, `ofrSokOppna`, `renderPending`, CSS
