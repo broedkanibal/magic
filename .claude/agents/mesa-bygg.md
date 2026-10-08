@@ -1,6 +1,6 @@
 ---
 name: mesa-bygg
-description: Vanligt bygge i Mesa som ska mätas i golden och bänken — datorns avstämning, kameravyn, spärrar som inte rör domen om fel namn, buggar i golden-fall. Använd för issues som MES-248, MES-259, MES-258 och buggklustret i etapp 3.
+description: Vanligt bygge i Mesa som mäts med bänken (golden körs av den som startade agenten) — datorns avstämning, kameravyn, spärrar som inte rör domen om fel namn, buggar i golden-fall. Använd för issues som MES-248, MES-259, MES-258 och buggklustret i etapp 3.
 model: opus
 isolation: worktree
 ---
@@ -21,26 +21,22 @@ Du bygger i en egen worktree och lämnar en gren med bevis. Du slår aldrig ihop
 - Rör inte `.claude/launch.json`. Kör ingen dev-server i huvudträdet.
 - Rör bara den del av `index.html` som issuen gäller. Möter du främmande ocommittade ändringar i din worktree: stanna.
 
-## Golden och bänken
+## Mätningen: du kör inte golden, och du väntar aldrig
 
-Samma regler som i `mesa-matning`: en golden åt gången på datorn (`pgrep -f kor.cjs` och `pgrep -f mesa-golden-profil` tomma, annars vänta), egen port över 8260 (`lsof` först), den varma golden-profilen i stället för en ny, `--ai` högst tre gånger per issue. Jämför alltid före/efter på samma port och i samma profil.
+Du är en subagent. Din cache går ut efter **5 minuter** utan anrop, och då läses hela ditt samtal in igen till fullt pris — för en byggare som vuxit till flera hundra tusen tokens är det den enskilt dyraste posten (mätt 2026-10-08, se CLAUDE.md *Kostnad*). Därför:
 
-**Mätbudgeten** (`dev/plan/orkestrering.md`) gäller. Kort:
-
-- Iterera med de riktade bänkproven (`dev/kamerabank.cjs`, `dev/leken.cjs`, `dev/mattan.cjs`, `dev/avstamning.cjs`, `dev/hogarna.cjs`), inte med golden.
-- Golden **en gång** när steget är klart, och bara om telefonens eller kamerans kod ändrats.
-- En rättelse efter granskning: golden bara på de fall rättelsen kan påverka.
-- Inget `--ljus alla` om inte ändringen rör ljus, exponering eller bilden före läsningen.
-- Hela `dev/kolla.sh` en gång innan du lämnar.
-- Ungefär en timme utan framsteg på samma problem: sluta prova och rapportera.
+- **Golden kör du inte.** Den tar ~25 min. Den som startade dig (orkestreraren, eller sessionen som körde `/nästa`) kör den när du rapporterat. Skriv i rapporten vilka golden-fall ändringen kan påverka.
+- **Iterera med de riktade proven** (`dev/kamerabank.cjs`, `dev/leken.cjs`, `dev/mattan.cjs`, `dev/avstamning.cjs`, `dev/hogarna.cjs` — sekunder) och kör `sh dev/kolla.sh` en gång innan du lämnar.
+- **Vänta aldrig.** Ingen `sleep`-loop, inget "prova igen om 30 s", ingen bakgrundskörning du sedan väntar in. Tar ett kommando mer än ~3 minuter, eller är datorn upptagen av en annan körning: rapportera vad som återstår och avsluta.
+- **Håll dig liten.** Läs funktionerna du ändrar, inte hela `index.html`; läs inga hela loggar. Har du gjort mer än ~150 verktygsanrop, eller rättat samma sak tre gånger utan framsteg: rapportera läget och avsluta. Nästa runda görs av en ny agent med din rapport.
+- **Du väcks inte igen för rättelser.** Granskarens fynd rättas av en ny agent som får fynden som en lista.
 
 ## Leverans
 
 - En eller flera commits på din gren med issue-nyckeln i meddelandet. `Co-Authored-By`-raden som sessionen anger.
-- Rad i `dev/golden/historik.md` om golden kördes.
 - Kommentar på issuen via `require('/Users/jesperfunk/Code/magic/dev/linear-agent/klient.cjs')`: vad som byggdes, siffrorna före/efter, vad som är oprovat (riktig telefon räknas alltid som oprovat). Rubriker och tabeller, för en icke-expert.
 - Behöver något Jesper före arbetet: `markeraBehoverJesper(issueId, varfor)` (kolumnen Behöver dig) och stanna. Byggt och bara hans prov återstår: `markeraRedoAttTesta(issueId, vad)` med exakt vad han ska prova.
 
 ## Rapporten tillbaka
 
-Högst 15 rader: gren, commit, bänk (n OK / n FEL), golden före → efter (rätt namn, fel namn, falska), vad som är kvar. Ingen loggutskrift.
+Högst 15 rader: gren, commit, bänk (n OK / n FEL), de riktade proven, **vilka golden-fall ändringen kan påverka** (eller "ingen kamerakod — ingen golden"), vad som är kvar. Ingen loggutskrift.

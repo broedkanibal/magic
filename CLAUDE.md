@@ -62,7 +62,7 @@ vad som ändrades. Det är där nästa session ändå letar.
 **Varför tröskeln finns:** 280 issues på tolv dagar, ~13 klara per dag. Ingen
 sortering i världen gör den högen överskådlig — bara filtrerbar. Det som
 minskar den är att färre saker blir issues från början. Rädslan att arbete
-"försvinner" utan en issue är obefogad: commit-meddelandet och `/läget` visar
+"försvinner" utan en issue är obefogad: commit-meddelandet och `/overview` visar
 det redan.
 
 Är du osäker — **skapa den inte.** En fix som visar sig behöva en issue får en
@@ -266,9 +266,52 @@ reglerna här.
 `mesa-matning` (Sonnet, mäter utan kod), `mesa-bygg` (Opus, vanligt bygge)
 och `mesa-bygg-tung` (Fable, detektorn, läsningen, spärren mot fel namn,
 samtidighet). Effort ärvs från sessionen som startar dem — kör
-orkestrerande sessioner på xhigh eller ultracode. Agenterna slår aldrig
-ihop med main och pushar aldrig; det gör orkestreraren efter bänk och
-golden. Planen för orkestreringen: `dev/plan/orkestrering.md`.
+orkestrerande sessioner på **high**, inte xhigh eller ultracode: det som
+kostar är hur länge agenterna lever, inte hur hårt orkestreraren tänker.
+Agenterna slår aldrig ihop med main och pushar aldrig; det gör
+orkestreraren efter bänk och golden. Planen för orkestreringen:
+`dev/plan/orkestrering.md`.
+
+### Kostnad: hur sessioner och agenter startas (mätt 2026-10-08)
+
+Veckan 1–7 oktober kostade ~2,2 × en vanlig vecka. 68 % gick i subagenter,
+och två nattorkestreringar stod för 52 %. Orsaken var inte att agenter
+startades, utan att de **levde länge och väntade**. Bakgrund: varje anrop
+läser hela samtalet; den delen är en tiondel så dyr så länge den ligger i
+cachen, men cachen går ut efter **5 min** för en subagent och **1 h** för en
+vanlig session. Går den ut skrivs hela samtalet in igen till fullt pris —
+för en byggare på 900 000 tokens är det en hel dagslön per väntan.
+
+**Regler för orkestrerande sessioner och agenter:**
+
+1. **En byggagent väntar aldrig på något längre än ett par minuter.** Den
+   bygger, kör de riktade bänkproven, rapporterar och avslutas. Den kör
+   inte golden och står inte i kö för den (`pgrep` tomma-loopen hör till
+   den som mäter). Golden kör orkestreraren i bakgrunden, eller en
+   `mesa-matning`-agent (Sonnet) som bara mäter och rapporterar siffror.
+2. **En ny agent per steg och per rättelserunda.** Rättelsen får
+   granskarens fynd och golden-resultatet som en kort lista — aldrig den
+   gamla byggarens hela historia. En agent som svällt mot 500 000 tokens
+   avslutas, den väcks inte igen.
+3. **Mätning är Sonnet.** Opus bygger, Fable bara det tunga
+   (`mesa-bygg-tung`).
+4. **En issue eller ett steg per session.** Sessionen blir dyr av storleken,
+   inte av tiden: större än ~400 000 tokens → skriv en handover och börja
+   en ny. En session som varit orörd mer än en timme betalar hela samtalet
+   fullt vid nästa svar — är den stor, börja hellre en ny med en handover.
+5. **Starta inte en session som "väntar på" en annan.** Starta den när den
+   andra är klar. Vill Jesper veta hur det går: `/overview`, inte en
+   session som pollar.
+
+**Modell och effort per sorts arbete** (förslag, Jesper väljer):
+
+| Sorts arbete | Modell | Effort |
+|---|---|---|
+| Frågor, `/overview`, förklaringar, mätningar, analys av siffror | Sonnet | medium |
+| Planering och designval | Opus | medium–high |
+| Vanligt bygge (`mesa-bygg`) | Opus | high |
+| Detektorn, spärren mot fel namn (`mesa-bygg-tung`) | Fable | high |
+| Orkestrerande session över natten | Opus | high |
 
 ### Etikett och kolumn när en issue skapas
 
@@ -397,9 +440,9 @@ Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature', 'spelvyn'] })`
 — utan `status` och `projekt` blir det Triage i Private beta. Med
 MCP-kopplingen: sätt `labels`, `state: "Triage"` och `project: "Private beta"`.
 
-### Överblicken: `/läget`
+### Överblicken: `/overview`
 
-Kör `node dev/laget.cjs` plus `ListAgents` — skillen `laget` gör båda och
+Kör `node dev/laget.cjs` plus `ListAgents` — skillen `overview` gör båda och
 slår ihop dem. Den svarar på vad som körs, vad som väntar på Jesper, vad som
 är blockat, vilka grenar som inte är ihopslagna och vad som är näst på tur.
 Använd den när Jesper frågar hur det går, i stället för att läsa Linear.

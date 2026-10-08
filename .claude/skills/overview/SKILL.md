@@ -1,9 +1,9 @@
 ---
-name: laget
-description: Visar läget i Mesa på en skärm — vilka issues som körs just nu och om någon saknar session, vad Jesper ska sortera (Triage), vad som väntar på honom (Behöver dig, Redo att testas), vad som är blockat, vilka grenar som inte är ihopslagna i main, vad som är näst på tur och hur långt varje projekt kommit. Använd den när Jesper vill ha överblick, frågar "vad händer nu", "vad kör vi", "vad väntar på mig", "var är vi", "vad är kvar", eller ber om "läget". Läser bara; skriver och ändrar ingenting.
+name: overview
+description: Visar läget i Mesa på en skärm — vilka issues som körs just nu och om någon saknar session, vad Jesper ska sortera (Triage), vad som väntar på honom (Behöver dig, Redo att testas), vad som är blockat, vilka grenar som inte är ihopslagna i main, vad som är näst på tur och hur långt varje projekt kommit. Använd den när Jesper vill ha överblick, frågar "vad händer nu", "vad kör vi", "vad väntar på mig", "var är vi", "vad är kvar", eller ber om "läget" eller "overview". Läser bara; skriver och ändrar ingenting.
 ---
 
-# Läget i Mesa
+# Overview — läget i Mesa
 
 Ett svar på "vad händer nu" utan att någon läser 80 issues.
 

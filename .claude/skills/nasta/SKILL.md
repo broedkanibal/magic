@@ -63,9 +63,9 @@ Ställ sedan frågorna med `AskUserQuestion`, i ett anrop:
 | Mäta, köra golden, analysera en rapport — ingen kod | `mesa-matning` | Sonnet | medium |
 | Vanligt bygge: vyer, menyer, spelvyn, buggar i appen | `mesa-bygg` | Opus | high |
 | Designyta med varianter | `general-purpose` med designskillen | Opus | high |
-| Detektorn, läsningen, spärren mot fel namn, samtidighet | `mesa-bygg-tung` | Fable | xhigh |
-| Datamodell, säkerhet, RLS, inloggning, dold information | `mesa-bygg-tung` | Fable | high |
-| Utredning med många golden-körningar | `mesa-bygg-tung` | Fable | xhigh |
+| Detektorn, läsningen, spärren mot fel namn, samtidighet | `mesa-bygg-tung` | Fable | high |
+| Datamodell, säkerhet, RLS, inloggning, dold information | `mesa-bygg` | Opus | high |
+| Utredning med många golden-körningar | `mesa-bygg-tung` | Fable | high |
 
 Modellen sätts med agentens `model`. Effort ärvs från sessionen: skiljer sig
 Jespers val från sessionens, byt den med `set_session_effort` (ladda den med
@@ -84,17 +84,27 @@ ToolSearch) innan agenten startas, eller säg åt Jesper att byta.
 - Alltid `isolation: "worktree"` — arbetsträdet i main delas med andra
   sessioner. En ny worktree saknar `.env.local` och `dev/material`: symlänka
   dem.
-- **Golden körs aldrig två åt gången.** Visar nasta.cjs "golden kör: JA",
-  eller kör en annan session golden: bygg klart, och kör golden när den är
-  ledig.
+- **Byggaren kör inte golden och väntar aldrig** (se `mesa-bygg`, *Mätningen*).
+  Den bygger, kör de riktade proven och `dev/kolla.sh`, rapporterar vilka
+  golden-fall som kan påverkas och avslutas.
 - Systemprompten i `api/identify.js` rörs inte.
 - Agenten slår inte ihop och pushar inte.
+
+## 4b. Golden — du kör den, inte byggaren
+
+Rör ändringen kamerans kod (CLAUDE.md, *Golden: kör bara när …*): kör de
+fall byggaren nämnt, i bakgrunden från den här sessionen, och vänta in den
+en gång. Kör en annan golden (nasta.cjs "golden kör: JA"): vänta inte i en
+loop — säg till Jesper och gå vidare med granskningen. Rör den ingen
+kamerakod: ingen golden.
 
 ## 5. Granska innan det slås ihop
 
 En fristående granskare (`general-purpose`, läser bara) läser diffen och
-letar efter riktiga fel, med konkreta scenarier. Fynden rättas av byggaren
-på samma gren. Kom det nya commits: granska dem också. Det här har hittat nya
+letar efter riktiga fel, med konkreta scenarier. Fynden rättas av **en ny
+agent** på samma gren, som får fynden som en lista — byggaren väcks inte igen
+(den har vuxit, och dess cache har gått ut). Kom det nya commits: granska dem
+också, med en ny granskare som bara läser rättelsen. Det här har hittat nya
 fel varje gång det gjorts — hoppa inte över det.
 
 ## 6. Slå ihop — eller lämna till orkestreraren

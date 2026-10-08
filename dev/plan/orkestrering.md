@@ -1,7 +1,8 @@
 # Orkestreringen av spegelläget — plan för en autonom session
 
 Skriven 2026-09-20 som överlämning från MES-242-sessionen. Läses av den
-session som Jesper startar på **ultracode** för att köra etapperna utan
+session som Jesper startar på **Opus, effort high** (inte xhigh eller
+ultracode — se CLAUDE.md *Kostnad*) för att köra etapperna utan
 avstämning efter varje issue. Linear är källan för status; etappkartan är
 `dev/plan/etapper.md`. Arbetet hör sedan 2026-09-27 till projektet
 *Private beta*, milstolpen *6 · Mirror my table* (projektet *Spegelläget i
@@ -47,7 +48,11 @@ plus en kommentar. Är det byggt och bara hans prov återstår:
 vidare med nästa issue i kön. När Jesper gjort sitt:
 `agent.slappBehoverJesper(issueId)` (tillbaka till Todo).
 
-## Kön
+## Kön (historisk, 2026-09-20)
+
+**Kön är Linear** — Todo i prioritetsordning (CLAUDE.md). Tabellen nedan är
+från 2026-09-20 och står kvar för kolumnerna *Kodområde* och *Kan gå
+parallellt med*, som säger vilka delar av koden som krockar.
 
 Ordningen är beroendeordning, inte etappnummer. Numren i etappkartan
 säger vad som stänger vilket löfte; det här säger vad som kan köras nu.
@@ -69,7 +74,10 @@ säger vad som stänger vilket löfte; det här säger vad som kan köras nu.
 **Golden serialiseras.** Agenterna får bygga samtidigt, men bara en
 golden-körning åt gången på datorn (`pgrep -f kor.cjs`,
 `pgrep -f mesa-golden-profil`). Räkna med att golden, inte antalet
-agenter, sätter takten: en full körning tar 8–12 minuter.
+agenter, sätter takten: en full körning tar ~25 minuter. **Golden körs av
+orkestreraren** (i bakgrunden, en väntan per körning) eller av en
+`mesa-matning`-agent — aldrig av en byggagent, och ingen agent står i en
+loop och väntar på att datorn ska bli ledig.
 
 ## Flera sessioner samtidigt: vem rör main
 
@@ -145,9 +153,10 @@ golden-körningar i kö.
 
 | När | Vad som körs |
 |---|---|
+| Vem kör golden | **orkestreraren**, i bakgrunden, eller en `mesa-matning`-agent (Sonnet). Aldrig byggaren: den är en subagent med 5 minuters cache, och varje väntan skriver om hela dess samtal till fullt pris |
 | Byggaren itererar | de riktade bänkproven: `dev/kamerabank.cjs`, `dev/leken.cjs`, `dev/mattan.cjs`, `dev/avstamning.cjs`, `dev/hogarna.cjs` (sekunder) — inte golden |
-| Ett steg är klart | golden **en gång**, lokalt + `--utan-leken`, och bara om telefonens/kamerans kod ändrats. Steg som bara rör datorsidan kör ingen golden |
-| En rättelse efter granskning | golden bara på de fall rättelsen kan påverka (`--fall NN`) |
+| Ett steg är klart | byggaren rapporterar och avslutas; orkestreraren kör golden **en gång**, lokalt + `--utan-leken`, och bara om telefonens/kamerans kod ändrats. Steg som bara rör datorsidan kör ingen golden |
+| En rättelse efter granskning | **en ny agent** gör rättelsen (granskarens fynd som lista, inte den gamla byggarens historia); golden bara på de fall rättelsen kan påverka (`--fall NN`) |
 | Granskaren | läser diffen och funktionerna den rör, inte hela `index.html`; riktade prov, ingen golden utom ett fall när en misstanke ska prövas; tak ~1 h |
 | Ihopslagningen | `dev/kolla.sh` + `--ai` en gång. **Ingen lokal golden-omkörning** när grenen bygger på dagens main och koden inte ändrats efter byggarens mätning — det sammanslagna läget är då exakt det som mättes |
 | `--ljus alla` (~2,5 h) | bara när ändringen rör ljus, exponering eller bilden före läsningen |
@@ -161,7 +170,11 @@ golden-körningar i kö.
 - **"⏱ tak" på ett fall** gör körningen ogiltig: kör om bara det fallet,
   utan last på datorn.
 - **Byggaren rapporterar** efter ungefär en timme utan framsteg på samma
-  problem, i stället för att prova vidare.
+  problem, eller efter ~150 verktygsanrop, i stället för att prova vidare.
+- **Ingen väntar i en loop.** Ingen agent och ingen orkestrerare kör
+  `sleep` + "prova igen" mot `pgrep`. Är datorn upptagen: orkestreraren
+  startar golden när den förra är klar (den får ett meddelande då), och
+  agenter som stöter på en upptagen dator rapporterar och avslutas.
 
 ## Så slås en gren ihop (orkestreraren, sekventiellt)
 
@@ -194,23 +207,11 @@ verktygsanrop. Därför:
 - läs aldrig loggar eller golden-utskrifter i orkestreraren — låt en agent
   göra det och rapportera siffrorna
 - resultat skrivs i Linear och `historik.md`, inte i chatten
-- en agent per issue; starta om en ny agent hellre än att fortsätta en
-  som svällt
+- en agent per issue och per rättelserunda; **väck aldrig en färdig
+  agent igen** med `SendMessage` för att den ska fortsätta — dess cache har
+  gått ut och hela dess samtal läses in till fullt pris. Starta en ny med
+  en kort lista
+- orkestreraren själv: blir den större än ~400 000 tokens, skriv en
+  handover och låt Jesper starta en ny
 - rapportera till Jesper bara när något är klart, när något stoppats, och
   när en issue flyttats till **Behöver dig** eller **Redo att testas**
-
-## Läget när det här skrevs (2026-09-20, ~10:00)
-
-- **main:** 16b08f4 + den här commiten. Produktionen identisk med filen.
-- **Grenar på GitHub, inte i main:** `worktree-bank-1080p` (MES-244 B/C/E,
-  bänken grön sedan e88532c, golden pågår i den sessionen).
-- **Sessioner igång (ListAgents):** MES-244 (bank-1080p), MES-238-analysen,
-  MES-246 del 1 (klar, kan vara kvar).
-- **Needs Jesper:** MES-243 (värmeprovet), MES-242 (telefonpasset, ~10 min
-  nästa gång han spelar), MES-190 (pass A/B/C), MES-241 (uppställning +
-  lampa), MES-142 (designval tokens). Jesper har sagt att han inte har tid
-  för proven nu — det blockerar inget i kön ovan.
-- **Etapp 1** står öppen tills proven är gjorda; det är i sin ordning.
-- **Golden-baslinjen** (`senaste.json`) säger 35/57 men koden mäter 34/57
-  på den här datorn (fall 09: 3/4). Tills MES-249 är löst: jämför alltid
-  före/efter på samma dator, inte mot filen.
