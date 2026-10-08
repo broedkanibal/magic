@@ -25,8 +25,8 @@
        lärda referenser (K7/K8) är bara fler bilder av samma namn
 
    Modellen körs med onnxruntime-web: WebGPU när det finns, annars WASM
-   (flera trådar om sidan är cross-origin isolated, annars en). Samma form
-   som dev/matcher.js och dev/orb.js: en fristående fil, window.Embed.
+   (flera trådar om sidan är cross-origin isolated, annars en). En fristående
+   fil, window.Embed.
 
    Förräknade vektorer (MES-230): en referensbilds 8 vektorer beror bara på
    Scryfall-id och MODELL (modell + receptversion), så de räknas en gång

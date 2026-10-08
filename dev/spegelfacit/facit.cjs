@@ -67,7 +67,7 @@ function lekRader() {
   if (ovan.length !== PASSENS_LEK.namn || kort !== PASSENS_LEK.kort) throw new Error(`dev/golden/lek.txt: ovanför "# golden 17" står ${ovan.length} namn och ${kort} kort, passens lek är ${PASSENS_LEK.namn} namn och ${PASSENS_LEK.kort} kort — nya namn hör hemma under raden`);
   return { ovan, under };
 }
-/* Passens lek som [{ name, n }] (uppspelarens p0921k). */
+/* Passens lek som [{ name, n }] (uppspelarens parti-kedjan). */
 function passensLek() { return lekRader().ovan; }
 /* Namnen under gränsen (utanleken till golden-sidan, spegelfacit/kor.cjs). */
 function utanforPassensLek() { return lekRader().under.map(x => x.name); }

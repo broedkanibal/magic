@@ -11,13 +11,13 @@ Kod: `index.html` (sha256 48894c781b3c, commit dc29c25). Simulerad klocka: två 
 | g12 | golden 12-svartmatta-dagsljus-provkort | underlag/golden-bordlogg.json.gz (5505933 (2026-10-03)) |
 | p0922 | passet 2026-09-22 (1x, 34 cm, normaltempo) | dev/material/arbete/2026-10-04-hogarna-matning/baslinje/spegel-lokal.json (körd 2026-10-04, poolen 168, utan Claude) |
 | p0921 | partiet 2026-09-21, sek 240–540 — FACIT SOM IDEAL TELEFON | underlag/2026-09-21-v2-tabell.tsv (v2-facit, var 10:e sekund) |
-| p0921k | partiet 2026-09-21, sek 230–540 — telefonens kedja på skärminspelningens kamerabild | underlag/2026-09-21-kedja-bordlogg.json.gz (dev/spegelfacit/kor.cjs på dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/kamera-180-540.mp4, 2026-10-07, poolen 114, utan Claude) |
+| parti-kedjan | partiet 2026-09-21, sek 230–540 — telefonens kedja på skärminspelningens kamerabild | underlag/2026-09-21-kedja-bordlogg.json.gz (dev/spegelfacit/kor.cjs på dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/kamera-180-540.mp4, 2026-10-07, poolen 114, utan Claude) |
 
 **p0921 är facit, inte telefonen:** v2-facit för partiet 2026-09-21 matat som en idealiserad telefon var tionde sekund. Där mäts mattans geometri (avstånd, omlott, kanten), inte kamerans fart eller träffsäkerhet.
 
-**p0921k är kedjan på skärminspelningens kamerabild** (704 × 438, Mesas ramar i bilden, utan Claude), sek 230–540: händer, skymda och korta spår som i ett riktigt parti, men nästan inga namn — mattan visar mest platshållare. Inte telefonens egen ström i 4K.
+**parti-kedjan är kedjan på skärminspelningens kamerabild** (704 × 438, Mesas ramar i bilden, utan Claude), sek 230–540: händer, skymda och korta spår som i ett riktigt parti, men nästan inga namn — mattan visar mest platshållare. Inte telefonens egen ström i 4K.
 
-| Mått | g07 | g09 | g10 | g11 | g12 | p0922 | p0921 | p0921k | totalt* |
+| Mått | g07 | g09 | g10 | g11 | g12 | p0922 | p0921 | parti-kedjan | totalt* |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | Hopp utan rörelse (kortet byter plats på mattan i ett ögonblick) | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Snabba hopp (mer än 1 kortbredd på en videoruta, 1/15 s) | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -50,4 +50,4 @@ Kod: `index.html` (sha256 48894c781b3c, commit dc29c25). Simulerad klocka: två 
 | Kort utanför mattans kant (kort · rutor) | – | – | – | – | – | – | 0 | 0 | – |
 | Kort i facit som saknas på mattan (kort · rutor) | – | – | – | – | – | – | 0 | 23 | – |
 
-\* totalt = golden 07, 09–12 och passet 2026-09-22 (telefonens ström; inte p0921 och p0921k). Tider i sekunder från facits tid (rösten eller bildrutan), medianer över alla händelser ihop. – = går inte att räkna för fallet (inget facit för det).
+\* totalt = golden 07, 09–12 och passet 2026-09-22 (telefonens ström; inte p0921 och parti-kedjan). Tider i sekunder från facits tid (rösten eller bildrutan), medianer över alla händelser ihop. – = går inte att räkna för fallet (inget facit för det).

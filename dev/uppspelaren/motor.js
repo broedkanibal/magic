@@ -337,7 +337,7 @@
        oframkallade kortet (MES-344, nyckeln o:<spår>) och platshållaren
        (p:<spår>). Samma uppgifter, med plats: true och utan namn — o: först,
        så att det går före en platshållare för samma spår. Partiet genom
-       kedjan (p0921k) har få namn, och då är det det här som ligger där
+       kedjan (parti-kedjan) har få namn, och då är det det här som ligger där
        kortet ligger. Läget: elementets left/top/width/height, som för
        platshållarna i observera(). Det oframkallade kortets nyckel bär
        spåret det föddes på; har kortet bundits om till ett nytt spår står
@@ -363,7 +363,7 @@
                   rect: { x: l, y: tp, w, h }, cx: l + w / 2, cy: tp + h / 2,
                   skarm: { l: sk.left, t: sk.top, r: sk.right, b: sk.bottom } });
     }
-    /* Facits läge på mattan (p0921k, fall.v2Par = 'plats'): varje v2-kort i
+    /* Facits läge på mattan (parti-kedjan, fall.v2Par = 'plats'): varje v2-kort i
        ögonblickets ruta räknat genom appens egen kamTillMatta med den skala
        mattan står i — kamSkalaFryst() eller den låsta kamSkala.las för mig.
        kamSkala() själv anropas inte: den låser om skalan, och en mätning får
