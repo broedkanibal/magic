@@ -14,17 +14,17 @@ utan att gå till Linear. Uppdatera båda när något ändras.
 
 | Löfte | Mål |
 |---|---|
-| Något syns på rätt plats och i rätt tap-läge | ≤ 0,3 s från att handen släpper. **För ett kort vars namn dröjer: ≤ 0,5 s** — då läggs ett oframkallat kort ned (se nedan) |
-| Rätt namn står där | median ≤ 0,3 s (siktet 0,1 s), 95 % ≤ 0,6 s, tak 2 s |
-| Slutläget är rätt | 99 fall av 100 |
+| Kortet syns på rätt plats — skarpt med namn, eller suddigt (framkallningen) | **median ≤ 0,1 s** från att handen släpper |
+| Rätt namn står där (det suddiga blir skarpt) | median ≤ 0,3 s, nästan aldrig efter 2 s |
+| Hela händelsen rätt på mattan (kort, tap-läge, plats) | ribban sätts efter ett nytt parti |
+| Inget säkert fel namn | 0 |
 
-**Framkallningen (MES-344, Jesper 2026-10-06, `dev/plan/spegelmattan-principer.md` avsnittet
-*Utspel*):** ett nytt kort syns först med sitt namn — ingen platshållare, ingen laddtext. Kommer
-namnet inom ~0,5 s efter släppet läggs kortet ned färdigt. Dröjer det läggs ett *oframkallat* kort
-ned 0,5 s efter släppet (kamerans foto, ramen skarp och de unika ytorna suddiga), som skärps när
-namnet kommer; får det aldrig något namn namnges det på mattan. Därför är löftet för de korten
-0,5 s, inte 0,3 s. *Släppet* är telefonens första rapport där kortet ligger still som ett kort
-(`kortlik`, `vilar`).
+**Målen sattes om med Jesper 2026-10-08 och ägs av MES-349** ("Mirror my table upplevs instant och
+accurate"), där kraven och de ribbor som sätts efter nästa mätning står. Framkallningen (MES-344,
+`dev/plan/spegelmattan-principer.md` *Utspel*) ändras därmed: det suddiga kortet läggs ned direkt
+vid släppet, inte efter 0,5 s. *Släppet* är telefonens första rapport där kortet ligger still som
+ett kort (`kortlik`, `vilar`). Det tidigare målet "slutläget rätt i 99 fall av 100" ersattes av
+"hela händelsen rätt", med ribban satt ur mätningen.
 
 Gäller allt man gör vid bordet: lägga ner, tappa och untappa, flytta,
 till graveyard, till handen, tillbaka i library, stacka mana, och fästa

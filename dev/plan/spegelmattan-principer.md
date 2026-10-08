@@ -114,6 +114,8 @@ Designytans sida 3 visar högarna så sedan 2026-10-06: graveyard och library li
 
 **Det här ändrar ett mål.** I `dev/plan/etapper.md` är löftet "något syns på rätt plats inom 0,3 s". För kort vars namn dröjer blir det 0,5 s. Etapperna ändras när helheten är beslutad.
 
+**Ändrat 2026-10-08 (Jesper, MES-349):** det oframkallade kortet läggs ned direkt vid släppet — målet är att kortet syns i median inom 0,1 s — inte efter 0,5 s. Raderna "Namnet kommer inom ungefär 0,5 s" och "Namnet dröjer mer än ~0,5 s" ovan gäller alltså inte längre som de står; nästan varje kort går från suddigt till skarpt.
+
 **Avfärdat:**
 - En kortbaksida medan vi väntar. I Magic betyder ett nedvänt kort något (morph, manifest), så den skulle säga något som inte är sant.
 - En räknare utanför mattan, eftersom det är en laddtext på en annan plats.
