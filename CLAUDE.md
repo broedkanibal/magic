@@ -31,6 +31,11 @@ En worktree är tillfällig. Den finns för att en session ska kunna bygga i
 fred, och den ska bort så fort arbetet ligger på `origin/main`. Annars
 blir `.claude/worktrees/` en kyrkogård av gamla grenar som ingen vågar röra.
 
+**Gäller alltid, inte bara i en skill.** Också när Jesper bara ber om något
+direkt i en session ("fixa det här, slå ihop och pusha") och även om
+uppgiften inte nämner städning: efter pushen städar du upp efter dig, utan
+att bli ombedd. `/next` och orkestrerande sessioner följer samma regel.
+
 **När en gren pushats till main, i samma session och före sista svaret:**
 
 1. Kontrollera att commiten ligger på main: `git fetch` och
