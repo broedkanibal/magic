@@ -18570,6 +18570,11 @@ const Kamera = (() => {
      mellan rutorna är dessutom det enda måttet på hur mycket brus mattan
      har — det är ur den tröskeln räknas. Sex rutor är knappt en sekund. */
   const REF_RUTOR = 6;
+  /* Mattbilden kastas (se insamlingen i steg) när en rutas skillnad mot rutan
+     före är mer än REF_STICKER gånger medianens plus REF_STICKER_GOLV
+     gråsteg, eller när bruset självt är över REF_BRUS_MAX — mattor i bänken
+     och golden ligger på 0,2–4, Jespers förstörda bild på 38. */
+  const REF_STICKER = 3, REF_STICKER_GOLV = 3, REF_BRUS_MAX = 12, REF_OMLAR_MAX = 3;
 
   /* Trösklarna. De flesta är satta med förnuft, inte uppmätta mot en riktig
      matta i ett riktigt ljus — och det är omöjligt att gissa rätt på dem
@@ -18749,6 +18754,7 @@ const Kamera = (() => {
   let anaC = null, anaX = null, AH = 0;
   let ref = null;              // gråskala av tom matta, analysstorlek — medel av REF_RUTOR rutor
   let refSum = null, refFore = null, refDiff = 0, refN = 0;   // under insamlingen av referensen
+  let refDiffar = [], refOmlarda = 0;   // skillnaden ruta för ruta under insamlingen, och hur många gånger den kastats (REF_ORIMLIG)
   let sigma = null;            // mattans uppmätta brus, gråsteg per bildpunkt
   let tros = null;             // tröskel per bildpunkt, ur referensens egen textur
   let blankM = null;           // 1 där referensen är blänk — räknas aldrig
@@ -20571,7 +20577,7 @@ const Kamera = (() => {
   }
 
   function glomReferens() {
-    ref = null; refSum = null; refFore = null; refDiff = 0; refN = 0; sigma = null; tros = null; blankM = null; refAvvik = null; texturGolv = null; yta = null; forra = 0; felRader = 0; brusRader = brusLugna = utsRader = utsLugna = 0; brusGolv = 0;
+    ref = null; refSum = null; refFore = null; refDiff = 0; refN = 0; refDiffar = []; refOmlarda = 0; sigma = null; tros = null; blankM = null; refAvvik = null; texturGolv = null; yta = null; forra = 0; felRader = 0; brusRader = brusLugna = utsRader = utsLugna = 0; brusGolv = 0;
     smaMinne = [];
     glomHelbild();
     glomGravVakt();
@@ -20975,17 +20981,35 @@ const Kamera = (() => {
        som inte spårades och därför drevs in i referensen — var osynligt för
        alltid. Det var så tre kort på Jespers bord blev "Mattan är tom". */
     if (!ref) {
-      if (!refSum) { refSum = new Float32Array(n); refN = 0; refDiff = 0; refFore = null; }
+      if (!refSum) { refSum = new Float32Array(n); refN = 0; refDiff = 0; refFore = null; refDiffar = []; }
       for (let i = 0; i < n; i++) refSum[i] += g[i];
-      if (refFore) { let s = 0; for (let i = 0; i < n; i++) s += Math.abs(g[i] - refFore[i]); refDiff += s / n; }
+      if (refFore) { let s = 0; for (let i = 0; i < n; i++) s += Math.abs(g[i] - refFore[i]); refDiff += s / n; refDiffar.push(s / n); }
       refFore = g; refN++;
       senasteGain = 1;
       const d0 = detektera(g, null, AW, AH);
       matcha(spar, d0.fynd, d0.mask, nu, dt, upp, true);
       senasteG0 = g0; senasteG = g; senasteMask = d0.mask;
-      säg('ljus', 'Learning the light — hold the phone still', 'Takes a couple of seconds. The cards can stay.');
+      if (refOmlarda) säg('ljus', 'Learning the light again — hold the phone still', 'Something moved while the camera learned the table.');
+      else säg('ljus', 'Learning the light — hold the phone still', 'Takes a couple of seconds. The cards can stay.');
       dia.ms = Math.round(nuRiktig() - tSteg);
       if (refN < R(REF_RUTOR)) { if (tillstandsSignatur() !== sandSignatur) rapportera(); return; }
+      /* En mattbild där något rörde sig (en hand, telefonen, ljuset som
+         ställer in sig när kameran startar) kastas och tas om — spelaren ska
+         inte behöva trycka på något. Bruset ÄR skillnaden mellan rutorna, så
+         en rörelse syns som en ruta vars skillnad sticker ut ur de andras,
+         eller som ett brus ingen matta har. Jesper 2026-09-21: brus 38 i
+         stället för 3, tröskeln slog i taket 50 och kameran blev nästan
+         blind — provkortet låstes aldrig. Efter REF_OMLAR_MAX försök tas
+         bilden ändå (ett bord som flimrar på riktigt ska inte fastna här). */
+      { const q = refDiffar.slice().sort((a, b) => a - b), med = q[q.length >> 1] || 0, max = q[q.length - 1] || 0;
+        const orimlig = max > REF_STICKER * med + REF_STICKER_GOLV || med / 1.128 > REF_BRUS_MAX;
+        dia.refOm = { n: refOmlarda, med: +med.toFixed(2), max: +max.toFixed(2), orimlig };
+        if (orimlig && refOmlarda < REF_OMLAR_MAX) {
+          refOmlarda++; refSum = refFore = null;
+          if (tillstandsSignatur() !== sandSignatur) rapportera();
+          return;
+        } }
+      refOmlarda = 0;
       ref = refSum; for (let i = 0; i < n; i++) ref[i] /= refN;
       sigma = (refDiff / (refN - 1)) / 1.128;
       dia.sigma = sigma;

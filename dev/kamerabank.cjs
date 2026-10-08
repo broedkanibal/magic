@@ -192,6 +192,26 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`T8 brus ±${brus}: falska spår på tom matta över 30 rutor = ${falska}`, falska === 0);
   }
 
+  // ── RO1: en hand under inlärningen av mattan ger ingen förstörd mattbild ──
+  /* Jesper 2026-09-21: mattbilden lärdes medan något rörde sig, bruset blev
+     38 i stället för ~3, tröskeln slog i taket och kameran blev nästan blind.
+     Här sveper en hand (en ljus fläck med struktur) över mattan i rutorna
+     2–4 av inlärningen. Mattbilden ska kastas och tas om av sig själv: bruset
+     den till slut får ska vara mattans (under 2), inte handens. */
+  {
+    nystart();
+    const HANDSVEP = i => g => { const x0 = 20 + 60 * i; for (let yy = 30; yy < 110; yy++) for (let xx = x0; xx < x0 + 70 && xx < W; xx++) g[yy * W + xx] = 170 + ((xx * 3 + yy * 5) % 11) * 3; };
+    await ruta(null); for (let i = 0; i < 3; i++) await ruta(HANDSVEP(i));
+    for (let i = 0; i < 30; i++) await ruta(null);
+    const sigRo = Kamera.sigma, dRo = Kamera.diagnos.refOm;
+    check(`RO1 hand under inlärningen: σ ${sigRo == null ? '–' : sigRo.toFixed(2)}, tröskel ${Kamera.trosklar.troskel}, omtag ${dRo ? JSON.stringify(dRo) : '–'}`,
+          sigRo != null && sigRo < 2 && Kamera.trosklar.troskel < 20);
+    /* …och en lugn matta lärs in på första försöket. */
+    nystart(); for (let i = 0; i < 8; i++) await ruta(null);
+    const dLugn = Kamera.diagnos.refOm;
+    check(`RO2 lugn matta: lärd direkt, ${dLugn ? JSON.stringify(dLugn) : '–'}`, Kamera.sigma != null && !!dLugn && dLugn.n === 0 && !dLugn.orimlig);
+  }
+
   // ── T1: arm över ett känt kort ───────────────────────────────────
   nystart(); await referens();
   let s;
