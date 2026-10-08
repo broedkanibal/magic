@@ -214,14 +214,23 @@ for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(130)
   const fel = await kor(`(resultat.get(${JSON.stringify(ID)}) || {}).fel || null`);
   if (fel) throw new Error('fallet gick inte att köra: ' + fel);
   const nycklar = await kor(`Object.keys(resultat.get(${JSON.stringify(ID)}))`);
+  /* Allt serialiseras i sidan och hämtas i bitar om 4 M tecken: ett enda
+     svar på tiotals MB stänger förbindelsen till Chrome. Partiet 2026-09-21
+     efter Remsan först dog tre gånger av tre på bordsloggens 250 bord per
+     svar. */
+  const R = `resultat.get(${JSON.stringify(ID)})`;
+  const hamta = async uttryck => {
+    const len = await kor(`(window.__ut = JSON.stringify(${uttryck}) || 'null').length`);
+    let s = '';
+    for (let i = 0; i < len; i += 4e6) s += await kor(`window.__ut.slice(${i}, ${i + 4e6})`);
+    return JSON.parse(s);
+  };
   const res = {};
-  for (const k of nycklar) {
-    if (k === 'bordLogg') continue;
-    res[k] = JSON.parse(await kor(`JSON.stringify(resultat.get(${JSON.stringify(ID)})[${JSON.stringify(k)}]) || 'null'`));
-  }
-  const n = await kor(`(resultat.get(${JSON.stringify(ID)}).bordLogg || []).length`);
+  for (const k of nycklar) if (k !== 'bordLogg') res[k] = await hamta(`${R}[${JSON.stringify(k)}]`);
+  const n = await kor(`(${R}.bordLogg || []).length`);
   res.bordLogg = [];
-  for (let i = 0; i < n; i += 250) res.bordLogg.push(...JSON.parse(await kor(`JSON.stringify(resultat.get(${JSON.stringify(ID)}).bordLogg.slice(${i}, ${i + 250}))`)));
+  for (let i = 0; i < n; i += 100) { res.bordLogg.push(...await hamta(`${R}.bordLogg.slice(${i}, ${i + 100})`)); if (i === 0) console.log(`  bordsloggen: ${n} bord, de första 100 är ${(await kor(`window.__ut.length`) / 1e6).toFixed(1)} M tecken`); }
+  await kor(`delete window.__ut`);
   const metod = await kor(`(document.querySelector('#metod') || {}).textContent || ''`);
   const ut = { pass: PASS, skapad: new Date().toISOString(), ai: AIFLAG, pool: poolN, poolRad, metod, aiFel, facit, resultat: res };
   fs.mkdirSync(path.dirname(UT), { recursive: true });
