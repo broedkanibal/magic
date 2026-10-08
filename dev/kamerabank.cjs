@@ -971,6 +971,13 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   let forsok = 0; namnSvar = () => (++forsok <= 2 ? { skrap: true } : { namn: 'Plains', sid: 's1', saker: true, cands: [] });
   nystart(); await refTra(); r = await summa(30, () => rutaTra({}, g => kortPaTra(g, 60, 70)));
   check(`W8b mörk första beskärning, sedan läsbar: ${r.sist.map(t => t.tillstand).join(',')}`, r.sist.length === 1 && r.sist[0].tillstand === 'klar');
+  /* W8c: utbränt av blänk (T.utbrand, MES-351 läge 4): beskärningen döms som ett kort utan namn — okänt efter tre försök,
+     till granskningen ("Name this card") och aldrig till Claude (aiFragad sätts, provas aldrig). */
+  namnSvar = () => ({ utbrand: true });
+  nystart(); await refTra(); r = await summa(34, () => rutaTra({}, g => kortPaTra(g, 60, 70)));
+  const t8c = Kamera.spar[0] || {}, b8c = bord.find(x => x.id === t8c.id) || {};
+  check(`W8c utbränt kort: ${r.sist.map(t => t.tillstand + ' (' + (t.varfor || '') + ')').join(',')}, aiFragad ${t8c.aiFragad}, bordet ${b8c.tillstand} prövas ${b8c.provas}`,
+        r.sist.length === 1 && t8c.tillstand === 'okand' && t8c.varfor === 'utbränd' && !t8c.namn && t8c.aiFragad === true && b8c.tillstand === 'okand' && !b8c.provas);
   /* W10: ett kort läggs ovanpå ett skräpspår — kortet ska få ett eget spår. */
   namnSvar = () => ({ skrap: true }); nystart(); await refTra();
   r = await summa(34, () => rutaTra({}, g => { for (let yy = 76; yy < 96; yy++) for (let xx = 97; xx < 121; xx++) g[yy * W + xx] = ((Math.floor(xx / 3) + Math.floor(yy / 3)) % 2) ? 200 : 110; }));   // en ljus, rutig flisa 24×20 — struktur nog för detektorn, ingen textruta

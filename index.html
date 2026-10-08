@@ -24659,6 +24659,17 @@ const Kamera = (() => {
        mätt på lådremsor) — vittnet är inte en dom. 0 stänger av. */
     remsaMinneOmfodd: 1,
     remsaMinneOmfodRadie: 1.5,
+    /* Utbränt av blänk (MES-351 läge 4, Jespers bild 2026-10-08): en beskärning
+       som inte ser ut som ett kort (serUtSomKort) men där minst utbrand av
+       kortets insida klipper till vitt (≥ 225), i en detektorlåda med ett korts
+       mått (kamSparEnsamt), är ett kort som lampan bränt ut — inte en bit av
+       bordet. Den blir okänd utan namn ("Name this card") i stället för skräp,
+       och frågas inte Claude: Claude ser inte heller igenom blänket, och varje
+       fråga kostar. Remsan läses som vanligt och kan fortfarande ge namnet.
+       0,30: kortet i MES-219 (4K, 200,2 s) hade 36 % ≥ 225, fickan i samma
+       ljus 0–2 %. Gissad gräns — golden avgör (falska kort får inte öka).
+       0 stänger av. */
+    utbrand: 0.30,
     /* Vem ligger ovanpå i en hög (MES-331 pass 2, fyndUrLador): två lådor
        som täcker varandra till minst hogTackning (av den mindre) ordnas
        efter FÖRSKJUTNINGEN mellan deras mittpunkter, i remsans två
@@ -29649,6 +29660,18 @@ const Kamera = (() => {
       t.fragad = true; t.tillstand = 'skrap'; t.varfor = svar.varfor || 'baksida'; t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.namnLast = null; t.skrapN = 3;
       rapportera(); return;
     }
+    /* Utbränt av blänk (T.utbrand, kamUtbrand): ett kort, men inget att läsa — okänt utan namn, till
+       "Name this card" på datorn, och ingen fråga till Claude (aiFragad). Två nya försök med 1,5 s emellan
+       först, som skräpet: blänket kan flytta sig när handen eller lampan gör det. Gav remsan ett säkert namn
+       gäller det som vanligt (nedan). */
+    if (svar && svar.utbrand && !svar.saker) {
+      t.utbrandN = (t.utbrandN || 0) + 1;
+      if (t.utbrandN < 3) { t.igen = (nu || 0) + 1500; return; }
+      t.fragad = true; t.tillstand = 'okand'; t.varfor = 'utbränd'; t.namn = null; t.sid = null; t.saker = false; t.namnLast = null;
+      t.cands = svar.remsa && svar.remsa.cands && svar.remsa.cands.length ? svar.remsa.cands : null;
+      t.aiFragad = true; t.provas = false;
+      rapportera(); return;
+    }
     if (svar) {
       let cands = svar.cands || null;
       if (!svar.saker && t.gissning && cands) {
@@ -30688,6 +30711,28 @@ function kamLart(id, namn, sid, kalla) {
    ORB:s svaga stöd. Uppmätt i golden 09: bordets första kort, ett Plains
    (marginal 0,31, 8 inliers), blev annars aldrig säkert, och dess tap sågs
    aldrig. */
+/* Utbränt av blänk (T.utbrand): andelen av kortets insida som klipper till vitt, mätt i kortets egen
+   rektangel som serUtSomKort — bara i en detektorlåda (o.detPoang) med ett korts mått (kamSparEnsamt). */
+function kamUtbrand(im, kort, id, o) {
+  const T = Kamera.trosklar, grans = T && T.utbrand;
+  if (!(grans > 0) || !(o && o.detPoang > 0) || !kamSparEnsamt(id)) return false;
+  const cv = document.createElement('canvas');
+  cv.width = 64; cv.height = Math.round(64 / Matcher.ASPECT);
+  const W = cv.width, H = cv.height, c = cv.getContext('2d', { willReadFrequently: true });
+  if (kort) {
+    const fi = ((kort.vinkel % Math.PI) + Math.PI) % Math.PI;
+    const lc = Math.cos(fi), ls = Math.sin(fi), gu = W / ((1 + 2 * 0.08) * kort.kort), gv = H / ((1 + 2 * 0.08) * kort.lang);
+    c.setTransform(ls * gu, lc * gv, -lc * gu, ls * gv, W / 2 - gu * (ls * kort.cx - lc * kort.cy), H / 2 - gv * (lc * kort.cx + ls * kort.cy));
+    c.drawImage(im, 0, 0);
+  } else c.drawImage(im, 0, 0, im.width, im.height, 0, 0, W, H);
+  const d = c.getImageData(0, 0, W, H).data, mf = 0.08 / 1.16, x0 = Math.round(W * mf), y0 = Math.round(H * mf);
+  let ljusa = 0, alla = 0;
+  for (let y = y0; y < H - y0; y++) for (let x = x0; x < W - x0; x++) {
+    const i = (y * W + x) * 4; if (d[i + 3] < 250) continue;
+    alla++; if (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114 >= 225) ljusa++;
+  }
+  return alla >= 0.6 * (W - 2 * x0) * (H - 2 * y0) && ljusa / alla >= grans;
+}
 function kamSparEnsamt(id) {
   const t = Kamera.spar.find(x => x.id === id), r = Kamera.diagnos.kortRef;
   if (!t || t.skymd || !(t.lang > 0)) return '';
@@ -30725,7 +30770,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   /* …och inte en låda som bär detektorns egen namnremsa (MES-340 steg 2.3): remsklassen (≥ 0,68) såg en titel där, så
      det är ett kort — också när lådan inte är kortformad (golden 17 hög B: en låda över tre tappade land, dömd skräp,
      och högens remsa kastades med den). Remsan läses sedan i medRemsa. En syntetisk remsa (lådans kant) räknas inte. */
-  if (!(o && (o.tackt || o.remsa)) && !serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala, kort)) return { skrap: true };
+  if (!(o && (o.tackt || o.remsa)) && !serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala, kort)) return kamUtbrand(canvas, kort, id, o) ? { utbrand: true } : { skrap: true };
   kamMinnsBild(id, canvas);
   /* Läsningens delar för latensrapporten (MES-242, bara ?debug): tidpunkter
      mellan stegen nedan, i performance.now(). */
