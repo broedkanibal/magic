@@ -30422,8 +30422,11 @@ async function oppnaKamera(gameId) {
      ett spel som avslutas från Home har ingen kanal öppen. Raden frågas också. */
   setInterval(kamSlutKoll, 20000);
   /* Hjärtslag: hela tillståndet igen var tredje sekund. En dator som just
-     öppnats eller tappat sockeln kommer i fas utan att fråga. */
-  setInterval(() => { if (kamLage && senastBord) Moln.sandKam('bord', Object.assign({ spar: senastBord, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null, grund: grundGrader() }, bordExtra())); }, 3000);
+     öppnats eller tappat sockeln kommer i fas utan att fråga. Genom sandBord,
+     så att provbordets spår följer med medan kameravyn är öppen: förut bar
+     bara en ändring på bordet dem, och ett bord som tömts medan vyn var
+     stängd visade de gamla ramarna för alltid när den öppnades igen. */
+  setInterval(() => { if (kamLage && senastBord) sandBord(senastBord); }, 3000);
 }
 /* Det som följer med varje bord utöver spåren (MES-31): sma — kortformade
    regioner för små att läsas, som aldrig blir spår — och upplösningen
@@ -31223,7 +31226,7 @@ function kamKommando(m) {
      poolen i minnet läses om ur den sparade — statusraden berättar. */
   if (m.typ === 'glomref') { Ref.glom('lek:' + m.lekId).then(() => { kamPoolNyckel = null; byggKamPool(); }); return; }
   if (m.typ === 'trosklar') { Kamera.satTrosklar(m.v); Moln.sandKam('trosklar', { v: Kamera.trosklar }); return; }
-  if (m.typ === 'provbord') { provbord = !!m.pa; return; }
+  if (m.typ === 'provbord') { provbord = !!m.pa; if (provbord && kamLage && senastBord) sandBord(senastBord); return; }   // vyn öppnades: spåren som de ligger nu, inte vid nästa ändring
   if (m.typ === 'hej') { if (senastBord) Moln.sandKam('bord', Object.assign({ spar: senastBord, grund: grundGrader() }, bordExtra())); return; }
   /* Datorn bad om grundläget ur ett spår: spelaren lade kortet som hen vill
      ha det otappat och tryckte spara. Spåren döms om och bordet går på en
@@ -34678,6 +34681,9 @@ let pbPa = false, pbDia = null, pbRa = [], pbW = 0, pbH = 0, pbMatt = { aw: 0, a
    och av när den stängs, aldrig däremellan. */
 function visaProvbord(pa) {
   pbPa = pa;
+  /* Spåren gäller bara medan vyn är öppen: telefonen skickar dem inte när
+     den är stängd, så det som låg kvar var bordet när vyn stängdes senast. */
+  pbRa = []; pbDia = null;
   Moln.sandKam('provbord', { pa });
   if (!pa) return;
   Moln.sandKam('trosklar', { v: pbTro });
