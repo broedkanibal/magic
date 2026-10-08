@@ -157,7 +157,8 @@ function parti0921() {
 /* ── partiet 2026-09-21 genom telefonens kedja (parti-kedjan) ──────────────
    Kamerabilden ur skärminspelningen dator.mov (Mesas kamerapanel, 704 ×
    438, samma utsnitt som rutor/kam-NNN.jpg och v2-facit), sek 180–540,
-   genom dev/eventtest/kor.cjs utan Claude 2026-10-07. Bordsloggen är fryst
+   genom dev/eventtest/kor.cjs utan Claude 2026-10-08 (dagens telefonkod, efter
+   Remsan först; förut 2026-10-07, före). Bordsloggen är fryst
    i underlag/2026-09-21-kedja-bordlogg.json.gz; tiderna här är partiets
    (videons + 180). Facit: underlag/2026-09-21-handelser.tsv (ur
    handelser.tsv, platser.tsv, hogar-handelser.tsv och rutorna, se

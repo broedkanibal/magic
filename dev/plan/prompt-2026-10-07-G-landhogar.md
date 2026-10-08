@@ -19,6 +19,12 @@ Bygg i en egen worktree på `origin/main`, och symlänka `dev/material`, `.env.l
 
 ## Steg 0 — mät med dagens telefon (ingen kod)
 
+**Gjort 2026-10-08 i prompt H** (commit "Mat test: parti-kedjan fryst om med dagens telefonkod").
+Saknade kort 23 → 19. Landfallen: 290, 440, 450 (spår 322) och 530 är borta med den nya telefonen;
+**330 finns kvar** (mellankortet i hög B, 55,77); 450 ×2 och 510 var redan lösta av MES-346; **500 saknas igen**
+(48,74, hög A, bara titelraden till vänster om handen). Nio facit-kort saknas nu som inte saknades förut, 500 inräknat (260, 340, 350,
+410/430/440 det högra kortet som flyttar, 460, 480, 500). Tabellen står i commit-meddelandet.
+
 p0921k i uppspelaren spelar en bordslogg som är fryst med telefonkoden från före Remsan först (MES-340). Frys om den:
 kör kedjan utan Claude på partiets video (`dev/eventtest/LÄS-MIG.md`:
 `dev/eventtest/kor.cjs --video kamera-180-540.mp4 --fran 180`) och sedan `node dev/mattest/frys-kedja.cjs`.
