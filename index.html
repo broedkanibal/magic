@@ -8921,10 +8921,10 @@ function matFlyttaEl(lista, animera) {
   });
 }
 /* Brädets transform (mattans zoom och pan). glid: en ändring som kommer ur
-   omritningen — fit som ändrats för att korten tog mer plats — glider 330 ms
-   från där brädet står; 'steg' är spegelmattans zoomsteg (MES-338), 500 ms,
-   och med minskad rörelse en toning. Annars (hjul, drag, knappar med sin
-   egen övergång) skrivs den direkt, och en pågående glidning släpps. */
+   omritningen glider 330 ms från där brädet står ('steg' är spegelmattans
+   gamla zoomsteg, MES-338, 500 ms — inget sätter det längre, sedan inget
+   zoomar av sig själv). Annars (hjul, drag, knappar med sin egen övergång)
+   skrivs den direkt, och en pågående glidning släpps. */
 function matBradeSkriv(el, t, glid) {
   /* Jämförs mot strängen som skrevs senast: style.transform läses tillbaka
      i webbläsarens egen form ("translate(1px, 2px)"). */
@@ -9231,14 +9231,11 @@ function matVyLamna() {
   if (v && v.steg && v.steg.nyckel === spelLage.mig + '|' + spelLage.id) matVyPerSpel.set(spelLage.id, v);
 }
 /* Vyn tillbaka för spelet man går in i, eller ingen (matVyer rensas, nytt spel). Kamerabilden är okänd tills
-   telefonen rapporterat igen, och när skalan blir känd flyttar utgångsläget annars mattan till hela kamerabilden
-   (matStegBeslut). Har spelaren sett kamerabilden eller flyttat mattan själv ska det inte hända: s.kam sätts, och
-   kamerabilden tar bara över på knappen Fit camera view. */
+   telefonen rapporterat igen, och när skalan blir känd flyttar sig mattan inte (matStegBeslut): kamerabilden tar
+   bara över på knappen Fit camera view. */
 function matVyAterta(spelId, mig) {
   const v = matVyPerSpel.get(spelId);
   if (!v) { matVyer.delete(mig); return false; }
-  const s = v.steg, rort = v.zoomManual != null || (s && s.pan && (Math.abs(v.pan.x - s.pan.x) >= 1 || Math.abs(v.pan.y - s.pan.y) >= 1));
-  if (s && rort) s.kam = true;
   matVyer.set(mig, v);
   return true;
 }
@@ -9257,9 +9254,10 @@ function matVy(p) {
   const v = matVyFor(p), vp = matVp();
   v.board = grown(p.cards.filter(paMattan), v.board, bordRef || vp);
   { const lr = lekRam(p); if (lr) v.board = { w: Math.max(v.board.w, Math.ceil(lr.x1 + MATTA.KANT)), h: Math.max(v.board.h, Math.ceil(lr.y1 + MATTA.KANT)) }; }   // brädet rymmer leken (MES-334 steg 3)
-  /* Mitt speglade bord zoomar i fasta steg (MES-338, matStegStart nedan); andra bord följer brädets storlek. */
+  /* Mitt speglade bord har ett utgångsläge (MES-338, matStegStart nedan); andra bord har brädets fit, som hålls
+     kvar (matFitLas). Inget av dem ändras av att kort läggs ut, flyttas eller tas bort. */
   const nu = matRam(p), s = vp.riktig && zstegBord(p) ? matStegStart(p, v, vp, nu) : null;
-  const fit = s ? s.z : fitZoom(v.board, vp);
+  const fit = s ? s.z : matFitLas(v, vp);
   const z = v.zoomManual != null ? Math.max(zstegMinZoom(p, s, vp, v.zoomManual), Math.min(MATTA.ZOOM_MAX, v.zoomManual)) : fit;
   /* Rutan runt korten krymper när det yttersta kortet lämnar mattan, och med
      den hur långt mattan får dras förbi kanten. Panen får inte hoppa av det
@@ -9277,24 +9275,45 @@ function matVy(p) {
   if (vp.riktig || !v.steg || !zstegBord(p)) { v.pan = pan; v.ramHall = ram; }
   return { board: v.board, fit, z, pan, vp, ref: bordRef || vp, ram, manuell: v.zoomManual != null, steg: s };
 }
+/* Mattans ruta har fått ett nytt mått av en anledning som inte är korten: fönstret eller bordsvyns nivå. a bär
+   måtten som det räknades i (matRutaStampel). Rutan ändrar mått också av annat som kommer och går med korten —
+   raderna ovanför mattan ("N cards to fill in", Auto-läget), panelen till höger — och då står vyn kvar
+   (Jesper 2026-10-08: inget flyttas eller zoomas av att kort läggs ut, flyttas eller tas bort). Ligger inget på
+   mattan än (tomt) syns ingenting röra sig, och då räknas utgångsläget om vid varje nytt mått. */
+function matRutaStampel(vp) { return { fon: innerWidth + 'x' + innerHeight, bm: bordMal ? bordMal.w + 'x' + bordMal.h : '', w: vp.w, h: vp.h }; }
+function matRutaNy(a, vp, tomt) {
+  const n = matRutaStampel(vp);
+  return !a || a.fon !== n.fon || a.bm !== n.bm || (!!tomt && (Math.abs(n.w / a.w - 1) > 0.01 || Math.abs(n.h / a.h - 1) > 0.01));
+}
+/* Fit-zoomen på bord utan utgångsläge (Digital table, Use camera to add cards, utanför ett spel). Förut följde den
+   brädet, som växer när ett kort läggs ut utanför det — då zoomade mattan ut av sig själv. Nu räknas den en gång
+   och hålls tills rutan får ett nytt mått (matRutaNy) eller spelaren själv ber om det (Tidy up och 0, luftigVy
+   släpper den). Medan mattan är dold (inga mått) räknas den på designens viewport, utan att hållas. */
+function matFitLas(v, vp) {
+  if (!vp.riktig) return fitZoom(v.board, vp);
+  if (!v.fitLas || matRutaNy(v.fitLas, vp)) v.fitLas = Object.assign({ z: fitZoom(v.board, vp) }, matRutaStampel(vp));
+  return v.fitLas.z;
+}
 /* ═══ Spegelmattans utgångsläge (MES-338, Jesper 2026-10-08) — tillståndet ═══
    Gäller mitt eget bord i Mirror my table (speglatBord) när mattan har
    riktiga mått. Andra bord (Use camera to add cards, utan spel, en annans
    bord) och en dold matta (kor.html, lobbyn) följer brädets storlek som
    förut (fitZoom). Geometrin: ZSTEG vid fitZoom.
-   Mattan sätts i ett utgångsläge av sig själv, och sedan styr spelaren zoom
-   och panorering helt: ett kort som läggs ut utanför vyn zoomar inte ut
-   mattan längre (förut ett zoomsteg, MES-338). Utgångsläget är hela
-   kamerabilden (zstegKamVy) så snart den är känd — när leken läggs ut, eller
-   det första kortet ger skalan — och bordets 100 % innan dess. Det är också
-   0-tangenten och knappen "Fit camera view (0)" (fitView).
+   Mattan sätts i ett utgångsläge när ett parti börjar, och sedan styr
+   spelaren zoom och panorering helt: ingenting zoomar eller flyttar mattan
+   av att kort eller leken läggs ut, flyttas eller tas bort (Jesper
+   2026-10-08; förut ett zoomsteg, och en glidning till hela kamerabilden när
+   skalan blev mätt). Utgångsläget är hela kamerabilden (zstegKamVy) om den
+   redan är känd när partiet börjar (en omladdning mitt i ett parti), annars
+   bordets 100 %. Hela kamerabilden tar spelaren själv med 0-tangenten och
+   knappen "Fit camera view (0)" (fitView).
    Tillståndet (matVyFor(p).steg): utgångslägets zoom och pan, bas (bordets
    100 % i den här rutan, zstegBas), korten vid förra beslutet och om
    kamerabilden var känd. Beslutet tas där transformen skrivs (matSkriv →
    matStegBeslut), på läget som ritas. Utgångsläget sätts när ett parti
-   börjar (ny nyckel), när kamerabilden blir känd första gången (då släpps
-   också spelarens egen zoom), och räknas om när bordsvyn byter nivå (hela
-   mattan skalas med rutan, som förut). Spelarens egen zoom (zoomManual) och
+   börjar (ny nyckel) och räknas om när rutan får ett nytt mått av annat än
+   korten: fönstret, panelen, bordsvyns nivå (hela mattan skalas med rutan,
+   som förut; matRutaNy). Spelarens egen zoom (zoomManual) och
    pan fungerar som förut; utan egen zoom följer mattan utgångsläget. */
 function zstegBord(p) { return !!p && arMitt(p) && speglatBord(p); }
 /* Längst ut spelaren själv får zooma (MES-338, Jesper 2026-10-07): när kameran speglar mitt bord och skalan är
@@ -9386,7 +9405,7 @@ function matStegStart(p, v, vp, ram) {
   const cam = matKamRam(p), omr = forenaRam(cam, ram), nyckel = p.id + '|' + (spelLage ? spelLage.id : '');
   let s = v.steg;
   if (!s || s.nyckel !== nyckel) {
-    s = v.steg = { nyckel, bas: zstegBas(vp), z: 1, pan: { x: 0, y: 0 }, kam: !!cam, ram, glid: false, ny: true };
+    s = v.steg = { nyckel, bas: zstegBas(vp), z: 1, pan: { x: 0, y: 0 }, kam: !!cam, ram, ny: true };
     zstegGrund(s, vp, cam, ram, omr);
     v.zoomManual = null; v.pan = { x: s.pan.x, y: s.pan.y }; v.ramHall = null;
     s.omrHall = cam;
@@ -9399,46 +9418,40 @@ function matStegStart(p, v, vp, ram) {
 /* Utgångsläget i s: hela kamerabilden när den är känd (zstegKamVy), annars bordets 100 % (s.bas) centrerat på
    korten. s.vp: rutan det räknades i. */
 function zstegGrund(s, vp, cam, ram, omr) {
-  s.vp = { w: vp.w, h: vp.h };
+  s.vp = { w: vp.w, h: vp.h }; s.rutan = matRutaStampel(vp);
   if (cam) { const k = zstegKamVy(cam, vp); s.z = k.z; s.pan = k.pan; return; }
   s.z = s.bas; s.pan = omr ? zstegUtsnitt(s.z, ram || omr, omr, vp).pan : { x: 0, y: 0 };
 }
 /* Beslutet, på läget som ritas (matSkriv). true om utgångsläget ändrades; panen följer med när spelaren inte
-   zoomat själv. Ett kort som läggs ut utanför vyn ändrar ingenting (Jesper 2026-10-08): spelaren styr zoomen.
-   s.glid: glid dit (kamerabilden blev känd); s.ny: rita på plats (ett nytt parti, bordsvyns nivå, rutan). Låg
-   ingenting på mattan förut (tom) finns inget som syns röra sig: vyn läggs på plats. */
+   zoomat själv. Bara en ruta med ett nytt mått (matRutaNy) räknar om det. Kort och leken som läggs ut, flyttas
+   eller tas bort ändrar ingenting, inte heller när kamerabilden blir känd (Jesper 2026-10-08): spelaren styr
+   zoomen, och 0 tar henne till hela kamerabilden. s.kam: utgångsläget är kamerabilden (den var känd när partiet
+   började) och räknas då om som den, annars som bordets 100 %. s.ny: rita på plats (ett nytt parti, bordsvyns
+   nivå, rutan). Låg ingenting på mattan förut (tom) finns inget som syns röra sig: vyn läggs på plats. */
 function matStegBeslut(p, v) {
   const s = v.steg, vp = v.vp;
   if (!s || !vp.riktig) return false;
   const ram = matRam(p), cam = matKamRam(p), omr = forenaRam(cam, ram), tom = !s.ram;
   if (tom) s.ny = true;
   s.omr = omr; s.omrHall = forenaRam(s.omrHall, omr);
-  const bas = zstegBas(vp);
-  let andrat = false, tvinga = false;
-  if (Math.abs(bas / s.bas - 1) > 0.01) {
+  const bas = zstegBas(vp), ny = matRutaNy(s.rutan, vp, !ram), grund = s.kam ? cam : null;
+  let andrat = false;
+  if (ny && Math.abs(bas / s.bas - 1) > 0.01) {
     /* Bordsvyn bytte nivå, kanten dras, eller en motståndare kom: rutan runt mattan fick en annan storlek, och
        utgångsläget räknas om i den. Ritas på plats; nivåbytet har sin egen övergång (bordglid). Små
        ändringar (en rad som kommer och går ändrar bas högst en halv procent, uppmätt i uppspelaren) räknas inte. */
-    s.bas = bas; zstegGrund(s, vp, cam, ram, omr);
+    s.bas = bas; zstegGrund(s, vp, grund, ram, omr);
     s.ny = true; andrat = true;
-  } else if (!(cam && !s.kam) && s.vp && (Math.abs(vp.w / s.vp.w - 1) > 0.01 || Math.abs(vp.h / s.vp.h - 1) > 0.01)) {
-    /* Mattans ruta ändrade storlek (fönstret, panelen till höger, en rad som kommer och går): utgångsläget räknas
-       om i den nya rutan, ritat på plats. Mattan följer med bara om den står i utgångsläget — har spelaren zoomat
-       eller dragit står den kvar, och 0 tar den dit. */
+  } else if (ny && s.vp && (Math.abs(vp.w / s.vp.w - 1) > 0.01 || Math.abs(vp.h / s.vp.h - 1) > 0.01)) {
+    /* Mattans ruta ändrade storlek (fönstret): utgångsläget räknas om i den nya rutan, ritat på plats. Mattan följer med bara om den står i utgångsläget — har spelaren zoomat eller dragit står den kvar,
+       och 0 tar den dit. */
     const vy = matVyFor(p), stod = !v.manuell && Math.abs(vy.pan.x - s.pan.x) < 1 && Math.abs(vy.pan.y - s.pan.y) < 1;
-    zstegGrund(s, vp, cam, ram, omr);
+    zstegGrund(s, vp, grund, ram, omr);
     if (stod) { s.ny = true; andrat = true; }
-  } else if (cam && !s.kam) {
-    /* Kamerabilden blev känd — leken lades ut, eller det första kortet gav skalan: hela kamerabilden, en gång,
-       också om spelaren zoomat själv innan dess. */
-    zstegGrund(s, vp, cam, ram, omr);
-    s.glid = !s.ny; andrat = tvinga = true;
   }
-  if (cam) s.kam = true;
   s.ram = ram;
-  if (andrat && (tvinga || !v.manuell)) {
+  if (andrat && !v.manuell) {
     const vy = matVyFor(p);
-    if (tvinga) vy.zoomManual = null;
     vy.pan = { x: s.pan.x, y: s.pan.y }; vy.ramHall = null;
   }
   return andrat;
@@ -9446,9 +9459,9 @@ function matStegBeslut(p, v) {
 /* glid (bara renderGrid): en zoom eller pan som omritningen ändrat glider
    (matBradeSkriv) — men inte när brädets egen CSS-övergång redan går
    (glider: zoomknapparna, fit, Tidy up; bordglid: bordsvyns nivåbyte).
-   Mitt speglade bord: zoomstegen beslutas här, på läget som ritas, och
-   glider när beslutet säger det (matStegBeslut) — renderGrid:s glid gäller
-   bara andra bord. */
+   Mitt speglade bord: utgångsläget beslutas här, på läget som ritas
+   (matStegBeslut), och glider aldrig — renderGrid:s glid gäller bara andra
+   bord. */
 function matSkriv(p, vy, glid) {
   let v = vy || matVy(p);
   if (v.steg && matStegBeslut(p, v)) v = matVy(p);
@@ -9458,8 +9471,8 @@ function matSkriv(p, vy, glid) {
   gridEl.style.setProperty('--matz', String(+v.z.toFixed(4)));   // det som behåller sin storlek på skärmen (graveyard-frågan, högarnas brickor) skalar med 1/--matz
   gridEl._matzMal = v.z;
   matBradeSkriv(gridEl, `translate(${Math.round(v.pan.x)}px,${Math.round(v.pan.y)}px) scale(${v.z})`,
-    s ? (s.glid && !s.ny && fri ? 'steg' : false) : !!glid && fri);
-  if (s) s.glid = s.ny = false;
+    s ? false : !!glid && fri);   // mitt speglade bord glider aldrig av sig själv (matStegBeslut)
+  if (s) s.ny = false;
   matKamYta(p, v, gridEl._matKamVy); gridEl._matKamVy = { z: v.z, pan: { x: v.pan.x, y: v.pan.y }, vp: v.vp };
   gridWrap.classList.toggle('inzoomad', v.z > v.fit + 0.005);
   renderChrome(v);
@@ -11199,7 +11212,7 @@ function stadaUpp() {
    korten som ligger där nu. Också 0-tangenten (fitView). */
 function luftigVy(p) {
   const vy = matVyFor(p);
-  vy.board = null; vy.zoomManual = null; vy.pan = { x: 0, y: 0 }; vy.ramHall = null;
+  vy.board = null; vy.fitLas = null; vy.zoomManual = null; vy.pan = { x: 0, y: 0 }; vy.ramHall = null;
   const v = matVy(p), ram = v.ram;
   if (!ram) return;
   const M = MATTA.LUFT_VY, topp = 52, rw = ram.x1 - ram.x0, rh = ram.y1 - ram.y0;
