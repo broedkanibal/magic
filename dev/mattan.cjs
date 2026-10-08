@@ -777,9 +777,10 @@ const PROV = async () => {
   /* ── Framkallningen (MES-344): scenerna "Lägg ut ett kort" och "Ett kort utan namn" på sida 3 ──
      Namnet i tid: kortet läggs ned färdigt (matLagg: opacitet, translate från spelarens håll, skala, grön
      ring). Namnet dröjer: ett oframkallat kort (.ofr, nyckeln o:<spår>) läggs ned 0,5 s efter släppet, med
-     kamerans foto (ramen skarp, de unika ytorna suddiga) och utan namn; när namnet kommer tar kortet över
-     SAMMA element och framkallas (fotot tonas bort). Aldrig något namn: "Name this card", sökrutan BREDVID
-     kortet, och det valda namnet framkallar kortet. Ingen platshållare och ingen laddtext någonstans. */
+     kamerans foto (MES-351: Mesas egen ram, helt suddigt medan Claude läser) och utan namn; när namnet kommer
+     tar kortet över SAMMA element och framkallas (fotot tonas bort). Aldrig något namn: skarp mitt, "NOT
+     IDENTIFIED" och "Enter name", sökrutan BREDVID kortet, och det valda namnet framkallar kortet. Ingen
+     platshållare och ingen laddtext någonstans. */
   try {
     await vanta(500);
     spelLage = Object.assign({}, spelLage, { id: 'mattprov-ofr' });
@@ -805,11 +806,15 @@ const PROV = async () => {
     ok('… inte heller efter 0,4 s', !ofrEl(42), '');
     await vanta(200);
     const o = ofrEl(42);
-    ok('efter 0,5 s: ett oframkallat kort, utan namn, med kamerans foto skarpt och suddigt', !!o && o.classList.contains('ofr') && !o.matches('.card') && !!o.querySelector('.ofram .ofoto:not(.ofsudd)') && !!o.querySelector('.ofram .ofsudd') && !/Fencing|Llanowar|Forest/.test(o.outerHTML),
+    const ram = o && o.querySelector(':scope > .ofram'), skarp0 = ram && ram.querySelector('.oskarp');
+    ok('efter 0,5 s: ett oframkallat kort, utan namn, med kamerans foto helt suddigt (Claude läser, läge 1)', !!o && o.classList.contains('ofr') && !o.matches('.card') && !!o.querySelector('.ofram .ofsudd') && !ram.classList.contains('skarp') && !!skarp0 && getComputedStyle(skarp0).display === 'none' && !/Fencing|Llanowar|Forest/.test(o.outerHTML),
       o ? o.className + ' · ' + o.getAttribute('aria-label') : 'inget');
+    const rs = ram && getComputedStyle(ram), ts = o && getComputedStyle(o.querySelector('.ofsudd')).transform;
+    ok('… i Mesas egen ram (4 px #121417), fotot förstorat 1,18 (läge 1, MES-351)', !!rs && rs.borderTopWidth === '4px' && rs.borderTopColor === 'rgb(18, 20, 23)' && /^matrix\(1\.18, 0, 0, 1\.18/.test(ts || ''), rs ? `${rs.borderTopWidth} ${rs.borderTopColor} · ${ts}` : '');
+    ok('… inte klickbart, ingen text, ingen etikett, ingen knapp', !o.classList.contains('fraga') && !o.textContent.trim() && !gridEl.querySelector(':scope > [data-ofr="42"]:not(.ofr)'), '');
     ok('… och det läggs ned (opacitet, skala)', !!o && kf(o, 'opacity') && kf(o, 'scale'), o ? anim(o) : '');
     const sudd = o && getComputedStyle(o.querySelector('.ofsudd')).filter;
-    ok('de unika ytorna är suddiga, 12 px (sida 3, Suddighet Mellan)', /blur\(12px\)/.test(sudd || ''), sudd);
+    ok('hela fotot är suddigt, 12 px (sida 3, Suddighet Mellan), saturate .7 brightness .85 (MES-351)', /blur\(12px\) saturate\(0\.7\) brightness\(0\.85\)/.test(sudd || ''), sudd);
     await vanta(500);
     r[1] = S(42, 'Fencing Ace', 0.42, 0.25);
     avstamBord(r, false);
@@ -825,8 +830,17 @@ const PROV = async () => {
     r.push(S(43, null, 0.64, 0.25, { tillstand: 'okand', gissning: 'Serra Angel', cands: [{ name: 'Serra Angel', score: 0.4 }] }));
     avstamBord(r, false);
     await vanta(650);
-    const u = ofrEl(43), mark = gridEl.querySelector(':scope > .ofrmark[data-ofr="43"]');   // etiketten är ett eget element i brädet (MES-346)
-    ok('aldrig något namn: oframkallat med "Name this card", utan kamerans gissning', !!u && !!mark && mark.textContent === 'Name this card' && mark.dataset.pend === u.dataset.pend && !/Serra/.test(u.outerHTML + mark.outerHTML), u ? u.textContent : 'inget');
+    const u = ofrEl(43), mark = gridEl.querySelector(':scope > .ofrmark[data-ofr="43"]'), etik43 = gridEl.querySelector(':scope > .ofretik[data-ofr="43"]');   // egna element i brädet (MES-346, MES-351)
+    ok('aldrig något namn: oframkallat med "NOT IDENTIFIED" och "Enter name", utan kamerans gissning', !!u && !!mark && !!etik43 && mark.textContent === 'Enter name' && mark.getAttribute('aria-label') === 'Enter the name of this card' && etik43.textContent === 'NOT IDENTIFIED' && mark.dataset.pend === u.dataset.pend && etik43.dataset.pend === u.dataset.pend && !/Serra/.test(u.outerHTML + mark.outerHTML + etik43.outerHTML), u ? u.textContent : 'inget');
+    const ram43 = u && u.querySelector(':scope > .ofram'), sk43 = ram43 && ram43.querySelector('.oskarp'), mask43 = sk43 ? getComputedStyle(sk43).maskImage || getComputedStyle(sk43).webkitMaskImage : '';
+    ok('… med skarp mitt som tonas in på 300 ms (läge 2)', !!ram43 && ram43.classList.contains('skarp') && getComputedStyle(sk43).display === 'block' && /radial-gradient/.test(mask43) && getComputedStyle(sk43).animationDuration === '0.3s', `${ram43 ? ram43.className : 'ingen ram'} · ${mask43.slice(0, 60)}`);
+    /* Provets fönster är litet: vid fit är kortet under 120 px och etiketten dold (läge 6). Zooma in på kortet. */
+    const zoomPa = async (el, z) => { const w = gridWrap.getBoundingClientRect(), q = el.getBoundingClientRect(); matZoomMot(z, q.left + q.width / 2 - w.left, q.top + q.height / 2 - w.top); await vanta(400); };
+    const zFit = matVy(player()).z;
+    await zoomPa(u, 1);
+    const ur0 = u.getBoundingClientRect(), er0 = etik43.getBoundingClientRect(), mr0 = mark.getBoundingClientRect();
+    ok('… etiketten överst på kortet (9 px under överkanten), knappen nederst', !etik43.classList.contains('dold') && Math.abs(er0.top - ur0.top - 9) <= 1.5 && mr0.bottom <= ur0.bottom && mr0.top > ur0.top + ur0.height / 2 && u.title === 'The camera couldn’t identify this card. Click to enter its name.',
+      `etikett ${Math.round(er0.top - ur0.top)} px ned, knapp ${Math.round(mr0.top - ur0.top)}–${Math.round(mr0.bottom - ur0.top)} av ${Math.round(ur0.height)}`);
     ok('ingen platshållare och ingen laddtext på mattan', !gridEl.querySelector('.plats') && !/Reading|Asking Claude|Moving…/.test(gridEl.textContent), '');
     ok('raden "N cards to fill in" står inte där: kortet namnges på mattan (designytan Mesa Name This Card)', mig.pending.length === 1 && $('#pendBar').hidden, `${mig.pending.length} i granskningen, raden ${$('#pendBar').hidden ? 'dold' : 'synlig'}`);
     /* Motståndarna: bordsraden bär det oframkallade kortet som en post utan namn, med en liten suddig bild. */
@@ -839,9 +853,22 @@ const PROV = async () => {
     state.players = [mig, oppO]; state.active = mig.id; bord.valt = 'all'; renderAll(true);
     fjarrBord({ game_id: spelLage.id, user_id: oppO.id, version: 2, kort: [{ cid: 'n1', flipped: 1, x: 40, y: 60, z: 1 }].concat(delat) });
     const oo = document.querySelectorAll('#oppMattor .ofr');
-    ok('motståndaren ser det oframkallade kortet (den lilla bilden), och inget för hens nedvända kort', oo.length === 1 && oppO.cards.length === 1 && !!oo[0].querySelector('.ofram .ofoto') && !oo[0].querySelector('.ofrmark'), `${oo.length} oframkallade, ${oppO.cards.length} kort`);
+    ok('motståndaren ser det oframkallade kortet (den lilla bilden), och inget för hens nedvända kort', oo.length === 1 && oppO.cards.length === 1 && !!oo[0].querySelector('.ofram .ofoto') && !oo[0].querySelector('.ofrmark, .oskarp') && !document.querySelector('#oppMattor .ofretik'), `${oo.length} oframkallade, ${oppO.cards.length} kort`);
     state.players = spelare0; renderAll(true);
-    await riktigtKlick(gridEl.querySelector(':scope > .ofrmark[data-ofr="43"]'));   // ett riktigt klick: lassot fick inte ta det (pekarfångsten)
+    /* Etiketten, knappen och kortet öppnar rutan, med riktiga klick: lassot fick inte ta dem (pekarfångsten). */
+    await riktigtKlick(etik43);
+    const sokE = document.querySelector('.ofrsok');
+    ok('klicket på "NOT IDENTIFIED" öppnar sökrutan: "Enter card name", kamerans foto skarpt överst (läge 5)', !!sokE && ofrSok && ofrSok.pend === u.dataset.pend && sokE.querySelector('.sok-l').textContent === 'Enter card name' && sokE.getAttribute('aria-label') === 'Enter card name' && !!sokE.querySelector('.sok-foto img') && sokE.querySelector('.sok-foto img').src === FOTO && sokE.querySelector('.sok-foto img').getBoundingClientRect().width === 120,
+      sokE ? sokE.textContent.slice(0, 60) : 'ingen ruta');
+    ok('… knappen "Enter name" är dold medan rutan är öppen, etiketten står kvar', mark.classList.contains('dold') && getComputedStyle(mark).visibility === 'hidden' && !etik43.classList.contains('dold'), mark.className + ' · ' + etik43.className);
+    ok('… pekaren på etiketten lyser upp kortet (läge 3)', u.classList.contains('pekad'), u.className);
+    ofrSokStang();
+    ok('rutan stängd: knappen är tillbaka', !mark.classList.contains('dold'), mark.className);
+    await riktigtKlick(mark);
+    ok('klicket på "Enter name" öppnar sökrutan', !!document.querySelector('.ofrsok') && ofrSok && ofrSok.pend === u.dataset.pend, '');
+    ofrSokStang();
+    await riktigtKlick(u);   // mitt på kortet: hela kortet öppnar rutan
+    ok('pekaren på kortet: kortet och knappen lyser upp (läge 3)', u.classList.contains('pekad') && mark.classList.contains('pekad') && getComputedStyle(u).outlineWidth === '2px', `${u.className} · ${mark.className}`);
     const sok = document.querySelector('.ofrsok'), ur = u.getBoundingClientRect(), sr = sok && sok.getBoundingClientRect();
     ok('klicket öppnar sökrutan bredvid kortet, inte över det', !!sok && (sr.right <= ur.left || sr.left >= ur.right) && document.activeElement === sok.querySelector('.sok-in'), sr ? `ruta ${Math.round(sr.left)}–${Math.round(sr.right)}, kort ${Math.round(ur.left)}–${Math.round(ur.right)}` : 'ingen ruta');
     ok('… med leken först och inget förvalt (inga gissningar)', /From your deck/.test(sok.textContent) && sok.querySelectorAll('.sok-t').length === 3 && !sok.querySelector('.sok-t.on'), sok.textContent.slice(0, 80));
@@ -852,6 +879,7 @@ const PROV = async () => {
     const kU = mig.cards.find(c => c.spar === 43), eU = kU && els().get(kU.cid);
     ok('det valda namnet: kortet framkallas i samma element, sökrutan stängd, granskningen tom', !!kU && kU.name === 'Fencing Ace' && eU === u && !!eU.querySelector(':scope > .ofram') && !document.querySelector('.ofrsok') && !mig.pending.length,
       kU ? `${kU.name}, ${eU === u ? 'samma element' : 'nytt element'}` : 'inget kort');
+    matZoomMot(zFit, 0, 0); await vanta(300);
     /* Minskad rörelse (TIDSLINJER-E, tabellerna längst ner): bara toning — utspelet och det oframkallade
        kortet tonas in på 200 ms utan glid eller skala, framkallningen är linjär. */
     window.__mattLugn = true;
@@ -889,6 +917,16 @@ const PROV = async () => {
     ok('… med den: tre etiketter, ingen täcker en annan', etik.every(Boolean) && !par(skar).some(Boolean), etik.filter(Boolean).map(el => { const q = rekt(el); return `${Math.round(q.left)},${Math.round(q.top)}`; }).join(' '));
     const overst = el => { const q = rekt(el), t = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return !!t && (t === el || el.contains(t)); };
     ok('… och var och en ligger överst där den står (går att läsa och klicka på)', etik.every(el => el && overst(el)), etik.map(el => el && overst(el) ? 'ja' : 'nej').join(','));
+    /* MES-351, läge 9: en "NOT IDENTIFIED" som skulle täcka en knapp eller en annan etikett döljs. */
+    await zoomPa(ofrEl(62), 0.8);
+    const nid = tata.map(id => gridEl.querySelector(`:scope > .ofretik[data-ofr="${id}"]`)), syns = nid.filter(el => el && !el.classList.contains('dold'));
+    const alla = syns.concat(etik.filter(Boolean)), tackt = alla.flatMap((a, i) => alla.slice(i + 1).map(b => skar(rekt(a), rekt(b)))).some(Boolean);
+    ok('… "NOT IDENTIFIED" på alla tre, men ingen synlig etikett täcker en annan eller en knapp (läge 9)', nid.every(Boolean) && syns.length >= 1 && !tackt, `${syns.length} av ${nid.filter(Boolean).length} synliga`);
+    /* Läge 6: liten zoom. Ett kort lägre än 120 px på skärmen visar knappen men inte etiketten. */
+    matZoomMot(100 / MATTA.CH, 0, 0);
+    const smal = gridEl.querySelector(':scope > .ofretik[data-ofr="61"]'), smalM = gridEl.querySelector(':scope > .ofrmark[data-ofr="61"]'), kh = ofrEl(61).getBoundingClientRect().height;
+    ok('liten zoom: kortet lägre än 120 px, etiketten dold, knappen kvar (läge 6)', kh < 120 && !!smal && smal.classList.contains('dold') && !!smalM && !smalM.classList.contains('dold'), `kortet ${Math.round(kh)} px, etikett ${smal ? smal.className : 'ingen'}`);
+    matZoomMot(zFit, 0, 0); await vanta(300);
     const mitt = etik[1], mittKort = ofrEl(62);
     if (mitt) await riktigtKlick(mitt);
     const sok2 = document.querySelector('.ofrsok'), kr = mittKort && rekt(mittKort), sr2 = sok2 && rekt(sok2);

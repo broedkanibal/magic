@@ -2030,42 +2030,62 @@ body.ispel:not(.lasvy) .handbar{display:none}
 
 /* Kort som just dök upp från kameran läggs ned med en grön ring (matLagg, MES-344): rörelsen spelas i
    matSynk, inte här. */
-/* Det oframkallade kortet (MES-344): ett kort vars namn dröjer. Kamerans eget foto av kortet — ramen
-   skarp, de unika ytorna (namn, bild, typrad, text, P/T) suddiga, med en matt glans — och ingen text, ingen
-   skimmer: ingenting ser ut att ladda. Samma plats och storlek som kortet får, och samma lager som kortet
-   bär när det framkallas (.ofram), så att elementet behåller dem. Utan foto (en äldre telefon): ett tomt
-   kort. Ingen .card-klass: markering, drag och tangenter ska inte räkna med det. Måtten i clip-path är
-   prototypens (design_handoff_animeringar/src3/style3.css) på ett kort i mattans 178 × 248. */
+/* Det oframkallade kortet (MES-344): ett kort vars namn dröjer. Kamerans eget foto av kortet i en ram som
+   Mesa ritar, suddigt med en matt glans — och ingen text, ingen skimmer: ingenting ser ut att ladda. Samma
+   plats och storlek som kortet får, och samma lager som kortet bär när det framkallas (.ofram), så att
+   elementet behåller dem. Utan foto (en äldre telefon): ett tomt kort. Ingen .card-klass: markering, drag och
+   tangenter ska inte räkna med det. */
 .ofr{position:absolute;display:block;box-sizing:border-box;border-radius:10px;background:#1a212c;box-shadow:0 4px 12px -3px #000c;outline:1px solid #ffffff14;outline-offset:-1px;cursor:default}
 .ofr.tappad{transform:rotate(90deg)}
 .omatta.vand-upp .ofr.tappad{transform:rotate(270deg)}
 .ofr > .lyftskugga{position:absolute;inset:0;border-radius:inherit;box-shadow:0 26px 40px -12px #000f;opacity:0;pointer-events:none;z-index:-1}
 .ofr.fraga{cursor:pointer}
-.ofram{position:absolute;inset:0;z-index:3;border-radius:10px;overflow:hidden;pointer-events:none}
-.ofram > i{position:absolute;inset:0;background-color:#11161e;background-position:50% 50%;background-size:104% 104%;background-repeat:no-repeat}
-.ofram::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 3px #0c0d10;pointer-events:none}
-.ofram.vand > .ofoto{transform:rotate(180deg)}
-.ofram > .ofsudd{filter:blur(12px) saturate(.72) brightness(.9) contrast(.92)}
-/* De unika ytorna i ett enda sammanhängande fält (namnraden till och med textrutan, och P/T): prototypens fem
-   band med skarpa strimmor emellan förutsätter att fotot ligger exakt rakt, och ett kort som ligger några grader
-   snett i fotot visade då en bit skarp titelrad i strimman (granskningen av MES-344). Ramen runt är skarp. */
-.ofram > .ofsudd,.ofram > .oglans{clip-path:path('M9 8H169V229H9Z M140 227H169V240H140Z')}
+/* MES-351 (designytan "Mesa Name This Card", spec F2): ramen är Mesas egen, 4 px i brädets px, inte kamerafotots
+   kant — beskärningen tar med en bordsremsa, och ett kort som ligger snett i fotot visade bordet på sidan. Fotot
+   förstoras 1,18 från mitten så att bordet hamnar utanför ramen. Det undre lagret (.ofsudd) är hela fotot suddigt;
+   det övre (.oskarp) är samma foto skarpt i mitten och suddigt mot kanterna, och syns bara när kortet väntar på
+   ett namn (.ofram.skarp: posten finns) — medan Claude läser är hela kortet suddigt. Den skarpa mitten tonas in
+   på 300 ms, som framkallningen. Motståndaren får aldrig .oskarp (ofrLager): det skarpa fotot är bara ägarens. */
+.ofram{position:absolute;inset:0;z-index:3;box-sizing:border-box;border:4px solid #121417;border-radius:10px;overflow:hidden;pointer-events:none;background:#121417}
+.ofram > i{position:absolute;inset:0;background-color:#11161e;background-position:50% 50%;background-size:cover;background-repeat:no-repeat}
+.ofram > .ofoto{transform:scale(1.18)}
+.ofram.vand > .ofoto{transform:rotate(180deg) scale(1.18)}
+.ofram > .ofsudd{filter:blur(12px) saturate(.7) brightness(.85)}
+.ofram > .oskarp{display:none;-webkit-mask-image:radial-gradient(ellipse 62% 52% at 50% 42%,#000 45%,transparent 100%);mask-image:radial-gradient(ellipse 62% 52% at 50% 42%,#000 45%,transparent 100%)}
+/* Masken vrids med fotot: i ett foto som vänts ett halvt varv ligger kortets mitt (42 % uppifrån) på 58 %. */
+.ofram.vand > .oskarp{-webkit-mask-image:radial-gradient(ellipse 62% 52% at 50% 58%,#000 45%,transparent 100%);mask-image:radial-gradient(ellipse 62% 52% at 50% 58%,#000 45%,transparent 100%)}
+.ofram.skarp > .oskarp{display:block;animation:ofrSkarp 300ms ease-out}
+@keyframes ofrSkarp{from{opacity:0}}
 .ofram > .oglans{background:linear-gradient(118deg,#0000 30%,#ffffff40 44%,#ffffff12 52%,#0000 62%),linear-gradient(#c8d6e622,#c8d6e622);mix-blend-mode:screen;opacity:.55}
-/* "Name this card": nere på kortet, i skärmens storlek oavsett mattans zoom (--matz, som brickorna). Ett eget
+/* "Enter name": nere på kortet, i skärmens storlek oavsett mattans zoom (--matz, som brickorna). Ett eget
    element i brädet (h:ofrmark, MES-346), inte ett barn till kortet: då ligger den ovanför alla kort — också ett
    oframkallat kort som ligger omlott — och vrids inte med ett tappat kort. left/top är kortets nederkant mitt på;
-   --ofrdy flyttar den i skärm-px (ofrMarkLagg), så att etiketter på kort som ligger tätt inte täcker varandra. */
+   --ofrdy flyttar den i skärm-px (ofrMarkLagg), så att knappar på kort som ligger tätt inte täcker varandra. */
 .ofrmark{position:absolute;z-index:650;transform:translate(-50%,-100%) scale(calc(1 / var(--matz, 1))) translateY(var(--ofrdy, -6px));transform-origin:50% 100%;
   height:28px;padding:0 11px;border-radius:14px;border:1px solid var(--acc);background:#1b2230f2;color:var(--pa-acc);font:600 12px var(--sans);white-space:nowrap;cursor:pointer;box-shadow:0 6px 16px -6px #000e}
-.ofrmark.aktuell{z-index:901!important}   /* över strålkastarens dimning (.ofr.aktuell 900), före left/top/z-index inline */
-/* Pekaren på en etikett lyser upp dess kort: där korten ligger tätt kan etiketten stå en bit från sitt kort. */
+/* "NOT IDENTIFIED" (MES-351, H2): överst på kortet, 9 px under dess överkant, i skärmens storlek som knappen och
+   ett eget element av samma skäl — den står rak på ett tappat kort, vid den vridna rutans överkant. Egen bakgrund,
+   så att den läses också på ett foto som blänket bränt ut. ofrMarkLagg döljer den (.dold) när kortet är lägre än
+   120 px på skärmen, eller när den skulle täcka en annan etikett eller en knapp. */
+.ofretik{position:absolute;z-index:650;transform:translateX(-50%) scale(calc(1 / var(--matz, 1))) translateY(9px);transform-origin:50% 0;
+  box-sizing:border-box;height:18px;padding:0 7px;border-radius:5px;background:#0d1015e6;border:1px solid #f0a52a88;color:var(--pa-acc);
+  font:700 9px/16px var(--sans);letter-spacing:.8px;white-space:nowrap;cursor:pointer;user-select:none}
+.ofrmark.aktuell,.ofretik.aktuell{z-index:901!important}   /* över strålkastarens dimning (.ofr.aktuell 900), före left/top/z-index inline */
+/* Knappen döljs medan sökrutan är öppen; etiketten när den inte får plats (ofrMarkLagg). */
+.ofrmark.dold,.ofretik.dold{visibility:hidden}
+/* Pekaren på kortet, dess etikett eller knapp lyser upp kortet och knappen: där korten ligger tätt kan knappen
+   stå en bit från sitt kort. */
 .ofr.pekad{outline:2px solid var(--acc);outline-offset:2px}
-.ofrmark:hover{background:#2a2416}
+.ofrmark:hover,.ofrmark.pekad{background:#2a2416}
 /* Sökrutan bredvid kortet (MES-344, prototypens .sok): står still på skärmen, utanför brädets zoom. */
 .ofrsok{position:absolute;z-index:974;width:280px;padding:12px;border-radius:12px;background:#151b26;border:1px solid #3b485c;box-shadow:0 18px 40px -10px #000e;display:flex;flex-direction:column;gap:8px}
 .ofrsok .sok-hu{display:flex;align-items:center;justify-content:space-between}
 .ofrsok .sok-l{font:600 12.5px var(--sans);color:var(--txt)}
 .ofrsok .sok-x{height:24px;width:24px;border-radius:6px;border:1px solid var(--line);background:#1b2230;color:var(--dim);cursor:pointer;display:grid;place-items:center;padding:0}
+/* Kamerans foto skarpt överst (MES-351): hela beskärningen, utan mattans förstoring. */
+.ofrsok .sok-foto{height:168px;flex:none;border-radius:8px;background:#0b0f15;display:flex;align-items:center;justify-content:center}
+.ofrsok .sok-foto img{width:120px;height:158px;object-fit:cover;border-radius:5px;display:block}
+.ofrsok .sok-foto.vand img{transform:rotate(180deg)}
 .ofrsok .sok-in{height:34px;border-radius:8px;border:1px solid #3b485c;background:#0b0f15;color:var(--txt);font:14px var(--sans);padding:0 10px;outline:none}
 .ofrsok .sok-in:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a22}
 .ofrsok .sok-res{display:flex;flex-direction:column;gap:8px}
@@ -8182,7 +8202,7 @@ function kortHtml(e, i, extra, pos, bif, las) {
               ark && ark.cid === e.cid ? 'aktuell' : '', ordKrockar(ord, pv, e.tapped ? sz.h : sz.w) ? 'kwlyft' : '',
               tokDold.has(e.cid) ? 'spawndold' : '', (tokGlod.get(e.cid) || 0) > Date.now() ? 'spawnglod' : '',
               baksida ? 'bak' : '', extra || ''].filter(Boolean).join(' ');
-  return `<div class="${kl}" data-i="${i}" data-cid="${esc(e.cid)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}" style="left:${Math.round(x || 0)}px;top:${Math.round(y || 0)}px;width:${sz.w}px;height:${sz.h}px;z-index:${Math.max(1, Math.round(z || 1))}"><i class="lyftskugga" aria-hidden="true"></i>${ofr ? ofrLager(ofr.foto) : ''}${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}${baksida ? '<span class="lekslv"></span>' : ''}
+  return `<div class="${kl}" data-i="${i}" data-cid="${esc(e.cid)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}" style="left:${Math.round(x || 0)}px;top:${Math.round(y || 0)}px;width:${sz.w}px;height:${sz.h}px;z-index:${Math.max(1, Math.round(z || 1))}"><i class="lyftskugga" aria-hidden="true"></i>${ofr ? ofrLager(ofr.foto, false, ofr.skarp) : ''}${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}${baksida ? '<span class="lekslv"></span>' : ''}
     <span class="bar"></span>
     <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(felText(keyOf(e))) + '</span>' : ''}</span>
     ${kwHtml}${ptTile(pv)}
@@ -8348,31 +8368,31 @@ function ofrNu() {
 /* Kortet ligger som kortet ligger (MES-226): tappat när spåret är det — men bara där kortet sedan också
    blir det: bordet leder och grundläget är sparat (samma villkor som tapSynk i avstamBord). */
 function ofrTappad(p) { return !!p.tappad && kamGrund !== null && kamSpeglar(player()); }
-/* Kamerans foto i kortet: hela fotot skarpt (Magic-ramen), och samma foto suddigt i de unika ytorna med en
-   matt glans över — prototypens k-foto och k-glans (design_handoff_animeringar/src3/style3.css). Fotot är
-   kortets låda med 2 % marginal (fotoUr i Kamera, eller läsningens beskärning tillskuren, ofrFotoTill), så
-   det ritas 104 % stort och centrerat, och en mörk kant runt kortet tar det som syns av bordet i hörnen
-   när kortet ligger lite snett. En kamera som vänts ett halvt varv (kamVand 180) ser korten upp och ned:
-   fotot vänds. */
+/* Kamerans foto i kortet (MES-351, F2): hela fotot suddigt med en matt glans över, i Mesas egen ram, och — när
+   kortet väntar på ett namn (skarp) — samma foto skarpt i mitten och suddigt mot kanterna ovanpå (.oskarp, se
+   CSS:en). Fotot är kortets låda med 2 % marginal (fotoUr i Kamera, eller läsningens beskärning tillskuren,
+   ofrFotoTill); det förstoras 1,18 så att bordet i beskärningen hamnar utanför ramen. En kamera som vänts ett
+   halvt varv (kamVand 180) ser korten upp och ned: fotot vänds. Motståndaren får aldrig det skarpa lagret. */
 const OFR_BILD = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 const ofrVand = () => ((kamVand % 360) + 360) % 360 === 180;
-function ofrLager(foto, motstandare) {
+function ofrLager(foto, motstandare, skarp) {
   if (!foto || !OFR_BILD.test(foto)) return '';
   const u = `background-image:url(${foto})`, vand = !motstandare && ofrVand() ? ' vand' : '';   // motståndarens lilla bild är redan vänd (ofrLiten)
-  return `<span class="ofram${vand}" aria-hidden="true"><i class="ofoto" style="${u}"></i><i class="ofoto ofsudd" style="${u}"></i><i class="oglans"></i></span>`;
+  const s = motstandare ? '' : `<i class="ofoto oskarp" style="${u}"></i>`;
+  return `<span class="ofram${vand}${s && skarp ? ' skarp' : ''}" aria-hidden="true"><i class="ofoto ofsudd" style="${u}"></i>${s}<i class="oglans"></i></span>`;
 }
 /* Ett oframkallat kort på mattan (MES-344): samma storlek och plats som kortet det blir (ofrPos), inget
-   namn och ingen kortbild — bara kamerans foto. Står det i granskningen bär det "Name this card", och
-   klicket öppnar sökrutan bredvid kortet (ofrSokOppna). Ett exemplar för mycket (overTak) frågar om antalet
-   som förut (arket). Ingen .card-klass: markering, drag och tangenter ska inte räkna med det. Markeringen är
-   ett eget element (ofrMarkHtml, MES-346). */
+   namn och ingen kortbild — bara kamerans foto. Står det i granskningen bär det "NOT IDENTIFIED" och
+   "Enter name" (MES-351), och klicket öppnar sökrutan bredvid kortet (ofrSokOppna). Ett exemplar för mycket
+   (overTak) frågar om antalet som förut (arket). Ingen .card-klass: markering, drag och tangenter ska inte
+   räkna med det. Etiketten och knappen är egna element (ofrEtikHtml, ofrMarkHtml, MES-346). */
 function ofrHtml(p) {
   const namnge = !!p.pend && !p.overTak, over = !!p.pend && !!p.overTak;
   const pos = ofrPos.get(p.id) || { x: 44, y: 82 };
-  const titel = namnge ? 'The camera could not read this card — click to name it' : over ? `Your deck has only ${p.tak} × ${p.namn || 'this card'} — click to decide` : '';
-  return `<div class="ofr${ofrTappad(p) ? ' tappad' : ''}${p.foto ? '' : ' utanfoto'}${namnge || over ? ' fraga' : ''}${ark && p.pend && ark.pend === p.pend ? ' aktuell' : ''}" data-ofr="${esc(p.id)}"${p.pend ? ` data-pend="${esc(p.pend)}"` : ''} aria-label="A card the camera has not named yet"${titel ? ` title="${esc(titel)}"` : ''} style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:600"><i class="lyftskugga" aria-hidden="true"></i>${ofrLager(p.foto)}</div>`;
+  const titel = namnge ? 'The camera couldn’t identify this card. Click to enter its name.' : over ? `Your deck has only ${p.tak} × ${p.namn || 'this card'} — click to decide` : '';
+  return `<div class="ofr${ofrTappad(p) ? ' tappad' : ''}${p.foto ? '' : ' utanfoto'}${namnge || over ? ' fraga' : ''}${ark && p.pend && ark.pend === p.pend ? ' aktuell' : ''}" data-ofr="${esc(p.id)}"${p.pend ? ` data-pend="${esc(p.pend)}"` : ''} aria-label="A card the camera has not named yet"${titel ? ` title="${esc(titel)}"` : ''} style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:600"><i class="lyftskugga" aria-hidden="true"></i>${ofrLager(p.foto, false, !!p.pend)}</div>`;
 }
-/* "Name this card" (eller antalets fråga) för ett oframkallat kort i granskningen, som en egen post i brädet
+/* "Enter name" (eller antalets fråga) för ett oframkallat kort i granskningen, som en egen post i brädet
    (MES-346): förut satt den inne i kortet, och när oframkallade kort låg tätt eller omlott lade etiketterna sig
    på varandra och under grannkortet (uppspelaren p0921k vid 331 s) — de gick varken att läsa eller att klicka
    på. Den bär kortets pend, så att klicket öppnar sökrutan bredvid rätt kort, som förut. Ankaret är kortets
@@ -8385,25 +8405,54 @@ function ofrMarkAnkare(q) {
 function ofrMarkHtml(q) {
   const a = ofrMarkAnkare(q);
   if (!q.pend || !a) return null;
-  const txt = q.overTak ? `Another ${esc(q.namn || 'card')}?` : 'Name this card';
-  return `<button type="button" class="ofrmark${ark && ark.pend === q.pend ? ' aktuell' : ''}" data-ofr="${esc(q.id)}" data-pend="${esc(q.pend)}" style="left:${Math.round(a.x)}px;top:${Math.round(a.y)}px;z-index:${OFR_MARK_Z}">${txt}</button>`;
+  const txt = q.overTak ? `Another ${esc(q.namn || 'card')}?` : 'Enter name';
+  return `<button type="button" class="ofrmark${ark && ark.pend === q.pend ? ' aktuell' : ''}" data-ofr="${esc(q.id)}" data-pend="${esc(q.pend)}"${q.overTak ? '' : ' aria-label="Enter the name of this card"'} style="left:${Math.round(a.x)}px;top:${Math.round(a.y)}px;z-index:${OFR_MARK_Z}">${txt}</button>`;
 }
-/* Etiketterna läggs ut i skärmens px, i ordning uppifrån och ned och från vänster: var och en där den brukar
-   sitta (6 px ovanför kortets nederkant), annars ett etikettsteg i taget bort därifrån, närmast först och uppåt
-   före nedåt — uppåt högst till strax ovanför kortet — i första läget där den inte täcker en etikett som redan
+/* "NOT IDENTIFIED" (MES-351, H2): överst på ett kort som kameran inte identifierade — inte på antalets fråga,
+   där kortet är identifierat. Ankaret är kortets överkant mitt på (tappat: den vridna rutans); etiketten står
+   9 px under det i skärm-px (.ofretik). Klicket öppnar sökrutan, som kortet och knappen. */
+function ofrEtikAnkare(q) {
+  const pos = ofrPos.get(q.id); if (!pos) return null;
+  return { x: pos.x + MATTA.CW / 2, y: pos.y + MATTA.CH / 2 - (ofrTappad(q) ? MATTA.CW : MATTA.CH) / 2 };
+}
+function ofrEtikHtml(q) {
+  const a = ofrEtikAnkare(q);
+  if (!q.pend || q.overTak || !a) return null;
+  return `<span class="ofretik${ark && ark.pend === q.pend ? ' aktuell' : ''}" data-ofr="${esc(q.id)}" data-pend="${esc(q.pend)}" aria-hidden="true" style="left:${Math.round(a.x)}px;top:${Math.round(a.y)}px;z-index:${OFR_MARK_Z}">NOT IDENTIFIED</span>`;
+}
+/* Pekaren på kortet, dess etikett eller knapp (MES-351, läge 3): kortet och knappen lyser upp, så att man ser
+   vilket kort knappen hör till också där korten ligger tätt. */
+function ofrPek(id, pa) {
+  const v = CSS.escape(id);
+  for (const e of gridEl.querySelectorAll(`.ofr.fraga[data-ofr="${v}"], .ofrmark[data-ofr="${v}"]`)) e.classList.toggle('pekad', pa);
+}
+/* Knapparna läggs ut i skärmens px, i ordning uppifrån och ned och från vänster: var och en där den brukar
+   sitta (6 px ovanför kortets nederkant), annars ett knappsteg i taget bort därifrån, närmast först och uppåt
+   före nedåt — uppåt högst till strax ovanför kortet — i första läget där den inte täcker en knapp som redan
    ligger. Den står alltså så nära sitt eget kort som det går. Ankaret står kvar; --ofrdy är förskjutningen i
-   skärm-px (.ofrmark). Körs efter varje omritning och varje zoom (matSkriv): etiketten har samma storlek på
-   skärmen vid all zoom, så det är zoomen som avgör om två etiketter krockar. */
-const OFR_MARK_LUFT = 4;
+   skärm-px (.ofrmark). Körs efter varje omritning och varje zoom (matSkriv): knappen har samma storlek på
+   skärmen vid all zoom, så det är zoomen som avgör om två knappar krockar. Knappen till kortet vars sökruta är
+   öppen döljs (MES-351, läge 5).
+   Sedan etiketterna (MES-351, lägen 6 och 9): en etikett står där den står, eller döljs — när kortet är lägre
+   än OFR_ETIK_MIN px på skärmen, eller när den skulle täcka en knapp eller en etikett som redan ligger. Det
+   främsta kortet (sist i brädet) får sin etikett först. */
+const OFR_MARK_LUFT = 4, OFR_ETIK_MIN = 120, OFR_ETIK_DY = 9;
+let ofrSokPend = null;   // pend för kortet vars sökruta är öppen (ofrSokOppna)
 function ofrMarkLagg() {
   const el = [...gridEl.querySelectorAll(':scope > .ofrmark[data-ofr]')];
-  for (const o of gridEl.querySelectorAll('.pekad')) { const m = el.find(m => m.dataset.ofr === o.dataset.ofr); if (!m || !m.matches(':hover')) o.classList.remove('pekad'); }   // etiketten gick medan pekaren stod på den
-  if (!el.length) return;
+  const et = [...gridEl.querySelectorAll(':scope > .ofretik[data-ofr]')];
+  for (const o of gridEl.querySelectorAll('.pekad')) {   // kortet, etiketten eller knappen gick medan pekaren stod på den
+    const v = CSS.escape(o.dataset.ofr || '');
+    if (![...gridEl.querySelectorAll(`[data-ofr="${v}"]`)].some(e => e.matches(':hover') && e.matches('.ofr.fraga, .ofrmark, .ofretik'))) o.classList.remove('pekad');
+  }
+  if (!el.length && !et.length) return;
   const z = gridEl._matzMal || 1, ofr = new Map(ofrNu().map(q => [String(q.id), q]));
-  const lagda = [], krock = r => lagda.some(b => r.x0 < b.x1 + OFR_MARK_LUFT && b.x0 < r.x1 + OFR_MARK_LUFT && r.y0 < b.y1 + OFR_MARK_LUFT && b.y0 < r.y1 + OFR_MARK_LUFT);
+  const lagda = [], krock = (r, luft) => lagda.some(b => r.x0 < b.x1 + luft && b.x0 < r.x1 + luft && r.y0 < b.y1 + luft && b.y0 < r.y1 + luft);
   const lista = el.map(e => {
+    const dold = !!ofrSokPend && e.dataset.pend === ofrSokPend;
+    if (e.classList.contains('dold') !== dold) e.classList.toggle('dold', dold);
     const q = ofr.get(e.dataset.ofr), a = q && ofrMarkAnkare(q);
-    return a ? { e, a, w: e.offsetWidth, h: e.offsetHeight, kh: (ofrTappad(q) ? MATTA.CW : MATTA.CH) * z } : null;
+    return a && !dold ? { e, a, w: e.offsetWidth, h: e.offsetHeight, kh: (ofrTappad(q) ? MATTA.CW : MATTA.CH) * z } : null;
   }).filter(Boolean).sort((p, q) => (p.a.y - q.a.y) || (p.a.x - q.a.x));
   for (const m of lista) {
     const cx = m.a.x * z, by = m.a.y * z, steg = m.h + OFR_MARK_LUFT;
@@ -8413,11 +8462,22 @@ function ofrMarkLagg() {
       if (-6 - k * steg >= -m.kh - OFR_MARK_LUFT) forsok.push(-6 - k * steg);   // uppåt: nederkanten högst strax ovanför kortet
       forsok.push(-6 + k * steg);                                                 // nedåt
     }
-    const d = forsok.find(d => !krock(rekt(d)));
+    const d = forsok.find(d => !krock(rekt(d), OFR_MARK_LUFT));
     const dy = d == null ? -6 : d;
     lagda.push(rekt(dy));
     const v = Math.round(dy) + 'px';
     if (m.e.style.getPropertyValue('--ofrdy') !== v) m.e.style.setProperty('--ofrdy', v);
+  }
+  for (const e of et.reverse()) {
+    const q = ofr.get(e.dataset.ofr), a = q && ofrEtikAnkare(q);
+    let dold = !a || (ofrTappad(q) ? MATTA.CW : MATTA.CH) * z < OFR_ETIK_MIN;
+    if (!dold) {
+      const cx = a.x * z, ty = a.y * z + OFR_ETIK_DY, w = e.offsetWidth, h = e.offsetHeight;
+      const r = { x0: cx - w / 2, x1: cx + w / 2, y0: ty, y1: ty + h };
+      dold = krock(r, 0);
+      if (!dold) lagda.push(r);
+    }
+    if (e.classList.contains('dold') !== dold) e.classList.toggle('dold', dold);
   }
 }
 /* ── Igenkänningskedjan vid varje kort (bara ?debug) ──────────────────
@@ -8822,7 +8882,7 @@ function matRing(el, A, fran, lugn) {
    OFR_SUDD·(0,35 + 0,65·b); glansen 0,55·b — och kortets riktiga bild kommer fram under det. Ett litet
    lyft (1,015 vid 150 ms, INOUT) hoppas över om kortet redan rör sig (det läggs ned just nu), och den gröna
    ringen kommer 300–1000 ms. Minskad rörelse: toningen (LIN) och den gröna kanten. */
-const ofrFilter = b => `blur(${(OFR_SUDD * (0.35 + 0.65 * b)).toFixed(2)}px) saturate(.72) brightness(.9) contrast(.92)`;
+const ofrFilter = b => `blur(${(OFR_SUDD * (0.35 + 0.65 * b)).toFixed(2)}px) saturate(.7) brightness(.85)`;   // .ofsudd (MES-351)
 function matFramkalla(el, ring) {
   const A = el._matA || (el._matA = {});
   const lugn = matLugn(), e = lugn ? 'linear' : 'ease-out';
@@ -9211,8 +9271,8 @@ function renderGrid(force) {
       const q = ofrPos.get(+el.dataset.ofr);
       if (q) flytt.push({ el, x: q.x, y: q.y, z: 600 });
     }
-    for (const el of gridEl.querySelectorAll(':scope > .ofrmark[data-ofr]')) {   // och deras "Name this card" (MES-346)
-      const q = ofr.find(q => String(q.id) === el.dataset.ofr), a = q && ofrMarkAnkare(q);
+    for (const el of gridEl.querySelectorAll(':scope > .ofrmark[data-ofr], :scope > .ofretik[data-ofr]')) {   // och deras "Enter name" (MES-346) och "NOT IDENTIFIED" (MES-351)
+      const q = ofr.find(q => String(q.id) === el.dataset.ofr), a = q && (el.classList.contains('ofretik') ? ofrEtikAnkare(q) : ofrMarkAnkare(q));
       if (a) flytt.push({ el, x: a.x, y: a.y, z: OFR_MARK_Z });
     }
     matFlyttaEl(flytt, animera);
@@ -9250,7 +9310,8 @@ function renderGrid(force) {
   /* De oframkallade korten (MES-344): egna element som glider som korten, och läggs ned när de kommer.
      Nyckeln bär spåret det föddes på, som platshållarens gjorde (uppspelaren matchar den mot kortet). */
   for (const q of ofr) poster.push({ nyckel: 'o:' + q.id, html: ofrHtml(q), glid: true, inn: 'ofr' });
-  for (const q of ofr) { const html = ofrMarkHtml(q); if (html) poster.push({ nyckel: 'h:ofrmark:' + q.id, html, glid: true }); }   // "Name this card" (MES-346)
+  for (const q of ofr) { const html = ofrEtikHtml(q); if (html) poster.push({ nyckel: 'h:ofretik:' + q.id, html, glid: true }); }   // "NOT IDENTIFIED" (MES-351)
+  for (const q of ofr) { const html = ofrMarkHtml(q); if (html) poster.push({ nyckel: 'h:ofrmark:' + q.id, html, glid: true }); }   // "Enter name" (MES-346)
   /* Leken bland korten och högarna som inte är leken (MES-334 steg 3): poster med egna nycklar, som glider —
      först i ordningen, så att ett kort med samma z-index som ligger på leken ritas ovanpå den. */
   poster.unshift(...lekPoster(p, false));
@@ -11258,10 +11319,10 @@ gridWrap.addEventListener('pointerdown', ev => {
   if (ev.target.closest(MATT_UI)) return;
   const hand = ev.button === 0 && (!!matHand || matVerktyg === 'pan'), hoger = ev.button === 2 && !urHogTryck(ev);
   if (!hand && !hoger && ev.button !== 1) {
-    /* .ofrmark: "Name this card" är ett eget element sedan MES-346. Utan den i listan startade ett tryck på
-       etiketten lassot, som fångar pekaren (setPointerCapture) — och då går klicket till gridWrap, inte till
-       knappen, och sökrutan öppnades aldrig. */
-    if (ev.button === 0 && !ev.target.closest('.card,.ofr,.ofrmark,.grav,.bib,.empty,.lekhog,.lekute,.gravd1,.nedkort')) { closeCounters(); lassoStart(ev); }
+    /* .ofrmark, .ofretik: "Enter name" och "NOT IDENTIFIED" är egna element (MES-346, MES-351). Utan dem i listan
+       startade ett tryck på knappen lassot, som fångar pekaren (setPointerCapture) — och då går klicket till
+       gridWrap, inte till knappen, och sökrutan öppnades aldrig. */
+    if (ev.button === 0 && !ev.target.closest('.card,.ofr,.ofrmark,.ofretik,.grav,.bib,.empty,.lekhog,.lekute,.gravd1,.nedkort')) { closeCounters(); lassoStart(ev); }
     return;
   }
   closeCounters();
@@ -13832,7 +13893,7 @@ gridEl.addEventListener('dblclick', ev => { if (ev.target.closest('.card')) open
    bredvid det; ett exemplar för mycket öppnar arket som förut. Egen lyssnare — det oframkallade kortet är
    inget .card, och korthanteraren ovan ska inte veta av det. */
 gridEl.addEventListener('click', ev => {
-  const o = ev.target.closest('.ofr.fraga, .ofrmark[data-pend]');   // kortet, eller dess "Name this card" (ett eget element sedan MES-346)
+  const o = ev.target.closest('.ofr.fraga, .ofrmark[data-pend], .ofretik[data-pend]');   // kortet, dess "Enter name" eller "NOT IDENTIFIED" (egna element, MES-346, MES-351)
   if (!o || !o.dataset.pend || !redigerbar()) return;
   ev.stopPropagation();
   const q = pendById(o.dataset.pend);
@@ -13852,6 +13913,7 @@ const OFR_SOK_N = 6;
 function ofrSokStang() {
   if (!ofrSok) return;
   ofrSok.el.remove(); ofrSok = null;
+  ofrSokPend = null; ofrMarkLagg();   // knappen kommer tillbaka (MES-351)
 }
 function ofrSokPlacera() {
   if (!ofrSok) return;
@@ -13874,9 +13936,13 @@ function ofrSokOppna(pend) {
   ofrSokStang(); closeArk();
   const zp = $('#zonPerm'); if (!zp) return;
   const el = document.createElement('div');
-  el.className = 'ofrsok'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Which card is this?');
-  el.innerHTML = '<div class="sok-hu"><label class="sok-l" for="ofrSokIn">Which card is this?</label>'
+  /* MES-351: rubriken "Enter card name", och kamerans foto skarpt överst — det enda stället där ägaren ser kortet
+     skarpt, så att namnet går att läsa av. */
+  const post = ofrLista().find(o => o.pend === pend), foto = post && post.foto && OFR_BILD.test(post.foto) ? post.foto : null;
+  el.className = 'ofrsok'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Enter card name');
+  el.innerHTML = '<div class="sok-hu"><label class="sok-l" for="ofrSokIn">Enter card name</label>'
     + '<button type="button" class="sok-x" aria-label="Close" data-sokstang><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg></button></div>'
+    + (foto ? `<div class="sok-foto${ofrVand() ? ' vand' : ''}"><img src="${foto}" alt="The camera’s photo of the card"></div>` : '')
     + '<input id="ofrSokIn" class="sok-in" type="text" autocomplete="off" spellcheck="false" placeholder="Type a card name">'
     + '<div class="sok-res"></div>'
     + '<div class="sok-fot"><button type="button" class="sok-nej" data-soknej title="The camera stops asking about it">Not a card</button></div>';
@@ -13896,6 +13962,7 @@ function ofrSokOppna(pend) {
     const b = ev.target.closest('[data-soki]');
     if (b && ofrSok) { const t = ofrSok.traffar[+b.dataset.soki]; if (t) ofrNamnge(ofrSok.pend, t.namn, t.sid, !t.lek); }
   });
+  ofrSokPend = pend; ofrMarkLagg();   // knappen "Enter name" döljs medan rutan är öppen; etiketten står kvar (MES-351)
   ofrSokSok();
   ofrSokPlacera();
   ofrSok.inp.focus({ preventScroll: true });
@@ -14010,11 +14077,11 @@ function ofrInteKort(pend) {
   if (post) ofrMinne.delete(post.id);
   save(); renderAll(true);
 }
-addEventListener('pointerdown', ev => { if (ofrSok && !ev.target.closest('.ofrsok,.ofr.fraga,.ofrmark')) ofrSokStang(); }, true);
-/* Etiketten och dess kort (MES-346): pekaren på "Name this card" lyser upp kortet den hör till. */
+addEventListener('pointerdown', ev => { if (ofrSok && !ev.target.closest('.ofrsok,.ofr.fraga,.ofrmark,.ofretik')) ofrSokStang(); }, true);
+/* Kortet, etiketten och knappen (MES-346, MES-351): pekaren på någon av dem lyser upp kortet och knappen. */
 for (const [typ, pa] of [['pointerover', true], ['pointerout', false]]) gridEl.addEventListener(typ, ev => {
-  const m = ev.target.closest && ev.target.closest('.ofrmark[data-ofr]'); if (!m) return;
-  const o = gridEl.querySelector(`.ofr[data-ofr="${CSS.escape(m.dataset.ofr)}"]`); if (o) o.classList.toggle('pekad', pa);
+  const m = ev.target.closest && ev.target.closest('.ofr.fraga[data-ofr], .ofrmark[data-ofr], .ofretik[data-ofr]'); if (!m) return;
+  ofrPek(m.dataset.ofr, pa);
 });
 gridWrap.addEventListener('wheel', () => ofrSokStang(), { passive: true });
 /* Granskningen öppnad på en viss post: samma väg som "Fyll i" i
@@ -32622,8 +32689,8 @@ function ofrKam(t, nu) {
   const cx = t.vx != null ? t.vx : t.x + t.w / 2, cy = t.vy != null ? t.vy : t.y + t.h / 2;
   return { x: cx, y: cy, w: t.w, h: t.h, nar: nu };
 }
-/* Fotot följer med kortet som tar över: elementets nyckel, fotot, och när. */
-function ofrFranAv(p, nu) { return { nyckel: 'o:' + p.id, foto: p.foto || null, t: nu }; }
+/* Fotot följer med kortet som tar över: elementets nyckel, fotot, om dess mitt var skarp (MES-351), och när. */
+function ofrFranAv(p, nu) { return { nyckel: 'o:' + p.id, foto: p.foto || null, skarp: !!p.pend, t: nu }; }
 function ofrFotoSatt(spar, b64) {
   if (spar == null || typeof b64 !== 'string' || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b64) || ofrFoto.has(spar)) return false;
   ofrFoto.set(spar, b64);
