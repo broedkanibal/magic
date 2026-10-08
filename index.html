@@ -9220,6 +9220,28 @@ function matVyFor(p) {
   if (!v) { v = { board: null, pan: { x: 0, y: 0 }, zoomManual: null, ramHall: null }; matVyer.set(p.id, v); }
   return v;
 }
+/* Mattans vy minns spelet man lämnar (Jesper 2026-10-08): kommer man tillbaka till ett spel man varit i ska zoom och
+   pan stå som man lämnade dem. Bara ett nytt spel — det första besöket efter att spelet skapats — börjar i
+   utgångsläget (hela kamerabilden när den är känd). Vyn hör till ett spel, inte till en spelare: spelar-id är
+   detsamma i alla spel. Minnet sparas inte till disk; en omladdning börjar om. */
+const matVyPerSpel = new Map();   // spel-id → matVyFor-posten som den stod när man lämnade spelet
+function matVyLamna() {
+  if (!spelLage) return;
+  const v = matVyer.get(spelLage.mig);
+  if (v && v.steg && v.steg.nyckel === spelLage.mig + '|' + spelLage.id) matVyPerSpel.set(spelLage.id, v);
+}
+/* Vyn tillbaka för spelet man går in i, eller ingen (matVyer rensas, nytt spel). Kamerabilden är okänd tills
+   telefonen rapporterat igen, och när skalan blir känd flyttar utgångsläget annars mattan till hela kamerabilden
+   (matStegBeslut). Har spelaren sett kamerabilden eller flyttat mattan själv ska det inte hända: s.kam sätts, och
+   kamerabilden tar bara över på knappen Fit camera view. */
+function matVyAterta(spelId, mig) {
+  const v = matVyPerSpel.get(spelId);
+  if (!v) { matVyer.delete(mig); return false; }
+  const s = v.steg, rort = v.zoomManual != null || (s && s.pan && (Math.abs(v.pan.x - s.pan.x) >= 1 || Math.abs(v.pan.y - s.pan.y) >= 1));
+  if (s && rort) s.kam = true;
+  matVyer.set(mig, v);
+  return true;
+}
 /* Mattans mått. #app är display:none vid boot, i lobbyn och i kor.html —
    då är måtten noll, och brädet räknas på designens viewport i stället så
    att inget blir NaN; riktig säger om något får sparas ur det. */
@@ -35766,17 +35788,16 @@ $('#vyHem').addEventListener('click', async ev => {
    enda man kan ändra i. */
 async function oppnaSpel(gameId, farsk) {
   const { spel, spelare } = await Moln.hamtaSpel(gameId);
+  matVyLamna();   // går man från ett spel direkt in i ett annat sparas det förra här, före spelLage byts
   spelLage = { id: spel.id, kod: spel.kod, namn: spel.namn, vard: spel.vard, mig: Moln.minId() };
   /* Leken hör till ETT spel — game_players har nyckeln (game_id, user_id).
      Utan nollställningen hindrade det gamla värdet hämtningen av det nya
      spelets lek, och knappen visade fel antal. */
   minLek = null;
   if (kamSkala.las) kamSkala.las.clear();   // den låsta skalan hör till förra spelets bord
-  /* Mattans vy börjar om varje gång man går in i ett spel — också i samma spel igen. Förut låg utgångsläget kvar
-     från förra besöket (s.kam: kamerabilden redan sedd), så när telefonen anslöt och skalan blev känd flyttades
-     mattan inte till hela kamerabilden, utan blev stående på förra besökets zoom och pan. Nu är kamerabilden
-     okänd igen tills skalan är mätt, och då sätts utgångsläget som när ett nytt spel börjar (matStegBeslut). */
-  matVyer.delete(spelLage.mig);
+  /* Mattans vy: ett spel man varit i får sin zoom och pan tillbaka, som man lämnade dem (matVyAterta). Ett nytt spel
+     börjar i utgångsläget — hela kamerabilden så snart skalan är mätt (matStegBeslut). */
+  matVyAterta(spelLage.id, spelLage.mig);
   byggSpelare(spelare);
   /* Jag är alltid den aktiva spelaren: motståndarnas bord ritas bredvid
      mitt i bordsvyn (MES-133), inte i stället för det. Det som sparas per
@@ -36004,6 +36025,7 @@ async function lamnaSpelet() {
   stangKamSkruv();                          // panelen hör till spelet; före kanalen, den säger till telefonen
   if (saveT) sparaNu();                     // ut med det som ligger i debouncen
   await Moln.lamnaKanal();
+  matVyLamna();   // zoom och pan står kvar till nästa gång man går in i det här spelet
   spelLage = null;
   kameraEnhet = false;
   kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; kamVand = 0; kamSpegel = false; kamGravRad = null; kamBibRad = null; kamBib = undefined; kamBibStod = null; kamLek = undefined; if (kamSkala.las) kamSkala.las.clear(); lekLokalt = null; stangLekMeny(); oppProvId = null; oppProvLas = null; oppFlytt = false; oppGravFlyttad = null;

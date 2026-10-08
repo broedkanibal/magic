@@ -465,28 +465,55 @@ const PROV = async () => {
     ok('leken läggs ut: hela kamerabilden, och spelarens egna zoom är släppt', manFore && h.ok && !matVy(mig).manuell && Math.abs(parseFloat(gridEl.style.getPropertyValue('--matz')) - avZ()) < 1e-3, h.txt);
     spelLage = sp0; mig.cards = kort0; renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
 
-  /* Tillbaka in i ett spel (Jesper 2026-10-08): knappen "Fit camera view" syns hela tiden på mitt speglade bord, också
-     innan kamerabilden är känd, och när telefonen anslutit och skalan är mätt står mattan precis som efter ett klick på
-     knappen. Före rättelsen låg utgångsläget kvar från förra besöket (kamerabilden redan sedd), så mattan blev stående. */
+  /* Tillbaka in i ett spel (Jesper 2026-10-08): ett spel man varit i får sin zoom och pan tillbaka precis som man
+     lämnade dem — också när telefonen ansluter en stund efter att man kommit in (då flyttade mattan sig förut och
+     försökte passa kamerabilden, inte exakt). Bara det första besöket i ett nytt spel börjar i hela kamerabilden.
+     Knappen "Fit camera view" syns hela tiden på mitt speglade bord, också innan kamerabilden är känd. Provet går
+     genom samma hjälpare som oppnaSpel och lamnaSpelet (matVyLamna, matVyAterta); moln- och kanaldelen utelämnas. */
   { const sp0 = spelLage, kort0 = mig.cards;
-    spelLage = Object.assign({}, spelLage, { id: 'mattprov-tillbaka' }); oppSatt({ klar: true });
     const tb = [zs(31, 'Llanowar Elves', 0.25, 0.4), zs(32, 'Forest', 0.35, 0.4)];
-    mig.cards = []; matVyer.delete(mig.id); kamSkala.las.delete(mig.id);
-    renderAll(true); avstamBord(tb, false); await vanta(700);
-    zoomBy(0.8); await vanta(450); gridEl.classList.remove('glider');   // spelaren lämnade mattan zoomad
-    /* Ut ur spelet och in igen: den låsta skalan och kortens lägen från kameran är borta, vyn börjar om (oppnaSpel). */
-    for (const c of mig.cards) delete c.kam;
-    kamSkala.las.delete(mig.id); matVyer.delete(mig.id); renderAll(true); await vanta(300);
-    ok('tillbaka i spelet: knappen syns innan kamerabilden är känd', !matKamRam(mig) && !!$('#mattaChrome [data-mat="kamvy"]'),
-      `kamerabilden ${matKamRam(mig) ? 'känd' : 'okänd'}, knappen ${$('#mattaChrome [data-mat="kamvy"]') ? 'syns' : 'saknas'}`);
-    /* Telefonen ansluter på ett annat avstånd än förra gången: skalan mäts, kamerabilden blir känd. */
-    const tb2 = tb.map(u => Object.assign({}, u, { w: 0.14, h: 0.35 }));
-    avstamBord(tb2, false); await vanta(700);
-    const hb = helaBilden(), tAuto = gridEl._matT;
-    ok('tillbaka i spelet: när kamerabilden blir känd står mattan i hela kamerabilden, utan egen zoom', !!matKamRam(mig) && hb.ok && !matVy(mig).manuell, hb.txt);
+    const tb2 = tb.map(u => Object.assign({}, u, { w: 0.14, h: 0.35 }));   // telefonen på ett annat avstånd än förra gången
+    const lamna = () => { matVyLamna(); for (const c of mig.cards) delete c.kam; kamSkala.las.delete(mig.id); };
+    const gaIn = async (id, nytt) => { spelLage = Object.assign({}, spelLage, { id }); oppSatt({ klar: true }); const aterv_ = matVyAterta(id, mig.id);
+      if (nytt) mig.cards = []; renderAll(true); await vanta(300); return aterv_; };
+    const knapp = () => !!$('#mattaChrome [data-mat="kamvy"]');
+    const lika = (a, b) => a === b;
+    /* Första besöket i spel A: kamerabilden blir känd, spelaren zoomar och drar mattan. */
+    matVyPerSpel.clear(); matVyer.delete(mig.id); kamSkala.las.delete(mig.id);
+    spelLage = Object.assign({}, spelLage, { id: 'mattprov-tillbaka' }); oppSatt({ klar: true });
+    mig.cards = []; renderAll(true); avstamBord(tb, false); await vanta(700);
+    zoomBy(0.8); await vanta(450); gridEl.classList.remove('glider');
+    { const vy = matVyFor(mig), v = matVy(mig); vy.pan = clampPan({ x: v.pan.x + 37, y: v.pan.y + 23 }, v.z, v.board, v.vp, v.ram); }
+    renderAll(true); await vanta(450); gridEl.classList.remove('glider');
+    const T0 = gridEl._matT, man0 = matVy(mig).manuell;
+    /* Ut ur spelet och in igen. */
+    lamna(); const aterv = await gaIn('mattprov-tillbaka', false);
+    ok('tillbaka i spelet: vyn är återställd, och knappen syns innan kamerabilden är känd', aterv && !matKamRam(mig) && knapp(), `återställd ${aterv}, kamerabilden ${matKamRam(mig) ? 'känd' : 'okänd'}, knappen ${knapp() ? 'syns' : 'saknas'}`);
+    ok('tillbaka i spelet: samma zoom och pan som när man lämnade', man0 && matVy(mig).manuell && lika(gridEl._matT, T0), `${T0} / ${gridEl._matT}`);
+    /* Telefonen ansluter en stund senare, på ett annat avstånd: mattan ligger kvar. */
+    avstamBord(tb2, false); await vanta(900);
+    ok('tillbaka i spelet: när kamerabilden blir känd flyttar sig inte mattan', !!matKamRam(mig) && matVy(mig).manuell && lika(gridEl._matT, T0), `${T0} / ${gridEl._matT}`);
+    /* Ett nytt spel börjar i hela kamerabilden, utan egen zoom. */
+    lamna(); await gaIn('mattprov-tillbaka-nytt', true);
+    ok('nytt spel: knappen syns innan kamerabilden är känd, och ingen vy återställs', !matKamRam(mig) && knapp() && !matVy(mig).manuell, `kamerabilden ${matKamRam(mig) ? 'känd' : 'okänd'}`);
+    avstamBord(tb2, false); await vanta(900);
+    { const hb = helaBilden(); ok('nytt spel: när kamerabilden blir känd står mattan i hela kamerabilden, utan egen zoom', !!matKamRam(mig) && hb.ok && !matVy(mig).manuell, hb.txt); }
+    /* Ett spel där kamerabilden aldrig hann bli känd, men spelaren flyttat mattan: tillbaka dit ska den heller inte
+       hoppa till kamerabilden när telefonen ansluter (s.kam sätts i matVyAterta). */
+    lamna(); await gaIn('mattprov-tillbaka-rort', true);
+    zoomBy(0.8); await vanta(450); gridEl.classList.remove('glider');
+    const T1 = gridEl._matT;
+    lamna(); await gaIn('mattprov-tillbaka-rort', false);
+    avstamBord(tb2, false); await vanta(900);
+    ok('tillbaka i ett spel utan sedd kamerabild men med egen zoom: mattan ligger kvar när kamerabilden blir känd', !!matKamRam(mig) && matVy(mig).manuell && lika(gridEl._matT, T1), `${T1} / ${gridEl._matT}`);
+    /* Tillbaka till spel A efter ett besök i ett annat: A:s vy, inte B:s. */
+    lamna(); await gaIn('mattprov-tillbaka', false);
+    avstamBord(tb, false); await vanta(900);
+    ok('tillbaka i spel A efter ett besök i B: A:s zoom och pan, och de ligger kvar när kamerabilden blir känd', matVy(mig).manuell && lika(gridEl._matT, T0), `${T0} / ${gridEl._matT}`);
+    /* Knappen tar mattan till hela kamerabilden, som förut. */
     fitView(); await vanta(450);
-    ok('tillbaka i spelet: samma vy som efter ett klick på knappen', gridEl._matT === tAuto && !!$('#mattaChrome [data-mat="kamvy"]'), `${tAuto} / ${gridEl._matT}`);
-    spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, skLek); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
+    { const hb = helaBilden(); ok('tillbaka i spelet: Fit camera view ger hela kamerabilden, utan egen zoom', hb.ok && !matVy(mig).manuell && knapp(), hb.txt); }
+    spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, skLek); matVyPerSpel.clear(); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
 
   /* ── Kamerans yta (MES-338, Jespers val B 2026-10-07) ──
      En kontur runt kamerabilden i brädets koordinater, bordet utanför svagt mörkare. Den följer mattans zoom och
