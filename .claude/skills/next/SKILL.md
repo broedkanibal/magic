@@ -1,6 +1,6 @@
 ---
 name: next
-description: Visar vad som är på tur i Todo i Linear, förklarar kort problemet och lösningen i vardagsspråk, föreslår modell och effort och ställer frågor som gör prompten bra — och startar först när Jesper svarat. Kollar blockeringar och krockar med det som redan pågår (sessioner, orkestrerare, golden), bygger i en egen worktree, låter en fristående granskare läsa diffen och lämnar issuen i rätt kolumn. Använd när Jesper säger "next", "/next", "nästa", "ta nästa", "jobba på något", "plocka en issue" eller "vad kan du göra nu". En issue per anrop.
+description: Föreslår vad som är på tur i Todo i Linear och låter Jesper bekräfta vilken issue innan något görs (överhoppade visas med skälet), förklarar kort problemet och lösningen i vardagsspråk, föreslår modell och effort och ställer frågor som gör prompten bra — och startar först när Jesper svarat. Kollar blockeringar och krockar med det som redan pågår (sessioner, orkestrerare, golden), bygger i en egen worktree, låter en fristående granskare läsa diffen och lämnar issuen i rätt kolumn. Använd när Jesper säger "next", "/next", "nästa", "ta nästa", "jobba på något", "plocka en issue" eller "vad kan du göra nu". En issue per anrop.
 ---
 
 # /next — ta nästa issue ur Todo
@@ -22,22 +22,32 @@ och `ListAgents` — andra sessioner på datorn. Subagenter syns inte där, men
 det de jobbar på står i In Progress i Linear (en orkestrerare kör
 `paborjaIssue` för varje issue den delar ut).
 
-## 2. Välj issue
+## 2. Föreslå en issue — välj den inte
 
-Gå nerifrån `KÖN` i ordning. Den första som klarar alla fyra tas:
+Steg 2 **bara läser**. Inga skrivningar i Linear, ingen worktree, ingen agent.
+Säg aldrig "tar mig an", "påbörjar" eller "startar" om en issue innan Jesper
+bekräftat just den i steg 3.
 
-| Kontroll | Hur | Faller den |
+Har Jesper redan namngett en issue ("ta MES-351"): föreslå den, kör samma
+kontroller och säg vad de visar. Annars: gå nerifrån `KÖN` i ordning, kör
+kontrollerna och föreslå den första som klarar alla. Notera varje överhoppad
+med skälet — den visas för Jesper i steg 3, och han kan välja den ändå.
+
+| Kontroll | Hur | Faller den — **föreslå**, gör inte |
 |---|---|---|
-| **Blockerad?** | flaggan i nasta.cjs, plus beskrivning och kommentarer ("kräver att X finns") | `agent.blockeraIssue(id, orsak, { blockeradAv })` → nästa |
-| **Krockar?** | flaggan "samma område" betyder *läs båda*. Krock = samma funktioner i `index.html`, samma del av kedjan, eller något tabellen "Kodområde / Kan gå parallellt med" i `dev/plan/orkestrering.md` säger inte får köras samtidigt. Jämför också med sessionerna i `ListAgents` | lämna den i Todo → nästa, och säg vilken den krockade med |
-| **Behöver Jesper?** | läs beskrivningen: ett beslut, ett konto, en inspelning, ett prov som måste göras *innan* bygget | `agent.markeraBehoverJesper(id, vad)` → nästa |
-| **Fortfarande Todo?** | kontrolleras igen i steg 4, precis före start — en orkestrerare eller en annan `/next` kan ha tagit den medan Jesper svarade | nästa, och säg det |
+| **Blockerad?** | flaggan i nasta.cjs, plus beskrivning och kommentarer ("kräver att X finns") | "flytta till Blocked" (`agent.blockeraIssue`) — görs först när Jesper sagt ja |
+| **Krockar?** | flaggan "samma område" betyder *läs båda*. Krock = samma funktioner i `index.html`, samma del av kedjan, eller något tabellen "Kodområde / Kan gå parallellt med" i `dev/plan/orkestrering.md` säger inte får köras samtidigt. Jämför också med sessionerna i `ListAgents` och med worktrees som har ocommittade ändringar (`git worktree list`, `git -C <wt> status`) | säg vad den krockar med: vilken issue, session eller worktree, och om worktreen ser levande ut (senaste ändring, commits) |
+| **Behöver Jesper?** | läs beskrivningen: ett beslut, ett konto, en inspelning, ett prov som måste göras *innan* bygget | "flytta till Behöver dig" (`agent.markeraBehoverJesper`) — görs först när Jesper sagt ja |
+| **Fortfarande Todo?** | kontrolleras igen i steg 4, precis före start — en orkestrerare eller en annan `/next` kan ha tagit den medan Jesper svarade | säg det och fråga igen |
 
 Efter fem överhoppade: stanna och säg vad som stoppar kön.
 
-## 3. Visa Jesper vad som är på tur — och fråga innan något startar
+## 3. Bekräfta issuen med Jesper — sedan frågorna
 
-Ingenting startar förrän Jesper svarat. Läs issuen (beskrivning och
+Ingenting startar förrän Jesper bekräftat **vilken issue** och svarat på
+frågorna. Det är två frågerundor, i den ordningen.
+
+**Runda 1 — vilken issue.** Läs den föreslagna issuen (beskrivning och
 kommentarer) och skriv, kort:
 
 **På tur: MES-NN — titel** (länk)
@@ -49,7 +59,22 @@ saknas, sett från spelaren. Ingen jargong, inga funktionsnamn.
 **Lösningen:** en eller två meningar — vad som ska byggas eller mätas, och
 hur det löser problemet.
 
-Ställ sedan frågorna med `AskUserQuestion`, i ett anrop:
+Fråga sedan med `AskUserQuestion` **vilken issue** som ska tas:
+
+- förslaget först, märkt (Recommended)
+- nästa ett–två i kön
+- varje överhoppad issue som ett eget alternativ, med skälet i beskrivningen
+  ("krockar med worktreen namnge-pa-mattan, ocommittade ändringar för 30 min
+  sedan") — Jesper kan veta att krocken är gammal, eller vilja ta den ändå
+
+Föreslagna flyttar (Blocked, Behöver dig) frågas i samma anrop, som en egen
+fråga med flerval. Ingenting görs med dem förrän han svarat.
+
+Väljer Jesper en annan issue än förslaget: läs den och skriv Problemet och
+Lösningen för den, kort, innan runda 2.
+
+**Runda 2 — hur den görs.** Ett nytt `AskUserQuestion`-anrop, för den
+bekräftade issuen:
 
 1. **Modell och effort** — förslaget först, märkt (Recommended), med en
    mening om varför. Utgå från tabellen nedan.
@@ -126,7 +151,8 @@ In Progress får aldrig bli kvar efter att sessionen slutat (CLAUDE.md).
 
 ## Gör inte
 
-- Starta något innan Jesper svarat på frågorna i steg 3.
+- Starta något — eller skriva i Linear — innan Jesper bekräftat issuen och svarat på frågorna i steg 3.
+- Välja en issue åt Jesper, eller hoppa tyst över en: överhoppade visas med skälet, och han kan välja dem.
 - Ta mer än en issue per `/next`.
 - Plocka ur något annat än Todo, eller flytta något ur Triage eller Backlog.
 - Flytta en issue som en annan session har i In Progress.
