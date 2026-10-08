@@ -2464,16 +2464,30 @@ body:not(.ispel) .spelknapp{display:none}
 .kamskruv-hd .meta{margin-left:auto;font:10px var(--mono);color:var(--dim2)}
 /* Byggarytan (MES-97): utvecklarverktygen syns bara med ?debug. */
 body:not(.debug) .dbg{display:none!important}
-/* Igenkänningskedjan vid varje kort (bara ?debug, ritaKedja): delen som arbetar nu (gul, pulsar) och delarna
-   som körts (☑). I brädet ovanför kortets överkant, i skärmens storlek oavsett mattans zoom (--matz, som
-   .ofrmark), och aldrig i vägen för pekaren. */
+/* Igenkänningskedjan vid varje kort (bara ?debug, ritaKedja): en rad ovanför kortet — delen som arbetar nu
+   (gul, pulsar) eller domen med hela tiden och om Claude var med — och hela tidslinjen bredvid kortet under
+   pekaren. I brädet, i skärmens storlek oavsett mattans zoom (--matz, som .ofrmark), aldrig i vägen för pekaren. */
 .kedjalag{position:absolute;left:0;top:0;width:0;height:0;z-index:960;pointer-events:none}
 .kedjaet{position:absolute;transform:translate(-50%,-100%) scale(calc(1 / var(--matz, 1))) translateY(var(--kdy, -4px));transform-origin:50% 100%;
-  display:flex;flex-wrap:wrap;gap:0 6px;width:max-content;max-width:150px;padding:2px 5px;border-radius:6px;background:#0d1117eb;border:1px solid #ffffff26;
-  font:600 10px/1.35 var(--mono);color:var(--dim2);white-space:nowrap}
-.kedjaet .nu{flex-basis:100%;color:#e8b33a}
-.kedjaet .nu::before{content:'';display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:#e8b33a;vertical-align:1px;animation:kampuls 1s ease-in-out infinite}
-.kedjaet .klar{color:#5fbf7f}
+  width:max-content;max-width:260px;padding:3px 8px;border-radius:7px;background:#0d1117f0;border:1px solid #ffffff2e;
+  font:600 12px/1.4 var(--mono);color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 4px 12px -4px #000c}
+.kedjaet .nu,.kedjatl .nu{color:#e8b33a}
+.kedjaet .nu::before,.kedjatl .nu .st::before{content:'';display:inline-block;width:7px;height:7px;margin-right:6px;border-radius:50%;background:#e8b33a;vertical-align:1px;animation:kampuls 1s ease-in-out infinite}
+.kedjaet .ok,.kedjatl .ok{color:#5fbf7f}
+.kedjaet .nej,.kedjatl .nej{color:#e2606a}
+.kedjaet .ai,.kedjatl .ai{color:#c4a8ff}
+.kedjaet .lok,.kedjatl .lok{color:var(--dim2)}
+.kedjatl{position:absolute;transform:scale(calc(1 / var(--matz, 1)));transform-origin:0 0;z-index:2;padding:8px 10px 9px;border-radius:9px;
+  background:#0d1117f7;border:1px solid #ffffff38;box-shadow:0 12px 30px -8px #000e;font:500 12.5px/1.5 var(--mono);color:var(--txt);white-space:nowrap}
+.kedjatl.vanster{transform-origin:100% 0;transform:translateX(-100%) scale(calc(1 / var(--matz, 1)))}
+.kedjatl.upp{transform-origin:0 100%;transform:translateY(-100%) scale(calc(1 / var(--matz, 1)))}
+.kedjatl.vanster.upp{transform-origin:100% 100%;transform:translate(-100%,-100%) scale(calc(1 / var(--matz, 1)))}
+.kedjatl table{border-collapse:collapse}
+.kedjatl th{font:600 10.5px var(--sans);color:var(--dim2);text-align:left;padding:0 10px 3px 0;text-transform:uppercase;letter-spacing:.04em}
+.kedjatl td{padding:1px 12px 1px 0}
+.kedjatl td.n{color:var(--dim2)}
+.kedjatl td.t{text-align:right}
+.kedjatl .dom{margin-top:6px;padding-top:6px;border-top:1px solid #ffffff1f;font-weight:600}
 .kamskruv .kalbild{margin:0 4px 8px;height:104px;min-height:0;border-radius:var(--rs);border:1px solid var(--line)}
 /* Stor: bilden får popoverns hela bredd i 16:10 och upp till 290 px. Det är
    den som svarar på om kameran ser korten — 104 px gjorde det inte. */
@@ -8295,48 +8309,94 @@ function ofrMarkLagg() {
   }
 }
 /* ── Igenkänningskedjan vid varje kort (bara ?debug) ──────────────────
-   Telefonen skickar per spår vilka delar av läsningen som arbetar just nu och vilka som körts ('kedja',
-   Kamera.kedjaAv). Datorn sätter en etikett ovanför kortet på min matta — kortet med namn eller det
-   oframkallade — och skriver samma sak vid rutorna i kameravyn (ritaPbLager). Rör inget annat. */
-/* [del, namnet medan den arbetar, kort namn i bockarna] */
-const KEDJA_DELAR = [['det', 'Detector', 'Det'], ['modell', 'Image model', 'Model'], ['orb', 'ORB', 'ORB'], ['titel', 'Title box', 'Title'],
-                     ['remsa', 'Name strip', 'Strip'], ['claude', 'Claude · card', 'Claude'], ['helbild', 'Claude · whole table', 'Whole']];
-let kamKedja = new Map();   // spårets id → { nu: [del], klar: [del] }
+   Telefonen skickar per spår en logg över läsningens delar i den ordning de kördes, med start och tid
+   ('kedja', Kamera.kedjaAv), och domen. Datorn sätter en rad ovanför kortet på min matta — kortet med
+   namn eller det oframkallade: delen som arbetar nu, eller domen med hela tiden och om Claude var med —
+   och visar hela tidslinjen bredvid kortet under pekaren. Kameravyn får samma rad (ritaPbLager). */
+/* [del, namn, Claude] */
+const KEDJA_DELAR = { det: ['Detector', false], modell: ['Image model', false], orb: ['ORB', false], titel: ['Title box', false],
+                      remsa: ['Name strip', false], claude: ['Claude · card', true], helbild: ['Claude · whole table', true] };
+let kamKedja = new Map();   // spårets id → { l: [[del, start, ms, slut]], namn, saker, tillstand, varfor }
+let kedjaPekad = null;      // kortet under pekaren: 'c:<cid>' eller 'o:<ofr-id>'
 function tagEmotKedja(m) {
   if (!DEBUG) return;
   kamKedja = new Map((Array.isArray(m.spar) ? m.spar : []).map(k => [k.id, k]));
   ritaKedja(); ritaPbLager();
 }
-/* Delarnas namn i kedjans ordning: { nu (långa namn), klar (korta) } — en del som arbetar igen (en omläsning) står bara som nu. */
-function kedjaText(k) {
-  const nu = new Set(k.nu || []), klar = new Set(k.klar || []);
-  return { nu: KEDJA_DELAR.filter(([d]) => nu.has(d)).map(([, n]) => n), klar: KEDJA_DELAR.filter(([d]) => klar.has(d) && !nu.has(d)).map(([, , n]) => n) };
+const kedjaMs = ms => ms == null ? '…' : ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(1) + ' s';
+/* En del som arbetar: hur länge den hållit på när telefonen skickade (k.t), med … efter. */
+const kedjaPagar = (k, r) => k.t != null ? kedjaMs(Math.max(0, k.t - r.a)) + '…' : '…';
+/* Raderna i startordning, och det de säger tillsammans: vad som arbetar nu, hela tiden (från första
+   delens start till sista delens slut) och om Claude var med. */
+function kedjaLas(k) {
+  /* Detektorns rad är alltid klar — kortet finns för att detektorn såg det; utan tid (dagens detektor) står den som —. */
+  const rader = (Array.isArray(k.l) ? k.l : []).map(([s, a, ms, slut], i) => ({ s, a: a || 0, ms: s === 'det' && ms == null ? 0 : ms, utanTid: s === 'det' && ms == null, slut, i, namn: (KEDJA_DELAR[s] || [s])[0], ai: !!(KEDJA_DELAR[s] || [])[1] }))
+    .sort((p, q) => (p.a - q.a) || (p.i - q.i));
+  const nu = rader.filter(r => r.ms == null);
+  /* En del som arbetar räknas fram till när telefonen skickade (k.t). */
+  const tid = rader.length ? Math.max(...rader.map(r => r.a + (r.ms != null ? r.ms : Math.max(0, (k.t || 0) - r.a)))) - Math.min(...rader.map(r => r.a)) : 0;
+  return { rader, nu, tid, ai: rader.some(r => r.ai) };
+}
+/* Domen i ord: namnet och om det är säkert, eller varför det inte blev något. */
+function kedjaDom(k) {
+  if (k.tillstand === 'klar' && k.saker && k.namn) return { kl: 'ok', txt: '✓ ' + k.namn };
+  if (k.tillstand === 'skrap') return { kl: 'nej', txt: k.varfor === 'baksida' || k.varfor === 'baksida ficka' ? '✗ card back' : '✗ not a card' };
+  if (k.tillstand === 'okand') return { kl: 'nej', txt: '? not sure' + (k.namn ? ' (' + k.namn + ')' : '') };
+  return null;
+}
+function kedjaRad(k) {
+  const L = kedjaLas(k), d = kedjaDom(k), med = L.ai ? '<span class="ai">Claude</span>' : '<span class="lok">local</span>';
+  if (L.nu.length) return `<span class="nu">${esc(L.nu.map(r => r.namn + ' ' + kedjaPagar(k, r)).join(' + '))}</span>`;
+  if (!d && !L.rader.length) return '';
+  return `${d ? `<span class="${d.kl}">${esc(d.txt)}</span> <span class="lok">·</span> ` : ''}${esc(kedjaMs(L.tid))} <span class="lok">·</span> ${med}`;
+}
+function kedjaTidslinje(k) {
+  const L = kedjaLas(k), d = L.nu.length ? null : kedjaDom(k), t0 = L.rader.length ? L.rader[0].a : 0;   // medan något arbetar är domen inte färdig
+  const rad = (r, n) => `<tr class="${r.ms == null ? 'nu' : ''}"><td class="n">${n}</td><td class="st">${esc(r.namn)}</td><td class="t">+${((r.a - t0) / 1000).toFixed(2)} s</td>`
+    + `<td class="t">${r.slut === 'timeout' ? '<span class="nej">timeout</span>' : esc(r.utanTid ? '—' : r.ms == null ? kedjaPagar(k, r) : kedjaMs(r.ms))}</td><td class="${r.ai ? 'ai' : 'lok'}">${r.ai ? 'Claude' : 'local'}</td></tr>`;
+  return `<table><tr><th></th><th>Step</th><th>Start</th><th>Time</th><th></th></tr>${L.rader.map((r, i) => rad(r, i + 1)).join('')}</table>`
+    + `<div class="dom">${d ? `<span class="${d.kl}">${esc(d.txt)}</span>` : '<span class="nu">reading…</span>'}${k.varfor ? ` <span class="lok">· ${esc(k.varfor)}</span>` : ''}`
+    + ` <span class="lok">·</span> ${esc(kedjaMs(L.tid))} <span class="lok">·</span> ${L.ai ? '<span class="ai">with Claude</span>' : '<span class="lok">without Claude</span>'}</div>`;
 }
 function ritaKedja() {
   if (!DEBUG) return;
+  if (!gridEl._kedjaPek) {
+    gridEl._kedjaPek = true;
+    const pek = ev => { const el = ev.target.closest && ev.target.closest('.card[data-cid], .ofr[data-ofr]'), n = el ? (el.dataset.ofr != null ? 'o:' + el.dataset.ofr : 'c:' + el.dataset.cid) : null; if (n !== kedjaPekad) { kedjaPekad = n; ritaKedja(); } };
+    gridEl.addEventListener('pointerover', pek);
+    gridEl.addEventListener('pointerleave', () => { if (kedjaPekad) { kedjaPekad = null; ritaKedja(); } });
+  }
   let lag = gridEl.querySelector(':scope > .kedjalag');
   const mig = minSpelare();
   if (!kamKedja.size || !spelLage || !mig || player() !== mig || !kamAnsluten) { if (lag) lag.remove(); return; }
   if (!lag) lag = gridEl.appendChild(Object.assign(document.createElement('div'), { className: 'kedjalag' }));
   const kort = new Map(mig.cards.filter(c => c.spar != null).map(c => [c.cid, c.spar]));
   const ofr = new Map(ofrNu().map(q => [String(q.id), q.spar]));
-  let h = '';
+  const z = gridEl._matzMal || 1;
+  let h = '', tl = '';
   for (const el of gridEl.querySelectorAll(':scope > .card[data-cid], :scope > .ofr[data-ofr]')) {
     const id = el.dataset.ofr != null ? ofr.get(el.dataset.ofr) : kort.get(el.dataset.cid);
     const k = id != null ? kamKedja.get(id) : null; if (!k) continue;
-    const d = kedjaText(k); if (!d.nu.length && !d.klar.length) continue;
-    /* Överkanten mitt på, som kortet syns: ett tappat kort är vridet kring sin mitt. */
+    const inn = kedjaRad(k); if (!inn) continue;
+    /* Kortet som det syns: ett tappat kort är vridet kring sin mitt. */
     const w = el.offsetWidth, hh = el.offsetHeight, ligg = el.classList.contains('tappad');
-    const x = (parseFloat(el.style.left) || 0) + w / 2, y = (parseFloat(el.style.top) || 0) + hh / 2 - (ligg ? w : hh) / 2;
-    h += `<div class="kedjaet" style="left:${Math.round(x)}px;top:${Math.round(y)}px">`
-      + (d.nu.length ? `<span class="nu">${esc(d.nu.join(' · '))}</span>` : '')
-      + d.klar.map(n => `<span class="klar">☑${esc(n)}</span>`).join('') + '</div>';
+    const cx = (parseFloat(el.style.left) || 0) + w / 2, cy = (parseFloat(el.style.top) || 0) + hh / 2;
+    const vw = ligg ? hh : w, vh = ligg ? w : hh;
+    h += `<div class="kedjaet" style="left:${Math.round(cx)}px;top:${Math.round(cy - vh / 2)}px">${inn}</div>`;
+    const n = el.dataset.ofr != null ? 'o:' + el.dataset.ofr : 'c:' + el.dataset.cid;
+    if (n === kedjaPekad) {
+      /* Bredvid kortet åt det håll där mattan har plats: höger eller vänster, och nedåt eller uppåt (kortets nederkant). */
+      const R = el.getBoundingClientRect(), W = gridWrap.getBoundingClientRect();
+      const vanster = R.right + 380 > W.right && R.left - 380 > W.left - 200, upp = R.top + 220 > W.bottom;
+      tl = `<div class="kedjatl${vanster ? ' vanster' : ''}${upp ? ' upp' : ''}" style="left:${Math.round(vanster ? cx - vw / 2 - 8 / z : cx + vw / 2 + 8 / z)}px;top:${Math.round(upp ? cy + vh / 2 : cy - vh / 2)}px">${kedjaTidslinje(k)}</div>`;
+    }
   }
+  h += tl;
   if (lag._h !== h) { lag._h = h; lag.innerHTML = h; }
-  /* Etiketter på kort som ligger tätt täcker varandra: den som krockar flyttas uppåt (--kdy, skärm-px), som
-     ofrMarkLagg gör med "Name this card". Rutorna i brädets px; etiketten är i skärmens storlek (1/--matz). */
-  const z = gridEl._matzMal || 1, lagda = [];
-  const etiketter = [...lag.children].map(e => ({ e, x: parseFloat(e.style.left), y: parseFloat(e.style.top), w: e.offsetWidth / z, h: e.offsetHeight / z }))
+  /* Rader på kort som ligger tätt täcker varandra: den som krockar flyttas uppåt (--kdy, skärm-px), som
+     ofrMarkLagg gör med "Name this card". Rutorna i brädets px; raden är i skärmens storlek (1/--matz). */
+  const lagda = [];
+  const etiketter = [...lag.querySelectorAll(':scope > .kedjaet')].map(e => ({ e, x: parseFloat(e.style.left), y: parseFloat(e.style.top), w: e.offsetWidth / z, h: e.offsetHeight / z }))
     .sort((p, q) => (q.y - p.y) || (p.x - q.x));
   for (const m of etiketter) {
     const rekt = k => ({ x0: m.x - m.w / 2, x1: m.x + m.w / 2, y1: m.y - (4 + k * (m.h * z + 2)) / z, y0: m.y - (4 + k * (m.h * z + 2)) / z - m.h });
@@ -24568,33 +24628,48 @@ const Kamera = (() => {
              remsa: svar && svar.remsa ? { namn: svar.remsa.namn, saker: !!svar.remsa.saker, marginal: svar.remsa.marginal, varfor: svar.remsa.varfor, minne: svar.remsa.minne || null } : null });
     if (l.length > 6) l.shift();
   };
-  /* Igenkänningskedjan per spår (bara ?debug, satKedja): vilken del som
-     arbetar just nu och vilka som körts — etiketten vid varje kort på
-     datorn. det: detektorn gav spåret en region; modell: bildmodellen;
-     orb: ORB (på modellens tre, eller Matcher + ORB); titel: titelraden
+  /* Igenkänningskedjan per spår (bara ?debug, satKedja): en logg över
+     läsningens delar i den ordning de kördes — när varje del började (ms
+     sedan spåret först loggades) och hur lång tid den tog — för etiketten
+     vid varje kort på datorn. det: detektorn gav spåret en region (tiden är
+     detektorns för hela bilden just då); modell: bildmodellen; orb: ORB
+     (på modellens tre, eller Matcher + ORB); titel: titelraden
      (textläsaren); remsa: namnremsan; claude: Claude på kortets
-     beskärning; helbild: Claude på hela bilden. Går som ett eget
-     meddelande (cb.kedja), högst ett per KEDJA_MS: bordet, dess signatur
-     och domen rörs inte. */
+     beskärning; helbild: Claude på hela bilden. En del som körs igen (en
+     omläsning) blir en ny rad. Går som ett eget meddelande (cb.kedja),
+     högst ett per KEDJA_MS: bordet, dess signatur och domen rörs inte. */
   let kedjaPa = false, kedjaTimer = null, kedjaSist = 0;
-  const KEDJA_MS = 250;
-  const kedjaAv = t => {
-    const nu = Object.keys(t.kedjaNu || {}), klar = Object.keys(t.kedjaKlar || {});
-    if (t.regionNar != null && !klar.includes('det')) klar.push('det');
-    if (arHelbild(t) && !klar.includes('helbild')) klar.push('helbild');
-    if (t.provas) nu.push('claude');
-    if (helbildPagar && t.tillstand !== 'skrap') nu.push('helbild');
-    return { id: t.id, nu, klar };
+  const KEDJA_MS = 250, KEDJA_MAX = 16;
+  const kedjaLogg = t => {
+    if (!t.kedjaL) { t.kedjaL = []; t.kedjaT0 = Date.now(); }
+    if (t.regionNar != null && !t.kedjaL.some(e => e.s === 'det')) t.kedjaL.unshift({ s: 'det', a: 0, ms: dia.detMs != null ? Math.round(dia.detMs) : null });
+    if (arHelbild(t) && !t.kedjaL.some(e => e.s === 'helbild')) t.kedjaL.push({ s: 'helbild', a: 0, ms: t.ai && t.ai.ms != null ? t.ai.ms : null });
+    return t.kedjaL;
   };
+  /* Per spår: loggen som [del, start, ms (null = arbetar), slut ('timeout')], t (ms sedan loggens början, nu —
+     så att en del som arbetar kan visa hur länge den hållit på) och domen — namnet, om det är säkert,
+     tillståndet och domskälet (varfor) — så att etiketten kan säga vad som till sist avgjorde. */
+  const kedjaAv = t => ({ id: t.id, l: kedjaLogg(t).map(e => [e.s, e.a, e.ms, e.slut || null]), t: Date.now() - t.kedjaT0, namn: t.namn || null, saker: !!t.saker,
+                          tillstand: t.tillstand, varfor: t.varfor || null });
   function kedjaSkicka() {
     if (!kedjaPa || !cb.kedja || kedjaTimer) return;
     kedjaTimer = setTimeout(() => { kedjaTimer = null; kedjaSist = Date.now(); if (kedjaPa && cb.kedja) cb.kedja(spar.map(kedjaAv)); }, Math.max(0, kedjaSist + KEDJA_MS - Date.now()));
   }
-  const kedjaBorja = (t, s) => { if (!kedjaPa || !t) return; const n = t.kedjaNu || (t.kedjaNu = {}); n[s] = (n[s] || 0) + 1; kedjaSkicka(); };
-  const kedjaKlar = (t, s) => {
+  const kedjaBorja = (t, s) => {
     if (!kedjaPa || !t) return;
-    const n = t.kedjaNu; if (n && n[s] && --n[s] <= 0) delete n[s];
-    (t.kedjaKlar || (t.kedjaKlar = {}))[s] = true; kedjaSkicka();
+    const L = kedjaLogg(t), nu = Date.now();
+    L.push({ s, a: nu - t.kedjaT0, ms: null, b: nu });
+    if (L.length > KEDJA_MAX) L.splice(L[0].s === 'det' ? 1 : 0, 1);   // de äldsta raderna går, detektorns står kvar först
+    kedjaSkicka();
+  };
+  /* Den senaste öppna raden för delen stängs; slut säger hur den slutade när det inte var ett svar ('timeout'). */
+  const kedjaKlar = (t, s, slut) => {
+    if (!kedjaPa || !t || !t.kedjaL) return;
+    for (let i = t.kedjaL.length - 1; i >= 0; i--) {
+      const e = t.kedjaL[i];
+      if (e.s === s && e.ms == null) { e.ms = Date.now() - e.b; if (slut) e.slut = slut; break; }
+    }
+    kedjaSkicka();
   };
   /* Stegtiden som histogram (4 ms per fack, sista facket 400 ms och över),
      räknat sedan latens slogs på: datorn tar skillnaden mellan passets
@@ -28253,7 +28328,7 @@ const Kamera = (() => {
 
     /* Ett svar som aldrig kommer får inte hålla kortet borta från
        granskningen: efter PROVA_MS gäller den lokala domen. */
-    for (const t of spar) if (t.provas && nu - (t.aiFragadNar || 0) > PROVA_MS) t.provas = false;
+    for (const t of spar) if (t.provas && nu - (t.aiFragadNar || 0) > PROVA_MS) { t.provas = false; kedjaKlar(t, 'claude', 'timeout'); }
     /* Stilla länge nog och ännu utan namn → identifiera, ett i taget. */
     let startad = false;   // högst en ny läsning per steg
     for (const t of spar) {
@@ -29417,6 +29492,7 @@ const Kamera = (() => {
       t.aiFragad = true; t.aiFragadNar = nu || 0;
       if (latens) (t.ts || (t.ts = {})).fraga = Date.now();   // frågan till Claude gick (MES-242)
       try { t.provas = cb.fragaAI(c, t.id) === true; } catch (e) { t.provas = false; }
+      if (t.provas) kedjaBorja(t, 'claude');
     }
     rapportera();
   }
@@ -29786,12 +29862,13 @@ const Kamera = (() => {
     const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
     x.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
     const gen = helbildGen, t0 = performance.now();
-    helbildPagar = true; helbildSedan = 0; helbildSist = t0; kedjaSkicka();
+    helbildPagar = true; helbildSedan = 0; helbildSist = t0;
+    for (const t of spar) if (t.tillstand !== 'skrap') kedjaBorja(t, 'helbild');
     helbildBild = senasteG ? Float32Array.from(senasteG) : null;
     helbildSig = egenSignatur();
     let res = null;
     try { res = await cb.helbild(c, { skal }); } catch (e) { res = null; }
-    finally { helbildPagar = false; kedjaSkicka(); }
+    finally { helbildPagar = false; for (const t of spar) kedjaKlar(t, 'helbild'); }
     if (!res || !Array.isArray(res.svar) || gen !== helbildGen) return false;
     const info = Object.assign({ helbild: true, skal, ms: Math.round(performance.now() - t0) }, res.info || {}, { kort: res.svar.length });
     tillampaHelbild(res.svar, info, performance.now());
@@ -29886,7 +29963,7 @@ const Kamera = (() => {
         || inne[0]
         || spar.find(t => !arHelbild(t) && !bort.has(t) && t.tillstand !== 'skrap' && t.namn === k.namn && nara(p, t.box));
       if (eget && eget.tillstand !== 'skrap') {
-        tagna.add(eget); kedjaKlar(eget, 'helbild');
+        tagna.add(eget);
         if (!(eget.tillstand === 'klar' && eget.saker)) {
           const saker = farSakert(k, eget);
           eget.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((eget.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
@@ -34666,14 +34743,16 @@ function ritaPbLager() {
     x.setLineDash(t.skymd ? [5, 4] : []);
     x.strokeRect(-w / 2, -h / 2, w, h);
     x.restore();
-    /* Igenkänningskedjan (?debug, kedjaText): delen som arbetar nu och delarna som körts, i rutans övre vänstra hörn. */
-    const k = DEBUG && kamKedja.get(t.id), d = k ? kedjaText(k) : null;
-    if (d && (d.nu.length || d.klar.length)) {
+    /* Igenkänningskedjan (?debug): samma rad som på mattan — delen som arbetar nu, eller domen med tiden och om Claude var med. */
+    const k = DEBUG && kamKedja.get(t.id);
+    if (k && kedjaRad(k)) {
+      const L = kedjaLas(k), d = kedjaDom(k), med = L.ai ? 'Claude' : 'local';
+      const [f, txt] = L.nu.length ? ['#e8b33a', '● ' + L.nu.map(r => r.namn + ' ' + kedjaPagar(k, r)).join(' + ')]
+        : [d && d.kl === 'ok' ? '#5fbf7f' : d ? '#e2606a' : '#e6e9ef', (d ? d.txt + ' · ' : '') + kedjaMs(L.tid) + ' · ' + med];
       const c = Math.abs(Math.cos(vinkel)), sn = Math.abs(Math.sin(vinkel));
-      const rader = (d.nu.length ? [['#e8b33a', '● ' + d.nu.join(' · ')]] : []).concat(d.klar.length ? [['#5fbf7f', d.klar.map(n => '☑' + n).join(' ')]] : []);
-      const bx = p.x - (w * c + h * sn) / 2 + 3, by = p.y - (w * sn + h * c) / 2 + 3, bw = Math.max(...rader.map(r => x.measureText(r[1]).width)) + 8;
-      x.fillStyle = '#0d1117d9'; x.fillRect(bx, by, bw, rader.length * 13 + 4);
-      rader.forEach(([f, txt], i) => { x.fillStyle = f; x.fillText(txt, bx + 4, by + 15 + i * 13); });
+      const bx = p.x - (w * c + h * sn) / 2, by = p.y - (w * sn + h * c) / 2 - 17, bw = x.measureText(txt).width + 8;
+      x.fillStyle = '#0d1117e6'; x.fillRect(bx, by, bw, 16);
+      x.fillStyle = f; x.fillText(txt, bx + 4, by + 14);
     }
   }
 }
