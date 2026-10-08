@@ -417,6 +417,23 @@ const PROV = async steg => {
     const p2 = gridEl.querySelectorAll('.plats, .ofr').length;
     ok('… och det oframkallade när dess nåd (OFR_NAD, ett spår som föds om på platsen) gått', p2 === 0, `oframkallade ${p2}`);
   }
+  if (steg === 11) {
+    /* Rester från uppstartens steg 4 (Jesper 2026-10-08, kamerabilden med en bred graveyard-ruta över library-högen): steget
+       finns bara kvar i Use camera to add cards, så i Mirror my table rensas rutorna som ett äldre spel bär på raden —
+       lokalt och på raden — men aldrig en ruta som Yes sparat (ingen library-ruta bredvid) och aldrig i Use camera. */
+    kamAnsluten = true; prefs.autoLage = true; kamGrund = 90; kamFas = ''; oppSatt({ klar: true }); mig().lage = 'bord';
+    mig().cards = []; mig().pending = []; nollGrav();
+    const GR = { x: 0.03, y: 0.6, w: 0.3, h: 0.12 }, BR = { x: 0.4, y: 0.6, w: 0.1, h: 0.2 };
+    W.__kal.length = 0;
+    kamGravRad = GR; kamBibRad = BR; rensaOppstartsRutor(); await vanta(40);
+    ok('Mirror my table, rutorna från steg 4 på raden: båda borta lokalt', !kamGravRad && !kamBibRad, JSON.stringify([kamGravRad, kamBibRad]));
+    ok('… och raden skrevs om utan dem (telefonen slutar filtrera där)', W.__kal.length === 1 && !W.__kal[0].grav && !W.__kal[0].bib, JSON.stringify(W.__kal));
+    kamGravRad = GR; kamBibRad = null; W.__kal.length = 0; rensaOppstartsRutor(); await vanta(40);
+    ok('en graveyard-ruta från Yes (ingen library-ruta) rörs inte', !!kamGravRad && W.__kal.length === 0);
+    mig().lage = 'skarm'; kamBibRad = BR; rensaOppstartsRutor(); await vanta(40);
+    ok('Use camera to add cards behåller rutorna', !!kamGravRad && !!kamBibRad && W.__kal.length === 0);
+    mig().lage = 'bord'; kamGravRad = null; kamBibRad = null; nollGrav(); renderAll(true);
+  }
   if (steg === 7) {
     /* Kameran tappad i Mirror my table (Jesper i produktionen 2026-10-05: graveyard och "Pick up 40" i hörnet):
        bordet står fruset, och inga fasta högar kommer fram — inte före första rapporten heller (kamLek undefined). */
@@ -493,7 +510,7 @@ const PROV = async steg => {
     }
     await vanta(300);
     if (BILD) fs.mkdirSync(BILD, { recursive: true });
-    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes-4-i-spel', '6-nej-permanent', '6-ignore', '8-zoom-nedvant', 'motstandaren', 'utan-kamera', 'uppstarten', 'v3-v4', 'nedvant-lika-fort'];
+    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes-4-i-spel', '6-nej-permanent', '6-ignore', '8-zoom-nedvant', 'motstandaren', 'utan-kamera', 'uppstarten', 'v3-v4', 'nedvant-lika-fort', 'rester-steg-4'];
     for (let s = 0; s < NAMN.length; s++) {
       const r = await c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')(' + s + ')', awaitPromise: true, returnByValue: true });
       if (r.exceptionDetails) throw new Error(`steg ${s}: ` + ((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text));

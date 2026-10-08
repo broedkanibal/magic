@@ -3949,8 +3949,6 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <div class="kamtool"><span class="t">Mat turned or flipped?</span>
             <button type="button" class="btn sm" data-mode="vand" title="Rotate the camera picture a quarter turn">↻ Rotate</button>
             <button type="button" class="btn sm" data-mode="spegel" id="kamSpegelKnapp" title="Mirror the camera picture left–right">⇋ Mirror</button></div>
-          <div class="kamtool"><span class="t">Graveyard in the picture?</span>
-            <button class="btn sm" id="pbGrav" title="Drag a box over your graveyard pile in the picture — the camera then ignores the cards lying there">Mark it</button></div>
           <div class="kamtool" id="kamGrund" title="The angle of the card in the picture decides whether it is tapped: more than 45° from the untapped angle counts as tapped. Until an angle is saved the cards are played untapped. The angle applies to this game">
             <span class="t" id="kamGrundTxt">Untapped angle: from your library or first card</span>
             <button class="btn sm" id="kamGrundSpara" title="Takes the angle from the latest card the camera put on the table and saves it as untapped">Save</button></div>
@@ -12220,6 +12218,7 @@ const LAGE_GRUPP = { kamera: 'Hybrid modes', utan: 'Digital mode' };
 let kamQrTvinga = false;   // Reconnect / Show the QR code: koden fram fast telefonen varit med
 function renderKamPop() {
   const ov = $('#kamOv'); if (!ov || !spelLage) return;
+  rensaOppstartsRutor();
   const m = kamPillModell(), bord = m.lage === 'bord', fel = m.fel || '';
   const rubTxt = fel === 'tappad' ? 'Your phone stopped sending' : fel === 'gammal' ? 'Reload Mesa on your phone'
     : fel === 'hittar' ? "The camera can't find your cards" : kamAnsluten ? 'Camera' : 'Connect your phone';
@@ -34727,9 +34726,9 @@ function ritaPbLager() {
      HELA bild — samma bild som förhandsbilden. */
   const sx = G.bw / (G.r === 90 || G.r === 270 ? pbMatt.ah : pbMatt.aw);
   x.font = '600 11px ui-monospace, monospace'; x.textBaseline = 'bottom';
-  /* Graveyard-rutan: sparad (streckad, amber) eller den som ritas just nu.
+  /* Graveyard-rutan (streckad, amber): den som Yes på graveyard-frågan sparade.
      I steg 4 ritar lagret ovanpå platsen (ritaOppLager). */
-  const gr = pbGravUtkast || kamGravRad;
+  const gr = kamGravRad;
   if (!G.vy && gr && gr.w > 0 && gr.h > 0) {
     const q = pbRutaPx(G, gr);
     x.save(); x.strokeStyle = '#e8b33a'; x.lineWidth = 2; x.setLineDash([6, 4]);
@@ -35228,10 +35227,9 @@ async function tagEmotGrundSvar(m) {
   if (!ok) toast('The untapped angle could not be saved to the game — it applies until the phone reloads', 'err');
 }
 $('#kamGrundSpara') && ($('#kamGrundSpara').onclick = sparaGrundFranSenaste);
-/* Graveyard-rutan (K9-lite): "Mark the graveyard" i kamerapanelen, dra en
-   rektangel över högen i förhandsbilden. Raden bär den (grav), telefonen
-   får den med realtid och föder inga spår där. */
-let pbGravRitar = false, pbGravStart = null, pbGravUtkast = null;
+/* Graveyard-rutan: raden bär den (grav), telefonen får den med realtid och föder inga spår där. I Mirror my
+   table sätts den bara av Yes på graveyard-frågan (gravSvar) och flyttas med högen (gravFoljer) — ingen ritas
+   för hand. Use camera to add cards sätter den i uppstartens steg 4 (sparaZoner). */
 function pbBildTillAndel(ev) {
   const G = pbGeo(); if (!G) return null;
   const u = Math.max(0, Math.min(1, (ev.clientX - G.R.left - G.mx) / G.bw)), v = Math.max(0, Math.min(1, (ev.clientY - G.R.top - G.my) / G.bh));
@@ -35239,7 +35237,7 @@ function pbBildTillAndel(ev) {
 }
 async function sparaGravZon(r) {
   kamGravRad = r && r.w > 0.01 && r.h > 0.01 ? r : null;
-  ritaPbLager(); visaPbGrav(); renderMode();
+  ritaPbLager(); renderMode();
   if (!spelLage) return;
   const id = spelLage.id;
   const ok = await Moln.sparaKalibrering(id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
@@ -35253,16 +35251,22 @@ async function sparaZoner(grav, bib) {
   if (!spelLage) return false;
   return Moln.sparaKalibrering(spelLage.id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
 }
-function visaPbGrav() {
-  const b = $('#pbGrav'); if (!b) return;
-  b.textContent = pbGravRitar ? 'Drag a box over the pile…' : kamGravRad ? 'Clear' : 'Mark it';
-  b.classList.toggle('on', pbGravRitar);
+/* Rutorna från uppstartens steg 4 är rester i Mirror my table (MES-334 steg 6: steget finns bara kvar i Use camera
+   to add cards). Ett spel som körde steget — eller bytte från Use camera till Mirror my table — bär dem kvar på
+   raden: graveyard-rutan ritades över library-högen, och library-rutan (kamBibRad) gav dagens fasta hög i
+   stället för leken bland korten. Här rensas båda, också på raden, så att telefonen slutar filtrera där.
+   Yes-rutan rörs inte: den har ingen library-ruta bredvid sig. */
+let rensarRutor = false;
+async function rensaOppstartsRutor() {
+  if (rensarRutor || !spelLage || !kamBibRad || !redigerbar()) return;
+  const mig = minSpelare(); if (!mig || mig.lage === 'skarm') return;
+  rensarRutor = true;
+  try {
+    kamGravRad = null; kamBibRad = null;
+    ritaPbLager(); renderMode();
+    await Moln.sparaKalibrering(spelLage.id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
+  } finally { rensarRutor = false; }
 }
-$('#pbGrav') && ($('#pbGrav').onclick = () => {
-  if (pbGravRitar) { pbGravRitar = false; pbGravUtkast = null; visaPbGrav(); ritaPbLager(); return; }
-  if (kamGravRad) { sparaGravZon(null); return; }
-  pbGravRitar = true; visaPbGrav();
-});
 /* Move it (MES-122): graveyard-platsen dras i bilden och behåller kortets
    storlek. Dragningen gäller var man än tar i bilden — platsen följer med. */
 $('#pbBild') && $('#pbBild').addEventListener('pointerdown', ev => {
@@ -35279,23 +35283,6 @@ $('#pbBild') && $('#pbBild').addEventListener('pointermove', ev => {
   ritaPbLager();
 });
 $('#pbBild') && $('#pbBild').addEventListener('pointerup', () => { oppFlyttStart = null; });
-$('#pbBild') && $('#pbBild').addEventListener('pointerdown', ev => {
-  if (!pbGravRitar) return;
-  const a = pbBildTillAndel(ev); if (!a) return;
-  ev.preventDefault(); pbGravStart = a; pbGravUtkast = { x: a.x, y: a.y, w: 0, h: 0 };
-  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
-});
-$('#pbBild') && $('#pbBild').addEventListener('pointermove', ev => {
-  if (!pbGravRitar || !pbGravStart) return;
-  const a = pbBildTillAndel(ev); if (!a) return;
-  pbGravUtkast = { x: Math.min(a.x, pbGravStart.x), y: Math.min(a.y, pbGravStart.y), w: Math.abs(a.x - pbGravStart.x), h: Math.abs(a.y - pbGravStart.y) };
-  ritaPbLager();
-});
-$('#pbBild') && $('#pbBild').addEventListener('pointerup', ev => {
-  if (!pbGravRitar || !pbGravStart) return;
-  const r = pbGravUtkast; pbGravRitar = false; pbGravStart = null; pbGravUtkast = null;
-  sparaGravZon(r && r.w > 0.01 && r.h > 0.01 ? { x: +r.x.toFixed(3), y: +r.y.toFixed(3), w: +r.w.toFixed(3), h: +r.h.toFixed(3) } : null);
-});
 /* Vrid/spegla kameravyn (lägespanelen): raden får orienteringen, mattan
    lägger om alla kamerabundna kort direkt. */
 async function sparaKamOrientering() {
@@ -35361,7 +35348,7 @@ function kamStegSynk() {
     /* Läget och grundläget läses ur spelets rad varje gång: de kan ha ändrats
        från en annan dator sedan telefonen anslöt. Telefonens eget besked
        (kamGrund) vinner i visningen så snart det finns. */
-    visaKamGrund(); visaPbGrav();
+    visaKamGrund();
     if (spelLage) { const id = spelLage.id; Moln.hamtaKalibrering(id)
       .then(k => { if (!spelLage || spelLage.id !== id) return; const r = k && k.ruta;
                    kamUpp = r && r.upp === 'h' ? 'h' : 'v'; kamGrundRad = r && typeof r.grund === 'number' ? r.grund : null; lasKamOri(r); visaKamGrund(); }).catch(() => {}); }
