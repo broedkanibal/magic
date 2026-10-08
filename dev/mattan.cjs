@@ -465,6 +465,29 @@ const PROV = async () => {
     ok('leken läggs ut: hela kamerabilden, och spelarens egna zoom är släppt', manFore && h.ok && !matVy(mig).manuell && Math.abs(parseFloat(gridEl.style.getPropertyValue('--matz')) - avZ()) < 1e-3, h.txt);
     spelLage = sp0; mig.cards = kort0; renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
 
+  /* Tillbaka in i ett spel (Jesper 2026-10-08): knappen "Fit camera view" syns hela tiden på mitt speglade bord, också
+     innan kamerabilden är känd, och när telefonen anslutit och skalan är mätt står mattan precis som efter ett klick på
+     knappen. Före rättelsen låg utgångsläget kvar från förra besöket (kamerabilden redan sedd), så mattan blev stående. */
+  { const sp0 = spelLage, kort0 = mig.cards;
+    spelLage = Object.assign({}, spelLage, { id: 'mattprov-tillbaka' }); oppSatt({ klar: true });
+    const tb = [zs(31, 'Llanowar Elves', 0.25, 0.4), zs(32, 'Forest', 0.35, 0.4)];
+    mig.cards = []; matVyer.delete(mig.id); kamSkala.las.delete(mig.id);
+    renderAll(true); avstamBord(tb, false); await vanta(700);
+    zoomBy(0.8); await vanta(450); gridEl.classList.remove('glider');   // spelaren lämnade mattan zoomad
+    /* Ut ur spelet och in igen: den låsta skalan och kortens lägen från kameran är borta, vyn börjar om (oppnaSpel). */
+    for (const c of mig.cards) delete c.kam;
+    kamSkala.las.delete(mig.id); matVyer.delete(mig.id); renderAll(true); await vanta(300);
+    ok('tillbaka i spelet: knappen syns innan kamerabilden är känd', !matKamRam(mig) && !!$('#mattaChrome [data-mat="kamvy"]'),
+      `kamerabilden ${matKamRam(mig) ? 'känd' : 'okänd'}, knappen ${$('#mattaChrome [data-mat="kamvy"]') ? 'syns' : 'saknas'}`);
+    /* Telefonen ansluter på ett annat avstånd än förra gången: skalan mäts, kamerabilden blir känd. */
+    const tb2 = tb.map(u => Object.assign({}, u, { w: 0.14, h: 0.35 }));
+    avstamBord(tb2, false); await vanta(700);
+    const hb = helaBilden(), tAuto = gridEl._matT;
+    ok('tillbaka i spelet: när kamerabilden blir känd står mattan i hela kamerabilden, utan egen zoom', !!matKamRam(mig) && hb.ok && !matVy(mig).manuell, hb.txt);
+    fitView(); await vanta(450);
+    ok('tillbaka i spelet: samma vy som efter ett klick på knappen', gridEl._matT === tAuto && !!$('#mattaChrome [data-mat="kamvy"]'), `${tAuto} / ${gridEl._matT}`);
+    spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, skLek); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
+
   /* ── Kamerans yta (MES-338, Jespers val B 2026-10-07) ──
      En kontur runt kamerabilden i brädets koordinater, bordet utanför svagt mörkare. Den följer mattans zoom och
      panorering, finns bara på min matta, och spelarens egen utzoomning stannar ett steg (×0,87) förbi golvet. */

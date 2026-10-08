@@ -10813,11 +10813,13 @@ function spawnFromGrave(cid, ev) {
    texten ändrats — renderGrid går vid varje hjärtslag från kameran.
    Mirror my table (Jesper 2026-10-08): inget Untap all och inget Tidy up —
    korten ligger och står som på det riktiga bordet — utan "Fit camera view",
-   hela kamerabilden som när leken lades ut (fitView), när den är känd. */
+   hela kamerabilden som när leken lades ut (fitView). Knappen står där hela
+   tiden på mitt speglade bord; är kamerabilden inte känd än tar den vyn som
+   efter Tidy up, och kamerabilden tar över så fort den blir känd. */
 const hintUntapEl = $('#hintUntap');
 function renderChrome(v) {
   const el = $('#mattaChrome'); if (!el) return;
-  const p = player(), spegel = speglatBord(minSpelare() || p), kamVy = !!p && !!kamYtaRam(p);
+  const p = player(), spegel = speglatBord(minSpelare() || p), kamVy = !!p && zstegBord(p);   // knappen syns alltid på mitt speglade bord, också innan kamerabilden är känd
   if (hintUntapEl) hintUntapEl.hidden = spegel;
   const pct = Math.round(v.z * 100) + '%' + (v.manuell ? '' : ' fit');
   const html = `<div class="zoomchip">`
@@ -35782,6 +35784,11 @@ async function oppnaSpel(gameId, farsk) {
      spelets lek, och knappen visade fel antal. */
   minLek = null;
   if (kamSkala.las) kamSkala.las.clear();   // den låsta skalan hör till förra spelets bord
+  /* Mattans vy börjar om varje gång man går in i ett spel — också i samma spel igen. Förut låg utgångsläget kvar
+     från förra besöket (s.kam: kamerabilden redan sedd), så när telefonen anslöt och skalan blev känd flyttades
+     mattan inte till hela kamerabilden, utan blev stående på förra besökets zoom och pan. Nu är kamerabilden
+     okänd igen tills skalan är mätt, och då sätts utgångsläget som när ett nytt spel börjar (matStegBeslut). */
+  matVyer.delete(spelLage.mig);
   byggSpelare(spelare);
   /* Jag är alltid den aktiva spelaren: motståndarnas bord ritas bredvid
      mitt i bordsvyn (MES-133), inte i stället för det. Det som sparas per
