@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The library pile</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./mesa.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0d1015}
+a{color:#6b8cff}a:hover{color:#8ea6ff}
+</style>
+</helmet>
+<div class="ab lagen" style="width: 1061px; height: 520px">
+
+  <section class="lage">
+    <div class="lrub"><b>At rest</b><span>An ordered deck, face down. Everyone sees how many cards are left.</span></div>
+    <div class="bibhog">
+      <button class="bib" aria-label="Library, 27 cards"><span class="biblek"><img src="img/baksida.jpg" alt=""><img src="img/baksida.jpg" alt=""><img src="img/baksida.jpg" alt=""></span></button>
+      <span class="hograd"><i></i>Library <b>27</b></span>
+    </div>
+  </section>
+
+  <section class="lage">
+    <div class="lrub"><b>Point at it</b><span>A click draws one card. It turns over and flies into your hand, and the count ticks down.</span></div>
+    <div class="bibhog">
+      <button class="bib over" aria-label="Library, 27 cards. Click to draw"><span class="biblek"><img src="img/baksida.jpg" alt=""><img src="img/baksida.jpg" alt=""><img src="img/baksida.jpg" alt=""></span><span class="hchip bla">Draw<kbd>D</kbd></span></button>
+      <span class="hograd"><i></i>Library <b>27</b></span>
+    </div>
+  </section>
+
+  <section class="lage bred">
+    <div class="lrub"><b>Right-click</b><span>Everything else you can do with the library.</span></div>
+    <div class="bibhog">
+      <button class="bib over" aria-label="Library, 27 cards"><span class="biblek"><img src="img/baksida.jpg" alt=""><img src="img/baksida.jpg" alt=""><img src="img/baksida.jpg" alt=""></span></button>
+      <span class="hograd"><i></i>Library <b>27</b></span>
+    </div>
+    <div class="matmeny" style="left: 158px; top: 78px; width: 258px">
+      <div class="mi on">Draw<span class="h"><i class="n on">1</i><i class="n">2</i><i class="n">3</i><i class="n">7</i><kbd>D</kbd></span></div>
+      <div class="msep"></div>
+      <div class="mrub">Look at the top</div>
+      <div class="mi">Scry<span class="h"><i class="n">1</i><i class="n">2</i><i class="n">3</i></span></div>
+      <div class="mi">Surveil<span class="h"><i class="n">1</i><i class="n">2</i><i class="n">3</i></span></div>
+      <div class="mi">Look at the top cards…<span class="h"><kbd>K</kbd></span></div>
+      <div class="mi">Reveal them to everyone…</div>
+      <div class="msep"></div>
+      <div class="mi">Search the library<span class="h"><kbd>L</kbd></span></div>
+      <div class="mi">Shuffle</div>
+      <div class="msep"></div>
+      <div class="mi">Top cards to the graveyard…</div>
+      <div class="mi">Top cards to exile…</div>
+      <div class="msep"></div>
+      <div class="mrub">The top card is</div>
+      <div class="mi" style="height: 34px"><div class="seg tat"><span class="on">Hidden</span><span>Shown to me</span><span>To everyone</span></div></div>
+      <div class="mfot">27 cards · everyone sees the count</div>
+    </div>
+  </section>
+
+  <section class="lage">
+    <div class="lrub"><b>Empty</b><span>The frame stays, so you see where the library was.</span></div>
+    <div class="bibhog">
+      <button class="bib tom" aria-label="Library, empty"><span class="utetxt"><b>No cards left</b></span></button>
+      <span class="hograd"><i></i>Library <b>0</b></span>
+    </div>
+    <div class="varn" style="position: absolute; left: 18px; right: 18px; top: 178px">You lose if you have to draw from an empty library</div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1061,"height":520}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

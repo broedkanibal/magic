@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>S2 · A search panel</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./mesa.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0d1015}
+a{color:#6b8cff}a:hover{color:#8ea6ff}
+</style>
+</helmet>
+<div class="ab crop" style="width: 1061px; height: 752px">
+  <section class="matta">
+    <div class="card tappad" style="left: 86px; top: 56px"><img src="img/llanowar.jpg" alt="Llanowar Elves, tapped"></div>
+    <div class="card" style="left: 270px; top: 56px"><img src="img/woodelves.jpg" alt="Wood Elves"></div>
+    <div class="card" style="left: 410px; top: 56px"><img src="img/pikemaster.jpg" alt="Faithful Pikemaster"></div>
+    <div class="card" style="left: 60px; top: 262px"><img src="img/forest.jpg" alt="Forest"></div>
+    <div class="card" style="left: 200px; top: 262px"><img src="img/forest.jpg" alt="Forest"></div>
+    <div class="card" style="left: 340px; top: 262px"><img src="img/forest.jpg" alt="Forest"></div>
+    <div class="card" style="left: 480px; top: 262px"><img src="img/plains.jpg" alt="Plains"></div>
+
+    <div class="gravhog">
+      <button class="grav" aria-label="Graveyard, 1 card"><img src="img/blade.jpg" alt="Ancestral Blade"></button>
+      <span class="hograd"><i></i>Graveyard <b>1</b></span>
+    </div>
+    <div class="bibhog">
+      <div class="bib ute"><span class="utetxt"><b>Open in the panel</b><em>shuffled when you finish</em></span></div>
+      <span class="hograd"><i></i>Library <b>27</b></span>
+    </div>
+
+    <div class="panel" style="left: 286px; top: 18px; width: 737px; height: 556px">
+      <div class="phd">
+        <span class="sfalt"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.800-3.800"></path></svg>basic</span>
+        <div class="seg gul"><span class="on">All</span><span>Creatures</span><span>Other</span><span>Lands</span></div>
+        <span class="grow"></span>
+        <span class="ser">27 cards · only you see them</span>
+      </div>
+      <div class="pkropp">
+        <div class="sgrid">
+          <div class="sgrupp">
+            <span class="hograd bla"><i></i>Creatures <b>12</b></span>
+            <div class="srad">
+              <div class="sk mork"><img src="img/danitha.jpg" alt="Danitha Capashen, Paragon"></div>
+              <div class="sk mork"><img src="img/pikemaster.jpg" alt="Faithful Pikemaster"><b class="antal">×3</b></div>
+              <div class="sk mork"><img src="img/llanowar.jpg" alt="Llanowar Elves"><b class="antal">×3</b></div>
+              <div class="sk mork"><img src="img/serra.jpg" alt="Serra Angel"><b class="antal">×2</b></div>
+              <div class="sk mork"><img src="img/woodelves.jpg" alt="Wood Elves"><b class="antal">×3</b></div>
+            </div>
+          </div>
+          <div class="sgrupp">
+            <span class="hograd bla"><i></i>Artifacts and enchantments <b>4</b></span>
+            <div class="srad">
+              <div class="sk mork"><img src="img/blade.jpg" alt="Ancestral Blade"><b class="antal">×2</b></div>
+              <div class="sk mork"><img src="img/anthem.jpg" alt="Glorious Anthem"><b class="antal">×2</b></div>
+            </div>
+          </div>
+          <div class="sgrupp">
+            <span class="hograd bla"><i></i>Lands <b>11</b></span>
+            <div class="srad">
+              <div class="sk vald"><img src="img/forest.jpg" alt="Forest, picked"><b class="antal">×6</b></div>
+              <div class="sk vald"><img src="img/plains.jpg" alt="Plains, picked"><b class="antal">×5</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="funna">
+          <span class="hograd vit"><i></i>Found <b>2</b></span>
+          <div class="frad">
+            <img src="img/forest.jpg" alt="">
+            <div class="fi">
+              <b>Forest</b>
+              <div class="seg tat"><span>Table</span><span class="on">Tapped</span><span>Hand</span><span>Top</span></div>
+              <span class="kryss on"><i><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.500" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></i>Show it to everyone</span>
+            </div>
+          </div>
+          <div class="frad">
+            <img src="img/plains.jpg" alt="">
+            <div class="fi">
+              <b>Plains</b>
+              <div class="seg tat"><span>Table</span><span>Tapped</span><span class="on">Hand</span><span>Top</span></div>
+              <span class="kryss on"><i><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.500" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></i>Show it to everyone</span>
+            </div>
+          </div>
+          <span class="grow"></span>
+          <span class="kryss"><i></i>Shuffle first, then put cards on top</span>
+        </div>
+      </div>
+      <div class="pft">
+        <button class="btn">Find nothing</button>
+        <span class="grow"></span>
+        <span class="ser">Sara sees: 1 to the table, 1 to hand</span>
+        <button class="btn prim">Shuffle and finish<kbd>⏎</kbd></button>
+      </div>
+    </div>
+
+    <span class="hograd vit handrad"><i></i>Hand <b>5</b></span>
+    <div class="handfan vila">
+      <div class="hkort" style="left: 374px; top: 495px; transform: rotate(-7.3deg); z-index: 1"><span class="cf"><img src="img/danitha.jpg" alt="Danitha Capashen, Paragon"></span></div>
+      <div class="hkort" style="left: 456px; top: 488px; transform: rotate(-3.6deg); z-index: 2"><span class="cf"><img src="img/serra.jpg" alt="Serra Angel"></span></div>
+      <div class="hkort" style="left: 538px; top: 485px; transform: rotate(0deg); z-index: 3"><span class="cf"><img src="img/anthem.jpg" alt="Glorious Anthem"></span></div>
+      <div class="hkort" style="left: 620px; top: 488px; transform: rotate(3.6deg); z-index: 4"><span class="cf"><img src="img/forest.jpg" alt="Forest"></span></div>
+      <div class="hkort" style="left: 702px; top: 495px; transform: rotate(7.3deg); z-index: 5"><span class="cf"><img src="img/plains.jpg" alt="Plains"></span></div>
+    </div>
+  </section>
+
+  <footer class="hints">
+    <span>Search:</span>
+    <span>type to filter on name or type</span>
+    <i class="sep"></i>
+    <span>click a card to pick it, then choose where it goes</span>
+    <i class="sep"></i>
+    <span><kbd>Enter</kbd>shuffle and finish</span><span><kbd>Esc</kbd>cancel</span>
+    <span class="status"><i class="led"></i>Saved</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1061,"height":752}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

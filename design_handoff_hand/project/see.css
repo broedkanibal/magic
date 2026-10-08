@@ -1,0 +1,369 @@
+/* Sida 6 · Att se vad motståndaren gör (MES-299, iteration 2).
+   Inget skrivs: varje handling är en rörelse av kort på motståndarens matta.
+   Allt är CSS-animationer som går i slinga. Målen för en rörelse sätts per
+   element som variabler (--tx, --ty …), så att samma rörelse fungerar i alla
+   varianter och i helbilden. Alla rörelser har transform-origin i mitten. */
+
+/* ── Tavlan: 2 × 2 rutor ── */
+.gal{width:1328px;height:936px;padding:32px;display:grid;grid-template-columns:repeat(2,620px);gap:24px;background:var(--bg)}
+.gi{display:flex;flex-direction:column;gap:12px}
+.gcap{display:flex;align-items:baseline;gap:10px;height:32px;padding-top:6px}
+.gcap b{font:650 16px/1.2 var(--sans);color:var(--txt)}
+.gcap span{font:12.5px/1.2 var(--sans);color:var(--dim)}
+
+/* ── En ruta: motståndarens matta, sedd från min sida ── */
+.cell{position:relative;width:620px;height:380px;overflow:hidden;border-radius:12px;perspective:1000px;
+  background:radial-gradient(900px 480px at 54% 74%,#18232f,#0a0f14 72%)}
+.cell::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:30;
+  box-shadow:inset 0 0 70px 14px #00000066,inset 0 0 0 1px #f0a52a66}
+.cell .oplate{position:absolute;z-index:24;left:12px;top:12px;display:flex;align-items:center;gap:7px;height:26px;padding:0 9px;border-radius:7px;background:#0b1017e6;border:1px solid #39445a;font:550 12px var(--sans);color:var(--txt);white-space:nowrap}
+
+/* Handen: baksidor längs bortre kanten */
+.hrow{position:absolute;inset:0;z-index:4}
+.hb{position:absolute;width:58px;height:81px;object-fit:cover;border-radius:5px;box-shadow:0 6px 12px -4px #000c}
+.hb.stor{width:80px;height:112px;border-radius:6px}
+/* Högarna, spegelvända: library till vänster, graveyard till höger */
+.lf,.gf{position:absolute;z-index:2;width:76px;height:100px;border-radius:5px}
+.lf{border:1.5px solid #6b8cff;background:#0b0f1540}
+.gf{border:1.5px dashed #e8b33a99;background:#0b0f1573}
+.pk{position:absolute;z-index:3;width:68px;height:92px;object-fit:cover;border-radius:4px;box-shadow:0 3px 8px #0008}
+.pk.d1{filter:brightness(.55)}
+.pk.d2{filter:brightness(.75)}
+.gk{position:absolute;z-index:3;width:68px;height:92px;object-fit:cover;border-radius:4px;filter:grayscale(.6) brightness(.55) contrast(1.05)}
+.cell .hograd{position:absolute;z-index:5}
+.cnt{position:relative;display:inline-block;min-width:16px;height:11px}
+.cnt i{position:absolute;left:0;top:0;font-style:normal}
+.cnt i + i{opacity:0}
+/* Bordet */
+.tk{position:absolute;z-index:1;width:70px;height:98px;object-fit:cover;border-radius:5px;box-shadow:0 4px 10px -3px #000c}
+.tk.sm{width:64px;height:90px}
+
+/* Kort som rör sig */
+.mv{position:absolute;z-index:6;width:68px;height:92px;border-radius:4px;transform-origin:50% 50%;box-shadow:0 3px 8px #0008}
+.mv img{width:100%;height:100%;object-fit:cover;border-radius:4px;display:block}
+.mv.under{z-index:2}
+/* Ett kort som vänds: behållaren flyttar, .fl trycks ihop på bredden
+   (vändningen), och framsidan tänds när kortet står på kant. Ingen 3D. */
+.flip{position:absolute;z-index:7;width:68px;height:92px;transform-origin:50% 50%}
+.flip.hand{width:58px;height:81px}
+.flip .fl{position:absolute;inset:0}
+.flip img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:4px;box-shadow:0 8px 18px -6px #000d}
+.flip .ff{opacity:0}
+.flip .ff.gul{box-shadow:0 0 0 2px #f0a52a,0 12px 26px -8px #000}
+
+/* Pekaren (V3): hans hand som gör rörelsen */
+.ptr{position:absolute;z-index:20;left:0;top:0;width:31px;height:36px;transform-origin:0 0;pointer-events:none;filter:drop-shadow(0 3px 5px #000a)}
+
+/* ── Rörelserna ── */
+/* Dra (och lägga tillbaka): från högen till en plats, stanna, tona bort, börja om */
+@keyframes flyHold{
+  0%,12%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1}
+  20%{transform:translate(calc(var(--tx) * .12),-12px) rotate(0deg) scale(1.08)}
+  46%{transform:translate(var(--tx),var(--ty)) rotate(var(--tr)) scale(var(--ts))}
+  88%{transform:translate(var(--tx),var(--ty)) rotate(var(--tr)) scale(var(--ts));opacity:1}
+  95%{transform:translate(var(--tx),var(--ty)) rotate(var(--tr)) scale(var(--ts));opacity:0}
+  96%{transform:translate(0,0) rotate(0deg) scale(1);opacity:0}
+  100%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1}
+}
+/* Handen gör plats för ett kort till */
+@keyframes shiftDraw{0%,40%{translate:0 0}48%,94%{translate:var(--sx) 0}100%{translate:0 0}}
+@keyframes shiftPick{0%,56%{translate:0 0}64%,94%{translate:var(--sx) 0}100%{translate:0 0}}
+@keyframes shiftReveal{0%,72%{translate:0 0}80%,94%{translate:var(--sx) 0}100%{translate:0 0}}
+
+/* Scry: två kort lyfts och hålls (blå kant = bara han ser dem) */
+@keyframes scryTop{
+  0%,10%{transform:translate(0,0) rotate(0deg) scale(1);box-shadow:0 3px 8px #0008}
+  24%{transform:translate(var(--hx),var(--hy)) rotate(var(--hr)) scale(var(--hs,1));box-shadow:0 0 0 2px #6b8cff,0 14px 26px -8px #000}
+  31%{transform:translate(var(--hx),calc(var(--hy) - 5px)) rotate(calc(var(--hr) + 2deg)) scale(var(--hs,1))}
+  38%,50%{transform:translate(var(--hx),var(--hy)) rotate(var(--hr)) scale(var(--hs,1));box-shadow:0 0 0 2px #6b8cff,0 14px 26px -8px #000}
+  62%,100%{transform:translate(0,0) rotate(0deg) scale(1);box-shadow:0 3px 8px #0008}
+}
+@keyframes scryBottom{
+  0%,12%{transform:translate(0,0) rotate(0deg) scale(1);box-shadow:0 3px 8px #0008}
+  26%{transform:translate(var(--hx),var(--hy)) rotate(var(--hr)) scale(var(--hs,1));box-shadow:0 0 0 2px #6b8cff,0 14px 26px -8px #000}
+  34%{transform:translate(var(--hx),calc(var(--hy) - 4px)) rotate(calc(var(--hr) - 2deg)) scale(var(--hs,1))}
+  42%,64%{transform:translate(var(--hx),var(--hy)) rotate(var(--hr)) scale(var(--hs,1));box-shadow:0 0 0 2px #6b8cff,0 14px 26px -8px #000}
+  76%{transform:translate(0,var(--uy)) rotate(0deg) scale(1);box-shadow:0 3px 8px #0008}
+  86%,100%{transform:translate(0,0) rotate(0deg) scale(1)}
+}
+/* Högen lyfter när ett kort skjuts in under den */
+@keyframes pileBump{0%,76%{translate:0 0}81%{translate:0 -6px}88%,100%{translate:0 0}}
+
+/* Sök: leken lyfts och bladas som baksidor, ett kort tas, resten blandas */
+@keyframes fanOut{
+  0%,10%{transform:translate(0,0) rotate(0deg) scale(1)}
+  22%,60%{transform:translate(var(--tx),var(--ty)) rotate(var(--tr)) scale(var(--ts,1))}
+  72%,100%{transform:translate(0,0) rotate(0deg) scale(1)}
+}
+@keyframes browse{0%,26%{translate:0 0}30%{translate:0 var(--by,-12px)}34%,100%{translate:0 0}}
+@keyframes pickHand{
+  0%,10%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1}
+  22%,50%{transform:translate(var(--tx),var(--ty)) rotate(var(--tr)) scale(var(--ts,1))}
+  54%{transform:translate(var(--tx),calc(var(--ty) - 34px)) rotate(0deg) scale(1.12)}
+  64%{transform:translate(var(--px),var(--py)) rotate(var(--pr)) scale(var(--ps))}
+  90%{transform:translate(var(--px),var(--py)) rotate(var(--pr)) scale(var(--ps));opacity:1}
+  95%{transform:translate(var(--px),var(--py)) rotate(var(--pr)) scale(var(--ps));opacity:0}
+  96%{transform:translate(0,0) rotate(0deg) scale(1);opacity:0}
+  100%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1}
+}
+@keyframes pileSearchL{
+  0%,10%{opacity:1;translate:0 0;rotate:0deg}
+  14%,66%{opacity:.16;translate:0 0;rotate:0deg}
+  72%{opacity:1;translate:0 0;rotate:0deg}
+  75%{translate:-18px 2px;rotate:-10deg}
+  78%{translate:0 0;rotate:0deg}
+  81%{translate:-18px 2px;rotate:-10deg}
+  84%{translate:0 0;rotate:0deg}
+  87%{translate:-11px 1px;rotate:-6deg}
+  90%,100%{opacity:1;translate:0 0;rotate:0deg}
+}
+@keyframes pileSearchR{
+  0%,10%{opacity:1;translate:0 0;rotate:0deg}
+  14%,66%{opacity:.16;translate:0 0;rotate:0deg}
+  72%{opacity:1;translate:0 0;rotate:0deg}
+  75%{translate:18px 2px;rotate:10deg}
+  78%{translate:0 0;rotate:0deg}
+  81%{translate:18px 2px;rotate:10deg}
+  84%{translate:0 0;rotate:0deg}
+  87%{translate:11px 1px;rotate:6deg}
+  90%,100%{opacity:1;translate:0 0;rotate:0deg}
+}
+@keyframes frameOut{
+  0%,10%{box-shadow:none}
+  16%,64%{box-shadow:0 0 0 5px #6b8cff1f,0 0 22px 3px #6b8cff33}
+  72%,100%{box-shadow:none}
+}
+
+/* Avslöja: kortet vänds mot bordet, alla ser det, sedan till handen */
+@keyframes revealFlip{
+  0%,10%{transform:translate(0,0) scale(1) rotate(0deg);opacity:1}
+  16%{transform:translate(0,-14px) scale(1.06) rotate(0deg)}
+  30%,64%{transform:translate(var(--dx),var(--dy)) scale(var(--ds)) rotate(0deg)}
+  80%,90%{transform:translate(var(--tx),var(--ty)) scale(var(--ts)) rotate(var(--tr));opacity:1}
+  95%{transform:translate(var(--tx),var(--ty)) scale(var(--ts)) rotate(var(--tr));opacity:0}
+  96%{transform:translate(0,0) scale(1) rotate(0deg);opacity:0}
+  100%{transform:translate(0,0) scale(1) rotate(0deg);opacity:1}
+}
+@keyframes revealTurn{0%,16%{scale:1 1}23%{scale:0 1}30%,64%{scale:1 1}72%{scale:0 1}80%,100%{scale:1 1}}
+@keyframes revealFace{0%,22.5%{opacity:0}23.5%,71.5%{opacity:1}72.5%,100%{opacity:0}}
+
+/* Spela ur handen, eller kasta: kortet lämnar handen och vänds på vägen */
+@keyframes playFlip{
+  0%,12%{transform:translate(0,0) rotate(var(--r0)) scale(1);opacity:1}
+  20%{transform:translate(0,24px) rotate(0deg) scale(1.06)}
+  48%{transform:translate(var(--tx),var(--ty)) rotate(0deg) scale(var(--ts))}
+  53%{transform:translate(var(--tx),calc(var(--ty) + 3px)) rotate(0deg) scale(calc(var(--ts) * .96))}
+  58%,88%{transform:translate(var(--tx),var(--ty)) rotate(0deg) scale(var(--ts));opacity:1}
+  95%{transform:translate(var(--tx),var(--ty)) rotate(0deg) scale(var(--ts));opacity:0}
+  96%{transform:translate(0,0) rotate(var(--r0)) scale(1);opacity:0}
+  100%{transform:translate(0,0) rotate(var(--r0)) scale(1);opacity:1}
+}
+@keyframes playTurn{0%,22%{scale:1 1}34%{scale:0 1}46%,100%{scale:1 1}}
+@keyframes playFace{0%,33.5%{opacity:0}34.5%,95%{opacity:1}96%,100%{opacity:0}}
+@keyframes ringGreen{0%,52%{box-shadow:0 8px 18px -6px #000d}58%,72%{box-shadow:0 0 0 3px #5fbf7f,0 8px 18px -6px #000d}84%,100%{box-shadow:0 8px 18px -6px #000d}}
+@keyframes greyLand{0%,52%{filter:none}60%,100%{filter:grayscale(.6) brightness(.55) contrast(1.05)}}
+
+/* Mill: översta korten vänds och faller i graveyard */
+@keyframes millFlip{
+  0%,12%{transform:translate(0,0) scale(1);opacity:1}
+  22%{transform:translate(calc(var(--tx) * .5),-38px) scale(1.12)}
+  34%,88%{transform:translate(var(--tx),0) scale(1);opacity:1}
+  95%{transform:translate(var(--tx),0) scale(1);opacity:0}
+  96%{transform:translate(0,0) scale(1);opacity:0}
+  100%{transform:translate(0,0) scale(1);opacity:1}
+}
+@keyframes millTurn{0%,12%{scale:1 1}22%{scale:0 1}32%,100%{scale:1 1}}
+@keyframes millFace{0%,21.5%{opacity:0}22.5%,95%{opacity:1}96%,100%{opacity:0}}
+@keyframes greyMill{0%,32%{filter:none}40%,100%{filter:grayscale(.6) brightness(.55) contrast(1.05)}}
+
+/* Talen byts när kortet kommer fram */
+@keyframes cnt46A{0%,45%{opacity:1}46%,95%{opacity:0}96%,100%{opacity:1}}
+@keyframes cnt46B{0%,45%{opacity:0}46%,95%{opacity:1}96%,100%{opacity:0}}
+@keyframes cnt64A{0%,63%{opacity:1}64%,95%{opacity:0}96%,100%{opacity:1}}
+@keyframes cnt64B{0%,63%{opacity:0}64%,95%{opacity:1}96%,100%{opacity:0}}
+@keyframes cnt40A{0%,39%{opacity:1}40%,95%{opacity:0}96%,100%{opacity:1}}
+@keyframes cnt40B{0%,39%{opacity:0}40%,95%{opacity:1}96%,100%{opacity:0}}
+@keyframes cnt16A{0%,15%{opacity:1}16%,95%{opacity:0}96%,100%{opacity:1}}
+@keyframes cnt16B{0%,15%{opacity:0}16%,95%{opacity:1}96%,100%{opacity:0}}
+@keyframes cnt52A{0%,51%{opacity:1}52%,95%{opacity:0}96%,100%{opacity:1}}
+@keyframes cnt52B{0%,51%{opacity:0}52%,95%{opacity:1}96%,100%{opacity:0}}
+
+/* ── Pekarens vägar (V3), i rutans koordinater ── */
+@keyframes ptrDraw{
+  0%{transform:translate(600px,330px) scale(1);opacity:0}
+  5%{opacity:1}
+  10%{transform:translate(470px,74px) scale(1)}
+  14%{transform:translate(470px,74px) scale(.82)}
+  20%{transform:translate(460px,60px) scale(.82)}
+  46%{transform:translate(389px,4px) scale(.82)}
+  52%{transform:translate(389px,4px) scale(1);opacity:1}
+  64%{transform:translate(430px,150px) scale(1);opacity:1}
+  74%,100%{transform:translate(470px,230px) scale(1);opacity:0}
+}
+@keyframes ptrScry{
+  0%{transform:translate(600px,330px) scale(1);opacity:0}
+  4%{opacity:1}
+  9%{transform:translate(470px,74px) scale(1)}
+  12%{transform:translate(470px,74px) scale(.82)}
+  25%{transform:translate(334px,118px) scale(.82)}
+  28%{transform:translate(334px,118px) scale(1)}
+  38%{transform:translate(318px,168px) scale(1)}
+  46%{transform:translate(352px,170px) scale(1)}
+  50%{transform:translate(302px,114px) scale(.82)}
+  62%{transform:translate(470px,74px) scale(.82)}
+  64%{transform:translate(364px,120px) scale(.82)}
+  76%{transform:translate(470px,114px) scale(.82)}
+  86%{transform:translate(470px,74px) scale(.82)}
+  89%{transform:translate(470px,74px) scale(1);opacity:1}
+  97%,100%{transform:translate(540px,220px) scale(1);opacity:0}
+}
+@keyframes ptrSearch{
+  0%{transform:translate(600px,330px) scale(1);opacity:0}
+  4%{opacity:1}
+  8%{transform:translate(470px,74px) scale(1)}
+  11%{transform:translate(470px,74px) scale(.82)}
+  22%{transform:translate(304px,206px) scale(.82)}
+  25%{transform:translate(304px,206px) scale(1)}
+  30%{transform:translate(214px,190px) scale(1)}
+  46%{transform:translate(394px,190px) scale(1)}
+  50%{transform:translate(334px,196px) scale(.82)}
+  54%{transform:translate(334px,162px) scale(.82)}
+  64%{transform:translate(389px,4px) scale(.82)}
+  67%{transform:translate(389px,4px) scale(1)}
+  72%{transform:translate(470px,74px) scale(1)}
+  75%{transform:translate(460px,78px) scale(.9)}
+  78%{transform:translate(476px,78px) scale(.9)}
+  81%{transform:translate(460px,78px) scale(.9)}
+  84%{transform:translate(476px,78px) scale(.9)}
+  90%{transform:translate(470px,74px) scale(1);opacity:1}
+  98%,100%{transform:translate(540px,220px) scale(1);opacity:0}
+}
+@keyframes ptrReveal{
+  0%{transform:translate(600px,330px) scale(1);opacity:0}
+  4%{opacity:1}
+  8%{transform:translate(470px,74px) scale(1)}
+  11%{transform:translate(470px,74px) scale(.82)}
+  30%{transform:translate(334px,214px) scale(.82)}
+  34%{transform:translate(334px,214px) scale(1)}
+  44%,58%{transform:translate(420px,300px) scale(1)}
+  64%{transform:translate(334px,214px) scale(.82)}
+  80%{transform:translate(389px,4px) scale(.82)}
+  84%{transform:translate(389px,4px) scale(1);opacity:1}
+  94%,100%{transform:translate(440px,160px) scale(1);opacity:0}
+}
+
+/* ── Remsan: hans bord när det är litet ── */
+.remsor{width:1041px;height:300px;padding:22px 0;display:flex;flex-direction:column;gap:18px;background:var(--bg)}
+.rrad{display:flex;flex-direction:column;gap:8px}
+.rrad .gcap{height:18px;padding:0 4px}
+.rrad .gcap b{font-size:13px}
+.strip{position:relative;width:1041px;height:46px;border-radius:12px;overflow:hidden;background:radial-gradient(1250px 620px at 54% 74%,#18232f,#0a0f14 72%)}
+.strip::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;box-shadow:inset 0 0 0 1px #f0a52a66}
+.strip .olist{position:absolute;inset:0}
+.mini{position:absolute;width:16px;height:22px;border-radius:2px;object-fit:cover;box-shadow:0 0 0 1px #0009}
+.minif{position:absolute;width:20px;height:26px;border-radius:3px;border:1px solid #6b8cff}
+.stripglow{position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:30}
+@keyframes stripFlash{0%,12%{box-shadow:inset 0 0 0 1px #f0a52a66}20%{box-shadow:inset 0 0 0 1px #f0a52a,inset 0 0 26px #f0a52a33}40%,100%{box-shadow:inset 0 0 0 1px #f0a52a66}}
+@keyframes miniDraw{0%,12%{transform:translate(0,0)}40%,88%{transform:translate(var(--tx),0)}95%{transform:translate(var(--tx),0);opacity:0}96%{transform:translate(0,0);opacity:0}100%{opacity:1}}
+@keyframes miniScryA{0%,10%{transform:translate(0,0);box-shadow:0 0 0 1px #0009}24%,50%{transform:translate(-26px,0) rotate(-8deg);box-shadow:0 0 0 1.5px #6b8cff}62%,100%{transform:translate(0,0);box-shadow:0 0 0 1px #0009}}
+@keyframes miniScryB{0%,12%{transform:translate(0,0);box-shadow:0 0 0 1px #0009}26%,64%{transform:translate(-8px,0) rotate(7deg);box-shadow:0 0 0 1.5px #6b8cff}76%{transform:translate(0,12px)}86%,100%{transform:translate(0,0);box-shadow:0 0 0 1px #0009}}
+@keyframes miniFan{0%,10%{transform:translate(0,0) rotate(0deg)}22%,60%{transform:translate(var(--tx),0) rotate(var(--tr))}72%,100%{transform:translate(0,0) rotate(0deg)}}
+
+/* ══ Rad 3 · Text när det händer ══════════════════════════════════════
+   Samma rörelser som V1, men med en längre svans efter rörelsen (scry 9 s,
+   sök 11 s), så att det som står kvar hinner synas. Procenten är V1:s
+   gånger 6/9 respektive 8.5/11. */
+@keyframes scryTop9{
+  0%,6.7%{transform:translate(0,0) rotate(0deg) scale(1);box-shadow:0 3px 8px #0008}
+  16%{transform:translate(var(--hx),var(--hy)) rotate(var(--hr)) scale(1);box-shadow:0 0 0 2px #6b8cff,0 14px 26px -8px #000}
+  20.7%{transform:translate(var(--hx),calc(var(--hy) - 5px)) rotate(calc(var(--hr) + 2deg)) scale(1)}
+  25.3%,33.3%{transform:translate(var(--hx),var(--hy)) rotate(var(--hr)) scale(1);box-shadow:0 0 0 2px #6b8cff,0 14px 26px -8px #000}
+  41.3%,100%{transform:translate(0,0) rotate(0deg) scale(1);box-shadow:0 3px 8px #0008}
+}
+@keyframes scryBottom9{
+  0%,8%{transform:translate(0,0) rotate(0deg) scale(1);box-shadow:0 3px 8px #0008}
+  17.3%{transform:translate(var(--hx),var(--hy)) rotate(var(--hr)) scale(1);box-shadow:0 0 0 2px #6b8cff,0 14px 26px -8px #000}
+  22.7%{transform:translate(var(--hx),calc(var(--hy) - 4px)) rotate(calc(var(--hr) - 2deg)) scale(1)}
+  28%,42.7%{transform:translate(var(--hx),var(--hy)) rotate(var(--hr)) scale(1);box-shadow:0 0 0 2px #6b8cff,0 14px 26px -8px #000}
+  50.7%{transform:translate(0,var(--uy)) rotate(0deg) scale(1);box-shadow:0 3px 8px #0008}
+  57.3%,100%{transform:translate(0,0) rotate(0deg) scale(1)}
+}
+@keyframes pileBump9{0%,50.7%{translate:0 0}54%{translate:0 -6px}58.7%,100%{translate:0 0}}
+
+@keyframes fanOut11{
+  0%,7.7%{transform:translate(0,0) rotate(0deg) scale(1)}
+  17%,46.4%{transform:translate(var(--tx),var(--ty)) rotate(var(--tr)) scale(1)}
+  55.6%,100%{transform:translate(0,0) rotate(0deg) scale(1)}
+}
+@keyframes browse11{0%,20.1%{translate:0 0}23.2%{translate:0 -12px}26.3%,100%{translate:0 0}}
+@keyframes pickHand11{
+  0%,7.7%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1}
+  17%,38.6%{transform:translate(var(--tx),var(--ty)) rotate(var(--tr)) scale(1)}
+  41.7%{transform:translate(var(--tx),calc(var(--ty) - 34px)) rotate(0deg) scale(1.12)}
+  49.4%,96%{transform:translate(var(--px),var(--py)) rotate(var(--pr)) scale(var(--ps));opacity:1}
+  98.5%{transform:translate(var(--px),var(--py)) rotate(var(--pr)) scale(var(--ps));opacity:0}
+  99%{transform:translate(0,0) rotate(0deg) scale(1);opacity:0}
+  100%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1}
+}
+@keyframes shiftPick11{0%,43.3%{translate:0 0}49.4%,97%{translate:var(--sx) 0}100%{translate:0 0}}
+@keyframes pileSearchL11{
+  0%,7.7%{opacity:1;translate:0 0;rotate:0deg}
+  10.8%,51%{opacity:.16;translate:0 0;rotate:0deg}
+  55.6%{opacity:1;translate:0 0;rotate:0deg}
+  58%{translate:-18px 2px;rotate:-10deg}
+  60.3%{translate:0 0;rotate:0deg}
+  62.6%{translate:-18px 2px;rotate:-10deg}
+  64.9%{translate:0 0;rotate:0deg}
+  67.2%{translate:-11px 1px;rotate:-6deg}
+  69.5%,100%{opacity:1;translate:0 0;rotate:0deg}
+}
+@keyframes pileSearchR11{
+  0%,7.7%{opacity:1;translate:0 0;rotate:0deg}
+  10.8%,51%{opacity:.16;translate:0 0;rotate:0deg}
+  55.6%{opacity:1;translate:0 0;rotate:0deg}
+  58%{translate:18px 2px;rotate:10deg}
+  60.3%{translate:0 0;rotate:0deg}
+  62.6%{translate:18px 2px;rotate:10deg}
+  64.9%{translate:0 0;rotate:0deg}
+  67.2%{translate:11px 1px;rotate:6deg}
+  69.5%,100%{opacity:1;translate:0 0;rotate:0deg}
+}
+@keyframes frameOut11{0%,7.7%{box-shadow:none}12.4%,49.4%{box-shadow:0 0 0 5px #6b8cff1f,0 0 22px 3px #6b8cff33}55.6%,100%{box-shadow:none}}
+@keyframes cnt49A{0%,49%{opacity:1}49.5%,97%{opacity:0}98%,100%{opacity:1}}
+@keyframes cnt49B{0%,49%{opacity:0}49.5%,97%{opacity:1}98%,100%{opacity:0}}
+
+/* Hans matta tänds en gång när något börjar, så att man inte missar det */
+.mglow{position:absolute;inset:0;z-index:29;border-radius:inherit;pointer-events:none}
+@keyframes glowStart{0%,3%{box-shadow:inset 0 0 0 1px #f0a52a00}8%{box-shadow:inset 0 0 0 2px #f0a52a,inset 0 0 46px #f0a52a2e}22%,100%{box-shadow:inset 0 0 0 1px #f0a52a00}}
+
+/* TA · En rad text där det händer, som byter när utfallet kommer */
+.capa{position:absolute;z-index:25;display:inline-grid;padding:8px 12px 9px 10px;border-radius:8px;background:#0b1017f2;border:1px solid #f0a52a88;box-shadow:0 10px 24px -10px #000;color:var(--txt);white-space:nowrap}
+.capa > span{grid-area:1/1;display:flex;flex-direction:column;gap:5px}
+.capa b{display:flex;align-items:center;gap:7px;font:650 12.5px/1 var(--sans)}
+.capa i.d{width:6px;height:6px;border-radius:50%;background:var(--acc);flex:none}
+.capa em{font:500 11.5px/1.2 var(--sans);font-style:normal;color:var(--dim);padding-left:13px}
+@keyframes t9ab{0%,57%{opacity:1}57.5%,100%{opacity:0}}
+@keyframes t11ab{0%,69%{opacity:1}69.5%,100%{opacity:0}}
+@keyframes chipIn{0%,5%{opacity:0;translate:0 6px}8%,95%{opacity:1;translate:0 0}99%,100%{opacity:0;translate:0 0}}
+@keyframes t9a{0%,41%{opacity:1}41.5%,100%{opacity:0}}
+@keyframes t9b{0%,41%{opacity:0}41.5%,57%{opacity:1}57.5%,100%{opacity:0}}
+@keyframes t9c{0%,57%{opacity:0}57.5%,100%{opacity:1}}
+@keyframes t11a{0%,49%{opacity:1}49.5%,100%{opacity:0}}
+@keyframes t11b{0%,49%{opacity:0}49.5%,69%{opacity:1}69.5%,100%{opacity:0}}
+@keyframes t11c{0%,69%{opacity:0}69.5%,100%{opacity:1}}
+
+/* TB · Märken som stannar kvar en stund, inga ord */
+.mk{position:absolute;z-index:25;display:flex;align-items:center;gap:4px;height:22px;padding:0 7px;border-radius:11px;background:#16224a;border:1px solid #6b8cff;font:700 11.5px/1 var(--mono);color:#c9d4ff;white-space:nowrap;box-shadow:0 6px 14px -6px #000}
+.mk.vit{background:#1b2230;border-color:#c9d4e6aa;color:#e7ecf4}
+.mk svg{display:block}
+@keyframes mk41{0%,41%{opacity:0;scale:.6}44%,96%{opacity:1;scale:1}99%,100%{opacity:0;scale:1}}
+@keyframes mk57{0%,57%{opacity:0;scale:.6}60%,96%{opacity:1;scale:1}99%,100%{opacity:0;scale:1}}
+@keyframes mk49{0%,49.4%{opacity:0;scale:.6}52%,96%{opacity:1;scale:1}99%,100%{opacity:0;scale:1}}
+@keyframes mk69{0%,69.5%{opacity:0;scale:.6}72%,96%{opacity:1;scale:1}99%,100%{opacity:0;scale:1}}
+
+/* TC · Det senaste står vid hans namn, med en knapp som spelar upp det igen */
+.plchip{display:inline-grid;margin-left:2px}
+.plchip > span{grid-area:1/1;display:flex;align-items:center;gap:6px;height:20px;padding:0 8px;border-radius:10px;background:#1a1408;border:1px solid #8a5d10;color:#ffd98a;font:600 11px/1 var(--sans);white-space:nowrap}
+.plchip i.d{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:puls 1.2s ease-in-out infinite}
+.plchip em{font-style:normal;font-weight:500;color:#c9b485}
+.plchip svg{display:block;color:#ffd98a}

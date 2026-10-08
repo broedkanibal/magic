@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>T2 · A tray on the table</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./mesa.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0d1015}
+a{color:#6b8cff}a:hover{color:#8ea6ff}
+</style>
+</helmet>
+<div class="ab crop" style="width: 1061px; height: 752px">
+  <section class="matta">
+    <div class="mattachrome">
+      <div class="zoomchip"><span class="zlage on"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3l14 8-6 1.5L10 19z"></path></svg></span><span class="zlage"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"></path></svg></span></div>
+      <div class="zoomchip"><span class="zsteg">−</span><span class="ztxt">73% fit</span><span class="zsteg">+</span></div>
+      <button class="btn sm">Untap all <kbd>U</kbd></button>
+      <button class="btn sm">Tidy up</button>
+    </div>
+
+    <div class="card tappad" style="left: 86px; top: 56px"><img src="img/llanowar.jpg" alt="Llanowar Elves, tapped"></div>
+    <div class="card" style="left: 270px; top: 56px"><img src="img/woodelves.jpg" alt="Wood Elves"></div>
+    <div class="card ny" style="left: 410px; top: 56px"><img src="img/pikemaster.jpg" alt="Faithful Pikemaster, just played"></div>
+    <div class="card" style="left: 60px; top: 262px"><img src="img/forest.jpg" alt="Forest"></div>
+    <div class="card" style="left: 200px; top: 262px"><img src="img/forest.jpg" alt="Forest"></div>
+    <div class="card" style="left: 340px; top: 262px"><img src="img/forest.jpg" alt="Forest"></div>
+    <div class="card" style="left: 480px; top: 262px"><img src="img/plains.jpg" alt="Plains"></div>
+
+    <div class="gravhog">
+      <button class="grav" aria-label="Graveyard, 1 card"><img src="img/blade.jpg" alt="Ancestral Blade"></button>
+      <span class="hograd"><i></i>Graveyard <b>1</b></span>
+    </div>
+    <div class="bibhog">
+      <div class="bib ute"><span class="utetxt"><b>2 cards in the tray</b><em>the rest stays here</em></span></div>
+      <span class="hograd"><i></i>Library <b>27</b></span>
+    </div>
+
+    <div class="panel" style="left: 300px; top: 84px; width: 478px">
+      <div class="phd">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8fa0d6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.2A9.7 9.7 0 0 1 12 5c6 0 9.5 7 9.5 7a15 15 0 0 1-2.9 3.7"></path><path d="M6.3 6.6A15 15 0 0 0 2.5 12S6 19 12 19a9 9 0 0 0 4.2-1"></path><path d="M9.9 10a3 3 0 0 0 4.1 4.2"></path></svg>
+        <b>Scry 2</b><span class="ser">Only you see these cards</span>
+        <span class="grow"></span>
+        <button class="btn sm">+1 card</button>
+      </div>
+      <div class="lanes">
+        <div class="lane">
+          <span class="hograd bla"><i></i>Top of library <b>1</b></span>
+          <div class="lk"><img src="img/llanowar.jpg" alt="Llanowar Elves"><i class="nr">1</i></div>
+          <div class="tom">Drag a card here to keep it on top</div>
+        </div>
+        <div class="lane streck">
+          <span class="hograd bla"><i></i>Bottom <b>1</b></span>
+          <div class="lk"><img src="img/plains.jpg" alt="Plains"></div>
+        </div>
+      </div>
+      <div class="pft">
+        <span class="ser">Sara sees: scry 2, 1 on top, 1 on the bottom</span>
+        <span class="grow"></span>
+        <button class="btn prim">Done<kbd>⏎</kbd></button>
+      </div>
+    </div>
+
+    <span class="hograd vit handrad"><i></i>Hand <b>5</b></span>
+    <div class="handfan vila">
+      <div class="hkort" style="left: 374px; top: 495px; transform: rotate(-7.3deg); z-index: 1"><span class="cf"><img src="img/danitha.jpg" alt="Danitha Capashen, Paragon"></span></div>
+      <div class="hkort" style="left: 456px; top: 488px; transform: rotate(-3.6deg); z-index: 2"><span class="cf"><img src="img/serra.jpg" alt="Serra Angel"></span></div>
+      <div class="hkort" style="left: 538px; top: 485px; transform: rotate(0deg); z-index: 3"><span class="cf"><img src="img/anthem.jpg" alt="Glorious Anthem"></span></div>
+      <div class="hkort" style="left: 620px; top: 488px; transform: rotate(3.6deg); z-index: 4"><span class="cf"><img src="img/forest.jpg" alt="Forest"></span></div>
+      <div class="hkort" style="left: 702px; top: 495px; transform: rotate(7.3deg); z-index: 5"><span class="cf"><img src="img/plains.jpg" alt="Plains"></span></div>
+    </div>
+  </section>
+
+  <footer class="hints">
+    <span>Scry 2:</span>
+    <span>drag a card to where it goes</span>
+    <i class="sep"></i>
+    <span><kbd>B</kbd>bottom</span><span><kbd>T</kbd>top</span><span><kbd>←</kbd><kbd>→</kbd>change the order</span><span><kbd>Enter</kbd>done</span>
+    <span class="status"><i class="led"></i>Saved</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1061,"height":752}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

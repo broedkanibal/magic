@@ -1,0 +1,636 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-09-30T12:20:30Z"
+  },
+  "title": "Mesa Hand and Library",
+  "launch": {
+    "view": "canvas",
+    "page": "p1"
+  },
+  "pages": [
+    {
+      "id": "p1",
+      "name": "1 · The hand"
+    },
+    {
+      "id": "p2",
+      "name": "2 · Draw and opening hand"
+    },
+    {
+      "id": "p3",
+      "name": "3 · Top of the library"
+    },
+    {
+      "id": "p4",
+      "name": "4 · Search"
+    },
+    {
+      "id": "p5",
+      "name": "5 · What the others see"
+    },
+    {
+      "id": "p6",
+      "name": "6 · Seeing what they do"
+    }
+  ],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "A · The fan on the table edge",
+      "page": "p1",
+      "is_interactive": true
+    },
+    "HandA2.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "A · Playing a card",
+      "page": "p1"
+    },
+    "HandB.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "B · A rail under the table",
+      "page": "p1",
+      "is_interactive": true
+    },
+    "HandC.dc.html": {
+      "x": 4560,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "C · A third pile",
+      "page": "p1"
+    },
+    "Pile.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1061,
+      "h": 520,
+      "title": "The library pile",
+      "page": "p2"
+    },
+    "OpenO1.dc.html": {
+      "x": 0,
+      "y": 940,
+      "w": 1061,
+      "h": 752,
+      "title": "O1 · Dealt onto the table",
+      "page": "p2"
+    },
+    "MullO1.dc.html": {
+      "x": 1141,
+      "y": 940,
+      "w": 1061,
+      "h": 752,
+      "title": "O1 · Mulligan",
+      "page": "p2"
+    },
+    "OpenO2.dc.html": {
+      "x": 0,
+      "y": 2112,
+      "w": 1061,
+      "h": 752,
+      "title": "O2 · Straight into your hand",
+      "page": "p2"
+    },
+    "MullO2.dc.html": {
+      "x": 1141,
+      "y": 2112,
+      "w": 1061,
+      "h": 752,
+      "title": "O2 · Mulligan",
+      "page": "p2"
+    },
+    "TopT1.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1061,
+      "h": 752,
+      "title": "T1 · In your hands",
+      "page": "p3"
+    },
+    "TopT2.dc.html": {
+      "x": 1141,
+      "y": 0,
+      "w": 1061,
+      "h": 752,
+      "title": "T2 · A tray on the table",
+      "page": "p3"
+    },
+    "TopLook.dc.html": {
+      "x": 0,
+      "y": 1172,
+      "w": 1061,
+      "h": 752,
+      "title": "T1 · Look at five, keep one",
+      "page": "p3"
+    },
+    "TopReveal.dc.html": {
+      "x": 1141,
+      "y": 1172,
+      "w": 1061,
+      "h": 752,
+      "title": "T1 · Reveal until",
+      "page": "p3"
+    },
+    "SearchS1.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1061,
+      "h": 752,
+      "title": "S1 · The library in your hands",
+      "page": "p4"
+    },
+    "SearchS1b.dc.html": {
+      "x": 1141,
+      "y": 0,
+      "w": 1061,
+      "h": 752,
+      "title": "S1 · Two cards, two places",
+      "page": "p4"
+    },
+    "SearchS1c.dc.html": {
+      "x": 2282,
+      "y": 0,
+      "w": 1061,
+      "h": 752,
+      "title": "S1 · On top after the shuffle",
+      "page": "p4"
+    },
+    "SearchS2.dc.html": {
+      "x": 0,
+      "y": 1172,
+      "w": 1061,
+      "h": 752,
+      "title": "S2 · A search panel",
+      "page": "p4"
+    },
+    "LogL1.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "L1 · A log beside the table",
+      "page": "p5"
+    },
+    "LogL2.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "L2 · Captions on the table",
+      "page": "p5"
+    },
+    "SeeV1.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1328,
+      "h": 936,
+      "title": "V1 · The cards move",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "SeeV2.dc.html": {
+      "x": 1408,
+      "y": 0,
+      "w": 1328,
+      "h": 936,
+      "title": "V2 · His hand held up",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "SeeV3.dc.html": {
+      "x": 2816,
+      "y": 0,
+      "w": 1328,
+      "h": 936,
+      "title": "V3 · His hand does it",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "SeeV1b.dc.html": {
+      "x": 0,
+      "y": 1356,
+      "w": 1328,
+      "h": 936,
+      "title": "V1 · More actions",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "SeeCtx.dc.html": {
+      "x": 1408,
+      "y": 1356,
+      "w": 1440,
+      "h": 900,
+      "title": "V1 · On Sara's screen",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "SeeStrip.dc.html": {
+      "x": 2928,
+      "y": 1356,
+      "w": 1041,
+      "h": 300,
+      "title": "When his table is a strip",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "SeeTA.dc.html": {
+      "x": 0,
+      "y": 2852,
+      "w": 1328,
+      "h": 488,
+      "title": "TA · A line under his library",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "SeeTB.dc.html": {
+      "x": 1408,
+      "y": 2852,
+      "w": 1328,
+      "h": 488,
+      "title": "TB · Marks that stay a while",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "SeeTC.dc.html": {
+      "x": 2816,
+      "y": 2852,
+      "w": 1328,
+      "h": 488,
+      "title": "TC · At his name, with replay",
+      "page": "p6",
+      "is_interactive": true
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "HandA2.dc.html",
+    "HandB.dc.html",
+    "HandC.dc.html",
+    "Pile.dc.html",
+    "OpenO1.dc.html",
+    "MullO1.dc.html",
+    "OpenO2.dc.html",
+    "MullO2.dc.html",
+    "TopT1.dc.html",
+    "TopT2.dc.html",
+    "TopLook.dc.html",
+    "TopReveal.dc.html",
+    "SearchS1.dc.html",
+    "SearchS1b.dc.html",
+    "SearchS1c.dc.html",
+    "SearchS2.dc.html",
+    "LogL1.dc.html",
+    "LogL2.dc.html",
+    "SeeV1.dc.html",
+    "SeeV2.dc.html",
+    "SeeV3.dc.html",
+    "SeeV1b.dc.html",
+    "SeeCtx.dc.html",
+    "SeeStrip.dc.html",
+    "SeeTA.dc.html",
+    "SeeTB.dc.html",
+    "SeeTC.dc.html"
+  ],
+  "notes": {
+    "t1": {
+      "x": 0,
+      "y": -300,
+      "text": "1 · The hand: where it lives and how a card is played",
+      "kind": "title1",
+      "maxW": 6000,
+      "page": "p1"
+    },
+    "n1a": {
+      "x": 0,
+      "y": 960,
+      "w": 560,
+      "fill": "green",
+      "page": "p1",
+      "text": "A · Recommended. The hand is the fan from Deck in Play. It lies along the edge of your table and you always see the top half of every card. Point at it and it rises. Press Play to try it."
+    },
+    "n1a2": {
+      "x": 1520,
+      "y": 960,
+      "w": 560,
+      "fill": "green",
+      "page": "p1",
+      "text": "Playing a card: drag it to where you want it, or press Enter to put it on the next free place. G discards. The pill has the same actions for the mouse."
+    },
+    "n1b": {
+      "x": 3040,
+      "y": 960,
+      "w": 560,
+      "fill": "blue",
+      "page": "p1",
+      "text": "B · The hand gets its own strip under the table. Nothing ever covers the cards on the table, but the table is 158 px lower all the time."
+    },
+    "n1c": {
+      "x": 4560,
+      "y": 960,
+      "w": 560,
+      "fill": "blue",
+      "page": "p1",
+      "text": "C · The hand is a third pile. H or a click picks it up as the fan in A. The table stays clean, but you cannot see your hand without asking for it."
+    },
+    "t2a": {
+      "x": 0,
+      "y": -300,
+      "text": "2 · Draw, shuffle and the rest: the library pile",
+      "kind": "title1",
+      "maxW": 2300,
+      "page": "p2"
+    },
+    "n2p": {
+      "x": 0,
+      "y": 580,
+      "w": 560,
+      "fill": "blue",
+      "page": "p2",
+      "text": "A click draws. Right-click opens the rest. Shuffle is only in the menu and never happens on its own. Everyone sees the count."
+    },
+    "t2b": {
+      "x": 0,
+      "y": 640,
+      "text": "Opening hand and mulligan, O1: dealt onto the table",
+      "kind": "title1",
+      "maxW": 2300,
+      "page": "p2"
+    },
+    "n2o1": {
+      "x": 0,
+      "y": 1752,
+      "w": 560,
+      "fill": "green",
+      "page": "p2",
+      "text": "O1 · Recommended. Seven cards are dealt face up on the empty table, all of them fully visible. Keep sends them down into your hand."
+    },
+    "n2m1": {
+      "x": 1141,
+      "y": 1752,
+      "w": 560,
+      "fill": "green",
+      "page": "p2",
+      "text": "London mulligan: seven new cards, then click the ones that go to the bottom. Keep is ready when the number is right."
+    },
+    "t2c": {
+      "x": 0,
+      "y": 1812,
+      "text": "Opening hand and mulligan, O2: straight into your hand",
+      "kind": "title1",
+      "maxW": 2300,
+      "page": "p2"
+    },
+    "n2o2": {
+      "x": 0,
+      "y": 2924,
+      "w": 560,
+      "fill": "blue",
+      "page": "p2",
+      "text": "O2 · The cards go straight into the fan and the question sits above it. Faster, but the cards overlap while you decide."
+    },
+    "n2m2": {
+      "x": 1141,
+      "y": 2924,
+      "w": 560,
+      "fill": "blue",
+      "page": "p2",
+      "text": "The same mulligan in the fan: the card for the bottom sinks."
+    },
+    "t3a": {
+      "x": 0,
+      "y": -300,
+      "text": "3 · Look at the top N: scry 2, in two ways",
+      "kind": "title1",
+      "maxW": 2300,
+      "page": "p3"
+    },
+    "n3t1": {
+      "x": 0,
+      "y": 812,
+      "w": 560,
+      "fill": "green",
+      "page": "p3",
+      "text": "T1 · Recommended. The top cards come up beside your hand with a blue edge: they still belong to the library. Drag one to the top or bottom half of the pile, or use the keys. Your hand and your table stay in view while you decide."
+    },
+    "n3t2": {
+      "x": 1141,
+      "y": 812,
+      "w": 560,
+      "fill": "blue",
+      "page": "p3",
+      "text": "T2 · The same scry as a tray with lanes. You see the result before you confirm it, but the tray covers the middle of the table."
+    },
+    "t3b": {
+      "x": 0,
+      "y": 872,
+      "text": "More cases, drawn as T1",
+      "kind": "title1",
+      "maxW": 2300,
+      "page": "p3"
+    },
+    "n3l": {
+      "x": 0,
+      "y": 1984,
+      "w": 560,
+      "fill": "blue",
+      "page": "p3",
+      "text": "Look at five, take one. Showing a card to everyone is a choice per card, not per dialog. The rest goes to the bottom in random order, and the app does that shuffling."
+    },
+    "n3r": {
+      "x": 1141,
+      "y": 1984,
+      "w": 560,
+      "fill": "blue",
+      "page": "p3",
+      "text": "Public: the cards have an amber edge and everyone sees them on your table. +1 card turns one more until you stop (cascade, discover)."
+    },
+    "t4a": {
+      "x": 0,
+      "y": -300,
+      "text": "4 · Search the library, S1: the fan you already have",
+      "kind": "title1",
+      "maxW": 3400,
+      "page": "p4"
+    },
+    "n4a": {
+      "x": 0,
+      "y": 812,
+      "w": 560,
+      "fill": "green",
+      "page": "p4",
+      "text": "S1 · Recommended. L picks up the whole library as the fan that is already built. The field matches names and type lines, so 'basic' finds Forest and Plains. Your hand gathers into a small stack beside it."
+    },
+    "n4b": {
+      "x": 1141,
+      "y": 812,
+      "w": 560,
+      "fill": "green",
+      "page": "p4",
+      "text": "One Forest went to the table tapped, one Plains to the hand. Esc puts the library down and shuffles it. Taking nothing is how you find nothing."
+    },
+    "n4c": {
+      "x": 2282,
+      "y": 812,
+      "w": 560,
+      "fill": "green",
+      "page": "p4",
+      "text": "Tutor to the top: drop the card on the pile. The library is shuffled first, then the card lands on top."
+    },
+    "t4b": {
+      "x": 0,
+      "y": 872,
+      "text": "S2: a search panel",
+      "kind": "title1",
+      "maxW": 2300,
+      "page": "p4"
+    },
+    "n4s2": {
+      "x": 0,
+      "y": 1984,
+      "w": 560,
+      "fill": "blue",
+      "page": "p4",
+      "text": "S2 · A panel with a grid, filters and a list of what you found, with a destination per card. Everything is explicit, but it is a dialog on top of the table."
+    },
+    "t5": {
+      "x": 0,
+      "y": -300,
+      "text": "5 · What the others see: that it happens, never which cards",
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "p5"
+    },
+    "n5a": {
+      "x": 0,
+      "y": 960,
+      "w": 560,
+      "fill": "green",
+      "page": "p5",
+      "text": "L1 · Recommended. This is Sara's screen. The log lives under the big card, where there is room today. What a player is doing right now also stands next to their name. Numbers, never the names of hidden cards."
+    },
+    "n5b": {
+      "x": 1520,
+      "y": 960,
+      "w": 560,
+      "fill": "blue",
+      "page": "p5",
+      "text": "L2 · No log column. The last things a player did stand as captions on their table and fade. Y opens the history. Here Jesper reveals cards, so Sara sees them."
+    },
+    "t6a": {
+      "x": 0,
+      "y": -300,
+      "text": "6 · Seeing what they do: every action is a movement, nothing is written",
+      "kind": "title1",
+      "maxW": 4144,
+      "page": "p6"
+    },
+    "n6v1": {
+      "x": 0,
+      "y": 996,
+      "w": 600,
+      "fill": "green",
+      "page": "p6",
+      "text": "V1 · Recommended. His hand is the row of backs at the far edge of his table, as across a real table. Every action is one movement from the old place to the new, the same rule as the mirror animations: a card slides from his library into his hand, two cards are lifted and held, one slides under the pile. The app draws it from the change itself, so nothing extra is sent."
+    },
+    "n6v2": {
+      "x": 1408,
+      "y": 996,
+      "w": 600,
+      "fill": "blue",
+      "page": "p6",
+      "text": "V2 · His hand is held up like yours, a big fan of backs hanging from the far edge, and cards he looks at join it. It feels most like sitting across from him, but the fan takes the top of his table, where his own cards also lie."
+    },
+    "n6v3": {
+      "x": 2816,
+      "y": 996,
+      "w": 600,
+      "fill": "blue",
+      "page": "p6",
+      "text": "V3 · V1 plus a hand in his colour that does each movement, so you see where he reaches before the card moves. It is drawn from the change, not from his real pointer, so it costs no extra traffic. With four players it may feel busy."
+    },
+    "t6b": {
+      "x": 0,
+      "y": 1056,
+      "text": "V1 in more detail",
+      "kind": "title1",
+      "maxW": 3970,
+      "page": "p6"
+    },
+    "n6v1b": {
+      "x": 0,
+      "y": 2352,
+      "w": 600,
+      "fill": "green",
+      "page": "p6",
+      "text": "More actions in V1. A played card turns over on its way down to the table, milled cards turn as they fall, a discard turns and greys, cards put back land on top of the pile."
+    },
+    "n6ctx": {
+      "x": 1408,
+      "y": 2316,
+      "w": 600,
+      "fill": "green",
+      "page": "p6",
+      "text": "V1 on Sara's screen while Jesper scries 2. No log column and no status text. The log from page 5 can stay behind Y for 'what just happened?', but nothing on the table needs it."
+    },
+    "n6strip": {
+      "x": 2928,
+      "y": 1716,
+      "w": 600,
+      "fill": "blue",
+      "page": "p6",
+      "text": "When you chose Me and his table is only a strip: the same movements in miniature, and the strip lights up once in his colour."
+    },
+    "t6c": {
+      "x": 0,
+      "y": 2552,
+      "text": "Text when it happens, so nobody misses it",
+      "kind": "title1",
+      "maxW": 4144,
+      "page": "p6"
+    },
+    "n6ta": {
+      "x": 0,
+      "y": 3400,
+      "w": 600,
+      "fill": "green",
+      "page": "p6",
+      "text": "TA · Recommended. One short line under his library, only while something happens: first what he is doing, then what came of it. It stays a few seconds after the cards have stopped. His table also lights up once when he starts, so your eye goes there."
+    },
+    "n6tb": {
+      "x": 1408,
+      "y": 3400,
+      "w": 600,
+      "fill": "blue",
+      "page": "p6",
+      "text": "TB · No words. Small marks stay on the pile and the hand for a few seconds: ↑1 ↓1 after a scry, +1 and a shuffle mark after a search. Quiet, but you have to learn what the marks mean."
+    },
+    "n6tc": {
+      "x": 2816,
+      "y": 3400,
+      "w": 600,
+      "fill": "blue",
+      "page": "p6",
+      "text": "TC · The latest action stands next to his name until he does something else, with a button that plays it again. Nothing is missed, but the text sits away from the cards."
+    },
+    "n6rules": {
+      "x": 4224,
+      "y": 2852,
+      "w": 520,
+      "fill": "gray",
+      "page": "p6",
+      "text": "For all three: an action never plays faster than you can follow, at least 1.5 s, and several in a row play one after another. An action aimed at you gets a short sound. The log behind Y has everything."
+    }
+  },
+  "designSystems": []
+}

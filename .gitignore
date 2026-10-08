@@ -19,3 +19,7 @@ dev/golden/inspelningar/**/*.MP4
 # MES-288 nollprovet: modellvikter och venv ligger utanför git
 dev/detektor/vikter/
 dev/detektor/*.pt
+
+# Python-cache och stora experimentresultat ur remsbänken (29 MB styck) ligger utanför git
+__pycache__/
+dev/remsa/resultat/*.npz
