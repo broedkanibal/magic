@@ -152,6 +152,10 @@ på en felsida efter Google-rutan.
    `realtime.messages`. Utan den nekas kamerakanalen, och appen säger det
    i stället för att kameran tyst aldrig når datorn. Körs FÖRE koden från
    grenen driftsätts.
+8. Funktionernas rättigheter (Security Advisor 2026-10-09):
+   `migrations/20261009090000_funktioners_rattigheter.sql` låser sökvägen i
+   `bump_board_version` och tar bort rätten för utloggade att köra
+   `i_spelet` och Supabases egen `rls_auto_enable`. Påverkar inte appen.
 
 Filerna går att köra om utan att något går sönder, så om du behöver ändra
 något senare kör du bara hela filen igen.

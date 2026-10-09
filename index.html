@@ -4196,7 +4196,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
       <p class="lead">Local recognition handles most cards on its own. For the ones it isn't sure about, an image model can decide — it sees the cropped card and the best candidates, and picks one.</p>
       <label style="display:flex;gap:9px;align-items:center;font-size:12.8px;color:var(--dim)">
         <input type="checkbox" id="aiAuto" style="accent-color:var(--acc);width:15px;height:15px">
-        Ask automatically about every uncertain card when reading
+        Ask automatically about every uncertain card — on this computer and from the phone camera
       </label>
       <div id="aiKeyBlock">
         <div class="warn">The app is running without a server, so AI help needs your <b>own key</b> from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>. The key is stored in this browser and only sent to Anthropic — but anyone with access to this computer can read it, so use a separate key with a spending limit.</div>
@@ -13180,8 +13180,9 @@ function renderTom() {
   /* Leken utan uppstart (MES-334 steg 3, sida 5 tavla 1–2): före första
      kortet säger mattan bara en sak — lägg ner leken, och när den ligger:
      spela första kortet. Samma stil och plats i båda; bytet är kvittensen.
-     Också medan kameran läser något okänt (leken själv innan den dömts). */
-  const lt = !opp && (l === 'redo' || l === 'okanda') ? lekText() : null;
+     Också medan kameran läser något okänt (leken själv innan den dömts) och
+     medan den ställer in sig (startar) — då ska inte "in a moment" hinna synas. */
+  const lt = !opp && (l === 'redo' || l === 'okanda' || l === 'startar') ? lekText() : null;
   const sig = l + n + (harKo ? 'k' : '') + mittLage() + (hittar ? 'h' : '') + (opp ? 'o' : '') + (lt ? '|' + lt : '');
   if (el.dataset.sig === sig) return;
   el.dataset.sig = sig;
@@ -13877,27 +13878,31 @@ function ofrSokOppna(pend) {
     ev.stopPropagation();
     const s = ofrSok; if (!s) return;
     if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); if (s.traffar.length) { s.idx = s.idx < 0 ? (ev.key === 'ArrowDown' ? 0 : s.traffar.length - 1) : (s.idx + (ev.key === 'ArrowDown' ? 1 : -1) + s.traffar.length) % s.traffar.length; ofrSokRita(); } }
-    else if (ev.key === 'Enter') { ev.preventDefault(); const t = s.idx >= 0 ? s.traffar[s.idx] : null; if (t) ofrNamnge(s.pend, t.namn, t.sid); }
+    else if (ev.key === 'Enter') { ev.preventDefault(); const t = s.idx >= 0 ? s.traffar[s.idx] : null; if (t) ofrNamnge(s.pend, t.namn, t.sid, !t.lek); }
     else if (ev.key === 'Escape') { ev.preventDefault(); ofrSokStang(); }
   });
   el.addEventListener('click', ev => {
     if (ev.target.closest('[data-sokstang]')) { ofrSokStang(); return; }
     if (ev.target.closest('[data-soknej]')) { if (ofrSok) ofrInteKort(ofrSok.pend); return; }
     const b = ev.target.closest('[data-soki]');
-    if (b && ofrSok) { const t = ofrSok.traffar[+b.dataset.soki]; if (t) ofrNamnge(ofrSok.pend, t.namn, t.sid); }
+    if (b && ofrSok) { const t = ofrSok.traffar[+b.dataset.soki]; if (t) ofrNamnge(ofrSok.pend, t.namn, t.sid, !t.lek); }
   });
   ofrSokSok();
   ofrSokPlacera();
   ofrSok.inp.focus({ preventScroll: true });
 }
-/* Leken först: namnen i min lek som innehåller frågan (alla, utan fråga), i bokstavsordning. Finns inget i
-   leken och frågan har två tecken söks alla kort (Scryfall), som granskningens sökning utanför ett spel. */
+/* Leken först: namnen i min lek som innehåller frågan (alla, utan fråga), i bokstavsordning. Står inget namn
+   i leken som innehåller frågan prövas stavfel (lekNamnNara: "Lighting Bolt" → Lightning Bolt). Finns inget i
+   leken ens då och frågan har två tecken söks alla kort (Scryfall) — och ett sådant kort läggs till i leken när
+   det väljs (Jespers beslut 2026-10-09: ett kort som glömts i leken ska gå att namnge, och finnas med i leken
+   nu och i kommande spel). Inga gissningar ur kameran, som förut. */
 function ofrSokSok() {
   const s = ofrSok; if (!s) return;
   const q = s.inp.value.trim(), my = ++s.seq;
   const lek = Array.isArray(lekKort) ? lekKort : [];
   const sidAv = n => { const k = lek.find(x => x.name === n); return k && k.sid ? k.sid : null; };
-  const namn = !lek.length ? [] : q ? lekNamnSok(q) : [...new Set(lek.map(k => k.name))].sort((a, b) => a.localeCompare(b));
+  let namn = !lek.length ? [] : q ? lekNamnSok(q) : [...new Set(lek.map(k => k.name))].sort((a, b) => a.localeCompare(b));
+  if (!namn.length && lek.length && q.length >= 3) namn = lekNamnNara(q);
   s.traffar = namn.slice(0, OFR_SOK_N).map(n => ({ namn: n, sid: sidAv(n), lek: true }));
   s.idx = q ? 0 : -1; s.alla = false;   // utan fråga är inget förvalt: Enter namnger inte kortet på måfå
   ofrSokRita();
@@ -13915,14 +13920,64 @@ function ofrSokRita() {
   const hl = n => { const i = q ? n.toLowerCase().indexOf(q.toLowerCase()) : -1; return i < 0 ? `<span>${esc(n)}</span>` : `<span>${esc(n.slice(0, i))}</span><b>${esc(n.slice(i, i + q.length))}</b><span>${esc(n.slice(i + q.length))}</span>`; };
   const rader = s.traffar.map((t, i) => `<button type="button" class="sok-t${i === s.idx ? ' on' : ''}" data-soki="${i}">${hl(t.namn)}</button>`).join('');
   s.res.innerHTML = s.alla
-    ? `<span class="sok-tom">Nothing in your deck — searching all cards</span>${rader ? `<span class="sok-grp">All cards</span><div class="sok-lista">${rader}</div>` : ''}`
+    ? `<span class="sok-tom">Nothing in your deck — searching all cards</span>${rader ? `<span class="sok-grp">${ofrSokLekId() ? 'All cards · adds to your deck' : 'All cards'}</span><div class="sok-lista">${rader}</div>` : ''}`
     : `<span class="sok-grp">From your deck</span><div class="sok-lista">${rader || '<span class="sok-tom">Type a card name</span>'}</div>`;
 }
-/* Det valda namnet: granskningens svar (namngePend), och kortet framkallas där det oframkallade låg. */
-function ofrNamnge(pend, name, sid) {
+/* Lekens namn nära frågan, med stavfel: frågan mot början av varje ord i namnet (den som skrivit "bolt" eller
+   "lighting" ska hitta Lightning Bolt), högst ett fel per fyra tecken och minst ett. Bästa först. */
+function lekNamnNara(q) {
+  const n = norm(q); if (n.length < 3) return [];
+  const tol = Math.max(1, Math.floor(n.length / 4));
+  /* Redigeringsavstånd där två bokstäver i fel ordning är ett fel ("plians" → Plains). */
+  const avst = (a, b) => {
+    const m = a.length, k = b.length; let fore2 = null, fore = Array.from({ length: k + 1 }, (_, j) => j);
+    for (let i = 1; i <= m; i++) {
+      const rad = [i];
+      for (let j = 1; j <= k; j++) {
+        rad[j] = Math.min(fore[j] + 1, rad[j - 1] + 1, fore[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (fore2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) rad[j] = Math.min(rad[j], fore2[j - 2] + 1);
+      }
+      fore2 = fore; fore = rad;
+    }
+    return fore[k];
+  };
+  const traffar = [];
+  for (const x of new Set((lekKort || []).map(k => k.name))) {
+    const nx = norm(x); let bast = Infinity;
+    for (let i = 0; i < nx.length; i++) {
+      if (i > 0 && nx[i - 1] !== ' ') continue;
+      for (const l of [n.length - 1, n.length, n.length + 1]) if (l > 0) bast = Math.min(bast, avst(n, nx.slice(i, i + l)));
+    }
+    if (bast <= tol) traffar.push({ x, d: bast });
+  }
+  return traffar.sort((a, b) => a.d - b.d || a.x.localeCompare(b.x)).map(t => t.x);
+}
+/* Leken som spelas i det här partiet: ett kort utanför den läggs till där (ofrLaggILek). */
+function ofrSokLekId() { const mig = spelLage && minSpelare(); return mig && mig.lekId ? mig.lekId : null; }
+/* Kortet fanns inte i leken: ett exemplar läggs till i huvudleken, som Use camera to add cards gör
+   (typ 'antal'), och sparas i lekens rad — så att kameran, antalen och nästa parti med leken har det.
+   lekEfterSpar bygger om leklådan, motståndarnas kopia och telefonens pool. Går sparningen inte igenom
+   försöker den igen i bakgrunden; kortet är namngivet på mattan ändå. */
+async function ofrLaggILek(namn) {
+  const id = ofrSokLekId(); if (!id) return;
+  let k;
+  try { k = await lookup(namn); } catch (e) { toast(`${namn} could not be added to your deck`, 'err'); return; }
+  const ops = [{ typ: 'antal', name: k.name, sb: false, d: 1, kort: { name: k.name, sid: k.id, small: imgOf(k, 0, 'small'), ci: k.ci || [] } }];
+  let bas = null;
+  try { bas = await lekHamtaRad(id); } catch (e) {}
+  if (!bas) { toast(`${k.name} could not be added to your deck`, 'err'); return; }
+  let res;
+  try { res = await lekSparaKo(id, bas, ops); } catch (e) { res = { ok: false }; }
+  if (res.ok) lekEfterSpar(bas, res.rad);
+  else if (!res.borta) lekSparaIBakgrunden(id, res.rad || bas, ops);
+}
+/* Det valda namnet: granskningens svar (namngePend), och kortet framkallas där det oframkallade låg.
+   utanforLek: namnet kom ur sökningen bland alla kort — kortet läggs till i leken (ofrLaggILek). */
+function ofrNamnge(pend, name, sid, utanforLek) {
   ofrSokStang();
   const p = malSpelare(), q = pendById(pend);
   if (!q || !name) return;
+  if (utanforLek) ofrLaggILek(name);
   const post = ofrLista().find(o => o.pend === pend), nu = Date.now();
   const sammaKort = namngePend(p, q, name, sid || null, [{ name, sid: sid || null, score: 1 }]);
   const k = p.cards.find(c => c.cid === q.id);
@@ -23859,9 +23914,12 @@ const AI = { mode: 'off', model: '', checked: false };   // 'server' | 'key' | '
    gång till. 429 med kod 'tak' → månadens frågor är slut: AI-hjälpen pausas
    här till månadsskiftet (aiPausad). Kameran frågar då inte längre, och det
    den är osäker på går till Which card is this? som förut. Alla anrop till
-   servern går hit; hälsokollen (GET) behöver ingen inloggning. */
-const AI_PAUS = { till: 0, text: '' };
-const aiPausad = () => AI_PAUS.till > Date.now();
+   servern går hit; hälsokollen (GET) behöver ingen inloggning.
+   429 med kod 'tak-parti' (Jespers beslut 2026-10-09): kontots 30 frågor i
+   det här partiet är slut. Då pausas AI-hjälpen för partiet (spel), inte
+   till månadsskiftet: nästa parti frågar igen. */
+const AI_PAUS = { till: 0, text: '', spel: null };
+const aiPausad = () => AI_PAUS.till > Date.now() || (!!AI_PAUS.spel && !!spelLage && spelLage.kod === AI_PAUS.spel);
 async function aiFraga(body, extra) {
   const b = JSON.stringify(spelLage && spelLage.kod && body && body.spel == null ? Object.assign({ spel: spelLage.kod }, body) : body);
   const skicka = async fornya => {
@@ -23878,8 +23936,16 @@ async function aiFraga(body, extra) {
 async function aiLasTak(resp) {
   let j = null;
   try { j = await resp.json(); } catch (e) { return; }
-  if (!j || j.kod !== 'tak') return;
+  if (!j || (j.kod !== 'tak' && j.kod !== 'tak-parti')) return;
   const forst = !aiPausad();
+  if (j.kod === 'tak-parti') {
+    AI_PAUS.spel = j.spel || (spelLage && spelLage.kod) || null;
+    AI_PAUS.text = `AI help is used up for this game: ${j.tak != null ? j.tak + ' ' : ''}questions to Claude. Mesa keeps recognizing cards on its own.`;
+    if (!forst) return;
+    toast(AI_PAUS.text, 'err');
+    if (kamLage) satKamFin('ai', AI_PAUS.text);
+    return;
+  }
   AI_PAUS.till = Date.parse(j.nollstalls) || Date.now() + 3600e3;
   let datum = '';
   try { datum = new Date(AI_PAUS.till).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'Europe/Stockholm' }); } catch (e) {}
@@ -23932,17 +23998,37 @@ $('#aiSave').onclick = () => {
   const v = $('#aiKey').value.trim();
   if (v) LS.set(K_AI, v);
   prefs.aiAuto = $('#aiAuto').checked;
-  savePrefs();
+  savePrefs(); aiTillTelefonen();
   $('#scanAI').hidden = !aiEnabled();
   closeOv('aiOv');
 };
 $('#aiForget').onclick = () => {
-  LS.del(K_AI); prefs.aiAuto = false; savePrefs();
+  LS.del(K_AI); prefs.aiAuto = false; savePrefs(); aiTillTelefonen();
   $('#aiKey').value = ''; $('#aiAuto').checked = false;
   $('#scanAI').hidden = true;
   toast('The key was removed');
 };
 $('#aiKey').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') $('#aiSave').click(); });
+/* ── Brytaren gäller telefonen också (Jespers beslut 2026-10-09) ──
+   Kamerans frågor till Claude ställs av telefonen, och inställningen sparas
+   per webbläsare: förut slog telefonen på AI-hjälpen själv (probeAI) och
+   datorns brytare stoppade ingenting. Nu skickar datorn sin inställning
+   när den ändras, och telefonen säger i varje bord vad den har (bordExtra,
+   ai) — skiljer de sig skickas datorns igen, så att en telefon som kopplas
+   in senare eller laddas om följer datorn. Högst var tredje sekund: en
+   telefon med äldre kod svarar aldrig på 'ai' men skickar heller inget
+   ai-fält, så den frågas aldrig. */
+let aiTillTelSenast = 0;
+function aiTillTelefonen() {
+  if (!spelLage || !Moln.inloggad()) return;
+  aiTillTelSenast = Date.now();
+  Moln.sandKam('ai', { pa: !!prefs.aiAuto });
+}
+function aiJamforTelefonen(telPa) {
+  if (telPa === undefined || !AI.checked || telPa === !!prefs.aiAuto) return;
+  if (Date.now() - aiTillTelSenast < 3000) return;
+  aiTillTelefonen();
+}
 
 let sdkP = null;
 function loadSDK() {
@@ -27954,9 +28040,18 @@ const Kamera = (() => {
        och platsen har sett tom ut i mer än bortaMs — som när ett vanligt kort är borta. Då tar den
        nyaste högen som lagts EFTER att leken sågs senast över, i stället för att leken står kvar på
        den tomma platsen i 2 s (LEK_BORTA_MS + LEK_TOM_MS) medan den nya platsen visar ett nedvänt kort. */
+    /* Lekens sleeves-färg (lek.farg) mot en hög: mäts i rutor där högen syns, och mellan dem står den senaste
+       domen (k.fargOk). Utan lekens färg (inte mätt än) gäller ingen färgregel. Steg 3 och steg 5 använder den. */
+    const lekFargLik = k => {
+      if (!lek || !lek.farg) return true;
+      if (k.sist === nu && lekRgba) { const p = lekFargProv(k.box); if (p) { k.fargOk = nedFargLik(p, lek.farg); k.fargProv = p; } }
+      return k.fargOk !== false;
+    };
     const lekBorta = !!lek && !lek.upp && lek.sist !== nu && (lek.tomMs || 0) > T.bortaMs;
     if (lek && (lek.upp || lekBorta)) {
-      const lagd = q => q.sist === nu && hogSkuggklar(q.box, q);
+      /* …och leken som läggs ner igen har lekens sleeves (Jespers beslut 2026-10-09): en mobil, en plånbok
+         eller ett kort i andra sleeves som läggs ner medan leken är i luften blir inte library. */
+      const lagd = q => q.sist === nu && hogSkuggklar(q.box, q) && lekFargLik(q);
       let k = lekKand.filter(q => lagd(q) && q.fodd > (lek.upp ? lek.lag : lek.sist)).sort((a, b) => b.fodd - a.fodd)[0], tillbaka = false;
       if (!k && lek.upp && lek.forra) { k = lekKand.find(q => lagd(q) && q.fodd > lek.forraNar && ladIou(q.box, lek.forra) >= 0.3); tillbaka = !!k; }
       if (k) {
@@ -28010,12 +28105,11 @@ const Kamera = (() => {
          handen blinkar då inte förbi som nedvänt. */
     if (lek && !lek.upp) {
       const lekSaknas = lek.sist !== nu;
-      /* Färgen mäts i rutor där högen syns; mellan dem står den senaste domen (fargOk). */
-      const fargOk = k => {
-        if (!lek.farg) return true;
-        if (k.sist === nu && lekRgba) { const p = lekFargProv(k.box); if (p) { k.fargOk = nedFargLik(p, lek.farg); k.fargProv = p; } }
-        return k.fargOk !== false;
-      };
+      /* Lekens sleeves-färg (lekFargLik) — eller ett kort UTAN sleeves (Jespers besked 2026-10-09: nedvända
+         kort läggs ibland utan sleeves): bildmodellen har känt igen Magic-baksidan på spåret över högen
+         (varfor 'baksida', inte 'baksida ficka'). Ett kort som blänket bränt ut är vitt och känns inte igen som
+         baksidan, så blänket från 2026-10-08 ritas fortfarande inte som ett nedvänt kort. */
+      const fargOk = k => { if (lekFargLik(k)) return true; const t = lekSpar(k.box); return !!t && t.varfor === 'baksida'; };
       const nedOk = k => (k.box.n || 1) === 1 && ladIou(k.box, lek.box) < 0.3 && !lekUte.some(u => ladIou(k.box, u.box) >= 0.3)
         && !(lekSaknas && k.fodd > lek.sist) && fargOk(k)
         && !spar.some(t => t.box && t.tillstand !== 'skrap' && ((t.tillstand === 'klar' && t.namn) || t.klass !== 'baksida') && ladIou(t.box, k.box) >= 0.5);
@@ -30633,6 +30727,7 @@ function bordExtra(extra) {
            bib: extra && extra.bib !== undefined ? extra.bib : Kamera.bib,       // leken i library-rutan (MES-122); null utan ruta — saknas nyckeln är telefonen äldre
            lek: extra && extra.lek !== undefined ? extra.lek : Kamera.lek,       // leken utan uppstart (MES-334 steg 3); null med uppstartens ruta — saknas nyckeln är telefonen äldre
            bok: kamAiBokLage(),   // kostnadsboken (kamAiBokfor): datorn räknar skillnaden sedan auto slogs på
+           ai: !!prefs.aiAuto,    // telefonens AI-brytare: datorn skickar sin om de skiljer sig (aiJamforTelefonen)
            /* Latensmätningen (MES-215, bara ?debug): spår som släppts sedan förra rapporten, rutans tid och när rapporten skickas — telefonens klocka. */
            bortaTs: extra && extra.bortaTs, bildTid: extra && extra.bildTid, skickat: DEBUG ? Date.now() : undefined,
            halsa: DEBUG ? kamHalsa() : undefined };   // hälsokollen (MES-240): datorn visar direkt om provet går fel
@@ -31447,6 +31542,7 @@ function kamKommando(m) {
      poolen i minnet läses om ur den sparade — statusraden berättar. */
   if (m.typ === 'glomref') { Ref.glom('lek:' + m.lekId).then(() => { kamPoolNyckel = null; byggKamPool(); }); return; }
   if (m.typ === 'trosklar') { Kamera.satTrosklar(m.v); Moln.sandKam('trosklar', { v: Kamera.trosklar }); return; }
+  if (m.typ === 'ai') { const pa = !!m.pa; if (prefs.aiAuto !== pa) { prefs.aiAuto = pa; savePrefs(); } return; }   // datorns AI-brytare (2026-10-09): av på datorn = inga frågor från kameran
   if (m.typ === 'provbord') { provbord = !!m.pa; if (provbord && kamLage && senastBord) sandBord(senastBord); return; }   // vyn öppnades: spåren som de ligger nu, inte vid nästa ändring
   if (m.typ === 'hej') { if (senastBord) Moln.sandKam('bord', Object.assign({ spar: senastBord, grund: grundGrader() }, bordExtra())); return; }
   /* Datorn bad om grundläget ur ett spår: spelaren lade kortet som hen vill
@@ -35473,6 +35569,7 @@ function kamTogsEmot(m) {
     /* Kostnadsboken följer med varje bord, fasbytet och hjärtslaget också.
        Före fasbytets retur, och bara medan auto är på — som bordet självt. */
     if (m.bok && prefs.autoLage !== false) autoSumBok(m.bok);
+    aiJamforTelefonen(m.ai);   // telefonen följer datorns AI-brytare
     /* Ett fasbyte bär ingen kortlista. Gjorde det det, med en tom lista,
        tonade det ned hela bordet hos en dator som missat nollställningen. */
     if (m.barafas) { gravFasByte(m.fas || ''); kamFas = m.fas || ''; if (m.yta) kamYta = m.yta; kamRad = m.rad || ''; renderMode(); uppdateraPbStatus(); return; }

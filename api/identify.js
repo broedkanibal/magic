@@ -214,7 +214,7 @@ function grind(req, res, { inloggning }) {
   if (req.method === 'GET') {
     res.status(200).json({ ok: true, ready: !!process.env.ANTHROPIC_API_KEY, model: MODEL,
       modeller: { pane: MODEL, land: MODEL, card: MODEL_KORT, namn: MODEL, lek: MODEL, kamera: MODEL_KAMERA }, promptv: PANE_PROMPT_V,
-      inloggning, ...(inloggning ? { takPerManad: Vakt.takPerManad() } : {}) });
+      inloggning, ...(inloggning ? { takPerManad: Vakt.takPerManad(), takPerParti: Vakt.takPerParti() } : {}) });
     return true;
   }
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST required' }); return true; }
@@ -278,6 +278,12 @@ export default async function handler(req, res) {
   catch (e) {
     console.error('identify: räknaren:', e && e.message);
     return res.status(503).json({ error: 'AI help is unavailable right now — the question could not be counted.', kod: 'raknare' });
+  }
+  /* Partiets tak (Jespers beslut 2026-10-09): 429 med en egen kod, så att
+     klienten pausar AI-hjälpen för partiet och inte till månadsskiftet. */
+  if (!plats.ok && plats.varfor === 'parti') {
+    return res.status(429).json({ error: Vakt.takPartiText(plats.takParti), kod: 'tak-parti',
+      tak: plats.takParti, antal: plats.parti, spel: spelkod });
   }
   if (!plats.ok) {
     const sek = Math.max(60, Math.round((Date.parse(plats.nollstalls) - Date.now()) / 1000) || 3600);

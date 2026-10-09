@@ -78,6 +78,7 @@ function token(last, o = {}) {
 }
 const A = '11111111-1111-4111-8111-111111111111', B = '22222222-2222-4222-8222-222222222222';
 const C = '33333333-3333-4333-8333-333333333333';
+const D = '44444444-4444-4444-8444-444444444444', E = '55555555-5555-4555-8555-555555555555';   // taket per parti (2026-10-09)
 
 /* ── låtsad Supabase runt PGlite ────────────────────────────────────── */
 let db, rpcFel = false, authAnrop = 0, jwksNere = false;
@@ -103,7 +104,7 @@ const supabase = http.createServer(async (req, res) => {
     if (rpcFel) return svara(500, { message: 'låtsat databasfel' });
     const b = JSON.parse(kropp);
     try {
-      const r = await db.query('select * from public.claude_fraga_reservera($1, $2, $3, $4)', [b.p_user, b.p_tak, b.p_mode, b.p_spel]);
+      const r = await db.query('select * from public.claude_fraga_reservera($1, $2, $3, $4, $5)', [b.p_user, b.p_tak, b.p_mode, b.p_spel, b.p_tak_parti == null ? null : b.p_tak_parti]);
       return svara(200, r.rows.map(x => Object.assign({}, x, { nollstalls: new Date(x.nollstalls).toISOString() })));
     } catch (e) { return svara(400, { message: e.message }); }
   }
@@ -182,8 +183,9 @@ const rader = async u => (await db.query('select id, mode, modell, input_tokens,
   db = new PGlite();
   await db.exec(`create role anon; create role authenticated; create role service_role;
     create schema auth; create table auth.users (id uuid primary key);
-    insert into auth.users values ('${A}'), ('${B}'), ('${C}');`);
+    insert into auth.users values ('${A}'), ('${B}'), ('${C}'), ('${D}'), ('${E}');`);
   await db.exec(fs.readFileSync(path.join(ROT, 'supabase', 'migrations', '20261002100000_claude_fragor.sql'), 'utf8'));
+  await db.exec(fs.readFileSync(path.join(ROT, 'supabase', 'migrations', '20261009100000_claude_tak_per_parti.sql'), 'utf8'));
 
   process.env.SUPABASE_URL = SB_URL;
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'sb_secret_prov';
@@ -322,7 +324,7 @@ const rader = async u => (await db.query('select id, mode, modell, input_tokens,
   const hv = await sh(`curl -s -i -X OPTIONS ${URL_API} -H 'Origin: https://mesa.example'`);
   prov('Access-Control-Allow-Headers innehåller Authorization', /access-control-allow-headers:.*authorization/i.test(hv));
   r = await curl('hälsokollen', [URL_API]);
-  prov('GET utan token → 200, inloggning: true, takPerManad', r.status === 200 && r.j.inloggning === true && r.j.takPerManad === TAK && r.j.ready === true);
+  prov('GET utan token → 200, inloggning: true, takPerManad, takPerParti', r.status === 200 && r.j.inloggning === true && r.j.takPerManad === TAK && r.j.takPerParti === 30 && r.j.ready === true, JSON.stringify(r.j));
 
   /* Samtidigt: B har en fråga kvar (två räknade). Fem på en gång → en går igenom. */
   const bRakn = (await rader(B)).filter(x => x.raknas).length;
@@ -331,6 +333,41 @@ const rader = async u => (await db.query('select id, mode, modell, input_tokens,
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TB }, body: fs.readFileSync(KROPP) }).then(x => x.status)));
   console.log(`\n  fem samtidiga för B med ${kvar} kvar: ${sv.join(', ')}`);
   prov(`fem samtidiga frågor med ${kvar} kvar → exakt ${kvar} går igenom`, sv.filter(s => s === 200).length === kvar && sv.filter(s => s === 429).length === 5 - kvar);
+
+  /* Taket per parti (Jespers beslut 2026-10-09): 2 per parti här, 3 per månad som för alla. */
+  console.log('\n══ taket per parti ══');
+  process.env.CLAUDE_TAK_PER_PARTI = '2';
+  const TD = token({ sub: D });
+  const kropp = spel => { const f = KROPP + '.' + (spel || 'utan'); fs.writeFileSync(f, JSON.stringify(Object.assign({ mode: 'kamera', image: BILD, names: LEK }, spel ? { spel } : {}))); return f; };
+  const postSpel = spel => ['-X POST', URL_API, "-H 'Content-Type: application/json'", `--data @${kropp(spel)}`];
+  r = await curl('D, parti P1, fråga 1', postSpel('PARTI1').concat(MED), { TOKEN: TD });
+  prov('parti 1, fråga 1 → 200', r.status === 200);
+  r = await curl('D, parti P1, fråga 2', postSpel('PARTI1').concat(MED), { TOKEN: TD });
+  prov('parti 1, fråga 2 → 200', r.status === 200);
+  const forePa = anthropicAnrop;
+  r = await curl('D, parti P1, fråga 3', postSpel('PARTI1').concat(MED), { TOKEN: TD });
+  prov('parti 1, fråga 3 → 429 kod tak-parti, med taket, antalet och spelkoden', r.status === 429 && r.j && r.j.kod === 'tak-parti' && r.j.tak === 2 && r.j.antal === 2 && r.j.spel === 'PARTI1', JSON.stringify(r.j));
+  if (!RIKTIG_CLAUDE) prov('över partiets tak når aldrig Anthropic', anthropicAnrop === forePa);
+  prov('över partiets tak skriver ingen rad', (await rader(D)).length === 2);
+  r = await curl('D, parti P2', postSpel('PARTI2').concat(MED), { TOKEN: TD });
+  prov('ett annat parti har eget tak → 200 (månadens tredje)', r.status === 200);
+  r = await curl('D, utan parti', postSpel(null).concat(MED), { TOKEN: TD });
+  prov('månaden går före: fjärde frågan → 429 kod tak (inte tak-parti)', r.status === 429 && r.j && r.j.kod === 'tak', JSON.stringify(r.j));
+  process.env.CLAUDE_TAK_PER_PARTI = '0';
+  r = await curl('E, CLAUDE_TAK_PER_PARTI=0', postSpel('PARTI3').concat(MED), { TOKEN: token({ sub: E }) });
+  prov('CLAUDE_TAK_PER_PARTI=0 → inga frågor i ett parti (429 tak-parti)', r.status === 429 && r.j && r.j.kod === 'tak-parti' && r.j.tak === 0, JSON.stringify(r.j));
+  {
+    const V = await import(pathToFileURL(path.join(ROT, 'api', '_vakt.js')).href);
+    process.env.CLAUDE_TAK_PER_PARTI = 'av'; const av = V.takPerParti();
+    delete process.env.CLAUDE_TAK_PER_PARTI; const forval = V.takPerParti();
+    prov('CLAUDE_TAK_PER_PARTI: "av" = inget tak, tomt = 30', av === null && forval === 30, `${av} ${forval}`);
+  }
+  {
+    /* En server med gammal kod anropar med fyra namngivna argument: den nya funktionen svarar, utan tak per parti. */
+    const g = await db.query(`select * from public.claude_fraga_reservera(p_user => '${C}', p_tak => 100, p_mode => 'kamera', p_spel => 'GAMMAL')`);
+    prov('gamla anropet med fyra argument når den nya funktionen', g.rows.length === 1 && g.rows[0].ok === true && g.rows[0].parti === 1, JSON.stringify(g.rows[0]));
+  }
+  for (const f of fs.readdirSync(path.dirname(KROPP))) if (f.startsWith(path.basename(KROPP) + '.')) fs.rmSync(path.join(path.dirname(KROPP), f), { force: true });
 
   /* dev-verktygens väg: utan inloggning, och utan rad i räknaren */
   const foreDev = (await db.query('select count(*)::int n from public.claude_fragor')).rows[0].n;

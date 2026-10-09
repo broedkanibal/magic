@@ -903,6 +903,69 @@ const PROV = async () => {
     ok('Not a card i sökrutan: kortet och dess etikett går, granskningen har de två andra, och spåret frågas inte igen', !!nej && !ofrEl(62) && !gridEl.querySelector(':scope > .ofrmark[data-ofr="62"]') && !document.querySelector('.ofrsok')
       && mig.pending.length === 2 && !mig.pending.some(q => q.id === pend62 || q.spar === 62) && borttagna.has(62) && !!ofrEl(61) && !!ofrEl(63),
       `${nej ? 'knapp' : 'ingen knapp'}, ${mig.pending.length} i granskningen, oframkallade ${[61, 62, 63].filter(id => ofrEl(id)).join(',')}`);
+    /* Sökrutan, Jespers beslut 2026-10-09: stavfel hittar lekens kort, och ett kort utanför leken läggs till i leken
+       när det väljs. Scryfall, uppslaget och lekens sparning är attrapper här — det som prövas är att rätt
+       ändring går till leken som spelas. */
+    {
+      const lek0 = lekKort, lekId0 = mig.lekId, sf0 = SF.autocomplete, lu0 = lookup, hr0 = lekHamtaRad, sk0 = lekSparaKo, es0 = lekEfterSpar;
+      let sparat = null;
+      try {
+        lekKort = [{ name: 'Lightning Bolt', sid: 'lb' }, { name: 'Serra Angel', sid: 'sa' }, { name: 'Forest', sid: 'fo' }];
+        mig.lekId = 'lekprov';
+        SF.autocomplete = q => Promise.resolve({ data: /counter/i.test(q) ? ['Counterspell'] : [] });
+        lookup = async n => ({ name: n, id: 'cs1', ci: ['U'], faces: [{ img: { small: 'liten.jpg' } }] });
+        lekHamtaRad = async id => ({ id, namn: 'Prov', kort: [], ts: 1 });
+        lekSparaKo = async (id, bas, ops) => { sparat = { id, ops }; return { ok: true, rad: Object.assign({}, bas, { kort: [ops[0].kort] }) }; };
+        lekEfterSpar = () => {};
+        const pend61 = (gridEl.querySelector(':scope > .ofrmark[data-ofr="61"]') || {}).dataset;
+        ofrSokOppna(pend61 && pend61.pend);
+        const skriv = async t => { ofrSok.inp.value = t; ofrSok.inp.dispatchEvent(new Event('input')); await vanta(30); };
+        await skriv('Lighting Bolt');
+        const stav = ofrSok && ofrSok.traffar.map(t => t.namn + (t.lek ? '' : ' (alla)')).join(',');
+        ok('sökrutan: stavfelet "Lighting Bolt" hittar Lightning Bolt i leken', stav === 'Lightning Bolt', stav);
+        await skriv('Counterspell');
+        const grp = ofrSok && ofrSok.res.textContent;
+        const knapp = ofrSok && ofrSok.res.querySelector('[data-soki="0"]');
+        ok('… ett kort utanför leken söks bland alla kort och säger att det läggs till i leken', !!knapp && /Counterspell/.test(knapp.textContent) && /adds to your deck/i.test(grp), grp);
+        if (knapp) await riktigtKlick(knapp);
+        await vanta(60);
+        const op = sparat && sparat.ops[0];
+        ok('… och valet namnger kortet och lägger till ett exemplar i leken som spelas', !!op && sparat.id === 'lekprov' && op.typ === 'antal' && op.name === 'Counterspell' && op.d === 1 && op.sb === false && op.kort.sid === 'cs1'
+          && mig.cards.some(c => c.name === 'Counterspell'), JSON.stringify(sparat));
+      } finally {
+        lekKort = lek0; mig.lekId = lekId0; SF.autocomplete = sf0; lookup = lu0; lekHamtaRad = hr0; lekSparaKo = sk0; lekEfterSpar = es0;
+      }
+    }
+    /* AI-brytaren gäller telefonen (Jespers beslut 2026-10-09): datorn skickar sin inställning när telefonens
+       bord säger något annat, och telefonen tar den. Kanalen är en attrapp. */
+    {
+      const sk0 = Moln.sandKam, in0 = Moln.inloggad, id0 = Moln.minId, auto0 = prefs.aiAuto, chk0 = AI.checked, lage0 = kamLage;
+      const skickat = [];
+      try {
+        Moln.sandKam = (typ, data) => { skickat.push([typ, data]); return true; };
+        Moln.inloggad = () => true; Moln.minId = () => 'jag';
+        AI.checked = true; prefs.aiAuto = false; aiTillTelSenast = 0;
+        aiJamforTelefonen(true);
+        aiJamforTelefonen(true);   // inom tre sekunder: inget nytt
+        aiJamforTelefonen(false);  // samma som datorn: inget
+        aiJamforTelefonen(undefined);   // telefon med äldre kod: inget
+        ok('AI-brytaren: telefonen har den på, datorn av → datorn skickar av, en gång', skickat.length === 1 && skickat[0][0] === 'ai' && skickat[0][1].pa === false, JSON.stringify(skickat));
+        prefs.aiAuto = true; kamLage = true;
+        kamKommando({ typ: 'ai', pa: false, av: 'jag', fran: 'dator' });
+        const tog = prefs.aiAuto;
+        prefs.aiAuto = true;
+        kamKommando({ typ: 'ai', pa: false, av: 'någon annan', fran: 'dator' });
+        ok('… telefonen tar datorns av, men bara från min egen dator', tog === false && prefs.aiAuto === true, `tog ${tog}, främling ${prefs.aiAuto}`);
+        /* Allt annat som kamFragaAI kräver är uppfyllt (serverns AI, poolen, en bild): det som stoppar frågan är brytaren. */
+        const mode0 = AI.mode, idx0 = Pool.idx, n0 = kamAiTider.length;
+        try {
+          AI.mode = 'server'; Pool.idx = Pool.idx || { names: [] }; prefs.aiAuto = false;
+          ok('… och kameran frågar då inte Claude', kamFragaAI(document.createElement('canvas'), 1) === false && kamAiTider.length === n0 && kamAiVantar === 0);
+        } finally { AI.mode = mode0; Pool.idx = idx0; }
+      } finally {
+        Moln.sandKam = sk0; Moln.inloggad = in0; Moln.minId = id0; prefs.aiAuto = auto0; AI.checked = chk0; kamLage = lage0; savePrefs();
+      }
+    }
     ofrSokStang();
   } catch (e) { ok('framkallningen: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); }
   return rad;
