@@ -997,7 +997,9 @@ body.tomhand .kolmark{display:none}
 .lekhog .lekkropp{position:absolute;inset:0;border-radius:inherit;transition:opacity .26s ease-in,transform .26s ease-in}
 .lekhog .lekkropp img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;
   box-shadow:1.4px 2px 0 #4a3a2a,2.7px 4px 0 #1c1610,4.1px 6.2px 0 #4a3a2a,5.5px 8.2px 0 #1c1610,6.8px 10.3px 0 #4a3a2a,8.2px 12.3px 0 #1c1610,14px 25px 30px -8px #000d}
-.lekslv{position:absolute;inset:0;display:block;border-radius:inherit;
+.lekslv{position:absolute;inset:0;display:block;border-radius:inherit}
+/* .slvb: samma sleeve på en img (SLVTOM) eller en ruta utanför mattan — Last card, fokusvyn och miniatyrerna. */
+.lekslv,.slvb,.insimg img.slvb,.fx-img img.slvb{
   background:linear-gradient(128deg,#ffffff26 0%,#ffffff08 30%,#ffffff00 46%,#ffffff00 70%,#ffffff12 100%),repeating-linear-gradient(45deg,#ffffff05 0 2px,#0000 2px 5px),radial-gradient(130% 100% at 28% 18%,var(--s1,#3a4250),var(--s2,#1a1f27) 75%);
   box-shadow:inset 0 0 0 2.7px var(--s3,#ffffff22),inset 0 0 24px #0006,0 5px 16px -4px #000c}
 .lekhog .lekslv{box-shadow:inset 0 0 0 2.7px var(--s3,#ffffff22),inset 0 0 24px #0006,1.4px 2px 0 var(--ek,#2a3040),2.7px 4px 0 var(--em,#0d1015),4.1px 6.2px 0 var(--ek,#2a3040),5.5px 8.2px 0 var(--em,#0d1015),6.8px 10.3px 0 var(--ek,#2a3040),8.2px 12.3px 0 var(--em,#0d1015),14px 25px 30px -8px #000d}
@@ -7443,16 +7445,18 @@ function bordRuta(el, r) {
 }
 function satHtml(el, html) { if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; } }
 /* Miniatyrerna i en list eller kolumn: korten på mattan, tappade liggande. */
-function bordTummar(cards, max) {
+function bordTummar(cards, max, p) {
+  const slv = slvBild(p);
   return cards.filter(c => paMattan(c) && !c.attachedTo).slice(0, max).map(c => {
     const card = cardOf(c), dfc = arDfc(card);
+    if (slv && c.flipped && !dfc) return `<i class="othumb slvb${c.tapped ? ' tappad' : ''}" style="${slv.stil}" title="${esc(card ? card.name : arDolt(c) ? DOLD_NAMN : c.name)}"></i>`;
     const src = c.flipped && !dfc ? BAKSIDA : card ? (imgOf(card, c.flipped && dfc ? 1 : 0, 'small') || '') : '';
     return `<i class="othumb${c.tapped ? ' tappad' : ''}"${src ? ` style="background-image:url('${esc(src)}')"` : ''} title="${esc(card ? card.name : arDolt(c) ? DOLD_NAMN : c.name)}"></i>`;
   }).join('');
 }
-function bordListHtml(namn, pips, cards, tangent, hint) {
+function bordListHtml(namn, pips, cards, tangent, hint, p) {
   return `<i class="bdot"></i><b>${esc(namn)}</b>${pips ? `<span class="pips">${pips}</span>` : ''}<span class="sep"></span>`
-    + `<span class="thumbs">${bordTummar(cards, 40)}</span><span class="sub">${cards.filter(paMattan).length} on the table</span>`
+    + `<span class="thumbs">${bordTummar(cards, 40, p)}</span><span class="sub">${cards.filter(paMattan).length} on the table</span>`
     + `<span class="grow"></span><span class="stripkey">${esc(hint || '')}${tangent ? `<kbd>${tangent}</kbd>` : ''}</span>`;
 }
 /* En motståndares lek som inte är spelad: lekens antal minus korten hen
@@ -7494,7 +7498,7 @@ function renderBord() {
 }
 function ritaMinList(visa) {
   const mig = minSpelare();
-  satHtml(minListEl, visa && mig ? bordListHtml('Your table', '', mig.cards, '', 'Your cards') : '');
+  satHtml(minListEl, visa && mig ? bordListHtml('Your table', '', mig.cards, '', 'Your cards', mig) : '');
 }
 /* Tipsraden: bordets tangenter i ett spel med motståndare, annars flikarnas. */
 const hintSpelareEl = $('#hintSpelare');
@@ -7566,10 +7570,10 @@ function ritaOppDelar(p, m, i) {
     + `<span class="sep"></span><button type="button" class="turnbtn" data-oppvand title="Turn their cards">${IKON_VAND}<span class="tt">${VAND_TXT[oppVand]}</span></button>`);
   m.kol.title = m.list.title = stor;
   satHtml(m.kol, `<div class="kolhd"><i class="bdot"></i><b>${esc(p.name)}</b>${pips ? `<span class="pips">${pips}</span>` : ''}</div>`
-    + `<span class="kolsub">${paBord} on the table</span><div class="kolthumbs">${bordTummar(p.cards, 12)}</div>`
+    + `<span class="kolsub">${paBord} on the table</span><div class="kolthumbs">${bordTummar(p.cards, 12, p)}</div>`
     + `<div class="kolhogar"><span><i></i>Graveyard<b>${grav}</b></span><span><i class="b"></i>Library<b>${bib == null ? '–' : bib}</b></span></div>`
     + (kbd ? `<kbd>${kbd}</kbd>` : ''));
-  satHtml(m.list, bordListHtml(p.name, pips, p.cards, kbd, ''));
+  satHtml(m.list, bordListHtml(p.name, pips, p.cards, kbd, '', p));
 }
 /* Nivåbytet glider: rutorna har övergången i CSS:en, min mattas bräde
    får den en stund (samma kurva), annars hoppar korten medan rutan glider. */
@@ -10163,6 +10167,10 @@ function lekSlvSatt(el, f) {
   for (const k of ['--s1', '--s2', '--s3', '--ek', '--em']) el.style.removeProperty(k);
   if (s) for (const d of s.split(';')) { const i = d.indexOf(':'); el.style.setProperty(d.slice(0, i), d.slice(i + 1)); }
 }
+/* Ett nedvänt kort i bordets sleeves utanför mattan (Last card, fokusvyn, miniatyrerna): { src, stil } att sätta på en
+   img eller ruta med klassen slvb, eller null när bordet inte har någon sleevesfärg än (då är det Magic-baksidan). */
+const SLVTOM = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='488' height='680'/%3E";
+function slvBild(p) { const stil = lekSlvStil(slvAv(p)); return stil ? { src: SLVTOM, stil } : null; }
 const lekKropp = slv => slv ? '<span class="lekslv"></span>' : `<img src="${BAKSIDA}" alt="" draggable="false">`;
 /* Leken på mattan (D1): högen, skuggan som står kvar när den plockas upp, och brickan. egen = min (klick öppnar menyn).
    Brickan har inget tal (Jespers beslut 2026-10-04): bara "Library" tills Mesa kan räkna dragna kort —
@@ -11508,7 +11516,7 @@ function inspektorKort() {
   /* En motståndares kort (bordsvyn): hens namn och färg i rubriken. */
   if (oppHover) {
     const p = state.players.find(q => q.id === oppHover.pid), k = p && p.cards.find(c => c.cid === oppHover.cid);
-    if (k) return { e: k, label: oppHover.grav ? `From ${p.name}'s graveyard` : `${p.name}'s card`, col: p.color };
+    if (k) return { e: k, label: oppHover.grav ? `From ${p.name}'s graveyard` : `${p.name}'s card`, col: p.color, p };
   }
   if (matHover != null) {
     const k = hand().find(c => c.cid === matHover);
@@ -11533,14 +11541,15 @@ function insHamta(e) {
 function renderInspektor() {
   const body = $('#insBody'), lbl = $('#insLabel');
   if (!body) return;
-  const { e, label, col } = inspektorKort();
+  const { e, label, col, p: agare } = inspektorKort();
   const c = e ? cardOf(e) : null, dfc = arDfc(c);
   const fi = e && e.flipped && dfc ? 1 : 0;
   const sum = e ? ctSum(e.cts) : { p: 0, t: 0 };
   /* Ett fel är ett eget läge i nyckeln — annars byts "Fetching…" aldrig ut. */
   const fel = e && !c ? felText(keyOf(e)) : '';
   if (e && !c && !fel && !arDolt(e)) insHamta(e);
-  const nyckel = e ? [label, keyOf(e), e.flipped ? 1 : 0, c ? 1 : 0, fel, (e.cts || []).map(ctLabel).join(',')].join('·') : label;
+  const slv = e && e.flipped && !dfc ? slvBild(agare || player()) : null;   // nedvänt: bordets sleeves, som på mattan
+  const nyckel = e ? [label, keyOf(e), e.flipped ? 1 : 0, slv ? slv.stil : '', c ? 1 : 0, fel, (e.cts || []).map(ctLabel).join(',')].join('·') : label;
   if (body.dataset.k === nyckel) return;
   body.dataset.k = nyckel;
   if (lbl) { lbl.textContent = label; lbl.style.color = col || ''; }
@@ -11554,7 +11563,7 @@ function renderInspektor() {
   for (const k of (e.cts || [])) { const l = ctLabel(k); grupper[l] = (grupper[l] || 0) + 1; }
   const tecken = n => (n >= 0 ? '+' : '') + n;
   body.innerHTML = `
-    <div class="insimg">${src ? `<img src="${esc(src)}" alt="${esc(namn)}" draggable="false" title="Click to enlarge (F)">`
+    <div class="insimg">${slv ? `<img class="slvb" src="${slv.src}" style="${slv.stil}" alt="${esc(namn)}" draggable="false" title="Click to enlarge (F)">` : src ? `<img src="${esc(src)}" alt="${esc(namn)}" draggable="false" title="Click to enlarge (F)">`
       : `<div class="instom">${esc(namn)}<br><span style="color:#4d5a6d">${c ? '' : fel ? 'Could not be fetched — ' + esc(fel) : 'Fetching…'}</span></div>`}</div>
     <div class="insnamn"><b>${esc(namn)}</b><span>${esc(typ)}</span></div>
     ${kw.length ? `<div class="kwrad">${kw.map(k => `<span class="kwtile">${esc(k)}</span>`).join('')}</div>` : ''}
@@ -12329,7 +12338,12 @@ function renderFocus() {
      sig tillbaka så fort man tittar närmare på det. */
   const stor = e && e.flipped && !many ? BAKSIDA
              : card ? (imgOf(card, fi, 'png') || imgOf(card, fi, 'large')) : '';
-  if (stor) { img.src = stor; img.hidden = false; }
+  const slvF = e && e.flipped && !many ? slvBild(p) : null;   // nedvänt kort i bordets sleeves
+  img.classList.toggle('slvb', !!slvF);
+  for (const k of ['--s1', '--s2', '--s3', '--ek', '--em']) img.style.removeProperty(k);
+  if (slvF) for (const d of slvF.stil.split(';')) { const i = d.indexOf(':'); img.style.setProperty(d.slice(0, i), d.slice(i + 1)); }
+  if (slvF) { img.src = slvF.src; img.hidden = false; }
+  else if (stor) { img.src = stor; img.hidden = false; }
   else { img.removeAttribute('src'); img.hidden = true; }
   $('#fxSide').innerHTML = card ? faceInfoHtml(card, card.faces[fi], fi)
     : `<div style="color:var(--dim2)">${e ? esc(arDolt(e) ? DOLD_NAMN : e.name) : 'Your hand is empty'}</div>`;
@@ -12338,8 +12352,9 @@ function renderFocus() {
     const dfc2 = arDfc(c);
     const f2 = x.flipped && dfc2 ? 1 : 0;
     const s2 = x.flipped && !dfc2 ? BAKSIDA : (c ? imgOf(c, f2, 'small') : '');
+    const slv2 = x.flipped && !dfc2 ? slvBild(p) : null;
     return `<button class="${i === sel ? 'on' : ''}" data-i="${i}" title="${esc(c ? c.name : arDolt(x) ? DOLD_NAMN : x.name)}">
-      ${s2 ? `<img src="${esc(s2)}" alt="">` : ''}</button>`;
+      ${slv2 ? `<img class="slvb" src="${slv2.src}" style="${slv2.stil}" alt="">` : s2 ? `<img src="${esc(s2)}" alt="">` : ''}</button>`;
   }).join('');
   const on = $('#fxStrip .on');
   if (on) on.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
