@@ -33270,6 +33270,14 @@ function ofrOverTa(spar) {
   }
 }
 function ofrSomKort(t) { return t.w != null && t.h != null && !franHelbild(t) && !!t.kortlik && ofrVilar(t) && !t.skymd && !t.ned; }
+/* Telefonens egen läsning av ett spår (MES-356): namnet den läste utan att vara säker ("? not sure (Island)") och
+   kandidatlistans etta — aldrig Claudes, och inte gissningen ett nytt spår ärver av ett dött spår intill (i en
+   landhög föds spår med Plains som gissning hela tiden, och ett kort som läggs på ett annat ärver det undres namn).
+   Ett spår Claude svarat på (t.ai) kan bära Claudes namn i namn och cands: det räknas inte. Claude är reserven,
+   aldrig ett villkor (CLAUDE.md): reglerna som läser det här slår till likadant med AI-hjälpen avstängd. */
+function telefonensNamn(t) {
+  return t.tillstand === 'okand' && !t.ai ? new Set([t.namn, t.cands && t.cands[0] && t.cands[0].name].filter(Boolean)) : new Set();
+}
 /* Kortets läge i bilden ur spåret: viloläget när det finns (vx, vy — där kortet senast vilade) och lådans
    mått, precis som kamLage skriver det för kortet — så att kortet som tar över ligger där det oframkallade låg. */
 function ofrKam(t, nu) {
@@ -33360,6 +33368,34 @@ function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas) {
     const last = t.tillstand !== 'ny' && t.tillstand !== 'stilla', n = last ? namnPa(t) : null;
     return vantarHar.some(c => tackning(kamRekt(c.kam), t) >= SAMMA_KORT_TACKNING && !ofrSkilda(c.spar, t.id) && (!last || !n.size || n.has(c.name)));
   };
+  /* Spöket (MES-356): mattan visar aldrig fler kort än kameran ser. Ett läst spår vars egen gissning (telefonensNamn —
+     telefonens, aldrig Claudes) är namnet på ett kort i väntan som lämnat sin plats (ingenting ligger där nu) är det
+     kortet, flyttat — fast steg 3b inte kunnat bära det dit (platsen var inte tom, fönstret, tvekan). Det får inget
+     oframkallat kort medan kortet nyss lyfts (BORTA_NAD): kortet i väntan står för det, och har spåret redan ett tas
+     det bort. Efter nåden kommer det oframkallade kortet som förut (villkoren nedan). Förut visade mattan båda — kortet kvar på den gamla platsen (det
+     väntar så länge namnet syns någon annanstans, namnAnnanstans) och ett oframkallat kort där det lades.
+     Inte ett spår telefonen sett ligga över eller under kortets (ofrSkilda: ett nytt land på en hög, O16), och inte
+     ett klart spår (antalets fråga, O8). Ingenting binds här: att bära kortet dit på läsningens osäkra namn ensamt
+     gav fel namn i uppspelarens parti-kedja (2026-10-08) — kortet ligger kvar där det låg, ett kort för ett kort. */
+  const lamnatPlatsen = c => !spar.some(u => u.w != null && u.h != null && !franHelbild(u) && !u.skymd && (u.tillstand === 'klar' || u.kortlik) && tackning(kamRekt(c.kam), u) >= SAMMA_KORT_TACKNING);
+  /* Villkoren kommer ur Mat tests parti-kedjan, där regeln utan dem tog oframkallade kort för okända kort (saknade
+     kort 19 → 40 rutor): landen i högen väntar hela tiden, och bildmodellens osäkra gissning är ofta samma namn för
+     många kort — ett tjugotal spår gissade Night's Whisper medan ett Night's Whisper väntat i över en minut. Därför
+     bara läsningens namn (telefonensNamn), bara ett spår som fötts efter att kortets spår dog (FLYTT_FORE, som
+     fönstret i steg 3b), bara medan kortet nyss lyfts (BORTA_NAD), och bara utan tvekan: ett enda kort med namnet i
+     väntan, och inget annat löst spår som läsningen ger samma namn. */
+  const spoke = t => {
+    if (!t) return false;
+    const n = telefonensNamn(t), fodd = sparSedd.has(t.id) ? sparSedd.get(t.id) : nu;
+    if (!n.size) return false;
+    const c = vantarHar.filter(c => n.has(c.name));
+    if (c.length !== 1) return false;
+    const k = c[0];
+    if (k.borta != null && nu - k.borta > BORTA_NAD) return false;
+    if (spar.some(u => u !== t && losa.has(u.id) && telefonensNamn(u).has(k.name))) return false;
+    return !ofrSkilda(k.spar, t.id) && fodd >= (k.borta || nu) - FLYTT_FORE && lamnatPlatsen(k);
+  };
+  for (const [id, p] of [...ofrMinne]) if (synliga.has(p.spar) && spoke(spar.find(t => t.id === p.spar))) { ofrMinne.delete(id); andrat = true; }
   /* Nya: ett löst spår som ligger still som ett kort, OFR_TROSKEL efter släppet, utan namn — eller med
      antalets fråga. Inte ett spår spelaren hoppat över eller tagit bort, inte ett som kan vara ett kort
      i väntan som flyttats hit (det avgörs när telefonen läst det), och inte ett som ligger där ett kort i
@@ -33374,6 +33410,7 @@ function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas) {
     if (nu - v < OFR_TROSKEL) { ofrFrister.push(v + OFR_TROSKEL); continue; }
     if (flyttKan && flyttKan(t)) continue;
     if (kortSettIgen(t)) continue;
+    if (spoke(t)) continue;
     const p = { id: t.id, spar: t.id, vila: v, lagd: nu, kam: ofrKam(t, nu), tappad: !!t.tappad, pend: null, overTak: false, tak: null, namn: null, foto: ofrFoto.get(t.id) || null };
     ofrMinne.set(p.id, p); post(p, t); andrat = true;
   }
@@ -34170,11 +34207,25 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
        113,6 s) vilar på en plats som inte är tom men inte heller rörig. Det som spärrar är spår som
        dött eller inte blivit kort: en landhög där regioner föds och dör. */
     const kant = new Set(spar.filter(u => u.tillstand === 'klar' && !u.skymd && bunden(u.id)).map(u => u.id));
-    const tomPlats = (k, t) => { for (const [id, e] of platsMinne) if (id !== t.id && id !== k.spar && !kant.has(id) && tackning(e, t) >= SAMMA_KORT_TACKNING) return false; return true; };
+    /* …och ett känt kort som kandidaten lagts OVANPÅ (MES-356): spåret är bundet till ett annat kort på mattan, och
+       telefonen har sett kandidaten ligga över det (ofrSkilda — telefonens under). Det kortet ligger kvar under, skymt
+       eller med sitt spår dött, och är ingen rörig plats. Jespers bord 2026-10-09 (2YBSJX): Island A flyttades och
+       lades över Island B; B:s spår blev skymt, platsen räknades som inte tom, A väntade kvar på sin gamla plats och
+       det nya spåret blev ett oframkallat kort — tre Islands på mattan för två på bordet. Bara när telefonens egen
+       läsning säger kortets namn (telefonensNamn, inte Claudes): ett kort som läggs på ett annat utan namn kan lika gärna
+       vara en aura eller ett nytt kort ur handen, och det får namnet avgöra som förut. Utan relationen (bara skymt)
+       gäller inte undantaget: ett osäkert spår på ett skymt kort kan vara samma kort sett två gånger. */
+    const overKant = (id, k, t) => { const c = bunden(id); return !!c && c !== k && paBordet(c) && ofrSkilda(id, t.id) && telefonensNamn(t).has(k.name); };
+    const tomPlats = (k, t) => { for (const [id, e] of platsMinne) if (id !== t.id && id !== k.spar && !kant.has(id) && !overKant(id, k, t) && tackning(e, t) >= SAMMA_KORT_TACKNING) return false; return true; };
     const passar = (k, t) => { const n = postensNamn(t); return (!n.size || n.has(k.name)) && !annatKort(k, t) && sedd(t) >= fran(k) - FLYTT_FORE && tomPlats(k, t); };
     /* Framkallningen (MES-344): ett spår som inte lästs än och som ett kort i väntan kan bäras till får
        inget oframkallat kort — flytten avgörs när telefonen bestämt sig för att läsa det (stilla). */
-    ofrFlyttKan = t => t.tillstand === 'ny' && mig.cards.some(k => k.spar != null && !synliga.has(k.spar) && paBordet(k) && !k.fysisk && !!k.kam && !k.attachedTo
+    /* …och inte heller medan telefonen läser det (stilla, MES-356): binder inte steg 3b redan där är det för att
+       flera kort väntar (tvekan), och namnet avgör när läsningen kommer. Förut fick vart och ett av tre kort som
+       flyttats samtidigt ett oframkallat kort bredvid korten i väntan — sex kort på mattan för tre på bordet —
+       tills läsningarna kom och korten bars dit. Säger läsningen ett annat namn, eller inget kort väntar längre
+       (BORTA_NAD), kommer det oframkallade kortet som förut. */
+    ofrFlyttKan = t => (t.tillstand === 'ny' || t.tillstand === 'stilla') && mig.cards.some(k => k.spar != null && !synliga.has(k.spar) && paBordet(k) && !k.fysisk && !!k.kam && !k.attachedTo
       && !(k.borta && nu - k.borta > BORTA_NAD) && !platsTackt(k) && passar(k, t));
     if (kand.length && vantar.length) {
       const avst =(k, t) => Math.hypot((t.vx != null ? t.vx : t.x + t.w / 2) - k.kam.x, (t.vy != null ? t.vy : t.y + t.h / 2) - k.kam.y);

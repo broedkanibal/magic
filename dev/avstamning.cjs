@@ -3136,6 +3136,129 @@ prov('V8 Claudes svar ensamt binder inte (Claude är inget villkor, och inget vi
   assert.equal(k.spar, 1); assert.equal(app.pending.length, 1);
 });
 
+/* SP (MES-356): mattan visar aldrig fler kort än kameran ser. Jespers bord 2026-10-09 (spelet 2YBSJX): två
+   Island bredvid varandra, båda namngivna för hand. Han flyttade det ena (A) och lade det ovanpå det andra (B).
+   Mattan visade tre: A kvar på sin gamla plats (i väntan, spåret dött), B, och ett oframkallat kort där A lades
+   (telefonen: "? not sure (Island)"). Leken har ett Island. Spöket ska inte finnas: A ska bäras dit det lades. */
+const ISL_A = box(0.20, 0.40, 0.063, 0.088), ISL_B = box(0.45, 0.40, 0.063, 0.088), PA_B = box(0.455, 0.41, 0.063, 0.088);
+const islandsPaMattan = () => app.kort.filter(c => c.name === 'Island').length + app.ofr.length;
+const lastOsakert = (id, namn, b, rest) => ovila(id, Object.assign({ tillstand: 'okand', namn, saker: false, cands: [{ name: namn, score: 0.4 }] }, b, rest || {}));
+const tvaIslands = () => {
+  stam([klar(1, 'Island', { sen: 0, kortlik: true, vilar: true, ...ISL_A }), klar(2, 'Island', { sen: 0, kortlik: true, vilar: true, ...ISL_B })]);
+  app.lek = new Map([['Island', 1]]);                                       // leken har ett: två på bordet är spelarens egna namn
+  assert.equal(app.kort.length, 2);
+  return [app.kort.find(c => c.spar === 1), app.kort.find(c => c.spar === 2)];
+};
+prov('SP1 (MES-356) Island läggs ovanpå Island: B syns skymt under det — A bärs dit, inget oframkallat kort, två Islands', () => {
+  const [a, b] = tvaIslands();
+  const B = (rest) => klar(2, 'Island', Object.assign({ sen: 0, kortlik: true, vilar: true, ...ISL_B }, rest || {}));
+  klocka.t += 150; stam([B()]);                                              // A lyfts: spåret dör
+  klocka.t += 300; stam([B({ skymd: true, sen: 150, under: [3] }), ovila(3, { vilar: false, ...PA_B })]);   // handen lägger A över B
+  klocka.t += 150; stam([B({ skymd: true, sen: 300, under: [3] }), ovila(3, PA_B)]);                        // A ligger still över B
+  klocka.t += 150; stam([B({ skymd: true, sen: 450, under: [3] }), ovila(3, { tillstand: 'stilla', ...PA_B })]);
+  tid(klocka.t + 700);
+  klocka.t += 150; stam([B({ skymd: true, sen: 600, under: [3] }), lastOsakert(3, 'Island', PA_B)]);        // "? not sure (Island)"
+  tid(klocka.t + 100);
+  assert.deepEqual(ofrSlag(), [], 'ett oframkallat kort där A lades: spöket');
+  assert.equal(a.spar, 3, 'A bars till där det lades'); assert.equal(b.spar, 2, 'B ligger kvar');
+  assert.ok(Math.abs(a.kam.x - mitt(PA_B)) < 1e-9, 'A ritas där det ligger nu');
+  for (let i = 0; i < 8; i++) { klocka.t += 1000; stam([B({ skymd: true, sen: 600, under: [3] }), lastOsakert(3, 'Island', PA_B)]); }
+  assert.equal(islandsPaMattan(), 2, 'två Islands på mattan efter väntan'); assert.equal(app.handRad.length, 0);
+});
+prov('SP2 (MES-356) samma, men B täcks helt och dess spår dör (telefonen såg A över B först): A bärs dit, B ligger kvar under', () => {
+  const [a, b] = tvaIslands();
+  const B = (rest) => klar(2, 'Island', Object.assign({ sen: 0, kortlik: true, vilar: true, ...ISL_B }, rest || {}));
+  klocka.t += 150; stam([B()]);
+  klocka.t += 300; stam([B({ skymd: true, sen: 150, under: [3] }), ovila(3, { vilar: false, ...PA_B })]);
+  klocka.t += 150; stam([B({ skymd: true, sen: 300, under: [3] }), ovila(3, PA_B)]);
+  klocka.t += 150; stam([ovila(3, { tillstand: 'stilla', ...PA_B })]);                                    // B:s spår dör under A
+  tid(klocka.t + 700);
+  klocka.t += 150; stam([lastOsakert(3, 'Island', PA_B)]);
+  tid(klocka.t + 100);
+  assert.deepEqual(ofrSlag(), [], 'spöket');
+  assert.equal(a.spar, 3, 'A bars till där det lades'); assert.notEqual(b.spar, 3, 'B tog inte A:s spår');
+  for (let i = 0; i < 8; i++) { klocka.t += 1000; stam([lastOsakert(3, 'Island', PA_B)]); }
+  assert.equal(islandsPaMattan(), 2, 'två Islands på mattan efter väntan'); assert.ok(app.kort.includes(b), 'B ligger kvar under A'); assert.equal(app.handRad.length, 0);
+});
+prov('SP3 (MES-356) läsningen säger ett annat namn: kortet som lades över B är ett annat kort — A bärs inte dit, det nya får sitt oframkallade kort', () => {
+  const [a, b] = tvaIslands();
+  const B = (rest) => klar(2, 'Island', Object.assign({ sen: 0, kortlik: true, vilar: true, ...ISL_B }, rest || {}));
+  klocka.t += 150; stam([B()]);
+  klocka.t += 300; stam([B({ skymd: true, sen: 150, under: [3] }), ovila(3, { vilar: false, ...PA_B })]);
+  klocka.t += 150; stam([B({ skymd: true, sen: 300, under: [3] }), ovila(3, PA_B)]);
+  klocka.t += 150; stam([B({ skymd: true, sen: 450, under: [3] }), ovila(3, { tillstand: 'stilla', ...PA_B })]);
+  klocka.t += 150; stam([B({ skymd: true, sen: 600, under: [3] }), lastOsakert(3, 'Ancestral Blade', PA_B)]);
+  tid(klocka.t + 700);
+  assert.equal(a.spar, 1, 'A väntar på sin plats'); assert.deepEqual(ofrSlag(), ['3#']);
+});
+prov('SP4 (MES-356) spöket: ett läst spår vars lokala gissning är namnet på ett kort som nyss lyfts och lämnat sin plats ritas inte som ett oframkallat kort, också när flytten inte kan bindas', () => {
+  /* Platsen var inte tom (ett namnlöst spår låg nyss där, FL5): steg 3b binder inte. Mattan visar då A på den gamla
+     platsen — ett kort, som kameran ser ett — inte A och ett oframkallat kort. */
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), { id: 9, tillstand: 'okand', namn: null, cands: [], sen: 0, ...NY_PLATS }]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS, { tillstand: 'stilla' })]);
+  tid(klocka.t + 700);
+  klocka.t += 150; stam([vilande(2, NY_PLATS, { namn: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.4 }] })]);
+  tid(klocka.t + 100);
+  assert.equal(k.spar, 1, 'platsen var inte tom: inget binds (FL5)');
+  assert.deepEqual(ofrSlag(), [], 'A och ett oframkallat kort för samma kort');
+  // Claudes gissning räknas inte: ett spår som bara Claude namngett får sitt oframkallade kort som förut
+  app.nollstall(); klocka.t = 1e6;
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), { id: 9, tillstand: 'okand', namn: null, cands: [], sen: 0, ...NY_PLATS }]);
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS, { tillstand: 'stilla' })]);
+  tid(klocka.t + 700);
+  klocka.t += 150; stam([vilande(2, NY_PLATS, { namn: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.4 }], ai: { svar: [{ namn: 'Ukud Cobra', saker: false }] } })]);
+  tid(klocka.t + 100);
+  assert.equal(app.ofr.length, 1, 'Claudes svar är inget vittne');
+});
+prov('SP4b (MES-356) inte spöket: kortet har väntat längre än nåden, eller flera lösa spår gissar samma namn — oframkallade kort som förut', () => {
+  /* Bildmodellens osäkra gissning är ofta samma namn för många kort: i Mat tests parti-kedjan gissade ett tjugotal
+     spår Night's Whisper medan ett Night's Whisper väntat i över en minut. De är inte kortet. */
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), { id: 9, tillstand: 'okand', namn: null, cands: [], sen: 0, ...NY_PLATS }]);
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS, { tillstand: 'stilla' })]);
+  tid(klocka.t + 4000);
+  klocka.t += 150; stam([vilande(2, NY_PLATS, { namn: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.4 }] })]);
+  tid(klocka.t + 100);
+  assert.equal(app.ofr.length, 1, 'efter nåden');
+  app.nollstall(); klocka.t = 1e6;
+  const ANNAN = box(0.70, 0.70, 0.063, 0.088);
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), { id: 9, tillstand: 'okand', namn: null, cands: [], sen: 0, ...NY_PLATS }, { id: 8, tillstand: 'okand', namn: null, cands: [], sen: 0, ...ANNAN }]);
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS, { tillstand: 'stilla' }), vilande(3, ANNAN, { tillstand: 'stilla' })]);
+  tid(klocka.t + 700);
+  klocka.t += 150; stam([2, 3].map((id, i) => vilande(id, [NY_PLATS, ANNAN][i], { namn: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.4 }] })));
+  tid(klocka.t + 100);
+  assert.equal(app.kort[0].spar, 1); assert.equal(app.ofr.length, 2, 'två spår gissar samma namn: tvekan');
+});
+prov('SP5 (MES-356) tre kort flyttas samtidigt: inga oframkallade kort bredvid korten i väntan medan telefonen läser, sedan bärs vart kort dit det lades', () => {
+  const FR = [box(0.10, 0.20, 0.063, 0.088), box(0.25, 0.20, 0.063, 0.088), box(0.40, 0.20, 0.063, 0.088)];
+  const TILL = [box(0.15, 0.65, 0.063, 0.088), box(0.45, 0.65, 0.063, 0.088), box(0.75, 0.65, 0.063, 0.088)];
+  const NAMN = ['Ukud Cobra', 'Grizzly Bears', 'Llanowar Elves'];
+  stam(NAMN.map((n, i) => klar(i + 1, n, { sen: 0, ...FR[i] })));
+  const kort = [1, 2, 3].map(id => app.kort.find(c => c.spar === id));
+  klocka.t += 150; stam([]);                                                        // alla tre lyfts i samma hand
+  klocka.t += 300; stam(TILL.map((b, i) => vilande(11 + i, b, { tillstand: 'ny' })));
+  klocka.t += 150; stam(TILL.map((b, i) => vilande(11 + i, b, { tillstand: 'stilla' })));
+  tid(klocka.t + 700);
+  assert.deepEqual(ofrSlag(), [], 'sex kort på mattan: tre i väntan och tre oframkallade');
+  // telefonen läser ett i taget: det första med en gissning, de andra väntar
+  klocka.t += 300; stam(TILL.map((b, i) => vilande(11 + i, b, i === 0 ? { namn: NAMN[0], cands: [{ name: NAMN[0], score: 0.4 }] } : { tillstand: 'stilla' })));
+  tid(klocka.t + 100);
+  assert.equal(kort[0].spar, 11); assert.deepEqual(ofrSlag(), []);
+  klocka.t += 300; stam(TILL.map((b, i) => vilande(11 + i, b, i < 2 ? { namn: NAMN[i], cands: [{ name: NAMN[i], score: 0.4 }] } : { tillstand: 'stilla' })));
+  klocka.t += 300; stam(TILL.map((b, i) => vilande(11 + i, b, { namn: NAMN[i], cands: [{ name: NAMN[i], score: 0.4 }] })));
+  tid(klocka.t + 100);
+  assert.deepEqual(kort.map(k => k.spar), [11, 12, 13], 'vart kort dit det lades');
+  assert.deepEqual(ofrSlag(), []); assert.equal(app.kort.length, 3);
+});
+
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);
