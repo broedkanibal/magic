@@ -2594,6 +2594,40 @@ body.ispel #addPlayerBtn{display:none}
 .portalvillkor a{color:var(--txt);text-decoration:underline;text-underline-offset:2px}
 .btn:disabled,.btn[disabled]{opacity:.45;cursor:not-allowed}
 .portalrubrik{margin:0;font:700 15px var(--sans);color:var(--txt)}
+/* Landningssidan: presentationen till vänster, kontot till höger, staplat på
+   telefonen. Väntar (osynlig) tills Moln.start svarat, så att en inloggad inte
+   ser sidan blinka förbi. På telefonen som kamera eller lekfoto visas bara kortet. */
+.portal.landning{display:block;padding:0}
+.landning.vantar .landinre{visibility:hidden}
+.landinre{min-height:100%;display:flex;flex-direction:column}
+.landtopp{display:flex;align-items:center;gap:10px;padding:14px 24px;max-width:1120px;width:100%;margin:0 auto}
+.landtopp .grow{flex:1}
+/* Appens topprad döljer namnet på smala skärmar; på landningssidan ska det synas. */
+.landning .landtopp .brand > span{display:inline-block}
+.landtopp .brand{display:flex;align-items:center;gap:8px;font:700 15px var(--sans);color:var(--txt)}
+.landchip{margin-left:4px;padding:2px 8px;border-radius:10px;border:1px solid #f0a52a55;color:#f0a52a;font:600 10.5px/1.5 var(--sans);letter-spacing:.3px}
+.landmitt{flex:1;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,420px);gap:56px;align-items:center;
+  max-width:1120px;width:100%;margin:0 auto;padding:32px 24px 48px}
+.landhero h1{margin:0 0 16px;font:800 clamp(30px,4.6vw,48px)/1.08 var(--sans);color:var(--txt);letter-spacing:-.5px}
+.landhero h1 em{font-style:normal;color:#f0a52a}
+.landledd{margin:0 0 28px;max-width:560px;font:15.5px/1.65 var(--sans);color:var(--dim)}
+.landsteg{list-style:none;margin:0;padding:0;display:grid;gap:14px;counter-reset:steg;max-width:560px}
+.landsteg li{counter-increment:steg;display:grid;grid-template-columns:30px 1fr;column-gap:12px;align-items:baseline}
+.landsteg li::before{content:counter(steg);grid-row:span 2;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+  background:#6b8cff22;color:#9fb3ff;font:700 12.5px var(--sans);align-self:start}
+.landsteg b{font:600 14.5px/1.4 var(--sans);color:var(--txt)}
+.landsteg span{font:13.5px/1.5 var(--sans);color:var(--dim)}
+.landbyt{text-align:center}
+.landlank{background:none;border:0;padding:0;font:inherit;color:var(--txt);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.landfot{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center;padding:18px 24px 26px;font:12px/1.5 var(--sans);color:var(--dim2)}
+.landfot a{color:var(--dim)}
+.landning.kompakt .landtopp,.landning.kompakt .landhero{display:none}
+.landning.kompakt .landmitt{grid-template-columns:minmax(0,420px);justify-content:center}
+@media (max-width:860px){
+  .landmitt{grid-template-columns:minmax(0,1fr);gap:28px;padding:12px 16px 32px}
+  .landtopp{padding:12px 16px}
+  .landledd{margin-bottom:22px}
+}
 /* Två klasser i väljaren: .btn.prim är också två och står tidigare i filen,
    så en ensam .portalgoogle förlorade och knappen blev guldfärgad. */
 .btn.portalgoogle{justify-content:center;gap:10px;background:#fff;color:#1f2530;border-color:#fff;font-weight:600}
@@ -3426,37 +3460,63 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
      ingen router: den här filen ÄR sidan, och tre lägen räcker — inte
      inloggad, inloggad utan spel, och i spel.
      ══════════════════════════════════════════════════════════════════ -->
-<div id="vyStart" class="portal" hidden>
-  <div class="portalkort">
-    <div class="portalmarke">
-      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg>
-      <div><b>Mesa</b><span>Physical cards, shared table</span></div>
+<div id="vyStart" class="portal landning vantar" hidden>
+  <div class="landinre">
+  <header class="landtopp">
+    <div class="brand"><svg width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg><span>Mesa</span><span class="landchip">Private beta</span></div>
+    <span class="grow"></span>
+    <button type="button" class="btn ghost" id="toppLoggaIn">Sign in</button>
+  </header>
+
+  <main class="landmitt">
+    <section class="landhero">
+      <h1>Play your physical cards.<br><em>Share the table.</em></h1>
+      <p class="landledd">Mesa turns your phone into a camera that reads the cards you play. Everyone in the game
+        sees the same table, in the same room or across the internet, without anyone typing a thing.
+        Your deck and your hand stay your own.</p>
+      <ol class="landsteg">
+        <li><b>Add your deck</b><span>Paste a decklist, or photograph your cards with your phone.</span></li>
+        <li><b>Point your phone at the table</b><span>It becomes the camera. There is nothing to install.</span></li>
+        <li><b>Play</b><span>What you play shows up for everyone, named and in place.</span></li>
+      </ol>
+    </section>
+
+    <div class="portalkort" id="startKort">
+      <div class="portalmarke">
+        <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg>
+        <div><b id="startRubrik">Create your account</b><span id="startUnder">Free during the beta · Google account</span></div>
+      </div>
+
+      <div id="startInbjuden" class="portalnotis" hidden>
+        <b>You are invited to a game</b>
+        <span id="startInbjudenKod"></span>
+        <span class="portalfin">Sign in and you join right away.</span>
+      </div>
+
+      <label class="portalvillkor" id="villkorRad">
+        <input type="checkbox" id="villkorBox">
+        <span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms and Conditions</a>
+          and have read the <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+      </label>
+      <p class="portalfin" id="villkorFin">Mesa records how you use the app, linked to your account, to find and fix
+        problems. <a href="/privacy.html" target="_blank" rel="noopener" style="color:inherit">What and why</a></p>
+
+      <button class="btn prim big portalgoogle" id="loggaInBtn" disabled>
+        <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.2a5.3 5.3 0 0 1-2.3 3.5v2.9h3.7c2.2-2 3.4-5 3.4-8.6z"/><path fill="#34A853" d="M12 24c3.1 0 5.7-1 7.6-2.8l-3.7-2.9c-1 .7-2.4 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.8v3C3.7 21.4 7.6 24 12 24z"/><path fill="#FBBC05" d="M5.6 14.7a7.2 7.2 0 0 1 0-4.6v-3H1.8a12 12 0 0 0 0 10.6l3.8-3z"/><path fill="#EA4335" d="M12 4.8c1.7 0 3.2.6 4.4 1.7l3.3-3.3C17.7 1.2 15.1 0 12 0 7.6 0 3.7 2.6 1.8 6.3l3.8 3C6.5 6.7 9 4.8 12 4.8z"/></svg>
+        <span id="loggaInTxt">Sign up with Google</span>
+      </button>
+      <button class="btn prim big" id="villkorOkBtn" hidden disabled>Agree and continue</button>
+      <button class="btn ghost" id="villkorUtBtn" hidden>Sign out</button>
+      <p class="portalfel" id="startFel" hidden></p>
+      <p class="portalfin landbyt" id="startByt">Already have an account? <button type="button" class="landlank" id="startBytBtn">Sign in</button></p>
     </div>
-    <p class="portalledd">Your deck and your hand are your own. What you play onto the table
-      is seen by everyone in the game — without anyone having to type anything in.</p>
+  </main>
 
-    <div id="startInbjuden" class="portalnotis" hidden>
-      <b>You are invited to a game</b>
-      <span id="startInbjudenKod"></span>
-      <span class="portalfin">Sign in and you join right away.</span>
-    </div>
-
-    <h2 class="portalrubrik" id="villkorRubrik" hidden>Before you continue</h2>
-    <label class="portalvillkor">
-      <input type="checkbox" id="villkorBox">
-      <span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms and Conditions</a>
-        and have read the <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span>
-    </label>
-    <p class="portalfin" id="villkorFin">Mesa records how you use the app, linked to your account, to find and fix
-      problems. <a href="/privacy.html" target="_blank" rel="noopener" style="color:inherit">What and why</a></p>
-
-    <button class="btn prim big portalgoogle" id="loggaInBtn" disabled>
-      <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.2a5.3 5.3 0 0 1-2.3 3.5v2.9h3.7c2.2-2 3.4-5 3.4-8.6z"/><path fill="#34A853" d="M12 24c3.1 0 5.7-1 7.6-2.8l-3.7-2.9c-1 .7-2.4 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.8v3C3.7 21.4 7.6 24 12 24z"/><path fill="#FBBC05" d="M5.6 14.7a7.2 7.2 0 0 1 0-4.6v-3H1.8a12 12 0 0 0 0 10.6l3.8-3z"/><path fill="#EA4335" d="M12 4.8c1.7 0 3.2.6 4.4 1.7l3.3-3.3C17.7 1.2 15.1 0 12 0 7.6 0 3.7 2.6 1.8 6.3l3.8 3C6.5 6.7 9 4.8 12 4.8z"/></svg>
-      Continue with Google
-    </button>
-    <button class="btn prim big" id="villkorOkBtn" hidden disabled>Agree and continue</button>
-    <button class="btn ghost" id="villkorUtBtn" hidden>Sign out</button>
-    <p class="portalfel" id="startFel" hidden></p>
+  <footer class="landfot">
+    <a href="/terms.html" target="_blank" rel="noopener">Terms and Conditions</a>
+    <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
+    <span>Mesa is an independent fan project, not affiliated with Wizards of the Coast.</span>
+  </footer>
   </div>
 </div>
 
@@ -36726,21 +36786,39 @@ async function loggaUtHelt() {
 /* Villkoren: Google-knappen och "Agree and continue" är låsta tills rutan är
    ibockad, och rutan är aldrig förbockad. Att bocka är det som gäller, inte
    knappen — servern ser godkännandet i kontot (Moln.godkannVillkor). */
-$('#villkorBox').onchange = () => {
-  const ok = $('#villkorBox').checked;
-  $('#loggaInBtn').disabled = !ok;
-  $('#villkorOkBtn').disabled = !ok;
-};
-/* Redan inloggad utan godkänd version: samma kort, men knappen godkänner i
-   stället för att skicka till Google. */
-function villkorSparr() {
-  $('#villkorRubrik').hidden = false;
-  $('#loggaInBtn').hidden = true;
-  $('#villkorOkBtn').hidden = false;
-  $('#villkorUtBtn').hidden = false;
+/* Kortet på landningssidan har tre lägen. 'skapa' (förval): nytt konto,
+   rutan måste bockas. 'logga': befintligt konto, ingen ruta — har kontot inte
+   godkänt den gällande versionen får det spärren efter Google ändå. 'sparr':
+   inloggad utan godkänd version; knappen godkänner i stället för att skicka
+   till Google. Med Google är "skapa" och "logga in" samma rundtur; skillnaden
+   är bara om godkännandet tas före eller efter. */
+let startLage = 'skapa', startKonfigurerad = true;
+function visaStartLage(lage) {
+  startLage = lage;
+  const skapa = lage === 'skapa', sparr = lage === 'sparr';
+  $('#startRubrik').textContent = sparr ? 'Before you continue' : skapa ? 'Create your account' : 'Sign in to Mesa';
+  $('#startUnder').textContent = sparr ? 'Our terms are new. Please read and agree.' : skapa ? 'Free during the beta · Google account' : 'With the Google account you signed up with';
+  $('#villkorRad').hidden = $('#villkorFin').hidden = lage === 'logga';
   $('#villkorBox').checked = false;
-  $('#villkorOkBtn').disabled = true;
+  $('#loggaInBtn').hidden = sparr;
+  $('#loggaInTxt').textContent = skapa ? 'Sign up with Google' : 'Sign in with Google';
+  $('#villkorOkBtn').hidden = $('#villkorUtBtn').hidden = !sparr;
+  $('#toppLoggaIn').hidden = !skapa;
+  $('#startByt').hidden = sparr;
+  $('#startByt').firstChild.textContent = skapa ? 'Already have an account? ' : 'New to Mesa? ';
+  $('#startBytBtn').textContent = skapa ? 'Sign in' : 'Create an account';
+  portalFel('#startFel', '');
+  villkorKnappar();
 }
+function villkorKnappar() {
+  const ok = $('#villkorBox').checked;
+  $('#loggaInBtn').disabled = !startKonfigurerad || (startLage === 'skapa' && !ok);
+  $('#villkorOkBtn').disabled = !ok;
+}
+$('#villkorBox').onchange = villkorKnappar;
+$('#startBytBtn').onclick = () => visaStartLage(startLage === 'skapa' ? 'logga' : 'skapa');
+$('#toppLoggaIn').onclick = () => { visaStartLage('logga'); $('#loggaInBtn').focus(); };
+function villkorSparr() { visaStartLage('sparr'); $('#vyStart').classList.remove('vantar'); }
 $('#villkorOkBtn').onclick = async () => {
   portalFel('#startFel', '');
   $('#villkorOkBtn').disabled = true;
@@ -36751,9 +36829,12 @@ $('#villkorUtBtn').onclick = async () => { try { await Moln.loggaUt(); } catch (
 
 $('#loggaInBtn').onclick = async () => {
   portalFel('#startFel', '');
-  if (!$('#villkorBox').checked) return;
+  if (startLage === 'skapa' && !$('#villkorBox').checked) return;
   try {
-    sessionStorage.setItem('sthv.villkor', Moln.VILLKOR_VERSION);   // godkännandet följer med rundturen till Google
+    /* Godkännandet följer med rundturen till Google. Vid 'logga' tas det i
+       stället efteråt, i spärren, om kontot inte redan har det. */
+    if (startLage === 'skapa') sessionStorage.setItem('sthv.villkor', Moln.VILLKOR_VERSION);
+    else sessionStorage.removeItem('sthv.villkor');
     LS.set(K.lage, 'moln'); await Moln.loggaIn(inbjudanIUrl());
   }
   catch (e) { portalFel('#startFel', e.message || 'Sign-in could not start.'); }
@@ -36769,6 +36850,11 @@ async function portalStart() {
   if (lekfotoParam) sessionStorage.setItem('sthv.lekfoto', lekfotoParam);
 
   visaVy('start');
+  /* Telefonen som kamera eller lekfoto hör till ett konto som redan finns på
+     datorn: bara kortet, i läget logga in. */
+  const telefon = !!lekfotoParam || (!!inbjudan && kameraIUrl());
+  $('#vyStart').classList.toggle('kompakt', telefon);
+  visaStartLage(telefon ? 'logga' : 'skapa');
   if (lekfotoParam) {
     $('#startInbjuden').hidden = false;
     $('#startInbjudenKod').textContent = 'Deck photos';
@@ -36784,10 +36870,16 @@ async function portalStart() {
         'Sign in with the same account as on the computer.';
     }
   }
-  const { konfigurerad } = await Moln.start();
+  let konfigurerad = false;
+  try { ({ konfigurerad } = await Moln.start()); }
+  catch (e) { $('#vyStart').classList.remove('vantar'); throw e; }
+  /* Sidan syns först när det är klart att den ska stå kvar: utloggad, eller
+     spärren nedan. En inloggad går vidare utan att se den. */
+  if (!konfigurerad || !Moln.inloggad()) $('#vyStart').classList.remove('vantar');
   if (!konfigurerad) {
+    startKonfigurerad = false;
     portalFel('#startFel', 'Sign-in is not set up on this server.');
-    $('#loggaInBtn').disabled = true;
+    villkorKnappar();
     return;
   }
   if (!Moln.inloggad()) return;                      // stanna på landningssidan
@@ -36828,7 +36920,7 @@ async function portalStart() {
 
 (async function boot() {
   /* Portalen avgör vad som visas innan något ritas. */
-  portalStart().catch(e => console.warn('Portalen kunde inte starta', e));
+  portalStart().catch(e => { console.warn('Portalen kunde inte starta', e); $('#vyStart').classList.remove('vantar'); });
 
   /* Rita först, hydrera sen. Lagringen får aldrig gatea första ritningen —
      en blockerad IndexedDB (gammal flik, privat läge) lämnade annars appen tom. */
