@@ -33273,10 +33273,23 @@ function ofrSomKort(t) { return t.w != null && t.h != null && !franHelbild(t) &&
 /* Telefonens egen läsning av ett spår (MES-356): namnet den läste utan att vara säker ("? not sure (Island)") och
    kandidatlistans etta — aldrig Claudes, och inte gissningen ett nytt spår ärver av ett dött spår intill (i en
    landhög föds spår med Plains som gissning hela tiden, och ett kort som läggs på ett annat ärver det undres namn).
-   Ett spår Claude svarat på (t.ai) kan bära Claudes namn i namn och cands: det räknas inte. Claude är reserven,
-   aldrig ett villkor (CLAUDE.md): reglerna som läser det här slår till likadant med AI-hjälpen avstängd. */
+   Har Claude svarat (t.ai) skriver svaret över namn och lägger Claudes namn först i cands — då räknas bara
+   telefonens egna vittnen, som följer med i rapporten orörda: namnremsan (marginal ≥ TELEFON_REMSA_VITTNE, samma
+   gräns som remsaVittne på telefonen), textläsaren på remsan och textläsaren på titelraden (poäng ≥ 0,5, samma som
+   maskVittne). Kandidatlistan räknas inte då: lästes telefonens etta samma som Claudes plockades den bort ur
+   listan, och dess nästa post är telefonens tvåa, inte dess läsning. Jesper kör med Claude på: på hans bord stod
+   "? not sure (Island) · Claude" på det staplade spåret. Claude är reserven, aldrig ett villkor (CLAUDE.md):
+   reglerna som läser det här slår till likadant med AI-hjälpen avstängd, och aldrig på Claudes svar ensamt. */
+const TELEFON_REMSA_VITTNE = 0.08;
+function telefonensVittnen(t) {
+  if (t.tillstand !== 'okand') return new Set();
+  const r = t.remsa || null, nl = t.namnLast || null;
+  return new Set([r && r.marginal >= TELEFON_REMSA_VITTNE ? r.namn : null, r && r.ocr && r.ocr.poang >= 0.5 ? r.ocr.namn : null, nl && nl.poang >= 0.5 ? nl.namn : null].filter(Boolean));
+}
 function telefonensNamn(t) {
-  return t.tillstand === 'okand' && !t.ai ? new Set([t.namn, t.cands && t.cands[0] && t.cands[0].name].filter(Boolean)) : new Set();
+  if (t.tillstand !== 'okand') return new Set();
+  const v = telefonensVittnen(t);
+  return t.ai ? v : new Set([t.namn, t.cands && t.cands[0] && t.cands[0].name, ...v].filter(Boolean));
 }
 /* Kortets läge i bilden ur spåret: viloläget när det finns (vx, vy — där kortet senast vilade) och lådans
    mått, precis som kamLage skriver det för kortet — så att kortet som tar över ligger där det oframkallade låg. */
@@ -34373,6 +34386,31 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     if (spar.some(u => u !== t && u.tillstand !== 'klar' && !iFysiskt.has(u.id) && !bunden(u.id) && postensNamn(u).has(namn))) return null;
     return k;
   };
+  /* Spöket efter nåden (MES-356). Medan kortet nyss lyfts får ett läst spår som bär dess namn inget oframkallat kort
+     (spoke i ofrSteg), men när nåden gått kom det tillbaka — och kortet stod kvar på sin gamla plats, eftersom namnet
+     syns någon annanstans (namnAnnanstans). Jespers tre Islands kom tillbaka efter 5 s. Nu bärs kortet dit som en
+     gissad flytt (flyttBuren: en senare läsning med ett annat namn ångrar den), på spökets villkor och ett till:
+     ett av telefonens egna vittnen säger namnet (telefonensVittnen: namnremsan eller textläsaren på remsan eller
+     titelraden — aldrig Claudes svar, och inte läsningens osäkra namn ensamt). Utan vittnet bar regeln i Mat tests
+     parti-kedjan Night's Whisper, som just lagts i graveyard, till två andra kort vars osäkra läsning var Night's
+     Whisper (avståndsfelets 90:e percentil 0,43 → 0,44) — samma fel som vantarPaNamn gjorde. Ett enda kort med namnet
+     väntar och dess plats är lämnad (inget kort eller kortformat spår ligger där), spåret föddes efter att kortets
+     spår dog (FLYTT_FORE), telefonen har inte sett det ligga över eller under kortets (annatKort), och inget annat
+     löst spår läses som samma namn. Kortet behåller sitt eget namn: inget nytt namn sätts, så det kan inte bli ett
+     säkert fel namn, bara i värsta fall fel plats. Före nåden avgör steg 3b som förut. */
+  const spoketsKort = t => {
+    if (!pol.flytt || t.provas || t.w == null || t.h == null || franHelbild(t) || !t.kortlik || t.ned || t.skymd || hoppade.has(t.id)) return null;
+    const n = telefonensVittnen(t);
+    if (!n.size) return null;
+    const medNamn = mig.cards.filter(c => n.has(c.name) && paBordet(c) && c.spar != null && !synliga.has(c.spar));
+    if (medNamn.length !== 1) return null;
+    const k = medNamn[0];
+    if (!k.kam || k.fysisk || k.attachedTo || k.borta == null || nu - k.borta <= BORTA_NAD || annatKort(k, t)) return null;
+    if ((sparSedd.has(t.id) ? sparSedd.get(t.id) : nu) < k.borta - FLYTT_FORE) return null;
+    if (spar.some(u => u.w != null && u.h != null && !franHelbild(u) && !u.skymd && (u.tillstand === 'klar' || u.kortlik) && tackning(kamRekt(k.kam), u) >= SAMMA_KORT_TACKNING)) return null;
+    if (spar.some(u => u !== t && u.tillstand !== 'klar' && !iFysiskt.has(u.id) && !bunden(u.id) && telefonensNamn(u).has(k.name))) return null;
+    return k;
+  };
   const sammaSomKlart = new Set();
   for (const t of spar) {
     if (iFysiskt.has(t.id)) continue;
@@ -34393,6 +34431,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
       k = t.provas ? null : ledigt(t.gissning, false, c => annatKort(c, t));
       if (k) binder(k, t);
       else if ((k = vantarPaNamn(t))) flyttBuren(k, t);
+      else if ((k = spoketsKort(t))) flyttBuren(k, t);
     }
     /* Ett spår som prövas väntar på Claude: "inget kort" gör det till skräp
        på telefonen, ett namn med 'hog' till ett kort. Posten läggs först när

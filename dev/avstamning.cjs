@@ -3215,17 +3215,27 @@ prov('SP4 (MES-356) spöket: ett läst spår vars lokala gissning är namnet på
   tid(klocka.t + 100);
   assert.equal(app.ofr.length, 1, 'Claudes svar är inget vittne');
 });
-prov('SP4b (MES-356) inte spöket: kortet har väntat längre än nåden, eller flera lösa spår gissar samma namn — oframkallade kort som förut', () => {
-  /* Bildmodellens osäkra gissning är ofta samma namn för många kort: i Mat tests parti-kedjan gissade ett tjugotal
-     spår Night's Whisper medan ett Night's Whisper väntat i över en minut. De är inte kortet. */
+prov('SP4b (MES-356) efter nåden: kortet i väntan bärs till spöket som en gissad flytt, med sitt eget namn, när telefonens remsa eller titelrad vittnar — inte på läsningens namn ensamt, och inte när flera lösa spår läses som namnet', () => {
+  /* Förut kom det oframkallade kortet tillbaka när nåden gått, och kortet stod kvar på sin gamla plats (namnAnnanstans):
+     Jespers tre Islands kom tillbaka efter 5 s. Bildmodellens osäkra gissning är ofta samma namn för många kort (i Mat
+     tests parti-kedjan gissade ett tjugotal spår Night's Whisper, och utan vittneskravet bars Night's Whisper efter att
+     det lagts i graveyard till två andra kort): bara med ett vittne, och läses två lösa spår som namnet bärs inget. */
   stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), { id: 9, tillstand: 'okand', namn: null, cands: [], sen: 0, ...NY_PLATS }]);
+  const k = app.kort[0];
   klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
   klocka.t += 150; stam([]);
   klocka.t += 300; stam([vilande(2, NY_PLATS, { tillstand: 'stilla' })]);
   tid(klocka.t + 4000);
   klocka.t += 150; stam([vilande(2, NY_PLATS, { namn: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.4 }] })]);
   tid(klocka.t + 100);
-  assert.equal(app.ofr.length, 1, 'efter nåden');
+  assert.equal(k.spar, 1, 'läsningens osäkra namn ensamt bär inte (Night\'s Whisper i parti-kedjan)'); assert.equal(app.ofr.length, 1);
+  klocka.t += 150; stam([vilande(2, NY_PLATS, { namn: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.4 }], remsa: { namn: 'Ukud Cobra', saker: false, marginal: 0.12 } })]);   // namnremsan vittnar
+  tid(klocka.t + 100);
+  assert.equal(k.spar, 2, 'buret dit efter nåden'); assert.ok(k.flyttFran, 'en gissad flytt'); assert.equal(k.name, 'Ukud Cobra');
+  assert.deepEqual(ofrSlag(), []); assert.equal(app.kort.length, 1);
+  klocka.t += 1000; stam([klar(2, 'Grizzly Bears', { sen: 0, ...NY_PLATS })]);   // en säker läsning med ett annat namn ångrar flytten
+  assert.notEqual(k.spar, 2); assert.equal(k.flyttFran, undefined); assert.ok(app.kort.some(c => c.name === 'Grizzly Bears' && c.spar === 2));
+  assert.ok(iHanden(k), 'väntan var redan slut, och namnet syns inte längre någon annanstans: till handen');
   app.nollstall(); klocka.t = 1e6;
   const ANNAN = box(0.70, 0.70, 0.063, 0.088);
   stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), { id: 9, tillstand: 'okand', namn: null, cands: [], sen: 0, ...NY_PLATS }, { id: 8, tillstand: 'okand', namn: null, cands: [], sen: 0, ...ANNAN }]);
@@ -3236,6 +3246,33 @@ prov('SP4b (MES-356) inte spöket: kortet har väntat längre än nåden, eller 
   klocka.t += 150; stam([2, 3].map((id, i) => vilande(id, [NY_PLATS, ANNAN][i], { namn: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.4 }] })));
   tid(klocka.t + 100);
   assert.equal(app.kort[0].spar, 1); assert.equal(app.ofr.length, 2, 'två spår gissar samma namn: tvekan');
+});
+prov('SP6 (MES-356) med Claude på: Claudes osäkra svar skriver över namnet, men remsan eller titelraden säger Island — A bärs ändå dit', () => {
+  for (const vittne of [{ remsa: { namn: 'Island', saker: false, marginal: 0.12 } }, { namnLast: { namn: 'Island', poang: 0.7, marginal: 0.3 } }, { remsa: { namn: null, ocr: { namn: 'Island', poang: 0.8 } } }]) {
+    app.nollstall(); klocka.t = 1e6;
+    const [a, b] = tvaIslands();
+    const B = (rest) => klar(2, 'Island', Object.assign({ sen: 0, kortlik: true, vilar: true, ...ISL_B }, rest || {}));
+    const ai = { svar: [{ namn: 'Island', sakerhet: 'medel', saker: false }] };
+    klocka.t += 150; stam([B()]);
+    klocka.t += 300; stam([B({ skymd: true, sen: 150, under: [3] }), ovila(3, { vilar: false, ...PA_B })]);
+    klocka.t += 150; stam([B({ skymd: true, sen: 300, under: [3] }), ovila(3, PA_B)]);
+    klocka.t += 150; stam([B({ skymd: true, sen: 450, under: [3] }), ovila(3, { tillstand: 'stilla', ...PA_B })]);
+    klocka.t += 150; stam([B({ skymd: true, sen: 600, under: [3] }), lastOsakert(3, 'Island', PA_B, Object.assign({ ai }, vittne))]);   // "? not sure (Island) · Claude"
+    tid(klocka.t + 100);
+    assert.equal(a.spar, 3, 'A bars dit: ' + JSON.stringify(vittne)); assert.equal(b.spar, 2); assert.deepEqual(ofrSlag(), []);
+  }
+});
+prov('SP7 (MES-356) bara Claude säger Island: ingenting bärs, varken före eller efter nåden — Claude är aldrig ett villkor', () => {
+  const [a] = tvaIslands();
+  const B = (rest) => klar(2, 'Island', Object.assign({ sen: 0, kortlik: true, vilar: true, ...ISL_B }, rest || {}));
+  const ai = { svar: [{ namn: 'Island', sakerhet: 'medel', saker: false }] };
+  const svag = { remsa: { namn: 'Island', saker: false, marginal: 0.02 }, namnLast: { namn: 'Island', poang: 0.3 } };   // under vittnesgränserna
+  klocka.t += 150; stam([B()]);
+  klocka.t += 300; stam([B({ skymd: true, sen: 150, under: [3] }), ovila(3, { vilar: false, ...PA_B })]);
+  klocka.t += 150; stam([B({ skymd: true, sen: 300, under: [3] }), ovila(3, PA_B)]);
+  klocka.t += 150; stam([B({ skymd: true, sen: 450, under: [3] }), ovila(3, { tillstand: 'stilla', ...PA_B })]);
+  for (let i = 0; i < 10; i++) { klocka.t += 1000; stam([B({ skymd: true, sen: 600, under: [3] }), lastOsakert(3, 'Island', PA_B, Object.assign({ ai }, svag))]); }
+  assert.equal(a.spar, 1, 'A bars dit på Claudes svar'); assert.ok(!a.flyttFran);
 });
 prov('SP5 (MES-356) tre kort flyttas samtidigt: inga oframkallade kort bredvid korten i väntan medan telefonen läser, sedan bärs vart kort dit det lades', () => {
   const FR = [box(0.10, 0.20, 0.063, 0.088), box(0.25, 0.20, 0.063, 0.088), box(0.40, 0.20, 0.063, 0.088)];
