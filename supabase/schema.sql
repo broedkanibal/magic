@@ -61,7 +61,7 @@ create table if not exists public.boards (
 -- Räknaren gör det möjligt för en klient att se att den fått en äldre
 -- version än den redan har, och slänga den i stället för att backa.
 create or replace function public.bump_board_version()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = '' as $$
 begin
   new.version := coalesce(old.version, 0) + 1;
   new.andrad  := now();
@@ -71,6 +71,9 @@ end $$;
 drop trigger if exists boards_version on public.boards;
 create trigger boards_version before update on public.boards
   for each row execute function public.bump_board_version();
+
+-- En triggerfunktion körs av databasen, aldrig via API:t.
+revoke execute on function public.bump_board_version() from public, anon, authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
 --  Behörigheter
@@ -194,6 +197,9 @@ grant select, insert, update on public.boards       to authenticated;
 
 -- Policyerna anropar den här funktionen, och en policy körs med den
 -- frågande rollens rättigheter — utan execute faller varje läsning.
+-- Bara authenticated: funktioner får execute för public när de skapas, och
+-- anon har ingenting här att göra (Security Advisor 2026-10-09).
+revoke execute on function public.i_spelet(uuid) from public, anon;
 grant execute on function public.i_spelet(uuid) to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
