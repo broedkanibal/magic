@@ -1599,6 +1599,13 @@ body.utanins .hints:not(.sok){display:none}
 }
 .ov.open{display:flex;flex-direction:column}
 @keyframes fade{from{opacity:0}}
+/* Spelet avslutat (MES-355, D4). */
+#slutOv{z-index:460}
+.slutbody{padding:30px!important;gap:14px!important}
+.slutik{width:56px;height:56px;border-radius:16px;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--txt)}
+.slutbody h2{margin:0;font:700 24px/1.25 var(--sans)}
+.slutbody .lead{margin:0;font:16px/1.5 var(--sans);color:var(--dim)}
+.slutbody .btn{margin-top:6px;height:48px;justify-content:center;font-size:16px;font-weight:700;border-radius:10px}
 /* ── Kamerapanelen: en popover under pillret (MES-98) ────────────────
    Designen Mesa Camera Play: en panel under kamerapillret i stället för den
    dockade kameravyn. Mattan trycks inte ihop — panelen ligger över
@@ -2124,6 +2131,31 @@ body.ispel:not(.lasvy) .handbar{display:none}
   font:11px var(--mono);color:var(--dim);background:var(--bg);
   border:1px solid var(--line);border-radius:6px;padding:7px 9px;
 }
+/* Camera lost och Camera off (MES-355, "Mesa Reconnect Camera" D1, D3): koden
+   står framme direkt, i en egen ruta med vad den gör — utan ledtexten och
+   länken från första kopplingen. */
+.kamsteg.igen{align-items:center;gap:10px;padding:16px;border-radius:12px;background:#0f141c;border:1px solid var(--line)}
+.kamsteg.igen .lead,.kamsteg.igen .kamlank{display:none}
+.kamsteg.igen .kamqr{min-width:176px;min-height:176px;padding:10px;border-radius:10px}
+.kamqrigen{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.kamqrigen[hidden]{display:none}
+.kamqrigen b{font:600 14.5px var(--sans);color:var(--txt)}
+.kamqrigen > span{font:12.5px/1.45 var(--sans);color:var(--dim)}
+.kamqrigen .kamqrvantar{display:inline-flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:var(--txt)}
+.kamqrvantar i{width:8px;height:8px;border-radius:50%;background:var(--acc);animation:kampuls 1.4s ease-in-out infinite}
+.kamqrvantar[hidden]{display:none}
+.kamfelefter{display:flex;flex-direction:column;gap:10px}
+.kamfelknappar .btn.bred{flex:1;height:40px;justify-content:center;font-size:14px}
+.kamfelefter[hidden]{display:none}
+.kamfelefter b{color:var(--txt)}
+/* Mattan medan telefonen är borta (D1) och medan datorn letar efter den efter en omladdning (D2). */
+.kamfrusen{position:absolute;left:12px;top:12px;z-index:24;display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:8px;background:#0d1015e6;border:1px solid var(--panelram2);font:13px var(--sans);color:#c4cede;pointer-events:none}
+.kamletarmatt{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:24;display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;background:#0d1015f2;border:1px solid var(--panelram2);font:14px var(--sans);color:var(--txt);white-space:nowrap;max-width:calc(100% - 32px);pointer-events:none}
+.kamletarmatt span:last-child{color:var(--dim);overflow:hidden;text-overflow:ellipsis}
+.kamfrusen[hidden],.kamletarmatt[hidden]{display:none}
+.kamsnurr{flex:none;animation:kamsnurr 1s linear infinite}
+@keyframes kamsnurr{to{transform:rotate(360deg)}}
+@media (max-width:700px){.kamletarmatt{white-space:normal;flex-wrap:wrap}.kamletarmatt span:last-child{display:none}}
 .kamfin2{margin:0;font:11.5px/1.5 var(--sans);color:var(--dim2)}
 .kalbild{position:relative;border-radius:10px;overflow:hidden;background:#000;user-select:none;min-height:120px}
 .kalbild img{display:block;width:100%;height:auto}
@@ -2247,6 +2279,24 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .kamfranfot .kamfrantxt{margin:0 auto 6px}
 .kamfranfot .btn{width:100%;justify-content:center;height:46px;font-size:15px}
 .kamfranfot .btn:not(.prim){color:#e6ecf5}
+/* Rutan längst ned när kameran tittar vidare utan att nå datorn (MES-355, P2):
+   kanalen är nere, datorn svarar inte, eller sidan laddades om. Den syns
+   också i den rena och den mörka vyn — det är just då ingen annan text gör
+   det — och toppraden med Disconnect följer med. */
+.kamruta{
+  position:absolute;left:16px;right:16px;z-index:6;bottom:calc(env(safe-area-inset-bottom,0px) + 32px);
+  display:flex;flex-direction:column;gap:8px;padding:18px 18px 20px;border-radius:14px;
+  background:#0d1015f2;border:1px solid #8a5d10;color:#e6ecf5;text-align:left;
+}
+.kamruta[hidden]{display:none}
+.kamrutarub{display:flex;align-items:center;gap:10px;font:600 18px/1.3 var(--sans)}
+.kamrutarub i{width:12px;height:12px;border-radius:50%;background:var(--acc);flex:none;animation:kampuls 1.4s ease-in-out infinite}
+.kamruta p{margin:0;font:15px/1.5 var(--sans);color:#c4cede}
+.kamruta .kamrutatid{font-size:13px;color:#93a1b6}
+#vyKamera.harruta .kambotten,#vyKamera.harruta .kammork{display:none!important}
+#vyKamera.harruta.ren:not(.visa) .kamtopp{background:#0d1015cc}
+#vyKamera.harruta.ren:not(.visa) .kamtopp > :not(.kamprick){display:revert}
+#vyKamera.harruta.ren:not(.visa) .kamtopp > .btn{display:inline-flex}
 #vyKamera.ren.mork:not(.visa) #kamVideo{inset:auto;left:0;top:0;width:2px;height:2px}
 #vyKamera.ren.mork:not(.visa) .kamoverlay{display:none}
 #vyKamera.ren.mork:not(.visa) .kammork{
@@ -2679,6 +2729,28 @@ body.ispel #addPlayerBtn{display:none}
 .lsmeny button:hover{background:var(--bg3)}
 .lsmeny button.fara,.lsmeny button.fara svg{color:#ff9099}
 .lsmeny hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+
+/* ── Du spelar redan (MES-355, "Mesa Reconnect Camera" P1) ── */
+.valet{align-items:center;overflow:auto}
+.valetin{flex:1;width:100%;max-width:440px;box-sizing:border-box;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 28px) 24px calc(env(safe-area-inset-bottom,0px) + 36px);color:var(--txt)}
+.valettopp{display:flex;align-items:center;gap:10px}
+.valettopp b{font:700 17px var(--sans)}
+.valetbak{width:44px;height:44px;margin-left:-12px;display:flex;align-items:center;justify-content:center;border:0;border-radius:10px;background:none;color:var(--dim);cursor:pointer}
+.valetbak:hover{background:var(--bg3);color:var(--txt)}
+.valetkod{margin-left:auto;font:14px var(--mono);letter-spacing:.08em;padding:5px 10px;border:1px solid var(--line);border-radius:7px;color:var(--dim)}
+.valetmitt{flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;padding:32px 0}
+.valetik{width:72px;height:72px;border-radius:20px;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--acc)}
+.valetmitt h1{margin:0;font:700 28px/1.2 var(--sans)}
+.valetmitt p{margin:0;font:17px/1.5 var(--sans);color:var(--dim)}
+.valetfolk{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;font:15px var(--sans)}
+.valetfolk .dots3{display:flex;gap:4px}
+.valetfolk .bdot{width:10px;height:10px}
+.valetfolk .st{margin-left:auto;font-size:14px;color:var(--dim)}
+.valetfot{display:flex;flex-direction:column;gap:14px}
+.valetfot .btn{width:100%;justify-content:center}
+.valetfot .btn.prim{height:56px;border-radius:12px;font-size:18px;font-weight:700;gap:10px}
+.valetfot .btn.ghost{height:44px;font-size:16px;font-weight:600;color:var(--acc);border-color:transparent;background:none}
+.valetfot p{margin:0;text-align:center;font:13px/1.45 var(--sans);color:#8391a6}
 
 /* ── Home ── */
 .hem{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:26px;padding:34px 48px 30px;background:radial-gradient(1400px 520px at 50% -12%,#18232f,#0d1015 70%)}
@@ -3599,6 +3671,14 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
     </div>
   </div>
 
+  <!-- Kameran tittar vidare men når inte datorn (MES-355, P2): kanalen är
+       nere, datorn svarar inte, eller sidan laddades om. Ritas av ritaKamRuta(). -->
+  <div class="kamruta" id="kamRuta" role="status" hidden>
+    <div class="kamrutarub"><i></i><span id="kamRutaRub"></span></div>
+    <p id="kamRutaTxt"></p>
+    <p class="kamrutatid" id="kamRutaTid"></p>
+  </div>
+
   <!-- Kameran är frånkopplad (MES-350, MES-332): spelet avslutat, datorn
        stängde av kameran eller Disconnect här. Samma skärm, orsaken skiljer. -->
   <div class="kamfran" id="kamFran" hidden>
@@ -3611,7 +3691,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
     <span class="kamfranav"><span></span>Camera off</span>
     <div class="kamfranfot">
       <p class="kamfrantxt" id="kamFranRad" hidden>You can take the phone off the stand.</p>
-      <button class="btn prim big" id="kamFranIgen">Connect again</button>
+      <button class="btn prim big" id="kamFranIgen">Reconnect camera</button>
       <button class="btn big" id="kamFranHem">Go to Home</button>
     </div>
   </div>
@@ -3625,6 +3705,31 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
      med ram och slutare. Kroppen ritas av telfotoRita(); kameran ligger
      som ett eget lager över den.
      ══════════════════════════════════════════════════════════════════ -->
+<!-- Du spelar redan (MES-355, "Mesa Reconnect Camera" P1): ett spel där min
+     rad säger 'spelar' öppnas på en enhet som inte själv gjort uppstarten.
+     Uppstarten visas en gång per spel, och servern minns den — inte enheten.
+     Texterna och knapparna sätts av visaValet() efter enhetens sorts pekare. -->
+<div id="vyValet" class="sida valet" hidden>
+  <div class="valetin">
+    <div class="valettopp">
+      <button type="button" class="valetbak" id="valetHem" aria-label="Back to Home"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <b>Mesa</b>
+      <span class="valetkod" id="valetKod"></span>
+    </div>
+    <div class="valetmitt">
+      <span class="valetik" aria-hidden="true"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/><circle cx="12" cy="13" r="3"/></svg></span>
+      <h1>You’re already playing this game</h1>
+      <p id="valetTxt"></p>
+      <div class="valetfolk"><span class="dots3" id="valetDots"></span><span id="valetNamn"></span><span class="st">Playing</span></div>
+    </div>
+    <div class="valetfot">
+      <button type="button" class="btn prim big" id="valetHuvud"></button>
+      <button type="button" class="btn ghost" id="valetAndra"></button>
+      <p id="valetFin"></p>
+    </div>
+  </div>
+</div>
+
 <div id="vyLekfoto" class="sida telfoto" hidden>
   <div class="telhd">
     <div class="brand"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg><span>Mesa</span></div>
@@ -3774,6 +3879,10 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <div class="mattabrade" id="grid"></div>
         </div>
         <div class="mattachrome" id="mattaChrome"></div>
+        <!-- Telefonen är borta (MES-355, D1): hur länge mattan stått frusen. Och
+             medan datorn letar efter telefonen efter en omladdning (D2). -->
+        <div class="kamfrusen" id="kamFrusen" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19"/></svg><span id="kamFrusenTxt"></span></div>
+        <div class="kamletarmatt" id="kamLetarMatt" role="status" hidden><svg class="kamsnurr" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f0a52a" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg><span>Finding your phone — it’s still on your table.</span><span>Your cards are back from where you left off.</span></div>
         <!-- Solfjädern (MES-145): korten ur en hög i handen. Ritas av hfLage(). -->
         <div class="handfan" id="handFan" hidden></div>
         <!-- Uppstartens steg 1 (MES-170, G1/G1Edit/G2): den valda leken som
@@ -4047,9 +4156,17 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           a holder straight above your cards, and keep the deck and the graveyard out of the
           picture.</p>
         <div class="kamqr" id="kamQr"></div>
+        <!-- Camera lost och Camera off (MES-355, D1 och D3): koden står framme
+             direkt, med vad den gör. Ritas av renderKamPop(). -->
+        <div class="kamqrigen" id="kamQrIgen" hidden>
+          <b id="kamQrRub"></b>
+          <span id="kamQrFin"></span>
+          <span class="kamqrvantar" id="kamQrVantar" hidden><i></i>Waiting for your phone…</span>
+        </div>
         <p class="kamlank"><code id="kamLank"></code>
           <button class="btn sm" id="kamKopiera">Copy link</button></p>
       </div>
+      <div class="popsec kamfelefter" id="kamFelEfter" hidden></div>
       <div class="kamskruv" id="kamSkruv">
         <div class="kamskruv-hd dbg">
           <span class="led"></span><b>Camera is on</b>
@@ -4193,6 +4310,18 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
 <input type="file" id="imgFile" accept="image/*" hidden>
 
 <!-- ── bekräfta ── -->
+<!-- Spelet avslutades medan det stod öppet här (MES-355, D4). Bara Go to Home:
+     det finns inget att fortsätta med. Stängs inte med ett klick bredvid. -->
+<div class="ov" id="slutOv">
+  <div class="modal" style="width:min(460px,94vw)">
+    <div class="body slutbody">
+      <span class="slutik" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg></span>
+      <h2 id="slutRub"></h2>
+      <p class="lead" id="slutTxt"></p>
+      <button type="button" class="btn prim big" id="slutHem">Go to Home</button>
+    </div>
+  </div>
+</div>
 <div class="ov" id="askOv">
   <div class="modal" style="width:min(430px,94vw)">
     <header>
@@ -6659,6 +6788,8 @@ const Moln = (() => {
     lyssnare.kamfel = cb.kamfel || null;
     lyssnare.roll = cb.roll || null;
     lyssnare.slut = cb.slut || null;
+    lyssnare.datorer = cb.datorer || null;
+    lyssnare.nere = cb.nere || null;
     kanalSpel = gameId;
     kanal = s.channel('spel:' + gameId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: 'game_id=eq.' + gameId },
@@ -6674,9 +6805,12 @@ const Moln = (() => {
          sitter det en kamera i det här spelet just nu? Utan den fick datorn
          gissa utifrån om det råkat komma en bild. */
       .on('presence', { event: 'sync' }, () => {
-        if (!lyssnare.narvaro || !kanal) return;
+        if ((!lyssnare.narvaro && !lyssnare.datorer) || !kanal) return;
         const alla = Object.values(kanal.presenceState() || {}).flat();
-        lyssnare.narvaro(alla.filter(x => x && x.roll === 'kamera'));
+        if (lyssnare.narvaro) lyssnare.narvaro(alla.filter(x => x && x.roll === 'kamera'));
+        /* Datorerna i spelet (MES-355): telefonen ser om min dator är kvar,
+           i stället för att gissa ur hur länge sedan den sa något. */
+        if (lyssnare.datorer) lyssnare.datorer(alla.filter(x => x && x.roll === 'dator'));
       })
       /* Statusen är inte kosmetisk. Tappas sockeln återansluter supabase-js
          tyst, men de händelser som missades under tiden spelas ALDRIG upp
@@ -6684,7 +6818,10 @@ const Moln = (() => {
          kortlistan. En avläsning finns bara en gång, så den som vaknar måste
          fråga efter vad som ligger kvar. */
       .subscribe(async st => {
-        if (st !== 'SUBSCRIBED') return;
+        /* Kanalen gick ner (MES-355): supabase-js försöker själv igen, och
+           SUBSCRIBED kommer när den är uppe. Telefonen säger Reconnecting…
+           under tiden. En kanal som lämnats (lamnaKanal) har inget spel kvar. */
+        if (st !== 'SUBSCRIBED') { if (kanalSpel === gameId && lyssnare.nere) lyssnare.nere(st); return; }
         if (lyssnare.roll) { try { await kanal.track({ roll: lyssnare.roll, id: minId() }); } catch (e) {} }
         if (lyssnare.uppkopplad) lyssnare.uppkopplad();
       });
@@ -7184,6 +7321,15 @@ let kamGrund;
 let kamGrundRad = null;       // grundläget i spelets rad (camera_setups), för popovern innan telefonen rapporterat
 let kamHarVarit = false;      // har en telefon någonsin svarat i det här spelet?
 let kamTappadNar = 0;         // när tappades den? — bordet är fruset sedan dess
+/* Tappad är inte slut (MES-355, "Mesa Reconnect Camera" D1, D2): försvinner
+   telefonen letar datorn i KAM_LETAR_MS innan pillret säger Camera lost — en
+   omladdad telefon är tillbaka innan dess. kamLetarOmladd: letandet började
+   när spelet öppnades här (datorn laddades om), och mattan säger det.
+   kamIntrade: kamHarVarit kom ur spelets rad, inte ur en telefon som
+   försvann — när telefonen hittas byggs mattan inte om (frasktBord), den
+   tittade hela tiden. kamAvSjalv: telefonen kopplades bort med Disconnect. */
+const KAM_LETAR_MS = 15000;
+let kamLetarTill = 0, kamLetarOmladd = false, kamIntrade = false, kamAvSjalv = false;
 let kamFrasktVantar = false;  // telefonen kom tillbaka efter att ha tappats: mattan byggs om vid nästa riktiga bord (frasktBord)
 let kamLast = 0, kamTot = 0;  // lästa kort av upptäckta spår, ur varje bordsmeddelande
 /* Sant medan en fjärruppdatering appliceras. renderGrid sorterar manan och
@@ -12672,9 +12818,10 @@ function renderMode() {
        och tomrutan. Står kameran av startar ett klick den. */
     const m = kamPillModell();
     chip = `<button type="button" class="campill ${m.klass}${kamOppen ? ' open' : ''}" data-mode="pill" aria-expanded="${kamOppen}" title="${LAGE_NAMN[m.lage === 'bord' ? 'bord' : 'skarm']} — how the camera works, its status, and how to switch mode"><span class="led"></span><span class="ikon">${m.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span><span class="lbl">${esc(m.text)}</span><span class="cv">${M_CV}</span></button>`;
-    /* Panelen säger hur länge bordet stått fruset. */
-    if (m.fel === 'tappad' && kamOppen) modeT = setTimeout(renderMode, 10000);
+    /* Mattan säger hur länge bordet stått fruset (ritaKamMatt). */
+    if (m.fel === 'tappad') modeT = setTimeout(renderMode, 10000);
   }
+  ritaKamMatt();
 
   /* Strängdiffat: renderMode går vid varje hjärtslag från kameran, och en
      omritning av panelen hade rivit en knapp man håller på att trycka på. */
@@ -12687,6 +12834,18 @@ function renderMode() {
   renderAutoBar();
 }
 
+/* Mattan medan telefonen är borta (MES-355): "Frozen as it looked 2 min ago"
+   i hörnet när kameran är tappad (D1), och "Finding your phone" nertill
+   medan datorn letar efter en omladdning (D2). Mattan tonas inte ned. */
+function ritaKamMatt() {
+  const fr = $('#kamFrusen'), le = $('#kamLetarMatt'); if (!fr || !le) return;
+  const m = spelLage && !kameraEnhet && redigerbar() ? kamPillModell() : null;
+  const frusen = !!m && m.fel === 'tappad' && !!kamTappadNar;
+  if (fr.hidden !== !frusen) fr.hidden = !frusen;
+  if (frusen) { const t = 'Frozen as it looked ' + sedan(kamTappadNar); if ($('#kamFrusenTxt').textContent !== t) $('#kamFrusenTxt').textContent = t; }
+  const letar = !!m && m.fel === 'letar' && kamLetarOmladd;
+  if (le.hidden !== !letar) le.hidden = !letar;
+}
 /* Pillrets modell. Samma ordning som lägeschippet hade: kameran av, tappad,
    väntar, gammal telefon, lär sig ljuset, hittar inga kort, på. Ordningen är
    inte kosmetisk: kamFas, kamSer och kamYta deklareras med let långt ner i
@@ -12694,9 +12853,10 @@ function renderMode() {
    av panelens felvarianter som gäller (5a–5c i designen). */
 function kamPillModell() {
   const lage = mittLage();
-  if (prefs.autoLage !== true) return { klass: 'av', text: 'Camera off', lage };
-  if (!kamAnsluten) return kamHarVarit ? { klass: 'tappad', text: 'Camera lost', lage, fel: 'tappad' }
-                                       : { klass: 'vantar', text: 'Waiting for phone', lage };
+  if (prefs.autoLage !== true) return { klass: 'av', text: 'Camera off', lage, fel: 'av' };
+  if (!kamAnsluten) return !kamHarVarit ? { klass: 'vantar', text: 'Waiting for phone', lage }
+    : kamLetar() ? { klass: 'vantar', text: 'Camera · finding your phone', lage, fel: 'letar' }
+    : { klass: 'tappad', text: 'Camera lost', lage, fel: 'tappad' };
   if (kamFas === 'ingen') return { klass: 'vantar', text: 'Reload the phone', lage, fel: 'gammal' };
   if (kamFas === 'ljus' || kamFas === 'lar') return { klass: 'vantar', text: 'Camera · learning the light', lage };
   /* Uppstarten är öppen (MES-122): bordet ställs i ordning, och ett tomt
@@ -12724,6 +12884,15 @@ function kamHittarInte() {
   if (kvar > 0) { clearTimeout(kamHittarT); kamHittarT = setTimeout(renderMode, kvar + 50); return false; }
   return true;
 }
+/* Letar datorn fortfarande efter telefonen (MES-355)? Pillret ritas om när
+   tiden gått ut. */
+let kamLetarT = 0;
+function kamLetar() {
+  const kvar = kamLetarTill - Date.now();
+  if (kvar <= 0) return false;
+  clearTimeout(kamLetarT); kamLetarT = setTimeout(() => { renderMode(); kamStegSynk(); }, kvar + 50);
+  return true;
+}
 function kamHittarRad() {
   return kamRad || (kamYta && kamYta.rad) || "The table's pattern hides the card edges. Put a plain cloth or a large sheet of paper under your cards.";
 }
@@ -12743,13 +12912,15 @@ const LAGE_TXT = {
 };
 const LAGE_NAMN = { bord: 'Mirror my table', skarm: 'Use camera to add cards', utan: 'Digital table' };
 const LAGE_GRUPP = { kamera: 'Hybrid modes', utan: 'Digital mode' };
-let kamQrTvinga = false;   // Reconnect / Show the QR code: koden fram fast telefonen varit med
+let kamQrTvinga = false;   // Show the QR code (gammal telefon): koden fram fast telefonen varit med
+/* Mesa still open on the phone? (MES-355, D1 och D3): genvägen på telefonen. */
+const KAM_IGEN_RAD = '<p class="poptxt">Mesa still open on the phone? Tap <b>Reconnect camera</b> there instead.</p>';
 function renderKamPop() {
   const ov = $('#kamOv'); if (!ov || !spelLage) return;
   rensaOppstartsRutor();
   const m = kamPillModell(), bord = m.lage === 'bord', fel = m.fel || '';
-  const rubTxt = fel === 'tappad' ? 'Your phone stopped sending' : fel === 'gammal' ? 'Reload Mesa on your phone'
-    : fel === 'hittar' ? "The camera can't find your cards" : kamAnsluten ? 'Camera' : 'Connect your phone';
+  const rubTxt = fel === 'tappad' ? 'Your phone stopped sending' : fel === 'letar' ? 'Finding your phone' : fel === 'gammal' ? 'Reload Mesa on your phone'
+    : fel === 'hittar' ? "The camera can't find your cards" : kamAnsluten || fel === 'av' ? 'Camera' : 'Connect your phone';
   const rub = $('#kamOvRubrik'); if (rub.textContent !== rubTxt) rub.textContent = rubTxt;
   $('#kamOvSt').hidden = !kamAnsluten || !!fel;
   $('#kamLageSec').hidden = !!fel;
@@ -12758,17 +12929,37 @@ function renderKamPop() {
     const ik = b.querySelector('.ikon'); if (ik && !ik.innerHTML) ik.innerHTML = b.dataset.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM;
   }
   const lt = $('#kamLageTxt'); if (lt.textContent !== LAGE_TXT[m.lage]) lt.textContent = LAGE_TXT[m.lage];
+  /* Camera lost (MES-355, D1): QR-koden står framme direkt (kamStegSynk) —
+     ingen knapp att klicka fram den med, och ingen väg till uppstarten.
+     Hur länge mattan stått frusen står på mattan (ritaKamMatt). Camera off
+     (D3): Turn on camera, och koden. */
   const felHtml = fel === 'tappad'
-      ? (bord
-        ? `<p class="poptxt">The cards on the mat are frozen as they looked ${sedan(kamTappadNar)}. When the phone is back, the mat is rebuilt from what the camera sees. Check that the phone's screen is on and Mesa is open on it, then reconnect.</p>`
-        : `<p class="poptxt">The cards on the mat stay as they are — frozen as they looked ${sedan(kamTappadNar)}. Check that the phone's screen is on and Mesa is open on it, then reconnect.</p>`)
-        + (kamQrTvinga ? '' : '<div class="kamfelknappar"><button type="button" class="btn prim" data-mode="visaqr">Reconnect</button></div>')
+      ? (kamAvSjalv ? '<p class="poptxt">You disconnected the phone. The cards stay as they were.</p>' : '')
+    : fel === 'letar' ? '<p class="poptxt">It’s still on your table, and it usually turns up in a few seconds. The cards stay as they are in the meantime.</p>'
+    : fel === 'av' ? '<p class="poptxt">The camera is off. You place and move cards yourself until you turn it on again.</p>'
+        + '<div class="kamfelknappar"><button type="button" class="btn prim bred" data-mode="auto">Turn on camera</button></div>'
     : fel === 'gammal'
       ? '<p class="poptxt">Your phone runs an older version of Mesa. Reload the page on the phone — the camera carries on where it stopped.</p>'
         + (kamQrTvinga ? '' : '<div class="kamfelknappar"><button type="button" class="btn" data-mode="visaqr">Show the QR code</button></div>')
     : fel === 'hittar' ? `<p class="poptxt">${esc(kamHittarRad())}</p>` : '';
   const fe = $('#kamFel'); if (fe.dataset.h !== felHtml) { fe.dataset.h = felHtml; fe.innerHTML = felHtml; }
   fe.hidden = !felHtml;
+  /* Koden i sin ruta, och raderna under den (D1, D3). */
+  const qrIgen = fel === 'tappad' || fel === 'av';
+  $('#kamStegQr').classList.toggle('igen', qrIgen);
+  $('#kamQrIgen').hidden = !qrIgen;
+  if (qrIgen) {
+    const qrRub = fel === 'av' ? 'Scan with the phone' : 'Scan to reconnect';
+    const qrFin = fel === 'av' ? 'Scanning opens Mesa straight into the camera, and turns it on here too.'
+      : 'With the phone’s camera. It opens Mesa straight into the camera — no setup.';
+    if ($('#kamQrRub').textContent !== qrRub) $('#kamQrRub').textContent = qrRub;
+    if ($('#kamQrFin').textContent !== qrFin) $('#kamQrFin').textContent = qrFin;
+  }
+  $('#kamQrVantar').hidden = fel !== 'tappad';
+  const efterHtml = fel === 'tappad' ? KAM_IGEN_RAD + (bord ? '<p class="poptxt">When the phone is back, the mat is rebuilt from what the camera sees.</p>' : '')
+    : fel === 'av' ? KAM_IGEN_RAD : '';
+  const ef = $('#kamFelEfter'); if (ef.dataset.h !== efterHtml) { ef.dataset.h = efterHtml; ef.innerHTML = efterHtml; }
+  ef.hidden = !efterHtml;
   $('#pbBild').classList.toggle('dold', fel === 'gammal');
   /* En statusrad: avstämningens egen mening (samma som statusfältet hade),
      utan "Camera · " — panelen heter redan Camera — och med telefonens råd
@@ -12788,7 +12979,9 @@ function renderKamPop() {
   $('#pbHelbild').hidden = !(kamAnsluten && (fel === 'hittar' || DEBUG));
   $('#kamAiPris').hidden = fel !== 'hittar';
   $('#kamKoppla').hidden = prefs.autoLage !== true || fel === 'hittar';
-  $('#kamRedo').hidden = !redigerbar() || !!fel;
+  /* Redo setup står kvar när kameran är av: från Digital table är det vägen
+     tillbaka till kamerans lägen. */
+  $('#kamRedo').hidden = !redigerbar() || (!!fel && fel !== 'av');
 }
 
 /* ── Uppstarten (MES-102, "Get ready for the game" MES-170) ──────────
@@ -12845,8 +13038,14 @@ function oppFor() { const m = oppMinne(); return (spelLage && m[spelLage.id]) ||
 function oppstartPagar() { if (!spelLage) return false; const o = oppFor(); return !o.klar && !o.avbojd; }
 function oppSatt(falt) {
   if (!spelLage) return;
-  const m = oppMinne(); m[spelLage.id] = Object.assign({}, m[spelLage.id] || {}, falt); LS.set(K.oppstart, m);
+  oppSattFor(spelLage.id, falt);
 }
+function oppSattFor(id, falt) {
+  const m = oppMinne(); m[id] = Object.assign({}, m[id] || {}, falt); LS.set(K.oppstart, m);
+}
+/* Har den här enheten gjort uppstarten i spelet — klar, eller avböjd med
+   Digital table? (MES-355: P1 visas annars, när min status är 'spelar'.) */
+function oppGjordPa(id) { const o = oppMinne()[id] || {}; return !!(o.klar || o.avbojd); }
 const oppLank = () => location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1' + (DEBUG ? '&debug' : '');   // ?debug följer med (MES-240)
 /* om = "Redo setup": läget väljs igen och steg 4 görs om. Utan om (pillret)
    står det som var klart kvar (oppOppnasIgen). */
@@ -13135,7 +13334,12 @@ function renderOppstart() {
     oppSenast = undefined;          // Last used räknas om i nästa spel
     return;
   }
-  const o = redigerbar() ? oppFor() : null, mig = minSpelare(), bord = mittLage() === 'bord';
+  let o = redigerbar() ? oppFor() : null;
+  const mig = minSpelare(), bord = mittLage() === 'bord';
+  /* Servern är sanningen (MES-355): står min rad som 'spelar' öppnas
+     uppstarten aldrig av sig själv på den här enheten, och statusen skrivs
+     inte om. Bara Redo setup (grundOm) gör om den. */
+  if (o && !o.klar && !o.avbojd && !o.grundOm && mig && mig.status === 'spelar') { oppSatt({ klar: true }); o = oppFor(); }
   let visa = !!o && !o.klar && !o.avbojd, aktiv = null, fot = null;
   const ordning = OPP_ORDNING;
   const steg = {};
@@ -13440,10 +13644,14 @@ function modeKlick(ev) {
   const a = b.dataset.mode;
   /* Pillret: står kameran av startar ett klick den (panelen visar QR-koden),
      annars växlar det panelen. */
+  /* Pillret växlar panelen. Uppstarten öppnas härifrån bara medan den
+     pågår (MES-355): en tappad kamera, en avstängd kamera eller en omladdad
+     dator leder aldrig dit — bara Redo setup gör om den. Camera off visar
+     panelen med Turn on camera och QR-koden (D3). */
   if (a === 'pill') {
     const m = kamPillModell();
-    if (spelLage && redigerbar() && (m.klass === 'av' || (m.klass === 'vantar' && !kamAnsluten))) { oppnaOppstart(); return; }
-    if (prefs.autoLage !== true) modeKlickAuto(); else visaKamSkruv();
+    if (spelLage && redigerbar() && oppstartPagar() && (m.klass === 'av' || (m.klass === 'vantar' && !kamAnsluten))) { oppnaOppstart(); return; }
+    visaKamSkruv();
     return;
   }
   if (a === 'redo') { oppnaOppstart(true); return; }
@@ -15119,7 +15327,7 @@ $$('[data-close]').forEach(b => b.onclick = () => {
   if (id === 'focusOv') closeFocus(); else if (id === 'shotOv') closeShot(); else closeOv(id);
 });
 $$('.ov').forEach(ov => ov.addEventListener('mousedown', ev => {
-  if (ev.target === ov && ov.id !== 'shotOv') {
+  if (ev.target === ov && ov.id !== 'shotOv' && ov.id !== 'slutOv') {
     if (ov.id === 'focusOv') closeFocus(); else closeOv(ov.id);
   }
 }));
@@ -21052,6 +21260,7 @@ addEventListener('keydown', ev => {
   if (isTyping(ev.target)) return;
 
   if (k === 'Escape') {
+    if ($('#slutOv').classList.contains('open')) return;   // spelet är avslutat: bara Go to Home (MES-355)
     /* Över lekens sida finns bara dialogerna den själv öppnar. */
     if (lekYtaAktiv()) { const o = $('.ov.open'); if (o) closeOv(o.id); return; }
     if (ark) return closeArk();
@@ -30913,6 +31122,7 @@ function visaVy(namn) {
   $('#vyHem').hidden = namn !== 'hem';
   $('#vyKamera').hidden = namn !== 'kamera';
   $('#vyLekfoto').hidden = namn !== 'lekfoto';
+  $('#vyValet').hidden = namn !== 'valet';
   $('#app').style.display = namn === 'app' ? '' : 'none';
   /* Lämnas mattan är nästa ritning en ny vy: inget glider in (MES-334 steg 2). */
   if (namn !== 'app') { gridEl._matVy = gridEl._matZoomVy = null; for (const m of oppMattor.values()) m.vy = m.vyKort = null; }
@@ -30935,14 +31145,14 @@ function visaVy(namn) {
 let kamLage = null;             // { id, kod } när telefonen är kopplad
 let kamRaknare = 0;
 
-/* Statusraden, och raden under den. Den undre sätts ihop av tre delar som
-   har olika ägare: datorns tystnad, kamerans fas, och lekbygget. Förut skrev
-   de över varandra — fasen "lär mig ljuset" raderade "Lär mig leken… 40 %"
-   mitt i bygget. */
-const kamFinDel = { dator: '', fas: '', pool: '', modell: '', ai: '', bild: '' };   // ai: helbildens rad — "Frågar Claude…", "Claude såg 6 kort"; bild: upplösningen strömmen gav
+/* Statusraden, och raden under den. Den undre sätts ihop av delar som har
+   olika ägare: kamerans fas och lekbygget. Förut skrev de över varandra —
+   fasen "lär mig ljuset" raderade "Lär mig leken… 40 %" mitt i bygget.
+   Datorns tystnad har en egen ruta sedan MES-355 (ritaKamRuta). */
+const kamFinDel = { fas: '', pool: '', modell: '', ai: '', bild: '' };   // ai: helbildens rad — "Frågar Claude…", "Claude såg 6 kort"; bild: upplösningen strömmen gav
 function ritaKamFin() {
   const f = $('#kamFin'); if (!f) return;
-  f.innerHTML = [kamFinDel.dator, kamFinDel.fas, kamFinDel.ai, kamFinDel.pool, kamFinDel.modell, kamFinDel.bild].filter(Boolean).map(esc).join('<br>');
+  f.innerHTML = [kamFinDel.fas, kamFinDel.ai, kamFinDel.pool, kamFinDel.modell, kamFinDel.bild].filter(Boolean).map(esc).join('<br>');
 }
 /* Vad strömmen gav, en rad på telefonen: så syns det om 4K-begäran gick
    igenom (getUserMedia i Kamera.start) utan att öppna diagnosen. */
@@ -30962,6 +31172,13 @@ const kamSag = (l, txt, fin) => {
 async function oppnaKamera(gameId) {
   const { spel } = await Moln.hamtaSpel(gameId);
   kamLage = { id: spel.id, kod: spel.kod };
+  /* Fliken minns att den är kamera (MES-355): en omladdning går rakt
+     tillbaka hit (portalStart), utan Home och utan uppstart. kamFran och
+     Go to Home glömmer det. */
+  sessionStorage.setItem('sthv.kamSpel', spel.kod);
+  kamStartNar = Date.now(); kamNere = 0; kamDatorNu = false; kamDatorSett = false;
+  if (kamAterstart) { clearTimeout(kamAterstartT); kamAterstartT = setTimeout(() => { kamAterstart = false; ritaKamRuta(); }, 30000); }
+  ritaKamRuta();
   minLek = null;
   kameraEnhet = true;
   spelLage = { id: spel.id, kod: spel.kod, namn: spel.namn, vard: spel.vard, mig: Moln.minId() };
@@ -30982,7 +31199,11 @@ async function oppnaKamera(gameId) {
     scan: rad => { if (rad && rad.user_id === Moln.minId() && rad.status !== 'ny') kamDatorSvarade(); },
     kam: m => kamKommando(m),
     slut: () => kamSlutKoll(),           // värden avslutade spelet (MES-332)
-    uppkopplad: () => kamSlutKoll(),     // tillbaka efter tappad socket: kan ha avslutats under tiden
+    /* Tillbaka efter tappad socket: kan ha avslutats under tiden. Rutan
+       Reconnecting… går bort (MES-355). */
+    uppkopplad: () => { kamNere = 0; ritaKamRuta(); kamSlutKoll(); },
+    nere: () => kamKanalNere(),
+    datorer: d => kamDatorNarvaro(d),
     /* Den privata kamerakanalen nekades (MES-305): bilderna når ingen dator.
        Sägs i statusraden i stället för att kameran tyst filmar i ett svart hål. */
     kamfel: () => kamSag('fel', 'The camera channel was refused — this phone cannot reach the computer')
@@ -31011,6 +31232,7 @@ async function oppnaKamera(gameId) {
       kedja: spar => Moln.sandKam('kedja', { spar })     // igenkänningskedjan per spår, bara ?debug (satKedja)
     });
   } catch (e) {
+    kamAterstart = false; ritaKamRuta();   // felet står i statusraden, inte "Starting the camera again…"
     kamSag('fel', 'The camera could not start');
     satKamFin('fas', e && e.name === 'NotAllowedError'
       ? 'You need to give the page access to the camera. Open the browser settings for this page and allow the camera.'
@@ -31036,9 +31258,9 @@ async function oppnaKamera(gameId) {
   byggKamPool();
   Kamera.satLatens(DEBUG);   // latensmätningen (MES-215): tidsstämplar i rapporten bara bakom ?debug
   Kamera.satKedja(DEBUG);    // igenkänningskedjan per kort: etiketten på datorns matta, bara bakom ?debug
-  /* Telefonen kopplades in igen med Connect again (MES-350): datorn ombeds slå
-     på kameran — i B stängde den av den. En gång till efter några sekunder,
-     om kamerakanalen inte hunnit ansluta vid första. */
+  /* Telefonen kopplades in igen med Reconnect camera (MES-350, MES-355):
+     datorn ombeds slå på kameran — i B stängde den av den. En gång till efter
+     några sekunder, om kamerakanalen inte hunnit ansluta vid första. */
   if (sessionStorage.getItem('sthv.camIgen') === '1') {
     sessionStorage.removeItem('sthv.camIgen');
     Moln.sandKam('pa'); setTimeout(() => { if (kamLage) Moln.sandKam('pa'); }, 3000);
@@ -31112,6 +31334,7 @@ function sandBord(spar, nollstall, extra) {
      stod hela bordet i remsan. senastBord lämnas orört så att hjärtslaget
      inte upprepar lögnen var tredje sekund. */
   if (nollstall) { senastBord = null; Moln.sandKam('bord', { spar: [], nollstall: true, fas: Kamera.lage }); return; }
+  if (kamAterstart) { kamAterstart = false; clearTimeout(kamAterstartT); ritaKamRuta(); }   // första bordet efter omladdningen har gått (MES-355)
   senastBord = spar;
   /* Provbordet vill se mer än bordet: hela spårets geometri och varför
      regioner förkastades. Det följer bara med när någon faktiskt tittar. */
@@ -31897,6 +32120,14 @@ function kamKommando(m) {
        ett svar som kom efter det senaste bordet är annars oräknat, och ute
        säger hur många frågor som fortfarande är på väg. */
     Moln.sandKam('bok', { bok: kamAiBokLage() });
+    /* Datorn såg att spelet är avslutat (MES-355, D4) och stänger kameran.
+       Spelraden avgör, som vid knuffen: avslutat → The game is over, annars
+       är det en vanlig avstängning. */
+    if (m.slut) {
+      const id = kamLage.id, fran = r => { if (kamLage && kamLage.id === id) { if (r && r.avslutad) kamFran('slut', r); else kamFran('dator'); } };
+      Moln.spelSlut(id).then(fran, () => fran(null));
+      return;
+    }
     kamFran('dator');
     return;
   }
@@ -31908,14 +32139,57 @@ function kamDatorSvarade() {
   kamSenastSvar = Date.now();
   $('#kamPrick').classList.add('pa');
 }
-setInterval(() => {
+/* Rutan längst ned (MES-355, "Mesa Reconnect Camera" P2). Kameran tittar
+   vidare i alla tre lägena, och hjärtslaget var tredje sekund gör löftet
+   sant: bordet kommer i fas när datorn är tillbaka. Sägs det inte startar
+   folk om telefonen i onödan. Ordningen: kanalen är nere (Reconnecting…),
+   sidan laddades om och första bordet har inte gått (Starting the camera
+   again…), datorn är borta (The computer isn't responding).
+   Datorn syns i spelets närvaro (roll 'dator', oppnaSpel). En dator med
+   äldre kod syns inte där — innan närvaron hörts av gäller därför den gamla
+   regeln: 90 s utan ett ord från datorn. */
+let kamNere = 0;              // när spelets kanal gick ner; 0 = uppe
+let kamAterstart = false, kamAterstartT = 0;   // sidan laddades om i kameraläget (portalStart): tills första bordet gått
+let kamStartNar = 0;          // när kameran öppnades: datorn får en stund på sig att synas
+let kamDatorNu = false, kamDatorSett = false;  // min dator i närvaron just nu / närvaron har hörts av
+const KAM_DATOR_TYST_MS = 10000;
+function kamKanalNere() {
   if (!kamLage) return;
-  const svarar = Date.now() - kamSenastSvar < 90000;
-  $('#kamPrick').classList.toggle('pa', svarar);
-  /* Hjärtslaget var tredje sekund gör löftet sant: bordet kommer i fas när
-     datorn är tillbaka. Sägs det inte startar folk om telefonen i onödan. */
-  satKamFin('dator', svarar ? '' : 'The computer is not responding. I keep watching — the table catches up when it is back.');
-}, 10000);
+  if (!kamNere) kamNere = Date.now();
+  ritaKamRuta();
+}
+function kamDatorNarvaro(datorer) {
+  if (!kamLage) return;
+  const jag = Moln.minId(), nu = datorer.some(d => d.id && d.id === jag);
+  if (kamDatorNu && !nu) kamSenastSvar = Date.now();   // senast hörd = när den försvann
+  if (nu) kamDatorSvarade();
+  kamDatorNu = nu; kamDatorSett = true;
+  ritaKamRuta();
+}
+function kamDatorSvararNu() {
+  if (kamDatorNu) return true;
+  return Date.now() - (kamSenastSvar || kamStartNar) < (kamDatorSett ? KAM_DATOR_TYST_MS : 90000);
+}
+function kamKortSedan(ts) {
+  const sek = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  return sek < 60 ? `${sek} s ago` : `${Math.round(sek / 60)} min ago`;
+}
+function ritaKamRuta() {
+  const el = $('#kamRuta'); if (!el) return;
+  let r = null;
+  if (kamLage && kamNere) r = ['Reconnecting…', 'The connection dropped. The camera keeps watching your table — the computer catches up as soon as it’s back.',
+    `Trying again · ${Math.max(0, Math.round((Date.now() - kamNere) / 1000))} s`];
+  else if (kamLage && kamAterstart) r = ['Starting the camera again…', `This page reloaded. It’s still the camera for ${kamLage.kod} — no need to scan anything.`, 'Back in a moment'];
+  else if (kamLage && !kamDatorSvararNu()) r = ['The computer isn’t responding', 'Your computer reloaded or closed Mesa. The camera keeps watching — the table catches up when it’s back. Nothing to do here.',
+    kamSenastSvar ? 'Last heard from ' + kamKortSedan(kamSenastSvar) : ''];
+  if (kamLage) $('#kamPrick').classList.toggle('pa', !kamNere && kamDatorSvararNu());
+  if (el.hidden !== !r) el.hidden = !r;
+  $('#vyKamera').classList.toggle('harruta', !!r);
+  if (!r) return;
+  [['#kamRutaRub', r[0]], ['#kamRutaTxt', r[1]], ['#kamRutaTid', r[2]]].forEach(([id, t]) => { const e = $(id); if (e.textContent !== t) e.textContent = t; });
+  $('#kamRutaTid').hidden = !r[2];
+}
+setInterval(() => { if (kamLage) ritaKamRuta(); }, 1000);
 
 /* ═══════════════════════════════════════════════════════════════════
    KAMERAN — datorns sida
@@ -34559,6 +34833,7 @@ async function stangAvAuto(fraga) {
   renderBibHog();
   kamHarVarit = false;            // avstängd är inte tappad — bordet ljuger inte
   kamFrasktVantar = false;
+  kamLetarTill = 0; kamLetarOmladd = false; kamIntrade = false; kamAvSjalv = false;
   kamTappadNar = 0; kamLast = kamTot = kamSer = 0; kamFas = ''; kamSma = 0; kamUpplosning = null;
   prefs.autoLage = false; savePrefs();
   glomSpar();
@@ -35833,8 +36108,20 @@ function kamNarvaro(kameror) {
      skillnaden mellan att inget har hänt än och att bordet på skärmen ljuger.
      Funktionen visste den redan — fanns är exakt den frågan — men värdet
      kastades när den returnerade, och kvar blev bara en toast som försvann. */
-  if (kamAnsluten) { if (kamHarVarit) kamFrasktVantar = true; kamHarVarit = true; normaliseraKamRad(); }
-  else if (kamHarVarit) kamTappadNar = Date.now();
+  if (kamAnsluten) {
+    if (kamHarVarit && !kamIntrade) kamFrasktVantar = true;
+    kamHarVarit = true; kamIntrade = false; kamLetarTill = 0; kamLetarOmladd = false; kamAvSjalv = false;
+    normaliseraKamRad();
+    /* Camera off med panelen öppen (MES-355, D3): koden skannades — kameran
+       slås på här också, som rutan lovar. */
+    if (prefs.autoLage !== true && kamOppen) { prefs.autoLage = true; savePrefs(); autoSumStarta(); }
+  }
+  else if (kamHarVarit) {
+    kamTappadNar = Date.now();
+    /* Datorn letar innan den säger Camera lost (MES-355, D1). Mattan står
+       som den stod under tiden. */
+    if (!kamAvSjalv) { kamLetarTill = Date.now() + KAM_LETAR_MS; kamLetarOmladd = false; }
+  }
   if (!kamAnsluten) {
     kamLast = kamTot = 0;
     /* Bilden i panelen hör till telefonen som gick. Nästa öppning ska säga
@@ -35849,7 +36136,8 @@ function kamNarvaro(kameror) {
   kamStegSynk();
   if (kamAnsluten) kamStromIgen();   // telefonen kom tillbaka: den strömmar inte förrän den blir ombedd
   renderMode();
-  if (!kamAnsluten) toast('The camera was disconnected', 'err');
+  /* Ingen notis när telefonen försvinner (MES-355): pillret letar i 15 s och
+     säger sedan Camera lost — en notis direkt hade sagt det före letandet. */
 }
 /* Telefonen kom tillbaka efter att ha tappats (Jespers beslut 2026-10-08):
    i Mirror my table byggs mattan om ur det kameran ser nu. Förut stod det
@@ -35965,8 +36253,8 @@ function kamTogsEmot(m) {
      satt datorn kvar med en inaktuell minLek och skrev en gammal lek över
      den nya nästa gång dialogen sparades. */
   if (m.typ === 'lek') { minLek = null; return; }
-  /* Telefonen kopplades in igen med Connect again (MES-350): kameran på igen,
-     också om datorn stängde av den (Turn off camera). */
+  /* Telefonen kopplades in igen med Reconnect camera (MES-350, MES-355):
+     kameran på igen, också om datorn stängde av den (Turn off camera). */
   if (m.typ === 'pa') {
     if (spelLage && prefs.autoLage !== true) { prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); }
     return;
@@ -35974,6 +36262,9 @@ function kamTogsEmot(m) {
   if (m.typ === 'av') {
     kamAnsluten = false;
     renderBibHog();
+    /* Disconnect på telefonen (MES-355, D1): inget att leta efter — Camera
+       lost direkt, med raden "You disconnected the phone". */
+    kamAvSjalv = true; kamLetarTill = 0; kamLetarOmladd = false; kamIntrade = false;
     if (kamHarVarit) kamTappadNar = Date.now();
     kamLast = kamTot = 0;
     kamStegSynk();          // panelen går tillbaka till koden
@@ -36196,7 +36487,11 @@ function kamStegSynk() {
      (Reconnect, Show the QR code) när den tystnat eller kör en gammal sida.
      En telefon som kommit tillbaka släcker begäran. */
   if (kamAnsluten && kamFas !== 'ingen') kamQrTvinga = false;
-  const skruv = (kamOppen || oppstartBild) && kamAnsluten, visaQr = kamOppen && (kamQrTvinga || (!kamAnsluten && !kamHarVarit));
+  /* Camera lost och Camera off har koden framme direkt (MES-355, D1 och D3);
+     medan datorn letar efter telefonen står den inte där. */
+  const fel = kamPillModell().fel;
+  const skruv = (kamOppen || oppstartBild) && kamAnsluten,
+    visaQr = kamOppen && (kamQrTvinga || (!kamAnsluten && (!kamHarVarit || fel === 'tappad' || fel === 'av')));
   const qr = $('#kamStegQr'), sk = $('#kamSkruv');
   if (qr) qr.hidden = !visaQr;
   if (visaQr && !kamQrVisas) ritaKamLank();   // steget kom fram: koden ritas på nytt (se ritaKamLank)
@@ -36343,6 +36638,10 @@ function kamFran(orsak, o = {}) {
   if (kamLage) kamFranSpel = { id: kamLage.id, kod: kamLage.kod, namn: (spelLage && spelLage.namn) || ('Game ' + kamLage.kod) };
   stoppaStrom(); Kamera.stopp();
   kamLage = null;
+  /* Frånkopplad är inte kamera längre: en omladdning ska inte gå tillbaka in
+     (MES-355). Reconnect camera går in igen med inbjudan i adressen. */
+  sessionStorage.removeItem('sthv.kamSpel');
+  kamNere = 0; kamAterstart = false; clearTimeout(kamAterstartT); ritaKamRuta();
   Moln.lamnaKanal();
   const g = kamFranSpel, slut = orsak === 'slut';
   const vem = o.jag ? 'You' : (o.vardNamn || 'The host');
@@ -36356,16 +36655,18 @@ function kamFran(orsak, o = {}) {
   $('#kamFranHem').classList.toggle('prim', slut);
   $('#kamFran').hidden = false;
 }
-/* Connect again: sidan laddas om med samma inbjudan som QR-koden gav, så att
-   kameran startar som första gången. Flaggan säger åt telefonen att be datorn
-   slå på kameran igen (kamTogsEmot 'pa') — i B har datorn stängt av den. Är
-   spelet avslutat under tiden vägrar gaMed, och man landar på Home med felet. */
-$('#kamFranIgen').onclick = () => {
-  if (!kamFranSpel) return;
+/* Reconnect camera (MES-350; hette Connect again till MES-355): sidan laddas
+   om med samma inbjudan som QR-koden gav, så att kameran startar som första
+   gången. Flaggan säger åt telefonen att be datorn slå på kameran igen
+   (kamTogsEmot 'pa') — i B har datorn stängt av den. Är spelet avslutat under
+   tiden vägrar gaMed, och man landar på Home med felet. P1 (visaValet) går
+   samma väg. */
+function kameraIgen(kod) {
   sessionStorage.setItem('sthv.camIgen', '1');
-  location.href = location.origin + location.pathname + '?join=' + encodeURIComponent(kamFranSpel.kod) + '&cam=1';
-};
-$('#kamFranHem').onclick = () => { location.href = location.origin + location.pathname; };
+  location.href = location.origin + location.pathname + '?join=' + encodeURIComponent(kod) + '&cam=1';
+}
+$('#kamFranIgen').onclick = () => { if (kamFranSpel) kameraIgen(kamFranSpel.kod); };
+$('#kamFranHem').onclick = () => { sessionStorage.removeItem('sthv.kamSpel'); location.href = location.origin + location.pathname; };
 /* Är spelet avslutat? Svaret kommer ur spelraden, aldrig ur knuffen ensam. */
 let kamSlutFragar = false;
 async function kamSlutKoll() {
@@ -36647,6 +36948,11 @@ $('#vyHem').addEventListener('click', async ev => {
    enda man kan ändra i. */
 async function oppnaSpel(gameId, farsk) {
   const { spel, spelare } = await Moln.hamtaSpel(gameId);
+  /* Uppstarten visas en gång per spel, och servern minns den (MES-355). Står
+     min rad som 'spelar' men den här enheten har inte gjort uppstarten själv
+     visas P1 i stället — aldrig "Get ready for the game" igen. */
+  const minRad = (spelare || []).find(p => p.user_id === Moln.minId());
+  if (minRad && minRad.status === 'spelar' && !oppGjordPa(spel.id)) { visaValet(spel, spelare, farsk); return; }
   matVyLamna();   // går man från ett spel direkt in i ett annat sparas det förra här, före spelLage byts
   spelLage = { id: spel.id, kod: spel.kod, namn: spel.namn, vard: spel.vard, mig: Moln.minId() };
   Mix.track('Game Opened', { host: spel.vard === Moln.minId(), players: (spelare || []).length });
@@ -36659,6 +36965,19 @@ async function oppnaSpel(gameId, farsk) {
      börjar i utgångsläget — hela kamerabilden så snart skalan är mätt (matStegBeslut). */
   matVyAterta(spelLage.id, spelLage.mig);
   byggSpelare(spelare);
+  /* Datorn laddades om, eller spelet öppnades från Home (MES-355, D2): spelar
+     jag redan med kameran på var telefonen med nyss. Pillret letar efter den
+     i 15 s och säger sedan Camera lost — inte "Waiting for phone", och ett
+     klick öppnar aldrig uppstarten. Mattan byggs inte om när den hittas:
+     telefonen tittade hela tiden (kamIntrade). */
+  {
+    const o = oppFor(), mig = minSpelare();
+    kamHarVarit = prefs.autoLage === true && !o.avbojd && (!!o.klar || (!!mig && mig.status === 'spelar'));
+    kamIntrade = kamHarVarit;
+    kamLetarTill = kamHarVarit ? Date.now() + KAM_LETAR_MS : 0;
+    kamLetarOmladd = kamHarVarit;
+    kamAvSjalv = false;
+  }
   /* Jag är alltid den aktiva spelaren: motståndarnas bord ritas bredvid
      mitt i bordsvyn (MES-133), inte i stället för det. Det som sparas per
      spel är vem som var stor — ett spel man just gått med i börjar med alla. */
@@ -36669,8 +36988,14 @@ async function oppnaSpel(gameId, farsk) {
   Object.assign(bord, { valt: samma && ui.bord ? ui.bord : 'all', sist: null, kantLive: null });
   lekVidIntrade();
   await Moln.lyssna(spel.id, {
+    /* Datorn syns i närvaron (MES-355): telefonen ser när den laddas om eller
+       stängs, och säger "The computer isn't responding". */
+    roll: 'dator',
     bord: rad => fjarrBord(rad),
     spelare: () => hamtaOm(),
+    /* Värden avslutade spelet (MES-355, D4). Knuffen är bara en knuff —
+       spelraden avgör (spelSlutKoll). */
+    slut: () => spelSlutKoll(),
     scan: rad => taEmotScan(rad),
     kam: m => kamTogsEmot(m),
     kamfel: () => kamKanalFel(),
@@ -36685,6 +37010,7 @@ async function oppnaSpel(gameId, farsk) {
       Moln.skickaOmVantande();
       glomTillfalliga();
       hamtaOm();
+      spelSlutKoll();   // kan ha avslutats medan sockeln var nere
     },
     sparat: ok => visaSparstatus(ok)
   });
@@ -36705,6 +37031,42 @@ async function oppnaSpel(gameId, farsk) {
   resolveAll();
   matResize();
 }
+
+/* P1 (MES-355, "Mesa Reconnect Camera"): jag spelar redan, men den här
+   enheten har inte gjort uppstarten. På en pekskärm är telefonen nästan
+   alltid kameran som tappats — huvudknappen kopplar in den igen. Annars är
+   det en dator till, som vill se bordet. Båda vägarna finns på båda.
+   Kameravägen är Reconnect camera från kamFran (kameraIgen); bordsvägen
+   minns uppstarten som klar på enheten, så att den aldrig öppnas här och min
+   status inte skrivs om. */
+let valetSpel = null;
+function visaValet(spel, spelare, farsk) {
+  valetSpel = { id: spel.id, kod: spel.kod, farsk: !!farsk };
+  const pek = matchMedia('(pointer: coarse)').matches;
+  valetSpel.huvud = pek ? 'kamera' : 'bord';
+  const kameraTxt = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/></svg>';
+  $('#valetKod').textContent = spel.kod;
+  $('#valetTxt').textContent = pek
+    ? 'Use this phone as the camera again. Put it back in its holder — the table on your computer catches up by itself.'
+    : 'This device hasn’t been set up for the game, but you have — on another device. Open the table here, or make this device the camera.';
+  $('#valetHuvud').innerHTML = pek ? kameraTxt + 'Reconnect camera' : 'Open the table';
+  $('#valetAndra').textContent = pek ? 'Show the table here' : 'Use this device as the camera';
+  $('#valetFin').textContent = pek ? 'Opens the game on this phone as a second screen. The camera stays off.'
+    : 'Your setup carries over — no need to do it again.';
+  const sp = spelare || [];
+  $('#valetDots').innerHTML = sp.map(p => `<i class="bdot" style="--pc:${esc(p.color || 'var(--blue)')}"></i>`).join('');
+  $('#valetNamn').textContent = sp.map(p => p.name || 'Player').join(', ');
+  visaVy('valet');
+}
+async function valetBord() {
+  const v = valetSpel; if (!v) return;
+  oppSattFor(v.id, { klar: true });
+  try { await oppnaSpel(v.id, v.farsk); }
+  catch (e) { await visaHem(); hemFel(e.message || 'Could not open the game.'); }
+}
+$('#valetHuvud').onclick = () => { if (!valetSpel) return; if (valetSpel.huvud === 'kamera') kameraIgen(valetSpel.kod); else valetBord(); };
+$('#valetAndra').onclick = () => { if (!valetSpel) return; if (valetSpel.huvud === 'kamera') valetBord(); else kameraIgen(valetSpel.kod); };
+$('#valetHem').onclick = () => { valetSpel = null; visaHem(); };
 
 /* Hämtar hela spelet på nytt och låter fjarrSpelare avgöra per spelare vad som
    är nyast. Det är appens enda reparationsväg: realtidsströmmen har inga
@@ -36894,6 +37256,7 @@ async function lamnaSpelet() {
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man
      ens hunnit koppla en telefon: flaggan mindes ett spel som var slut. */
   kamHarVarit = false; kamTappadNar = 0; kamFrasktVantar = false; kamLast = kamTot = 0;
+  kamLetarTill = 0; kamLetarOmladd = false; kamIntrade = false; kamAvSjalv = false;
   { const i = $('#pbImg'), v = $('#pbVantar'); if (i) i.removeAttribute('src'); if (v) v.hidden = false; }
   stangKamSkruv();
   /* En tom spelarlista är inget läge appen kan vara i: player() returnerar
@@ -36922,10 +37285,49 @@ async function avslutaSpelet() {
                        { title: 'End the game?', ok: 'End', danger: true });
   if (!ja) return;
   const id = spelLage.id;
-  if (!await Moln.avslutaSpel(id)) { toast('The game could not be ended', 'err'); return; }
-  Mix.track('Game Ended', { from: 'game' });
-  await tillbakaTillHem();
+  /* Värden som avslutar inifrån går till Home som förut — inte till dialogen
+     "You ended the game" (spelSlutKoll), som är för de andra enheterna. */
+  spelAvslutarJag = true;
+  try {
+    if (!await Moln.avslutaSpel(id)) { toast('The game could not be ended', 'err'); return; }
+    Mix.track('Game Ended', { from: 'game' });
+    await tillbakaTillHem();
+  } finally { spelAvslutarJag = false; }
 }
+/* Spelet avslutat medan det står öppet här (MES-355, "Mesa Reconnect Camera"
+   D4). Knuffen på kanalen ('slut'), var 20:e sekund, när sockeln är tillbaka
+   och när fliken syns igen — men spelraden avgör, aldrig knuffen ensam
+   (Moln.spelSlut). Dialogen har bara Go to Home, och kameran stängs. */
+let spelSlutFragar = false, spelSlutVisas = false, spelAvslutarJag = false;
+async function spelSlutKoll() {
+  if (!spelLage || kameraEnhet || spelSlutFragar || spelSlutVisas || spelAvslutarJag) return;
+  const id = spelLage.id;
+  spelSlutFragar = true;
+  try {
+    const r = await Moln.spelSlut(id);
+    if (r && r.avslutad && spelLage && spelLage.id === id && !spelAvslutarJag && !spelSlutVisas) visaSpelSlut(r);
+  } catch (e) {}
+  finally { spelSlutFragar = false; }
+}
+function visaSpelSlut(r) {
+  spelSlutVisas = true;
+  const kam = kamAnsluten || prefs.autoLage === true;
+  /* Telefonen frågar själv spelraden när den får stoppet (kamKommando), och
+     visar då att spelet är slut i stället för att datorn stängt av. */
+  if (kamAnsluten) Moln.sandKam('stopp', { slut: true });
+  $('#slutRub').textContent = r.jag ? 'You ended the game' : `${r.vardNamn || 'The host'} ended the game`;
+  $('#slutTxt').textContent = 'Nothing more is saved, and the game is gone from everyone’s list.' + (kam ? ' Your camera has stopped too.' : '');
+  if (kamOppen) closeOv('kamOv');
+  openOv('slutOv');
+  setTimeout(() => $('#slutHem').focus(), 30);
+}
+$('#slutHem').onclick = async () => {
+  closeOv('slutOv');
+  await tillbakaTillHem();
+  spelSlutVisas = false;
+};
+setInterval(spelSlutKoll, 20000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) spelSlutKoll(); });
 async function loggaUtHelt() {
   const ja = await ask('This device forgets who you are. Your games remain and you can sign in again.',
                        { title: 'Sign out?', ok: 'Sign out' });
@@ -37007,9 +37409,12 @@ async function portalStart() {
   if (lekfotoParam) sessionStorage.setItem('sthv.lekfoto', lekfotoParam);
 
   visaVy('start');
+  /* Fliken var kamera när den laddades om (MES-355, oppnaKamera): den går
+     rakt tillbaka in i kameran. En inbjudan i adressen går före. */
+  const kamSpel = !inbjudan && !lekfotoParam ? sessionStorage.getItem('sthv.kamSpel') : null;
   /* Telefonen som kamera eller lekfoto hör till ett konto som redan finns på
      datorn: bara kortet, i läget logga in. */
-  const telefon = !!lekfotoParam || (!!inbjudan && kameraIUrl());
+  const telefon = !!lekfotoParam || (!!inbjudan && kameraIUrl()) || !!kamSpel;
   $('#vyStart').classList.toggle('kompakt', telefon);
   visaStartLage(telefon ? 'logga' : 'skapa');
   if (lekfotoParam) {
@@ -37055,10 +37460,11 @@ async function portalStart() {
      rundturen ligger den i sessionStorage. */
   const vantande = sessionStorage.getItem('sthv.join');
   sessionStorage.removeItem('sthv.join');
-  const kod = inbjudan || vantande;
+  const aterstart = !!kamSpel && !vantande;
+  const kod = inbjudan || vantande || (aterstart ? kamSpel : null);
   /* Precis som koden överlever inte "det här är en kamera" rundturen till
      Google — den läggs undan bredvid koden och plockas upp här. */
-  const villKamera = kameraIUrl() || sessionStorage.getItem('sthv.cam') === '1';
+  const villKamera = kameraIUrl() || sessionStorage.getItem('sthv.cam') === '1' || aterstart;
   const lekfoto = lekfotoParam || sessionStorage.getItem('sthv.lekfoto');
   sessionStorage.removeItem('sthv.lekfoto');
   rensaInbjudan();
@@ -37066,11 +37472,15 @@ async function portalStart() {
   if (kod) {
     try {
       const id = await Moln.gaMed(kod);
-      if (villKamera) { sessionStorage.removeItem('sthv.cam'); await oppnaKamera(id); }
+      /* Omladdad kamera: rutan säger "Starting the camera again…" tills
+         första bordet gått (ritaKamRuta). */
+      if (villKamera) { sessionStorage.removeItem('sthv.cam'); kamAterstart = aterstart; await oppnaKamera(id); }
       else await oppnaSpel(id, true);
       return;
     }
-    catch (e) { await visaHem(); hemFel('Could not join the game: ' + (e.message || '')); return; }
+    /* Ett avslutat spel får aldrig ge en loop: gaMed vägrar, minnet glöms,
+       och man landar på Home med felet. */
+    catch (e) { sessionStorage.removeItem('sthv.kamSpel'); await visaHem(); hemFel('Could not join the game: ' + (e.message || '')); return; }
   }
   await visaHem();
 }
