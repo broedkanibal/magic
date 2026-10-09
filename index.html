@@ -6856,6 +6856,55 @@ const Moln = (() => {
            scanKlar, radeaScan, vantandeScans, hamtaVektorer, hamtaRefs, sparaRefs, raderaRefs,
            loggaKortHandelser, betygAttFraga, sparaBetyg };
 })();
+/* ── Mixpanel (Jespers beslut 2026-10-09) ────────────────────────────
+   Vad spelarna gör, för Mixpanels rapporter och dess MCP. Samma
+   korthändelser som kort_handelser i Supabase (Supabase är facit för
+   måtten i dev/spelupplevelse.sql), plus spelets och lekens huvudsteg.
+
+   Utan MIXPANEL_TOKEN i /api/config skickas ingenting. Bara inloggade:
+   distinct_id är kontots id, profilen bär visningsnamnet — aldrig mejlen.
+   ip=0: Mixpanel sparar ingen IP och ingen ort. Inget SDK och inga kakor:
+   händelserna går med fetch till Mixpanels insamling (EU som förval,
+   MIXPANEL_HOST), i klump var femte sekund, och med keepalive när sidan
+   stängs. En sändning som faller tappas — det här är mått, inte data. */
+const Mix = (() => {
+  let token, host = 'https://api-eu.mixpanel.com', ko = [], timer = 0, profil = null;
+  const klar = Moln.konfig().then(c => {
+    token = (c && c.mixpanelToken) || null;
+    if (c && c.mixpanelHost) host = String(c.mixpanelHost).replace(/\/$/, '');
+  }).catch(() => { token = null; });
+  function track(event, props) {
+    try {
+      if (token === null || !Moln.inloggad()) return;
+      const p = Object.assign({ distinct_id: Moln.minId(), time: Date.now(), $insert_id: uid() + uid(),
+        device: kameraEnhet ? 'phone' : 'computer' }, spelLage ? { game_id: spelLage.id, game_code: spelLage.kod } : {}, props || {});
+      for (const k of Object.keys(p)) if (p[k] == null) delete p[k];
+      ko.push({ event, properties: p });
+      if (!timer) timer = setTimeout(skicka, 5000);
+    } catch (e) { console.warn('Mixpanel', e); }
+  }
+  async function post(vag, data) {
+    await fetch(host + vag + '?ip=0', { method: 'POST', keepalive: true,   // formulär: ingen CORS-förfrågan före
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(JSON.stringify(data)) });
+  }
+  async function skicka() {
+    timer = 0;
+    await klar;
+    const delar = ko.splice(0);
+    if (!token || !delar.length) return;
+    for (const e of delar) e.properties.token = token;
+    try {
+      for (let i = 0; i < delar.length; i += 50) await post('/track', delar.slice(i, i + 50));
+      const id = Moln.minId(), namn = Moln.mittNamn();
+      if (id && profil !== id + '|' + namn) {
+        profil = id + '|' + namn;
+        await post('/engage', [{ $token: token, $distinct_id: id, $set: { $name: namn || null } }]);
+      }
+    } catch (e) { /* nätet: tappas */ }
+  }
+  addEventListener('pagehide', () => { if (ko.length) skicka(); });
+  return { track };
+})();
 /* Bildmodellen (dev/embed/embed.js) frågar lagringen efter förräknade
    vektorer innan den räknar själv (MES-230). */
 window.EmbedForrakade = (modell, ids) => Moln.hamtaVektorer(modell, ids);
@@ -12671,6 +12720,7 @@ function oppStatus(status) {
   mig.status = status;
   if (s && s.status === status && !(s.fel && Date.now() - s.fel > 60000)) return;
   const skickad = oppStatusSkickad = { spel: spelLage.id, status, fel: 0 };
+  Mix.track('Player Status', { status: { lek: 'picking deck', uppstart: 'setting up', redo: 'ready', spelar: 'playing' }[status] || status });
   Moln.sattStatus(spelLage.id, status).catch(() => false).then(ok => { if (!ok) skickad.fel = Date.now(); });
 }
 /* Last used (MES-170): min lek i det senast påbörjade av mina andra spel,
@@ -14998,7 +15048,7 @@ function lekSattAktiv(rad) {
 async function lekHamtaLista() { return Moln.inloggad() ? await Moln.hamtaLekar() : lekLokal.lista().map(l => ({ id: l.id, namn: l.namn, farger: l.farger || [], antal: l.antal || 0, ts: l.ts || 0 })); }
 async function lekHamtaRad(id) { return Moln.inloggad() ? await Moln.hamtaLekRad(id) : lekLokal.rad(id); }
 async function lekSkapa(namn, kort, farger, antal) {
-  if (Moln.inloggad()) return await Moln.skapaLek(namn, kort, farger, antal);
+  if (Moln.inloggad()) { Mix.track('Deck Created', { cards: (kort || []).reduce((n, k) => n + (+k.n || 1), 0) }); return await Moln.skapaLek(namn, kort, farger, antal); }
   const rad = { id: 'lokal:' + uid(), namn: namn || 'My deck', kort: kort || [], farger: farger || [], antal: antal || 0, ts: Date.now() };
   if (!lekLokal.spara(rad)) throw new Error('The browser storage is full or switched off');
   return rad;
@@ -32680,6 +32730,8 @@ function autoSumMetod(t) { const v = (t && t.varfor) || ''; return /^(ai|helbild
    'bord': i Digital table läggs allt för hand, och då är "tillagd" inget fel. Kön går var femte
    sekund; en skrivning som faller tappas (före migrationen finns ingen tabell). */
 const K_KH = 'sthv.kh.v1.';
+const KH_MIX = { namn: 'Card Named', namnlos: 'Card Not Identified', sent_namn: 'Card Named Later', namngiven: 'Card Named By Player',
+                 bytt: 'Card Name Changed', tillagd: 'Card Added By Hand', borttagen: 'Card Removed' };   // händelsenamnen i Mixpanel
 const KH = { spel: null, ko: [], spar: new Map(), sedda: new Set(), timer: 0 };
 function khSakra() {
   const id = spelLage ? spelLage.id : null;
@@ -32697,6 +32749,8 @@ function khLoggaNu(typ, kort, f) {
   KH.sedda.add(sig);
   LS.set(K_KH + KH.spel, [...KH.sedda].slice(-3000));
   KH.ko.push(Object.assign({ game_id: KH.spel, kort: k, typ, lage: mittLage(), tid: new Date().toISOString() }, f || {}));
+  const g = f || {};
+  Mix.track(KH_MIX[typ], { card: k, card_name: g.namn, previous_name: g.fran, source: g.kalla === 'claude' ? 'claude' : g.kalla ? 'phone' : null, ms: g.ms, mode: 'mirror' });
   if (!KH.timer) KH.timer = setTimeout(khSkicka, 5000);
 }
 function khSkicka() {
@@ -36027,6 +36081,7 @@ function hemFel(txt) {
 }
 async function visaHem() {
   visaVy('hem');
+  Mix.track('Home Viewed');
   hem.fel = '';
   ritaHemNu();
   const [spel, lekar, betyg] = await Promise.all([Moln.minaSpel().catch(() => null), hemHamtaLekar().catch(() => null), Moln.betygAttFraga().catch(() => null)]);
@@ -36043,7 +36098,7 @@ async function hemStartaSpel(knapp) {
   hideToast();                              // en gammal notis om t.ex. ett avslutat spel hör inte hemma i det nya
   hemFel('');
   if (knapp) knapp.disabled = true;
-  try { const g = await Moln.skapaSpel(null); await oppnaSpel(g.id, true); }
+  try { const g = await Moln.skapaSpel(null); Mix.track('Game Created', { game_id: g.id, game_code: g.kod }); await oppnaSpel(g.id, true); }
   catch (e) { hemFel(e.message || 'Could not create the game.'); }
   finally { if (knapp) knapp.disabled = false; }
 }
@@ -36052,7 +36107,7 @@ async function hemGaMed(kod) {
   hemFel('');
   kod = String(kod || '').trim().toUpperCase();
   if (!kod) return;
-  try { const id = await Moln.gaMed(kod); await oppnaSpel(id, true); }
+  try { const id = await Moln.gaMed(kod); Mix.track('Game Joined', { game_id: id, game_code: kod }); await oppnaSpel(id, true); }
   catch (e) { hemFel(e.message === 'Spelet finns inte' ? 'Nothing was found with that code.' : (e.message || 'Could not join.')); }
 }
 /* Namnbytet på raden: fältet ersätter namnet, Enter sparar, Esc ångrar. */
@@ -36104,6 +36159,7 @@ $('#vyHem').addEventListener('click', async ev => {
     const kort = b.closest('[data-betyg-spel]'); if (!kort) return;
     hem.betyg = null; ritaHemNu();   // frågan går direkt; svaret sparas i bakgrunden
     Moln.sparaBetyg(kort.dataset.betygSpel, b.dataset.v ? +b.dataset.v : null);
+    Mix.track('Camera Rated', { game_id: kort.dataset.betygSpel, rating: b.dataset.v ? +b.dataset.v : null, skipped: !b.dataset.v });
     return;
   }
   if (a === 'nylek') { oppnaLeksida(null, { fran: 'hem', namn: lekNyttNamnAv(hem.lekar) }); return; }
@@ -36112,7 +36168,7 @@ $('#vyHem').addEventListener('click', async ev => {
     const kod = b.dataset.kod;
     if (!await ask(`No one can join ${kod} afterwards, and it disappears from everyone's lists. The cards stay.`,
                    { title: 'End the game?', ok: 'End', danger: true })) return;
-    if (await Moln.avslutaSpel(spel.dataset.hemSpel)) await visaHem();
+    if (await Moln.avslutaSpel(spel.dataset.hemSpel)) { Mix.track('Game Ended', { game_id: spel.dataset.hemSpel, game_code: kod, from: 'home' }); await visaHem(); }
     else hemFel('The game could not be ended.');
     return;
   }
@@ -36147,6 +36203,7 @@ async function oppnaSpel(gameId, farsk) {
   const { spel, spelare } = await Moln.hamtaSpel(gameId);
   matVyLamna();   // går man från ett spel direkt in i ett annat sparas det förra här, före spelLage byts
   spelLage = { id: spel.id, kod: spel.kod, namn: spel.namn, vard: spel.vard, mig: Moln.minId() };
+  Mix.track('Game Opened', { host: spel.vard === Moln.minId(), players: (spelare || []).length });
   /* Leken hör till ETT spel — game_players har nyckeln (game_id, user_id).
      Utan nollställningen hindrade det gamla värdet hämtningen av det nya
      spelets lek, och knappen visade fel antal. */
@@ -36420,6 +36477,7 @@ async function avslutaSpelet() {
   if (!ja) return;
   const id = spelLage.id;
   if (!await Moln.avslutaSpel(id)) { toast('The game could not be ended', 'err'); return; }
+  Mix.track('Game Ended', { from: 'game' });
   await tillbakaTillHem();
 }
 async function loggaUtHelt() {

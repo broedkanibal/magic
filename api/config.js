@@ -12,6 +12,10 @@
    Miljövariabler (Vercel → Settings → Environment Variables):
      SUPABASE_URL        t.ex. https://abcdefgh.supabase.co
      SUPABASE_ANON_KEY   anon public-nyckeln
+     MIXPANEL_TOKEN      Mixpanel-projektets token (Project Settings) — inte hemlig,
+                         den är gjord för klientkod. Saknas den skickas inget till Mixpanel
+     MIXPANEL_HOST       valfri, förval https://api-eu.mixpanel.com (EU-projekt).
+                         Ett projekt i USA: https://api.mixpanel.com
 
    Saknas de svarar rutten ändå, med konfigurerad: false. Appen ska
    kunna starta i lokalt läge utan Supabase — inloggningen är då
@@ -53,6 +57,8 @@ export default async function handler(req, res) {
     ok: true,
     konfigurerad: !!(url && key),
     supabaseUrl: url || null,
-    supabaseAnonKey: key || null
+    supabaseAnonKey: key || null,
+    mixpanelToken: (process.env.MIXPANEL_TOKEN || '').trim() || null,
+    mixpanelHost: (process.env.MIXPANEL_HOST || '').trim() || null
   });
 }
