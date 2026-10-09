@@ -329,7 +329,7 @@ main{flex:1;display:flex;min-height:0}
   .brade{grid-template-columns:minmax(0,1fr) minmax(150px, 22%)}
 }
 /* Tom hand: uppmaningen får hela ytan. */
-body.tomhand .brade{
+body.tomhand .brade,body.utanins .brade{
   grid-template-columns:minmax(0,1fr);
   grid-template-areas:"perm";
 }
@@ -930,7 +930,7 @@ body.lasvy .mattachrome .btn{display:none!important}
 .kolmark{min-width:0;min-height:0;display:flex;flex-direction:column;gap:8px}
 /* Utan kort finns inget att visa, och den tomma uppmaningen ska få hela
    bredden i stället för att stå i en spalt bredvid en tom ruta. */
-body.tomhand .kolmark{display:none}
+body.tomhand .kolmark,body.utanins .kolmark{display:none}
 .markhint{font:9.5px/1 var(--sans);color:var(--zonrakn);white-space:nowrap;display:flex;align-items:center;gap:4px}
 .markhint kbd{
   font:9px/1 var(--mono);background:#0006;border:1px solid var(--line);
@@ -1534,6 +1534,9 @@ body.lasvy .hchip{display:none}
 
 /* ─────────── footer ─────────── */
 .hints.hide{display:none}
+/* Mitt speglade bord före första pekningen (utanins, renderInspektor): raden kommer fram med panelen, så att mattan
+   ändrar storlek en gång — inte 30 px när första kortet kommer och sedan igen när man pekar på det. */
+body.utanins .hints:not(.sok){display:none}
 .hints{
   flex:none;display:flex;align-items:center;gap:14px;
   height:30px;padding:0 12px;background:#0b0f15;border-top:1px solid var(--line);
@@ -9572,10 +9575,15 @@ function matVy(p) {
    raderna ovanför mattan ("N cards to fill in", Auto-läget), panelen till höger — och då står vyn kvar
    (Jesper 2026-10-08: inget flyttas eller zoomas av att kort läggs ut, flyttas eller tas bort). Ligger inget på
    mattan än (tomt) syns ingenting röra sig, och då räknas utgångsläget om vid varje nytt mått. */
-function matRutaStampel(vp) { return { fon: innerWidth + 'x' + innerHeight, bm: bordMal ? bordMal.w + 'x' + bordMal.h : '', w: vp.w, h: vp.h }; }
-function matRutaNy(a, vp, tomt) {
+function matRutaStampel(vp) {
+  const kl = document.body.classList, ins = !kl.contains('tomhand') && !kl.contains('utanins') && !kl.contains('oppstart');
+  return { fon: innerWidth + 'x' + innerHeight, bm: bordMal ? bordMal.w + 'x' + bordMal.h : '', w: vp.w, h: vp.h, ins };
+}
+/* medIns: också panelen till höger som kommer eller går (mitt speglade bord, matStegBeslut) — då passas mattan in i
+   den nya rutan om den står i utgångsläget (Jesper 2026-10-09: hela kamerabilden syns när panelen kommit fram). */
+function matRutaNy(a, vp, tomt, medIns) {
   const n = matRutaStampel(vp);
-  return !a || a.fon !== n.fon || a.bm !== n.bm || (!!tomt && (Math.abs(n.w / a.w - 1) > 0.01 || Math.abs(n.h / a.h - 1) > 0.01));
+  return !a || a.fon !== n.fon || a.bm !== n.bm || (!!medIns && a.ins !== n.ins) || (!!tomt && (Math.abs(n.w / a.w - 1) > 0.01 || Math.abs(n.h / a.h - 1) > 0.01));
 }
 /* Fit-zoomen på bord utan utgångsläge (Digital table, Use camera to add cards, utanför ett spel). Förut följde den
    brädet, som växer när ett kort läggs ut utanför det — då zoomade mattan ut av sig själv. Nu räknas den en gång
@@ -9710,9 +9718,15 @@ function zstegBas(vp) { const ref = bordRef || vp; return Math.min(1, vp.w / ref
 /* Kamerabilden i brädkoordinater, eller null innan skalan är känd. Skalan läses — provkortets eller den låsta
    (kamSkala.las) — utan att kamSkala anropas: den låser om sig själv, och ett anrop här mitt i en avstämning
    hade kunnat byta skalan för korten. Låset är { v, kalla, kand } sedan MES-342; en skala som bara är en
-   gissning (inga kort, ingen lek) ger ingen kamerabild — mattan följer korten tills skalan är mätt. */
+   gissning (inga kort, ingen lek) ger ingen kamerabild — mattan följer korten tills skalan är mätt.
+   Utom när kameran speglar mitt bord och telefonen sagt sin upplösning (Jesper 2026-10-09): då är kamerabilden
+   känd med kamSkalas gissade skala, så att mattan står i hela kamerabilden från första stund i
+   stället för på 100 % tills leken mätt skalan. Bytet till lekens skala syns inte: mattan står i hela kamerabilden
+   (matStegBeslut, s.hopp), och då ligger bilden på samma plats på skärmen vilken skala den än räknas i. */
 function matKamRam(p) {
-  const l = kamSkala.las && kamSkala.las.get(p.id), sk = kamSkalaFryst() || (l && typeof l === 'object' ? (l.kalla === 'gissning' ? null : l.v) : l);
+  const l = kamSkala.las && kamSkala.las.get(p.id);
+  const sk = kamSkalaFryst() || (l && typeof l === 'object' ? (l.kalla === 'gissning' ? null : l.v) : l)
+    || (kamSpeglar(p) && kamUpplosning && kamUpplosning.w > 0 && kamUpplosning.h > 0 ? MATTA.CW / 0.12 : null);   // kamSkalas gissning
   if (!(sk > 0)) return null;
   let r = null;
   for (const x of [0, 1]) for (const y of [0, 1]) { const m = kamTillMatta({ x, y }, sk); r = forenaRam(r, { x0: m.x, y0: m.y, x1: m.x, y1: m.y }); }
@@ -9756,7 +9770,7 @@ function matStegBeslut(p, v) {
   const ram = matRam(p), cam = matKamRam(p), omr = forenaRam(cam, ram), tom = !s.ram;
   if (tom) s.ny = true;
   s.omr = omr; s.omrHall = forenaRam(s.omrHall, omr);
-  const bas = zstegBas(vp), ny = matRutaNy(s.rutan, vp, !ram), grund = s.kam ? cam : null;
+  const bas = zstegBas(vp), ny = matRutaNy(s.rutan, vp, !ram, true), grund = s.kam ? cam : null;
   let andrat = false;
   if (ny && Math.abs(bas / s.bas - 1) > 0.01) {
     /* Bordsvyn bytte nivå, kanten dras, eller en motståndare kom: rutan runt mattan fick en annan storlek, och
@@ -10021,7 +10035,7 @@ function kamSkala(p) {
   const w = (hela.length ? hela : las && las.kalla !== 'gissning' ? [] : vilande.length ? vilande : allaKam).map(c => kortsida(c.kam)).sort((a, b) => a - b);
   /* Inga kort än: lekens bredd i bilden (MES-334 steg 3) — en lek är ett kort brett. */
   const lek = p.bibHog && p.bibHog.kam && p.bibHog.kam.w;
-  const med = w.length ? w[Math.floor(w.length / 2)] : (lek ? kortsida(p.bibHog.kam) : 0.12);
+  const med = w.length ? w[Math.floor(w.length / 2)] : (lek ? kortsida(p.bibHog.kam) : 0.12);   // gissningen: samma kortsida som matKamRam
   const kalla = w.length ? 'kort' : lek ? 'lek' : 'gissning';
   const ny = MATTA.CW / Math.max(0.03, med);
   /* En gissning (inga kort, ingen lek) är inget mått: första riktiga värdet tar över direkt, och en gissning
@@ -10249,6 +10263,9 @@ function lekText() {
   if (!mig || !kamSpeglar(mig) || kamBibRad || oppOppen || kamHaftKort) return null;
   return mig.bibHog ? 'Play your first card when you\'re ready' : 'Put your library on the table';
 }
+/* Mattan väntar på leken: "Put your library on the table" står och inget kort från kameran ligger på bordet än
+   (avstamBord väntar med oframkallade kort). */
+function lekVantas() { const mig = minSpelare(); return !!lekText() && !!mig && !mig.bibHog && !autoKortPaBordet(mig); }
 /* Sleevens färger ur bordets färg — tonerna som designytans .slv (hogar2.css). Tomt = baksidans bild (ingen färg än, eller Magic-baksidan). */
 function lekSlvStil(f) {
   if (!f || f.magic) return '';
@@ -11632,10 +11649,21 @@ function insHamta(e) {
     .catch(() => {})
     .then(() => { insHamtar.delete(k); renderInspektor(); });
 }
+/* På mitt speglade bord syns panelen först när man pekat på ett kort i partiet (Jesper 2026-10-09): "Point at a
+   card to see it here" tog en fjärdedel av skärmen medan leken lades ned och före första kortet, och "Last card"
+   visade första kortet utan att någon pekat på det (state.sel står på 0). Den kommer fram när man pekar på första
+   kortet, och mattan passas då in i den smalare rutan (matStegBeslut, matRutaStampel.ins). insPekat: spelet där man
+   pekat; en omladdning glömmer det. */
+let insPekat = null;
 function renderInspektor() {
   const body = $('#insBody'), lbl = $('#insLabel');
   if (!body) return;
   const { e, label, col, p: agare } = inspektorKort();
+  {
+    const p = player(), spel = spelLage ? spelLage.id : null;
+    if (e && (matHover != null || gravHov || oppHover || (hf.fok && hf.src))) insPekat = spel;
+    document.body.classList.toggle('utanins', !!p && zstegBord(p) && (!e || insPekat !== spel));
+  }
   const c = e ? cardOf(e) : null, dfc = arDfc(c);
   const fi = e && e.flipped && dfc ? 1 : 0;
   const sum = e ? ctSum(e.cts) : { p: 0, t: 0 };
@@ -32816,7 +32844,7 @@ function ofrFotoSatt(spar, b64) {
 /* Ett steg per bord, efter att korten bundits och skapats (avstamBord, efter steg 5). losa: spåren som
    inte räknades till något kort. flyttKan(t): ett kort i väntan kan vara det som läggs ned här (steg 3b).
    true = ett oframkallat kort kom, gick eller ändrades. */
-function ofrSteg(spar, mig, nu, losa, flyttKan) {
+function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas) {
   let andrat = false;
   ofrFrister = [];
   const synliga = new Set(spar.map(t => t.id));
@@ -32897,6 +32925,7 @@ function ofrSteg(spar, mig, nu, losa, flyttKan) {
     const q = mig.pending.find(q => q.spar === t.id);
     if (t.tillstand === 'klar' && !(q && q.overTak)) continue;
     if (!ofrSomKort(t)) continue;
+    if (vantaLas && vantaLas(t)) continue;   // läsningen avgör (avstamBord: leken ska läggas ned)
     const v = ofrVila.get(t.id);
     if (nu - v < OFR_TROSKEL) { ofrFrister.push(v + OFR_TROSKEL); continue; }
     if (flyttKan && flyttKan(t)) continue;
@@ -33898,7 +33927,16 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   for (const t of spar) if (bunden(t.id)) redovisade.add(t.id);
   losaSpar = new Set(spar.filter(t => !redovisade.has(t.id)).map(t => t.id));
   /* Framkallningen (MES-344): oframkallade kort för lösa spår vars namn dröjer, och kortet som tar över. */
-  if (ofrSteg(spar, mig, nu, losaSpar, ofrFlyttKan)) andrat = true;
+  /* Medan mattan säger "Put your library on the table" är högen som läggs ned nästan alltid leken, och telefonen
+     ser det först när den legat still en stund: dess spår är ett vanligt oläst spår till dess. Förut lades ett
+     oframkallat kort ned ovanpå leken efter 0,5 s — kamerans foto av sleeven i en ram, sidopanelen kom fram, och
+     när telefonen valt leken låg kortet kvar över högen och brickan (Jesper 2026-10-09, fyra skärmbilder). Nu
+     väntar ett oläst spår utan namnremsa (rl: en baksida har ingen) på läsningen: en baksida blir skräp eller
+     leken, ett kort får sitt namn, och ett kort utan namn sitt oframkallade kort då. Ett uppvänt kort med remsa
+     får sitt som förut — utan remsvillkoret väntade alla kort före första kortet, och i passet 2026-09-22 (ingen
+     lek i början) syntes de 0,3 s senare i median (Mat test). Gäller bara före leken (lekVantas). */
+  const ofrVantaLas = typeof lekVantas === 'function' && lekVantas() ? t => (t.tillstand === 'ny' || t.tillstand === 'stilla') && !t.rl : null;
+  if (ofrSteg(spar, mig, nu, losaSpar, ofrFlyttKan, ofrVantaLas)) andrat = true;
   for (const t of spar) if (!sparSedd.has(t.id)) sparSedd.set(t.id, nu);
   for (const id of [...sparSedd.keys()]) if (!synliga.has(id)) sparSedd.delete(id);
   autoSparLage(sparLage, spar, nu);   // notisen om kortet man just la ut: vilket spår som ändrades senast, och när det fick sitt utfall
