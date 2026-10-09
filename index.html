@@ -9968,8 +9968,10 @@ function hogSkarm() {
   /* Varje panel (platsen och raden under) med lite luft runt om. Platserna
      står still också under ett drag, så rutan ändras inte av gravOver. */
   const luft = r => ({ left: r.left - 16, right: r.right + 16, top: r.top - 18, bottom: r.bottom + 14 });
+  /* En tom panel (inget i den: ett speglat bord har ingen fast graveyard) har bredd men ingen höjd — förut blev den
+     en osynlig remsa nere till vänster som knuffade graveyard och korten åt höger, in i leken (W288D2, 2026-10-09). */
   const pan = manaRow.hidden ? null : manaRow.getBoundingClientRect();
-  if (pan && pan.width) rutor.push(luft(pan));
+  if (pan && pan.width && pan.height) rutor.push(luft(pan));
   const bb = bibHogEl && !bibHogEl.hidden ? bibHogEl.getBoundingClientRect() : null;
   if (bb && bb.width) rutor.push(luft(bb));
   if (!rutor.length) return null;
@@ -10256,7 +10258,7 @@ function gravPlacera(p, skala, g, ori) {
   if (!r || !(r.w > 0) || !(r.h > 0)) { if (p.gravHog) { p.gravHog = null; return true; } return false; }
   const kam = { x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, h: r.h }, nyckel = ori + '|' + skala.toFixed(1) + '|' + [kam.x, kam.y].map(v => v.toFixed(4)).join(',');
   const h = p.gravHog;
-  if (h && h.nyckel === nyckel && h.x != null) return false;
+  if (h && h.x != null && (h.nyckel === nyckel || h.hand === gravZonNyckel(r))) return false;   // flyttad för hand: tills högens ruta ändras (hogDnd)
   const m = kamTillMatta(kam, skala);
   const k = clampKort({ x: m.x - MATTA.CW / 2, y: m.y - MATTA.CH / 2, zon: ZON_SPELL }, { w: 1e6, h: 1e6 }, g);
   const fore = h ? h.x + ',' + h.y : '';
@@ -10627,6 +10629,8 @@ function lekPoster(p, opp) {
 function lekPlacera(p, skala, g, ori) {
   const h = p.bibHog;
   if (!h || !h.kam) return false;
+  /* Flyttad för hand (hogDnd): leken står där den släpptes tills telefonen ser den riktiga leken flyttas (ett nytt kam.nar, tagEmotLek). */
+  if (h.hand != null) { if (h.hand === h.kam.nar && h.x != null) return false; delete h.hand; }
   const nyckel = ori + '|' + skala.toFixed(1);
   if (h.kamRitad === h.kam.nar && h.kamOri === nyckel && h.x != null) return false;
   const m = kamTillMatta(h.kam, skala);
@@ -14621,6 +14625,9 @@ function handDragStart(kort) {
     el.innerHTML = kamIkon(18, '#8d98ad');
     gridEl.appendChild(el);
   }
+  handChipSkapa();
+}
+function handChipSkapa() {
   const chip = document.createElement('div');
   chip.className = 'handchip'; chip.hidden = true;
   chip.innerHTML = handIkon(14, 2.2) + 'Moving by hand';
@@ -14637,6 +14644,68 @@ function handChip(ev, syns) {
 function handDragSlut() {
   for (const el of document.querySelectorAll('body > .handchip, #grid > .kamplats')) el.remove();
 }
+/* ═══ HÖGARNA FLYTTAS FÖR HAND (Mirror my table, som MES-352) ═══
+   Leken och graveyard på mitt speglade bord dras som korten. Högen står där den släpps tills kameran ser att den
+   riktiga högen flyttats: leken när telefonens lekläge flyttats (bibHog.kam.nar, tagEmotLek), graveyard när högens
+   ruta i bilden ändrats (kamGravRad: Yes, eller högen som lyfts och läggs ner på ett nytt ställe, gravFoljer). Läget
+   delas med de andra i bordsraden (hogDelat), men markeringen (hand) gör det inte: efter en omladdning lägger
+   kameran högen igen. Ett klick utan drag gör som förut — menyn på leken, korten upp ur graveyard. Esc avbryter. */
+let hogDnd = null, hogKlickSvalg = false;
+const gravZonNyckel = r => r ? [r.x, r.y, r.w, r.h].join(',') : '';
+const hogDndEl = typ => gridEl.querySelector(typ === 'bib' ? '.lekhog[data-lekhog="1"]' : '.gravd1[data-gravhog="1"]');
+const hogDndHog = typ => { const mig = minSpelare(); return mig ? (typ === 'bib' ? mig.bibHog : mig.gravHog) : null; };
+gridEl.addEventListener('pointerdown', ev => {
+  hogKlickSvalg = false;
+  if (ev.button !== 0 || hogDnd || dnd || !redigerbar()) return;
+  const el = ev.target.closest('.lekhog[data-lekhog="1"], .gravd1[data-gravhog="1"]');
+  if (!el || player() !== minSpelare() || !speglatBord(player())) return;
+  const typ = el.classList.contains('lekhog') ? 'bib' : 'grav', h = hogDndHog(typ);
+  if (!h || h.x == null || h.y == null) return;   // graveyard som reserv bredvid leken (hogarBredvid) har inget eget läge
+  const pt = cpt(ev);
+  hogDnd = { typ, x0: ev.clientX, y0: ev.clientY, off: { x: pt.x - h.x, y: pt.y - h.y }, start: { x: h.x, y: h.y, hand: h.hand },
+             drar: false, pointerId: ev.pointerId };
+});
+addEventListener('pointermove', ev => {
+  const d = hogDnd; if (!d) return;
+  const h = hogDndHog(d.typ); if (!h) { hogDndSlut(null, true); return; }
+  if (!d.drar) {
+    if (Math.abs(ev.clientX - d.x0) + Math.abs(ev.clientY - d.y0) < DND_TROSKEL) return;
+    d.drar = true;
+    stangLekMeny();
+    try { gridEl.setPointerCapture(d.pointerId); } catch (e) {}
+    /* Markeringen redan nu, så att en rapport mitt i draget inte lägger tillbaka högen (lekPlacera, gravPlacera). */
+    h.hand = d.typ === 'bib' ? (h.kam ? h.kam.nar : 0) : gravZonNyckel(kamGravRad);
+    handChipSkapa();
+  }
+  const pt = cpt(ev);
+  h.x = pt.x - d.off.x; h.y = pt.y - d.off.y;
+  const el = hogDndEl(d.typ);
+  if (el) { matStoppa(el); el.style.left = Math.round(h.x) + 'px'; el.style.top = Math.round(h.y) + 'px'; }
+  handChip(ev, true);
+});
+function hogDndSlut(ev, avbryt) {
+  const d = hogDnd; if (!d) return;
+  hogDnd = null;
+  try { gridEl.releasePointerCapture(d.pointerId); } catch (e) {}
+  if (!d.drar) return;                        // ett klick: menyn eller graveyard, som förut
+  handDragSlut();
+  hogKlickSvalg = true;                       // klicket som följer på draget öppnar ingenting
+  const h = hogDndHog(d.typ);
+  if (!h) { renderGrid(true); return; }
+  if (avbryt) {
+    h.x = d.start.x; h.y = d.start.y;
+    if (d.start.hand == null) delete h.hand; else h.hand = d.start.hand;
+  } else {
+    const v = matVy(), p = clampKort({ x: h.x, y: h.y, zon: ZON_SPELL }, v.board, gravRuta(v));
+    h.x = p.x; h.y = p.y;
+    save();
+  }
+  renderGrid(true); fjarrIkapp();
+}
+addEventListener('pointerup', ev => hogDndSlut(ev));
+addEventListener('pointercancel', ev => hogDndSlut(ev, true));
+addEventListener('keydown', ev => { if (hogDnd && hogDnd.drar && ev.key === 'Escape') { ev.stopPropagation(); hogDndSlut(null, true); } }, true);
+gridEl.addEventListener('click', ev => { if (hogKlickSvalg) { hogKlickSvalg = false; ev.stopImmediatePropagation(); } }, true);
 /* Undo i toasten ångrar bara draget: de flyttade kortens läge, värd, tap och handflyttning från före draget (oftast
    ingen), och högarna draget rörde — den ett kort lämnade och den det lades i. Ett kort i de högarna som ändrats
    sedan släppet (efter: hög och plats direkt efter släppet) rörs inte: kameran har tagit över det, eller spelaren har
