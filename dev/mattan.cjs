@@ -392,7 +392,7 @@ const PROV = async () => {
   const zr = [zs(21, 'Llanowar Elves', 0.25, 0.4), zs(22, 'Forest', 0.35, 0.4)];
   avstamBord(zr, false);
   await vanta(700);
-  const KANT = MATTA.KANT, TOPP = MATTA.TOPP;
+  const KANT = MATTA.KANT, TOPP = MATTA.VYTOPP;
   const yta = () => { const vp = matVy(mig).vp; return { w: vp.w - 2 * KANT, h: vp.h - TOPP - KANT, vp }; };
   const bild = () => { const sk = kamSkala(mig), a = kamTillMatta({ x: 0, y: 0 }, sk), b = kamTillMatta({ x: 1, y: 1 }, sk); return { x0: a.x, y0: a.y, x1: b.x, y1: b.y }; };
   const golvNu = () => { const a = yta(), b = bild(); return Math.max(MATTA.ZOOM_MIN, Math.min(1, a.w / (b.x1 - b.x0), a.h / (b.y1 - b.y0))); };
@@ -780,7 +780,7 @@ const PROV = async () => {
     window.lekSlvSpara = spara0; mig.lekId = lekId0; lekAktiv = akt0; mig.bibHog = null; mig.slvFarg = null; kamLek = null; ofrGlom();
     spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, las0); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
 
-  /* Lekens två texter står på samma plats, mitt i övre tredjedelen av kamerans yta (Jesper 2026-10-09; förut
+  /* Lekens två texter står på samma plats, mitt i kamerans yta, också på höjden (Jesper 2026-10-09; förut
      flyttade leken texten till den största fria delen bredvid sig, och "Play your first card" hoppade uppåt). */
   { const sp0 = spelLage, kort0 = mig.cards, las0 = kamSkala.las.get(mig.id);
     const text = () => { const t = $('#emptyHand .tomlek'); if (!t || !t.offsetWidth) return null; const r = t.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, r, txt: t.textContent.trim() }; };
@@ -797,13 +797,28 @@ const PROV = async () => {
     const leken = async (x, y) => { tagEmotLek({ id: 1, lage: 'ned', ruta: { x: x - 0.035, y: y - 0.085, w: 0.07, h: 0.17 }, farg: null }); renderAll(true); await vanta(400); };
     await nytt('mattprov-text-1');
     const t0 = text(), r0 = ramR();
-    ok('texten: "Put your library on the table" står mitt i övre tredjedelen av kamerans yta', !!t0 && !!r0 && /library on the table/.test(t0.txt)
-      && Math.abs(t0.x - (r0.left + r0.right) / 2) <= 2 && Math.abs(t0.y - (r0.top + r0.height / 6)) <= 2, `${xy(t0)}, ytan ${r0 ? [r0.left, r0.top, r0.right, r0.bottom].map(Math.round).join(',') : '–'}`);
+    ok('texten: "Put your library on the table" står mitt i kamerans yta, också på höjden', !!t0 && !!r0 && /library on the table/.test(t0.txt)
+      && Math.abs(t0.x - (r0.left + r0.right) / 2) <= 2 && Math.abs(t0.y - (r0.top + r0.height / 2)) <= 2, `${xy(t0)}, ytan ${r0 ? [r0.left, r0.top, r0.right, r0.bottom].map(Math.round).join(',') : '–'}`);
+    { const w = gridWrap.getBoundingClientRect(), ch = $('#mattaChrome').getBoundingClientRect();
+      ok('kamerans ram: mitt i mattan i sidled, och luft mellan knapparna och ramen (≥ 28 px)', !!r0 && Math.abs((r0.left - w.left) - (w.right - r0.right)) <= 2 && r0.top - ch.bottom >= 28,
+        r0 ? `vänster ${Math.round(r0.left - w.left)}, höger ${Math.round(w.right - r0.right)}, luft under knapparna ${Math.round(r0.top - ch.bottom)}` : 'ingen ram'); }
+    /* Ett spel med minne där kamerabilden blev känd efter att mattan ritats (s.hopp falskt): ramen låg förut kvar där
+       den stod innan, åt höger. Tom matta och orörd vy: utgångsläget räknas om, ramen mitt i. */
+    { matVyPerSpel.clear(); matVyer.delete(mig.id); kamSkala.las.delete(mig.id); ofrGlom();
+      spelLage = Object.assign({}, spelLage, { id: 'mattprov-text-minne' }); oppSatt({ klar: true }); matVyAterta(spelLage.id, mig.id);
+      mig.cards = []; mig.bibHog = null; mig.slvFarg = null; kamLek = null; kamHaftKort = false; kamUpplosning = null;
+      renderAll(true); tagEmotLek(null); await vanta(300);
+      { const s0 = matVyFor(mig).steg; if (s0) s0.hopp = false; }
+      kamUpplosning = { w: 1920, h: 1080 }; renderAll(true); await vanta(400);
+      const w = gridWrap.getBoundingClientRect(), rm = ramR(), tm = text();
+      ok('kamerans ram: kamerabilden blir känd i ett spel med minne och tom matta — ramen mitt i mattan, texten mitt i ramen', !!rm && !!tm && Math.abs((rm.left - w.left) - (w.right - rm.right)) <= 2 && Math.abs(tm.y - (rm.top + rm.height / 2)) <= 2,
+        rm ? `vänster ${Math.round(rm.left - w.left)}, höger ${Math.round(w.right - rm.right)}` : 'ingen ram'); }
+    await nytt('mattprov-text-1b');
     await leken(0.22, 0.55);
     const t1 = text();
     ok('texten: "Play your first card" står på samma plats när leken ligger någon annanstans', !!t1 && /first card/.test(t1.txt) && !!t0 && Math.abs(t1.x - t0.x) <= 1 && Math.abs(t1.y - t0.y) <= 1 && !over(t1.r, hogR()),
       `${xy(t0)} → ${xy(t1)}`);
-    await nytt('mattprov-text-2'); await leken(0.5, 1 / 6);
+    await nytt('mattprov-text-2'); await leken(0.5, 0.5);
     const t2 = text(), h2 = hogR(), r2 = ramR();
     const glapp = t2 && h2 ? Math.max(h2.top - t2.r.bottom, t2.r.top - h2.bottom, h2.left - t2.r.right, t2.r.left - h2.right) : NaN;
     ok('texten: ligger leken där texten står flyttas texten förbi den, så lite som behövs (högens luft, 28 px), och stannar i kamerans yta',
