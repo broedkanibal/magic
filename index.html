@@ -11322,7 +11322,10 @@ function renderChrome(v) {
   const el = $('#mattaChrome'); if (!el) return;
   const p = player(), spegel = speglatBord(minSpelare() || p), kamVy = !!p && zstegBord(p);   // knappen syns alltid på mitt speglade bord, också innan kamerabilden är känd
   if (hintUntapEl) hintUntapEl.hidden = spegel;
-  const pct = Math.round(v.z * 100) + '%' + (v.manuell ? '' : ' fit');
+  /* Mitt speglade bord i utgångsläget (v.steg, ingen egen zoom): bara "fit" (Jesper 2026-10-09). Talet är brädets
+     zoom: det bytte från 92 % till 51 % när leken mätt skalan fast ingenting rörde sig på skärmen, och beror på
+     fönstret — det säger inget för spelaren här. Med egen zoom procenten, och andra bord som förut. */
+  const pct = v.steg && !v.manuell ? 'fit' : Math.round(v.z * 100) + '%' + (v.manuell ? '' : ' fit');
   const html = `<div class="zoomchip">`
     + `<button type="button" class="zlage${matVerktyg === 'valj' ? ' on' : ''}" data-mat="valj" aria-label="Select"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 2l9 5.2-4 1.1-2.2 3.9z" fill="currentColor"/></svg><span class="knapptip">Select — click and drag cards (S)</span></button>`
     + `<button type="button" class="zlage${matVerktyg === 'pan' ? ' on' : ''}" data-mat="pan" aria-label="Pan"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v13M1.5 8h13M6 3.5l2-2 2 2M6 12.5l2 2 2-2M3.5 6l-2 2 2 2M12.5 6l2 2-2 2"/></svg><span class="knapptip">Pan — click and drag anywhere to move the mat (S)</span></button></div>`

@@ -813,6 +813,27 @@ const PROV = async () => {
     ok('texten: övriga texter på mattan står som förut (ingen fast plats)', !$('#emptyHand .tomlek') && !$('#emptyHand').classList.contains('fast') && !!$('#emptyHand .tomtyst'), $('#emptyHand').className);
     kamAnsluten = true; mig.bibHog = null; kamLek = null; ofrGlom();
     spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, las0); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
+
+  /* Zoomtalet på mitt speglade bord i utgångsläget: bara "fit" (Jesper 2026-10-09). Förut "92% fit" → "51% fit" när
+     leken mätt skalan, fast ramen stod still på skärmen. */
+  { const sp0 = spelLage, kort0 = mig.cards, las0 = kamSkala.las.get(mig.id), lage0 = mig.lage;
+    const tal = () => { const t = $('#matZoomTal'); return t ? t.value : '–'; };
+    matVyPerSpel.clear(); matVyer.delete(mig.id); kamSkala.las.delete(mig.id); ofrGlom();
+    spelLage = Object.assign({}, spelLage, { id: 'mattprov-zoomtal' }); oppSatt({ klar: true }); matVyAterta(spelLage.id, mig.id);
+    mig.cards = []; mig.bibHog = null; mig.slvFarg = null; kamLek = null; kamHaftKort = false; kamUpplosning = { w: 1920, h: 1080 };
+    renderAll(true); tagEmotLek(null); await vanta(300);
+    const a = tal(), za = matVy(mig).z;
+    tagEmotLek({ id: 1, lage: 'ned', ruta: { x: 0.185, y: 0.335, w: 0.07, h: 0.17 }, farg: null }); renderAll(true); await vanta(400);
+    const b = tal(), zb = matVy(mig).z;
+    ok('zoomtalet: mitt speglade bord i utgångsläget säger bara "fit", också när leken mätt skalan och brädets zoom byts', a === 'fit' && b === 'fit' && Math.abs(za - zb) > 0.01, `${a} (${Math.round(za * 100)} %) → ${b} (${Math.round(zb * 100)} %)`);
+    zoomBy(0.8); await vanta(450); gridEl.classList.remove('glider');
+    const c = tal();
+    fitView(); await vanta(450); gridEl.classList.remove('glider');
+    ok('zoomtalet: med egen zoom procenten, och "fit" igen efter Fit camera view', /^\d+%$/.test(c) && tal() === 'fit', `${c} → ${tal()}`);
+    mig.lage = 'skarm'; renderAll(true); await vanta(300);
+    ok('zoomtalet: andra bord (Digital table) som förut, med procenten', /^\d+% fit$/.test(tal()), tal());
+    mig.lage = lage0; mig.bibHog = null; kamLek = null; ofrGlom();
+    spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, las0); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
   } catch (e) { ok('utgångsläget: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); window.__mattLugn = false; }
   kamUpplosning = null;
 
