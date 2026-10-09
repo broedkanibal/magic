@@ -100,6 +100,7 @@ function slappLyft(k) { delete k.lyft; if (lyftTips === k.cid) lyftTips = null; 
 function glomSpar() {}
 let kamGrund = null;
 const addEventListener = () => {};   // spelupplevelsens pagehide (khSkicka) ligger i utdraget
+const mittLage = () => 'bord', Moln = { inloggad: () => false };   // spelupplevelsens korthändelser (khLogga): utloggad, så inget loggas
 let lekTal = new Map();
 const lekAntal = namn => lekTal.has(namn) ? lekTal.get(namn) : Infinity;
 let grundFragor = [];
