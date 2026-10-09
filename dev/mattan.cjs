@@ -1127,9 +1127,14 @@ const PROV = async () => {
         const knapp = ofrSok && ofrSok.res.querySelector('[data-soki="0"]');
         ok('… ett kort utanför leken söks bland alla kort och säger att det läggs till i leken', !!knapp && /Counterspell/.test(knapp.textContent) && /adds to your deck/i.test(grp), grp);
         if (knapp) await riktigtKlick(knapp);
+        await vanta(30);
+        /* Ett kort utanför leken frågar först (9e38f21): Add to deck namnger och lägger till. */
+        const ja = ofrSok && ofrSok.res.querySelector('[data-sokja]');
+        ok('… valet frågar först om kortet ska läggas till i leken', !!ja && /isn.t in your deck/.test(ofrSok.res.textContent) && !sparat, ofrSok && ofrSok.res.textContent);
+        if (ja) await riktigtKlick(ja);
         await vanta(60);
         const op = sparat && sparat.ops[0];
-        ok('… och valet namnger kortet och lägger till ett exemplar i leken som spelas', !!op && sparat.id === 'lekprov' && op.typ === 'antal' && op.name === 'Counterspell' && op.d === 1 && op.sb === false && op.kort.sid === 'cs1'
+        ok('… och Add to deck namnger kortet och lägger till ett exemplar i leken som spelas', !!op && sparat.id === 'lekprov' && op.typ === 'antal' && op.name === 'Counterspell' && op.d === 1 && op.sb === false && op.kort.sid === 'cs1'
           && mig.cards.some(c => c.name === 'Counterspell'), JSON.stringify(sparat));
       } finally {
         lekKort = lek0; mig.lekId = lekId0; SF.autocomplete = sf0; lookup = lu0; lekHamtaRad = hr0; lekSparaKo = sk0; lekEfterSpar = es0;

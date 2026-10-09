@@ -7228,6 +7228,7 @@ let kamGrundRad = null;       // grundläget i spelets rad (camera_setups), för
 let kamHarVarit = false;      // har en telefon någonsin svarat i det här spelet?
 let kamTappadNar = 0;         // när tappades den? — bordet är fruset sedan dess
 let kamFrasktVantar = false;  // telefonen kom tillbaka efter att ha tappats: mattan byggs om vid nästa riktiga bord (frasktBord)
+let kamHejVantar = true;     // datorn har glömt kamerans foton (sidan laddades nyss, eller frasktBord): hej till telefonen vid nästa bord, som skickar dem igen (Kamera.fotonIgen)
 let kamLast = 0, kamTot = 0;  // lästa kort av upptäckta spår, ur varje bordsmeddelande
 /* Sant medan en fjärruppdatering appliceras. renderGrid sorterar manan och
    sparar mitt i sin egen rendering — utan den här spärren skulle varje
@@ -29794,12 +29795,7 @@ const Kamera = (() => {
        (stillaMs) kommer först efter det: fotot måste vara där innan. Bara när någon tar emot det (cb.foto):
        golden, bänken och kamerabänken kör samma väg som förut, utan beskärning. Läsningens beskärning
        (beskar) rörs inte. Före bordet, så att fotot finns när datorn ser spåret. */
-    if (cb.foto && video) for (const t of spar) {
-      if (t.fotoSkickat || (t.tillstand === 'klar' && t.namn) || t.tillstand === 'skrap' || t.skymd || arHelbild(t) || arNedKort(t) || !skuggklar(t) || !arVila(t)) continue;
-      t.fotoSkickat = true;
-      let c = null; try { c = fotoUr(t); } catch (e) {}
-      if (c) cb.foto(t.id, c);
-    }
+    skickaFoton();
     /* Tredje argumentet: det som inte är spår men hör till bordet — hur
        många kortformade regioner som var för små att läsa, och vilken
        upplösning strömmen ger. sandBord lägger dem i meddelandet. */
@@ -29924,6 +29920,17 @@ const Kamera = (() => {
      läsningens 8 %: fotot ska vara kortet, inte bordet runt det), rätat upp om det ligger ner, och redan
      litet (FOTO_BREDD) — en enda nedskalning, ingen beskärning i läsningens storlek. */
   const FOTO_BREDD = 160, FOTO_MARG = 0.02;
+  function skickaFoton() {
+    if (cb.foto && video) for (const t of spar) {
+      if (t.fotoSkickat || (t.tillstand === 'klar' && t.namn) || t.tillstand === 'skrap' || t.skymd || arHelbild(t) || arNedKort(t) || !skuggklar(t) || !arVila(t)) continue;
+      t.fotoSkickat = true;
+      let c = null; try { c = fotoUr(t); } catch (e) {}
+      if (c) cb.foto(t.id, c);
+    }
+  }
+  /* Datorn sa hej (laddades om, eller fick tillbaka telefonen): den har glömt fotona, och telefonen skickar
+     annars bara ett per spår. Varje namnlöst kort som ligger still får sitt foto igen, nu. */
+  function fotonIgen() { for (const t of spar) t.fotoSkickat = false; skickaFoton(); }
   function fotoUr(t) {
     const vb = video.videoWidth, vh = video.videoHeight, b = t.ram || t.box;
     if (!vb || !vh || !b) return null;
@@ -31172,7 +31179,7 @@ const Kamera = (() => {
     const ok = satGrund(v); if (ok) grundKalla = v == null ? null : 'rad'; return ok;
   };
   const grundFranSparUtifran = (id, tappat) => { const ok = grundFranSpar(id, tappat); if (ok) grundKalla = 'rad'; return ok; };
-  return { start, installera, stopp, satKalibrering, satUpp, satGrund: satGrundUtifran, satGrundGrader, foljGrundGrader, sparVinkel, satGrav, satBib, grundFranSpar: grundFranSparUtifran, stillbild, forhandsbild, bildAndrad, bildSkickad, nyReferens, glomKort, namnge, svarAI, rapportera,
+  return { start, installera, stopp, satKalibrering, satUpp, satGrund: satGrundUtifran, satGrundGrader, foljGrundGrader, sparVinkel, satGrav, satBib, grundFranSpar: grundFranSparUtifran, stillbild, forhandsbild, bildAndrad, bildSkickad, nyReferens, glomKort, namnge, svarAI, rapportera, fotonIgen,
            detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
            beskarVridning,   // hur beskärningen vrids med kortets vinkel (MES-334 steg 1) — bänken
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
@@ -32200,7 +32207,7 @@ function kamKommando(m) {
   if (m.typ === 'trosklar') { Kamera.satTrosklar(m.v); Moln.sandKam('trosklar', { v: Kamera.trosklar }); return; }
   if (m.typ === 'ai') { const pa = !!m.pa; if (prefs.aiAuto !== pa) { prefs.aiAuto = pa; savePrefs(); } return; }   // datorns AI-brytare (2026-10-09): av på datorn = inga frågor från kameran
   if (m.typ === 'provbord') { provbord = !!m.pa; if (provbord && kamLage && senastBord) sandBord(senastBord); return; }   // vyn öppnades: spåren som de ligger nu, inte vid nästa ändring
-  if (m.typ === 'hej') { if (senastBord) Moln.sandKam('bord', Object.assign({ spar: senastBord, grund: grundGrader() }, bordExtra())); return; }
+  if (m.typ === 'hej') { Kamera.fotonIgen(); if (senastBord) Moln.sandKam('bord', Object.assign({ spar: senastBord, grund: grundGrader() }, bordExtra())); return; }
   /* Datorn bad om grundläget ur ett spår: spelaren lade kortet som hen vill
      ha det otappat och tryckte spara. Spåren döms om och bordet går på en
      gång (rapportera i satGrund), med det nya läget i meddelandet — så
@@ -36191,6 +36198,7 @@ function frasktBord() {
   mig.pending = [];
   handRad = [];
   ofrGlom();
+  kamHejVantar = true;   // fotona glömdes med mattan: telefonen skickar dem igen när den sagt hej
   if (player() === mig) state.sel = clamp(state.sel, 0, Math.max(0, hand().length - 1));
   save(); renderAll(true);
 }
@@ -36216,6 +36224,7 @@ function kamTogsEmot(m) {
   if (!jag || m.av !== jag || m.fran !== 'kamera') return;
   if (m.typ === 'bild') return kamBild(m);
   if (m.typ === 'bord') {
+    if (kamHejVantar && Moln.sandKam('hej')) kamHejVantar = false;   // fotona på de namnlösa korten, igen
     /* Små kort och upplösningen följer med varje bord (också hjärtslaget och
        fasbytet). En telefon utan fälten lämnar undefined: då står det som
        var kvar. */
