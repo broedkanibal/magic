@@ -922,6 +922,21 @@ const PROV = async () => {
     const nid = tata.map(id => gridEl.querySelector(`:scope > .ofretik[data-ofr="${id}"]`)), syns = nid.filter(el => el && !el.classList.contains('dold'));
     const alla = syns.concat(etik.filter(Boolean)), tackt = alla.flatMap((a, i) => alla.slice(i + 1).map(b => skar(rekt(a), rekt(b)))).some(Boolean);
     ok('… "NOT IDENTIFIED" på alla tre, men ingen synlig etikett täcker en annan eller en knapp (läge 9)', nid.every(Boolean) && syns.length >= 1 && !tackt, `${syns.length} av ${nid.filter(Boolean).length} synliga`);
+    /* Det främsta kortet (sist i brädet) behåller alltid sin etikett: det är kortet man ser helt. */
+    const framst = ids => ids.map(id => ofrEl(id)).filter(Boolean).sort((a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1).pop();
+    const fr1 = framst(tata), fe1 = fr1 && gridEl.querySelector(`:scope > .ofretik[data-ofr="${fr1.dataset.ofr}"]`);
+    ok('… det främsta kortet i högen har sin etikett (läge 9)', !!fe1 && !fe1.classList.contains('dold'), fr1 ? `kort ${fr1.dataset.ofr}, ${fe1 ? fe1.className : 'ingen etikett'}` : 'inget kort');
+    /* Samma hög med korten strax över 120 px: knapparna trängs uppåt, in över det främre kortets överkant. Förut
+       föll då det främsta kortets etikett bort för ett bakre korts knapp. */
+    const fram9 = [];
+    for (const zz of [0.5, 0.53, 0.56, 0.6, 0.65]) {
+      await zoomPa(ofrEl(62), zz);
+      const e = gridEl.querySelector(`:scope > .ofretik[data-ofr="${fr1.dataset.ofr}"]`), kh = Math.round(rekt(fr1).height);
+      const syn = [...gridEl.querySelectorAll(':scope > .ofretik[data-ofr]:not(.dold), :scope > .ofrmark[data-ofr]:not(.dold)')];
+      const tack = syn.some((a, i) => syn.slice(i + 1).some(b => skar(rekt(a), rekt(b))));
+      fram9.push({ kh, ok: kh < OFR_ETIK_MIN || (!!e && !e.classList.contains('dold')), tack });
+    }
+    ok('… också när korten är strax över 120 px: det främsta kortet behåller sin etikett, och inget synligt täcker något', fram9.every(f => f.ok && !f.tack), fram9.map(f => `${f.kh} px ${f.ok ? 'ja' : 'NEJ'}${f.tack ? ' täckt' : ''}`).join(', '));
     /* Läge 6: liten zoom. Ett kort lägre än 120 px på skärmen visar knappen men inte etiketten. */
     matZoomMot(100 / MATTA.CH, 0, 0);
     const smal = gridEl.querySelector(':scope > .ofretik[data-ofr="61"]'), smalM = gridEl.querySelector(':scope > .ofrmark[data-ofr="61"]'), kh = ofrEl(61).getBoundingClientRect().height;
@@ -1032,6 +1047,8 @@ const PROV = async () => {
     ok('läge 9, tät rad: korten över 120 px, minst en "NOT IDENTIFIED" dold för att den skulle täcka något', etik9.every(Boolean) && kh9.every(h => h >= OFR_ETIK_MIN) && dold9.length >= 1,
       `kort ${kh9.join('/')} px, ${etik9.filter(el => el && !el.classList.contains('dold')).length} synliga, ${dold9.length} dolda`);
     ok('… ingen synlig etikett täcker en knapp eller en annan etikett', etik9.every(Boolean) && !synTackt.length, synTackt.map(el => el.dataset.ofr).join(',') || '');
+    const fr9 = framst(tat9), fe9 = fr9 && gridEl.querySelector(`:scope > .ofretik[data-ofr="${fr9.dataset.ofr}"]`);
+    ok('… och det främsta kortet i raden har sin etikett (läge 9)', !!fe9 && !fe9.classList.contains('dold'), fr9 ? `kort ${fr9.dataset.ofr}, ${fe9 ? fe9.className : 'ingen etikett'}` : 'inget kort');
     ok('… kontrollen: utan döljningen hade etiketterna täckt varandra eller en knapp', utanDolj, '');
     /* Sökrutan öppen på ett kort i den täta raden: dess knapp döljs men läggs ut som om den syntes, så att
        grannarnas knappar och etiketter står kvar. Kortet vars knapp läggs ut först (ankaret överst, sedan till

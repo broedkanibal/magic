@@ -8426,17 +8426,19 @@ function ofrPek(id, pa) {
   const v = CSS.escape(id);
   for (const e of gridEl.querySelectorAll(`.ofr.fraga[data-ofr="${v}"], .ofrmark[data-ofr="${v}"]`)) e.classList.toggle('pekad', pa);
 }
-/* Knapparna läggs ut i skärmens px, i ordning uppifrån och ned och från vänster: var och en där den brukar
-   sitta (6 px ovanför kortets nederkant), annars ett knappsteg i taget bort därifrån, närmast först och uppåt
-   före nedåt — uppåt högst till strax ovanför kortet — i första läget där den inte täcker en knapp som redan
-   ligger. Den står alltså så nära sitt eget kort som det går. Ankaret står kvar; --ofrdy är förskjutningen i
-   skärm-px (.ofrmark). Körs efter varje omritning och varje zoom (matSkriv): knappen har samma storlek på
-   skärmen vid all zoom, så det är zoomen som avgör om två knappar krockar. Knappen till kortet vars sökruta är
-   öppen döljs (MES-351, läge 5) — men läggs ut som om den syntes, så att grannarnas knappar och etiketter
-   står kvar och inget hoppar när rutan öppnas och stängs.
-   Sedan etiketterna (MES-351, lägen 6 och 9): en etikett står där den står, eller döljs — när kortet är lägre
-   än OFR_ETIK_MIN px på skärmen, eller när den skulle täcka en knapp eller en etikett som redan ligger. Det
-   främsta kortet (sist i brädet) får sin etikett först. */
+/* Etiketterna "NOT IDENTIFIED" först (MES-351, lägen 6 och 9), framifrån och bakåt: det främsta kortet (sist i
+   brädet) får sin etikett först, för det är kortet man ser helt — en bakre korts etikett som svävar över det
+   främre kortet fick det främre att se oidentifierat ut. En etikett döljs när kortet är lägre än OFR_ETIK_MIN px
+   på skärmen, eller när den skulle täcka en etikett som redan ligger.
+   Sedan knapparna, i ordning uppifrån och ned och från vänster: var och en där den brukar sitta (6 px ovanför
+   kortets nederkant), annars ett knappsteg i taget bort därifrån, närmast först och uppåt före nedåt — uppåt högst
+   till strax ovanför kortet — i första läget där den inte täcker en etikett eller en knapp som redan ligger. Den
+   står alltså så nära sitt eget kort som det går. Finns inget sådant läge står knappen där den brukar, och en
+   etikett den täcker döljs: knappen går före. Ankaret står kvar; --ofrdy är förskjutningen i skärm-px (.ofrmark).
+   Körs efter varje omritning och varje zoom (matSkriv): etiketten och knappen har samma storlek på skärmen vid
+   all zoom, så det är zoomen som avgör om de krockar. Knappen till kortet vars sökruta är öppen döljs (MES-351,
+   läge 5) — men läggs ut som om den syntes, så att grannarnas knappar och etiketter står kvar och inget hoppar
+   när rutan öppnas och stängs. */
 const OFR_MARK_LUFT = 4, OFR_ETIK_MIN = 120, OFR_ETIK_DY = 9;
 let ofrSokPend = null;   // pend för kortet vars sökruta är öppen (ofrSokOppna)
 function ofrMarkLagg() {
@@ -8448,7 +8450,20 @@ function ofrMarkLagg() {
   }
   if (!el.length && !et.length) return;
   const z = gridEl._matzMal || 1, ofr = new Map(ofrNu().map(q => [String(q.id), q]));
-  const lagda = [], krock = (r, luft) => lagda.some(b => r.x0 < b.x1 + luft && b.x0 < r.x1 + luft && r.y0 < b.y1 + luft && b.y0 < r.y1 + luft);
+  const skar = (r, b, luft) => r.x0 < b.x1 + luft && b.x0 < r.x1 + luft && r.y0 < b.y1 + luft && b.y0 < r.y1 + luft;
+  const lagda = [], krock = (r, luft) => lagda.some(b => skar(r, b, luft));
+  const etiketter = [];   // { e, r } — de synliga
+  for (const e of et.reverse()) {
+    const q = ofr.get(e.dataset.ofr), a = q && ofrEtikAnkare(q);
+    let dold = !a || (ofrTappad(q) ? MATTA.CW : MATTA.CH) * z < OFR_ETIK_MIN;
+    if (!dold) {
+      const cx = a.x * z, ty = a.y * z + OFR_ETIK_DY, w = e.offsetWidth, h = e.offsetHeight;
+      const r = { x0: cx - w / 2, x1: cx + w / 2, y0: ty, y1: ty + h };
+      dold = krock(r, 0);
+      if (!dold) { lagda.push(r); etiketter.push({ e, r }); }
+    }
+    if (e.classList.contains('dold') !== dold) e.classList.toggle('dold', dold);
+  }
   const lista = el.map(e => {
     const dold = !!ofrSokPend && e.dataset.pend === ofrSokPend;
     if (e.classList.contains('dold') !== dold) e.classList.toggle('dold', dold);
@@ -8464,21 +8479,11 @@ function ofrMarkLagg() {
       forsok.push(-6 + k * steg);                                                 // nedåt
     }
     const d = forsok.find(d => !krock(rekt(d), OFR_MARK_LUFT));
-    const dy = d == null ? -6 : d;
-    lagda.push(rekt(dy));
+    const dy = d == null ? -6 : d, r = rekt(dy);
+    if (d == null) for (const t of etiketter) if (skar(r, t.r, 0) && !t.e.classList.contains('dold')) t.e.classList.add('dold');   // knappen går före
+    lagda.push(r);
     const v = Math.round(dy) + 'px';
     if (m.e.style.getPropertyValue('--ofrdy') !== v) m.e.style.setProperty('--ofrdy', v);
-  }
-  for (const e of et.reverse()) {
-    const q = ofr.get(e.dataset.ofr), a = q && ofrEtikAnkare(q);
-    let dold = !a || (ofrTappad(q) ? MATTA.CW : MATTA.CH) * z < OFR_ETIK_MIN;
-    if (!dold) {
-      const cx = a.x * z, ty = a.y * z + OFR_ETIK_DY, w = e.offsetWidth, h = e.offsetHeight;
-      const r = { x0: cx - w / 2, x1: cx + w / 2, y0: ty, y1: ty + h };
-      dold = krock(r, 0);
-      if (!dold) lagda.push(r);
-    }
-    if (e.classList.contains('dold') !== dold) e.classList.toggle('dold', dold);
   }
 }
 /* ── Igenkänningskedjan vid varje kort (bara ?debug) ──────────────────
