@@ -36112,6 +36112,9 @@ function kamNarvaro(kameror) {
      Funktionen visste den redan — fanns är exakt den frågan — men värdet
      kastades när den returnerade, och kvar blev bara en toast som försvann. */
   if (kamAnsluten) {
+    /* kamLetar() först: i en bakgrundsflik stryps timern som avslutar
+       letandet, och telefonen kan vara tillbaka innan den gått. */
+    if (kamHarVarit && kamIntrade) kamLetar();
     if (kamHarVarit && !kamIntrade) kamFrasktVantar = true;
     kamHarVarit = true; kamIntrade = false; kamLetarTill = 0; kamLetarOmladd = false; kamAvSjalv = false;
     normaliseraKamRad();
