@@ -2637,6 +2637,14 @@ body.ispel #addPlayerBtn{display:none}
 .youhost{height:22px;display:inline-flex;align-items:center;padding:0 8px;border-radius:11px;background:#f0a52a1f;border:1px solid #f0a52a55;color:#ffd98a;font:600 11px var(--sans);white-space:nowrap;flex:none}
 .dots3{display:inline-flex;gap:3px;flex:none}
 .hemtom{margin:0;font:13px/1.6 var(--sans);color:var(--dim)}
+/* "How did the camera do?" efter ett avslutat parti (spelupplevelsen, 2026-10-09) */
+.hbetyg{display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:12px;background:#121821;border:1px solid #f0a52a55}
+.hbetyg b{font:600 14px var(--sans)}
+.hbetyg .hbs{font:12px var(--sans);color:var(--dim)}
+.hbetyg .hbrad{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.hbetyg .hbv{width:40px;height:36px;padding:0;justify-content:center;font:650 14px var(--mono)}
+.hbetyg .hbskala{display:flex;justify-content:space-between;width:224px;max-width:100%;font:11px var(--sans);color:var(--dim2)}
+.hbetyg .hbhoppa{margin-left:auto}
 .hemtom .btn{margin-left:8px}
 /* Lekraden: samma på Home, i Pick your deck och för den som joinar. */
 .lrs{display:flex;flex-direction:column;gap:6px}
@@ -6805,13 +6813,48 @@ const Moln = (() => {
     return true;
   }
 
+  /* ── Spelupplevelsen (supabase/migrations/20261009120000_spelupplevelse.sql) ──
+     Korthändelserna och betyget efter partiet. Saknas tabellerna (migrationen
+     inte körd) slutar loggningen tyst och frågan visas aldrig. */
+  async function loggaKortHandelser(rader) {
+    const s = await klient(); if (!s || !inloggad() || saknas.kh || !rader.length) return false;
+    const { error } = await s.from('kort_handelser').insert(rader.map(r => Object.assign({ user_id: minId() }, r)));
+    if (error) { if (saknasFel(error)) saknas.kh = true; else console.warn('Korthändelserna kunde inte sparas', error.message); return false; }
+    return true;
+  }
+  /* Senaste partiet att fråga "How did the camera do?" om: avslutat de senaste 14 dagarna,
+     startat, spelat med kameran (lage 'bord') och inte besvarat — null annars. */
+  async function betygAttFraga() {
+    const s = await klient(); if (!s || !inloggad() || saknas.betyg) return null;
+    const { data } = await s.from('game_players')
+      .select('game_id, lage, games(id, kod, avslutad, startad)')
+      .eq('user_id', minId()).order('gick_med', { ascending: false }).limit(10);
+    const spel = (data || []).filter(r => r.lage === 'bord' && r.games && r.games.startad && r.games.avslutad
+      && Date.now() - Date.parse(r.games.avslutad) < 14 * 86400000).map(r => r.games);
+    if (!spel.length) return null;
+    const { data: svar, error } = await s.from('spel_betyg').select('game_id').eq('user_id', minId()).in('game_id', spel.map(g => g.id));
+    if (error) { if (saknasFel(error)) saknas.betyg = true; return null; }
+    const besvarade = new Set((svar || []).map(r => r.game_id));
+    const g = spel.find(g => !besvarade.has(g.id)); if (!g) return null;
+    const { data: sp } = await s.from('game_players').select('user_id, namn').eq('game_id', g.id).order('plats');
+    return { id: g.id, kod: g.kod, andra: (sp || []).filter(p => p.user_id !== minId()).map(p => p.namn || 'Player') };
+  }
+  /* betyg 1–5, eller null = hoppade över (frågan kommer inte igen). */
+  async function sparaBetyg(gameId, betyg) {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    const { error } = await s.from('spel_betyg').insert({ game_id: gameId, user_id: minId(), betyg: betyg == null ? null : betyg });
+    if (error && error.code !== '23505') { console.warn('Betyget kunde inte sparas', error.message); return false; }   // 23505: redan besvarat (annan flik)
+    return true;
+  }
+
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt, token,
            skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
            avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
-           scanKlar, radeaScan, vantandeScans, hamtaVektorer, hamtaRefs, sparaRefs, raderaRefs };
+           scanKlar, radeaScan, vantandeScans, hamtaVektorer, hamtaRefs, sparaRefs, raderaRefs,
+           loggaKortHandelser, betygAttFraga, sparaBetyg };
 })();
 /* Bildmodellen (dev/embed/embed.js) frågar lagringen efter förräknade
    vektorer innan den räknar själv (MES-230). */
@@ -10837,6 +10880,7 @@ function hfEnter() {
     matAngra(it.name + ' → table', () => {
       e = normaliseraKort({ cid: uid(), name: it.name, flipped: 0, etb: 1 }, h.length);
       if (it.sid) e.sid = it.sid;
+      khLogga('tillagd', e.cid, { namn: it.name });   // spelupplevelsen: kameran såg inte kortet
       hfLedig(e, h);
       h.push(e); state.sel = h.length - 1;
       save(); renderGrid(true); resolveAll();
@@ -11726,6 +11770,7 @@ function arkSvar(val, n) {
   if (val === 'crop') { const id = ark.pend; closeArk(); return oppnaGranskningFor(id); }
   if (val === 'token') {
     if (q.spar != null) borttagna.add(q.spar);
+    khLogga('borttagen', q.id);   // spelupplevelsen
     p.pending.splice(p.pending.indexOf(q), 1);
     closeArk(); save(); renderAll(true); return;
   }
@@ -13258,6 +13303,7 @@ function addCards(items, opts) {
     const entry = normaliseraKort({ cid: uid(), name: nm, flipped: 0 }, p.cards.length);
     if (o.sid) entry.sid = o.sid;
     if (o.tok) entry.tok = 1; else entry.etb = 1;
+    if (!o.tok && arMitt(p)) khLogga('tillagd', entry.cid, { namn: nm });   // spelupplevelsen
     p.cards.push(entry);
     added.push(entry);
   }
@@ -13280,6 +13326,7 @@ function removeAt(i, msg) {
   /* Kameran ser kortet tills det lyfts. Utan spärren låg det på bordet igen
      tre sekunder senare, som ett nytt kort. */
   if (gone.spar != null) borttagna.add(gone.spar);
+  if (!msg && gone.spar != null) khLogga('borttagen', gone.cid, { namn: gone.name || null });   // spelupplevelsen: kameran lade dit något som inte var där
   const sel = state.sel;
   state.sel = clamp(state.sel, 0, Math.max(0, h.length - 1));
   save(); renderAll();
@@ -13843,6 +13890,7 @@ function ofrInteKort(pend) {
   const p = malSpelare(), q = pendById(pend);
   if (!q) return;
   if (q.spar != null) borttagna.add(q.spar);
+  khLogga('borttagen', q.id);   // spelupplevelsen
   p.pending.splice(p.pending.indexOf(q), 1);
   const post = ofrLista().find(o => o.pend === pend);
   if (post) ofrMinne.delete(post.id);
@@ -23589,6 +23637,7 @@ function sammaKortVid(p, name, spar) {
    det bär något. Returnerar kortet som redan låg där, om det var så. */
 function namngePend(p, q, name, sid, list) {
   p.pending.splice(p.pending.indexOf(q), 1);
+  if (!q.overTak) khLogga('namngiven', q.id, { namn: name });   // spelupplevelsen
   const bundet = q.spar != null && p.cards.find(c => c.spar === q.spar);
   const sammaKort = (!bundet && sammaKortVid(p, name, q.spar)) || null;
   /* Kortet i väntan först (MES-291), sedan ett nedtonat, sedan ett obundet — se kortSomKomTillbaka. */
@@ -23607,7 +23656,9 @@ function applyPick(name, sid, cands) {
   let sammaKort = null;             // kamerakortet visade sig ligga på bordet redan — se namngePend
   const list = cands || [{ name, sid, score: 1 }];
   if (t && t.kind === 'card' && cardById(t.id)) {
-    Object.assign(cardById(t.id), { name, sid: sid || undefined, cands: list });
+    const c = cardById(t.id);
+    if (c.spar != null && c.name && c.name !== name) khLogga('bytt', c.cid, { namn: name, fran: c.name });   // spelupplevelsen: kamerans namn var fel
+    Object.assign(c, { name, sid: sid || undefined, cands: list });
   } else if (t && t.kind === 'pend' && pendById(t.id)) {
     sammaKort = namngePend(p, pendById(t.id), name, sid, list);
   } else if (t && t.kind === 'pend') {
@@ -32619,8 +32670,63 @@ function autoSumSakra() {
    'helbild' är Claude, 'hand' är granskningen (Kamera.namnge), allt annat —
    bild, namn, bild+namn, namn ensamt … — är den lokala kedjan. */
 function autoSumMetod(t) { const v = (t && t.varfor) || ''; return /^(ai|helbild)/.test(v) ? 'ai' : v === 'hand' ? 'hand' : 'lokal'; }
+/* Spelupplevelsen (2026-10-09): en rad per sak som händer med ett kort på mitt bord i ett spel med
+   kameran — kort_handelser, måtten i dev/spelupplevelse.sql. typ: namn (kameran namngav), namnlos
+   ("Name this card"), sent_namn (namnlöst som kameran namngav senare), namngiven (spelaren skrev namnet),
+   bytt (spelaren bytte ett namn), tillagd (för hand), borttagen (spelaren tog bort ett kamerakort).
+   Ett kort heter samma sak i alla sina händelser: granskningspostens id, och kortet namngePend skapar
+   får samma cid; ett spår som får namn senare slås upp via KH.spar. Varje kort och typ loggas en gång
+   per spel (avstämningen går om var tredje sekund) — ihågkommet i LS över en omladdning. Bara läget
+   'bord': i Digital table läggs allt för hand, och då är "tillagd" inget fel. Kön går var femte
+   sekund; en skrivning som faller tappas (före migrationen finns ingen tabell). */
+const K_KH = 'sthv.kh.v1.';
+const KH = { spel: null, ko: [], spar: new Map(), sedda: new Set(), timer: 0 };
+function khSakra() {
+  const id = spelLage ? spelLage.id : null;
+  if (KH.spel === id) return !!id;
+  KH.spel = id; KH.ko = []; KH.spar = new Map(); KH.sedda = new Set(id ? LS.get(K_KH + id, []) : []);
+  return !!id;
+}
+function khNyckel(id) { return id == null ? null : KH.spar.get(String(id)) || String(id); }
+function khLogga(typ, kort, f) { try { khLoggaNu(typ, kort, f); } catch (e) { console.warn('Spelupplevelsen', e); } }   // mätningen får aldrig stoppa spelet
+function khLoggaNu(typ, kort, f) {
+  if (!khSakra() || mittLage() !== 'bord' || !Moln.inloggad()) return;
+  const k = khNyckel(kort); if (!k) return;
+  const sig = typ + '|' + k;
+  if (typ !== 'bytt' && KH.sedda.has(sig)) return;
+  KH.sedda.add(sig);
+  LS.set(K_KH + KH.spel, [...KH.sedda].slice(-3000));
+  KH.ko.push(Object.assign({ game_id: KH.spel, kort: k, typ, lage: mittLage(), tid: new Date().toISOString() }, f || {}));
+  if (!KH.timer) KH.timer = setTimeout(khSkicka, 5000);
+}
+function khSkicka() {
+  KH.timer = 0;
+  const rader = KH.ko.splice(0);
+  if (rader.length) Moln.loggaKortHandelser(rader).catch(() => {});
+}
+addEventListener('pagehide', khSkicka);
+/* Spåret som blev "Name this card": kortet heter granskningspostens id, också när kameran namnger det senare. */
+function khNamnlos(q, t) { try { khNamnlosNu(q, t); } catch (e) { console.warn('Spelupplevelsen', e); } }
+function khNamnlosNu(q, t) {
+  if (!q || q.overTak || !khSakra()) return;
+  if (t && t.id != null) KH.spar.set('s:' + t.id, String(q.id));
+  khLogga('namnlos', q.id, { ms: t && t.sen != null ? Math.round(t.sen) : null });
+}
+/* Kameran satte namnet. t.sen = ms sedan telefonens detektor först såg kortet, när bordet skickades. */
+function khKameransNamn(cid, t) { try { khKameransNamnNu(cid, t); } catch (e) { console.warn('Spelupplevelsen', e); } }
+function khKameransNamnNu(cid, t) {
+  if (!khSakra()) return;
+  const fore = t && t.id != null ? KH.spar.get('s:' + t.id) : null;
+  if (fore) KH.spar.set(String(cid), fore);
+  /* Spelaren hann före: kortet hen namngav eller lade dit själv och som kameran sedan binder är inte kamerans. */
+  const k = khNyckel(cid);
+  if (KH.sedda.has('namngiven|' + k) || KH.sedda.has('tillagd|' + k)) return;
+  const ai = autoSumMetod(t) === 'ai';
+  khLogga(fore ? 'sent_namn' : 'namn', cid, { namn: t.namn || null, kalla: ai ? 'claude' : 'telefon', ms: t.sen != null ? Math.round(t.sen) : null });
+}
 function autoSumKort(cid, t) {
   if (cid == null || !t) return false;
+  if (autoSumMetod(t) !== 'hand') khKameransNamn(cid, t);   // 'hand' loggades när spelaren svarade (namngePend)
   const p = autoSumSakra();
   if (p.kort[cid]) return false;
   const metod = autoSumMetod(t);
@@ -33438,6 +33544,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
       for (const w of [220, 260]) { const d = cropCache.get('spar-' + t.id + '@' + w); if (d) cropCache.set(id + '@' + w, d); }
       mig.pending.push({ id, spar: t.id, box: null, rot: 0, tappad: tapSynk && pol.tap ? !!t.tappad : null, namnLast: t.namnLast || null,   // tappad: kortet applyPick skapar föds så; null = ingen bedömning (inget sparat läge), så att svaret inte avtappar ett kort som tappats för hand
         cands: (t.cands || []).map(c => ({ name: c.name, sid: c.sid || null, score: c.score || 0.5 })) });
+      khNamnlos(mig.pending[mig.pending.length - 1], t);   // spelupplevelsen: "Name this card"
       andrat = true;
     }
     if (k) lagg(k, t);
@@ -35801,7 +35908,7 @@ function rensaInbjudan() {
    ritaHem() är en ren funktion av datan, så att sidan går att prova med
    påhittade spel och lekar: visaVy('hem'); hem.spel = […]; ritaHemNu().
    ═══════════════════════════════════════════════════════════════════ */
-const hem = { spel: null, lekar: null, lekarFel: false, fel: '' };
+const hem = { spel: null, lekar: null, lekarFel: false, fel: '', betyg: null };
 /* Omslaget: konsten ur kortet leken har flest av (basländer inte), som
    Scryfalls art_crop — samma adress som den lilla bilden, annan storlek. */
 function lekOmslag(kort) {
@@ -35888,6 +35995,13 @@ function ritaHem(d) {
       + '</div>';
   };
   const spel = d.spel == null ? '<p class="hemtom">Fetching your games…</p>' : d.spel.map(spelRad).join('');
+  /* Betyget efter partiet (spelupplevelsen): en fråga per avslutat parti med kameran, aldrig igen efter svar eller Skip. */
+  const b = d.betyg;
+  const betyg = !b ? '' : `<div class="hbetyg" data-betyg-spel="${esc(b.id)}"><b>How did the camera do in game ${esc(b.kod)}?</b>`
+    + (b.andra.length ? `<span class="hbs">You played with ${esc(b.andra.join(', '))}.</span>` : '')
+    + `<div class="hbrad">${[1, 2, 3, 4, 5].map(v => `<button type="button" class="btn hbv" data-hem="betyg" data-v="${v}" aria-label="${v} of 5">${v}</button>`).join('')}`
+    + '<button type="button" class="btn ghost sm hbhoppa" data-hem="betyg">Skip</button></div>'
+    + '<div class="hbskala"><span>Poorly</span><span>Great</span></div></div>';
   const lekar = d.lekarFel ? '<p class="hemtom">Your decks could not be fetched. <button type="button" class="btn" data-hem="lekarigen">Try again</button></p>'
     : d.lekar == null ? '<p class="hemtom">Fetching your decks…</p>'
     : !d.lekar.length ? '<p class="hemtom">No decks yet. Make one with <b>New deck</b> — the camera recognises your cards against the deck you play with.</p>'
@@ -35898,14 +36012,14 @@ function ritaHem(d) {
     + '<span class="eller">or join one</span>'
     + '<form class="hjoin"><input name="kod" placeholder="Game code" autocomplete="off" spellcheck="false" maxlength="8" aria-label="Game code"><button class="btn big" type="submit">Join</button></form>'
     + `<p class="portalfel" data-hem-fel>${esc(d.fel || '')}</p></div>`
-    + spel + '</section>'
+    + betyg + spel + '</section>'
     + `<section class="hsec"><div class="hsh"><h2>Your decks</h2>${d.lekar && d.lekar.length ? `<span class="hn">${d.lekar.length}</span>` : ''}<span class="grow"></span>`
     + `<button type="button" class="btn" data-hem="nylek">${lsIk('plus', 14, 2.2)}New deck</button></div>`
     + lekar + '</section></div>';
 }
 function ritaHemNu() {
   $('#hemJag').innerHTML = sidaJagHtml();
-  $('#hemInnehall').innerHTML = ritaHem({ namn: Moln.mittNamn(), jag: Moln.minId(), spel: hem.spel, lekar: hem.lekar, lekarFel: hem.lekarFel, fel: hem.fel });
+  $('#hemInnehall').innerHTML = ritaHem({ namn: Moln.mittNamn(), jag: Moln.minId(), spel: hem.spel, lekar: hem.lekar, lekarFel: hem.lekarFel, fel: hem.fel, betyg: hem.betyg });
 }
 function hemFel(txt) {
   hem.fel = txt || '';
@@ -35915,7 +36029,8 @@ async function visaHem() {
   visaVy('hem');
   hem.fel = '';
   ritaHemNu();
-  const [spel, lekar] = await Promise.all([Moln.minaSpel().catch(() => null), hemHamtaLekar().catch(() => null)]);
+  const [spel, lekar, betyg] = await Promise.all([Moln.minaSpel().catch(() => null), hemHamtaLekar().catch(() => null), Moln.betygAttFraga().catch(() => null)]);
+  hem.betyg = betyg;
   /* En hämtning som föll blir en tom lista, inte ett evigt "Fetching". */
   /* Lekarna som inte kom visas i sin egen kolumn — aldrig som "No decks yet",
      och inte under Join, där felen hör till spelen. */
@@ -35985,6 +36100,12 @@ $('#vyHem').addEventListener('click', async ev => {
   if (a === 'loggaut') { loggaUtHelt(); return; }
   if (a === 'starta') { hemStartaSpel(b); return; }
   if (a === 'lekarigen') { visaHem(); return; }
+  if (a === 'betyg') {
+    const kort = b.closest('[data-betyg-spel]'); if (!kort) return;
+    hem.betyg = null; ritaHemNu();   // frågan går direkt; svaret sparas i bakgrunden
+    Moln.sparaBetyg(kort.dataset.betygSpel, b.dataset.v ? +b.dataset.v : null);
+    return;
+  }
   if (a === 'nylek') { oppnaLeksida(null, { fran: 'hem', namn: lekNyttNamnAv(hem.lekar) }); return; }
   const spel = ev.target.closest('[data-hem-spel]');
   if (spel && a === 'avsluta') {
