@@ -12889,7 +12889,9 @@ function kamHittarInte() {
 let kamLetarT = 0;
 function kamLetar() {
   const kvar = kamLetarTill - Date.now();
-  if (kvar <= 0) return false;
+  /* Letandet är slut: telefonen var borta på riktigt, och när den kommer
+     tillbaka byggs mattan om (frasktBord) — också efter en omladdning. */
+  if (kvar <= 0) { kamIntrade = false; return false; }
   clearTimeout(kamLetarT); kamLetarT = setTimeout(() => { renderMode(); kamStegSynk(); }, kvar + 50);
   return true;
 }
@@ -32163,7 +32165,8 @@ function kamDatorNarvaro(datorer) {
   const jag = Moln.minId(), nu = datorer.some(d => d.id && d.id === jag);
   if (kamDatorNu && !nu) kamSenastSvar = Date.now();   // senast hörd = när den försvann
   if (nu) kamDatorSvarade();
-  kamDatorNu = nu; kamDatorSett = true;
+  kamDatorNu = nu;
+  if (nu) kamDatorSett = true;   // bara en dator som faktiskt synts: en äldre utan närvaro har 90 s-regeln
   ritaKamRuta();
 }
 function kamDatorSvararNu() {
@@ -37462,6 +37465,9 @@ async function portalStart() {
   sessionStorage.removeItem('sthv.join');
   const aterstart = !!kamSpel && !vantande;
   const kod = inbjudan || vantande || (aterstart ? kamSpel : null);
+  /* En annan inbjudan vann: fliken är inte längre kamera för det gamla
+     spelet. Blir den kamera igen minns oppnaKamera det på nytt. */
+  if (kod && !aterstart) sessionStorage.removeItem('sthv.kamSpel');
   /* Precis som koden överlever inte "det här är en kamera" rundturen till
      Google — den läggs undan bredvid koden och plockas upp här. */
   const villKamera = kameraIUrl() || sessionStorage.getItem('sthv.cam') === '1' || aterstart;
