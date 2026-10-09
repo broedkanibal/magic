@@ -6868,7 +6868,7 @@ const Moln = (() => {
    MIXPANEL_HOST), i klump var femte sekund, och med keepalive när sidan
    stängs. En sändning som faller tappas — det här är mått, inte data. */
 const Mix = (() => {
-  let token, host = 'https://api-eu.mixpanel.com', ko = [], timer = 0, profil = null;
+  let token, host = 'https://api-eu.mixpanel.com', ko = [], timer = 0, profil = null, extra = {};
   const klar = Moln.konfig().then(c => {
     token = (c && c.mixpanelToken) || null;
     if (c && c.mixpanelHost) host = String(c.mixpanelHost).replace(/\/$/, '');
@@ -6883,6 +6883,14 @@ const Mix = (() => {
       if (!timer) timer = setTimeout(skicka, 5000);
     } catch (e) { console.warn('Mixpanel', e); }
   }
+  /* Egenskaper på spelarens profil (utöver namnet), t.ex. senaste betyget: går med nästa sändning. */
+  function satt(props) {
+    try {
+      if (token === null || !Moln.inloggad()) return;
+      Object.assign(extra, props);
+      if (!timer) timer = setTimeout(skicka, 5000);
+    } catch (e) { console.warn('Mixpanel', e); }
+  }
   async function post(vag, data) {
     await fetch(host + vag + '?ip=0', { method: 'POST', keepalive: true,   // formulär: ingen CORS-förfrågan före
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(JSON.stringify(data)) });
@@ -6890,20 +6898,21 @@ const Mix = (() => {
   async function skicka() {
     timer = 0;
     await klar;
-    const delar = ko.splice(0);
-    if (!token || !delar.length) return;
+    const delar = ko.splice(0), mer = extra;
+    extra = {};
+    if (!token || (!delar.length && !Object.keys(mer).length)) return;
     for (const e of delar) e.properties.token = token;
     try {
       for (let i = 0; i < delar.length; i += 50) await post('/track', delar.slice(i, i + 50));
       const id = Moln.minId(), namn = Moln.mittNamn();
-      if (id && profil !== id + '|' + namn) {
+      if (id && (profil !== id + '|' + namn || Object.keys(mer).length)) {
         profil = id + '|' + namn;
-        await post('/engage', [{ $token: token, $distinct_id: id, $set: { $name: namn || null } }]);
+        await post('/engage', [{ $token: token, $distinct_id: id, $set: Object.assign({ $name: namn || null }, mer) }]);
       }
     } catch (e) { /* nätet: tappas */ }
   }
-  addEventListener('pagehide', () => { if (ko.length) skicka(); });
-  return { track };
+  addEventListener('pagehide', () => { if (ko.length || Object.keys(extra).length) skicka(); });
+  return { track, satt };
 })();
 /* Bildmodellen (dev/embed/embed.js) frågar lagringen efter förräknade
    vektorer innan den räknar själv (MES-230). */
@@ -36257,6 +36266,8 @@ $('#vyHem').addEventListener('click', async ev => {
     hem.betyg = null; ritaHemNu();   // frågan går direkt; svaret sparas i bakgrunden
     Moln.sparaBetyg(kort.dataset.betygSpel, b.dataset.v ? +b.dataset.v : null);
     Mix.track('Camera Rated', { game_id: kort.dataset.betygSpel, rating: b.dataset.v ? +b.dataset.v : null, skipped: !b.dataset.v });
+    /* Senaste betyget på profilen: grupper som "gav 1–2" går att följa i Mixpanel. Skip ändrar det inte. */
+    if (b.dataset.v) Mix.satt({ last_camera_rating: +b.dataset.v, last_camera_rating_at: new Date().toISOString().slice(0, 19) });   // Mixpanels datumform, UTC utan ms
     return;
   }
   if (a === 'nylek') { oppnaLeksida(null, { fran: 'hem', namn: lekNyttNamnAv(hem.lekar) }); return; }
