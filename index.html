@@ -2138,6 +2138,13 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .ofrsok .sok-fot{display:flex;justify-content:flex-end;padding-top:8px;border-top:1px solid #ffffff14}
 .ofrsok .sok-nej{height:28px;padding:0 10px;border-radius:7px;border:1px solid var(--line);background:#1b2230;color:#c8d2e0;font:12.5px var(--sans);cursor:pointer}
 .ofrsok .sok-nej:hover{background:#232c3c;color:var(--txt)}
+.ofrsok .sok-bekr{display:flex;flex-direction:column;gap:6px;padding:2px 2px 0}
+.ofrsok .sok-bekr p{margin:0;font:13px/1.4 var(--sans);color:#c8d2e0}
+.ofrsok .sok-bekr p b{color:var(--txt);font-weight:650}
+.ofrsok .sok-bekr .sok-bekr-u{font-size:12px;color:#8a97ab}
+.ofrsok .sok-bekr-k{display:flex;justify-content:flex-end;gap:6px;padding-top:4px}
+.ofrsok .sok-ja{height:28px;padding:0 12px;border-radius:7px;border:1px solid var(--acc);background:var(--acc);color:#151b26;font:600 12.5px var(--sans);cursor:pointer}
+.ofrsok .sok-ja:hover{filter:brightness(1.08)}
 .kalupp{display:flex;align-items:center;gap:6px;font:12px var(--sans);color:var(--dim)}
 .kalupp .btn.on{background:var(--acc-d);color:var(--pa-acc);border-color:var(--acc)}
 .kamskruv .kalupp{padding:2px 9px 8px;flex-wrap:wrap}
@@ -14295,20 +14302,27 @@ function ofrSokOppna(pend) {
     + '<div class="sok-res"></div>'
     + '<div class="sok-fot"><button type="button" class="sok-nej" data-soknej title="The camera stops asking about it">Not a card</button></div>';
   zp.appendChild(el);
-  ofrSok = { pend, el, inp: el.querySelector('.sok-in'), res: el.querySelector('.sok-res'), traffar: [], idx: 0, seq: 0 };
+  ofrSok = { pend, el, inp: el.querySelector('.sok-in'), res: el.querySelector('.sok-res'), traffar: [], idx: 0, seq: 0, bekr: null };
   ofrSok.inp.addEventListener('input', () => ofrSokSok());
   ofrSok.inp.addEventListener('keydown', ev => {
     ev.stopPropagation();
     const s = ofrSok; if (!s) return;
+    if (s.bekr) {   // frågan om leken är öppen: Enter lägger till, Esc går tillbaka till träffarna
+      if (ev.key === 'Enter') { ev.preventDefault(); ofrSokBekrafta(); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); s.bekr = null; ofrSokRita(); }
+      return;
+    }
     if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); if (s.traffar.length) { s.idx = s.idx < 0 ? (ev.key === 'ArrowDown' ? 0 : s.traffar.length - 1) : (s.idx + (ev.key === 'ArrowDown' ? 1 : -1) + s.traffar.length) % s.traffar.length; ofrSokRita(); } }
-    else if (ev.key === 'Enter') { ev.preventDefault(); const t = s.idx >= 0 ? s.traffar[s.idx] : null; if (t) ofrNamnge(s.pend, t.namn, t.sid, !t.lek); }
+    else if (ev.key === 'Enter') { ev.preventDefault(); const t = s.idx >= 0 ? s.traffar[s.idx] : null; if (t) ofrSokValj(t); }
     else if (ev.key === 'Escape') { ev.preventDefault(); ofrSokStang(); }
   });
   el.addEventListener('click', ev => {
     if (ev.target.closest('[data-sokstang]')) { ofrSokStang(); return; }
     if (ev.target.closest('[data-soknej]')) { if (ofrSok) ofrInteKort(ofrSok.pend); return; }
+    if (ev.target.closest('[data-sokja]')) { ofrSokBekrafta(); return; }
+    if (ev.target.closest('[data-sokbak]')) { if (ofrSok) { ofrSok.bekr = null; ofrSokRita(); ofrSok.inp.focus({ preventScroll: true }); } return; }
     const b = ev.target.closest('[data-soki]');
-    if (b && ofrSok) { const t = ofrSok.traffar[+b.dataset.soki]; if (t) ofrNamnge(ofrSok.pend, t.namn, t.sid, !t.lek); }
+    if (b && ofrSok) { const t = ofrSok.traffar[+b.dataset.soki]; if (t) ofrSokValj(t); }
   });
   ofrSokPend = pend; ofrMarkLagg();   // knappen "Enter name" döljs medan rutan är öppen; etiketten står kvar (MES-351)
   ofrSokSok();
@@ -14323,6 +14337,7 @@ function ofrSokOppna(pend) {
 function ofrSokSok() {
   const s = ofrSok; if (!s) return;
   const q = s.inp.value.trim(), my = ++s.seq;
+  s.bekr = null;   // en ny fråga stänger frågan om leken
   const lek = Array.isArray(lekKort) ? lekKort : [];
   const sidAv = n => { const k = lek.find(x => x.name === n); return k && k.sid ? k.sid : null; };
   let namn = !lek.length ? [] : q ? lekNamnSok(q) : [...new Set(lek.map(k => k.name))].sort((a, b) => a.localeCompare(b));
@@ -14340,6 +14355,12 @@ function ofrSokSok() {
 }
 function ofrSokRita() {
   const s = ofrSok; if (!s) return;
+  if (s.bekr) {
+    s.res.innerHTML = `<div class="sok-bekr" role="alertdialog" aria-label="Add to your deck?"><p><b>${esc(s.bekr.namn)}</b> isn’t in your deck.</p>`
+      + `<p class="sok-bekr-u">Add it to your deck? It stays there for your next games too.</p>`
+      + `<div class="sok-bekr-k"><button type="button" class="sok-nej" data-sokbak>Back</button><button type="button" class="sok-ja" data-sokja>Add to deck</button></div></div>`;
+    return;
+  }
   const q = s.inp.value.trim();
   const hl = n => { const i = q ? n.toLowerCase().indexOf(q.toLowerCase()) : -1; return i < 0 ? `<span>${esc(n)}</span>` : `<span>${esc(n.slice(0, i))}</span><b>${esc(n.slice(i, i + q.length))}</b><span>${esc(n.slice(i + q.length))}</span>`; };
   const rader = s.traffar.map((t, i) => `<button type="button" class="sok-t${i === s.idx ? ' on' : ''}" data-soki="${i}">${hl(t.namn)}</button>`).join('');
@@ -14375,6 +14396,19 @@ function lekNamnNara(q) {
     if (bast <= tol) traffar.push({ x, d: bast });
   }
   return traffar.sort((a, b) => a.d - b.d || a.x.localeCompare(b.x)).map(t => t.x);
+}
+/* Ett valt namn. Står det i leken — eller finns ingen lek att lägga till i — namnges kortet direkt. Kom det ur
+   sökningen bland alla kort frågar rutan först om det ska läggas till i leken (Jesper 2026-10-09: ett kort
+   utanför leken ska inte hamna där av ett felklick); Add to deck namnger kortet och lägger till det, Back går
+   tillbaka till träffarna. */
+function ofrSokValj(t) {
+  const s = ofrSok; if (!s || !t) return;
+  if (t.lek || !ofrSokLekId()) { ofrNamnge(s.pend, t.namn, t.sid, !t.lek); return; }
+  s.bekr = t; ofrSokRita();
+}
+function ofrSokBekrafta() {
+  const s = ofrSok, t = s && s.bekr; if (!t) return;
+  ofrNamnge(s.pend, t.namn, t.sid, true);
 }
 /* Leken som spelas i det här partiet: ett kort utanför den läggs till där (ofrLaggILek). */
 function ofrSokLekId() { const mig = spelLage && minSpelare(); return mig && mig.lekId ? mig.lekId : null; }
