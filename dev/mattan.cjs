@@ -1231,6 +1231,174 @@ const PROV = async () => {
       `${lagd8} på bordet, fråga ${mig.pending.some(q => q.spar === 69 && q.overTak)}, kort ${!!o8}, knapp ${m8 ? m8.textContent : 'ingen'}, etikett ${e8 ? 'finns' : 'ingen'}`);
     lekKort = lekKort0; lekTal = lekTal0;
   } catch (e) { ok('framkallningen: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); }
+
+  /* ── Flyttat för hand (MES-352, designytans "D · Move it anyway") ──
+     Ett kort som kameran följer dras och tappas som alla andra. Under draget: chippet "Moving by hand" vid pekaren
+     (ett skärmlager utanför brädet) och en streckad ram där kameran har kortet. Efter släppet: kortet står kvar —
+     genom samma bord, ett orienteringsbyte, ett skalbyte, detektorns darr, en preliminär position som ankras om och
+     en omladdning — tills det riktiga kortet flyttas mer än AUTO_FLYTT. Brickan på kortet och toasten "Moved by
+     hand" med Undo, som bara ångrar de flyttade korten. Ett klick tappar, och tapet står kvar tills det riktiga
+     kortet vrids (MODE-4). */
+  try {
+    await vanta(500);
+    spelLage = Object.assign({}, spelLage, { id: 'mattprov-hand352' });
+    oppSatt({ klar: true });
+    mig.cards = []; mig.pending = []; handRad.length = 0; matValda.clear(); kamVand = 0;
+    if (kamSkala.las) kamSkala.las.clear();
+    renderAll(true);
+    const S = (id, namn, x, y, rest) => Object.assign({ id, tillstand: 'klar', namn, saker: true, x, y, w: 0.08, h: 0.11, tappad: false, vilar: true }, rest || {});
+    const r = [S(81, 'Llanowar Elves', 0.2, 0.25), S(82, 'Forest', 0.42, 0.25), S(83, 'Serra Angel', 0.64, 0.25)];
+    avstamBord(r, false);
+    for (const c of mig.cards) delete c.ny;
+    renderAll(true); await vanta(500);
+    const kort = s => mig.cards.find(c => c.spar === s), elK = c => els().get(c.cid);
+    const pe = (typ, x, y, mal) => (mal || window).dispatchEvent(new PointerEvent(typ, { bubbles: true, button: 0, buttons: typ === 'pointerup' ? 0 : 1, clientX: x, clientY: y, pointerId: 5, isPrimary: true }));
+    const mitt = c => { const q = elK(c).getBoundingClientRect(); return { x: q.left + q.width / 2, y: q.top + q.height / 2 }; };
+    /* Ett drag i två steg; under: det som syns mitt i draget. */
+    const dra = (c, dx, dy) => {
+      const m = mitt(c);
+      pe('pointerdown', m.x, m.y, elK(c)); pe('pointermove', m.x + dx / 2, m.y + dy / 2); pe('pointermove', m.x + dx, m.y + dy);
+      const chip = document.querySelector('body > .handchip'), ram = gridEl.querySelector(':scope > .kamplats');
+      const under = { chip: !!chip && !chip.hidden && chip.textContent.trim() === 'Moving by hand' && getComputedStyle(chip).position === 'fixed', ram: !!ram && !!ram.querySelector('svg'), ramLage: ram ? [parseFloat(ram.style.left), parseFloat(ram.style.top)] : null };
+      pe('pointerup', m.x + dx, m.y + dy);
+      return under;
+    };
+    const klickK = c => { const m = mitt(c); pe('pointerdown', m.x, m.y, elK(c)); pe('pointerup', m.x, m.y); };
+    const k1 = kort(81), k2 = kort(82), p0 = { x: k1.x, y: k1.y };
+    const u = dra(k1, -90, 120);
+    ok('D: mitt i draget chippet "Moving by hand" i ett fast skärmlager, och en streckad ram med kameran där kortet låg',
+      u.chip && u.ram && !!u.ramLage && Math.abs(u.ramLage[0] - Math.round(p0.x)) <= 1 && Math.abs(u.ramLage[1] - Math.round(p0.y)) <= 1, JSON.stringify(u) + ` mot ${Math.round(p0.x)},${Math.round(p0.y)}`);
+    const p1 = { x: k1.x, y: k1.y }, tk = $('#handToast').querySelector('.htkort');
+    ok('D: släppt — kortet står där det släpptes, handflyttat, och chippet och ramen är borta',
+      (p1.x !== p0.x || p1.y !== p0.y) && !!k1.hand && k1.hand.nar === k1.kam.nar && !document.querySelector('.handchip') && !gridEl.querySelector('.kamplats'), JSON.stringify(k1.hand));
+    const bricka = elK(k1).querySelector('.handmark'), brickaR = bricka && bricka.getBoundingClientRect();
+    const matz = parseFloat(getComputedStyle(gridEl).getPropertyValue('--matz')) || 1, zoom = matVy().z;
+    ok('D: brickan på kortet, 22 px på skärmen vid brädets zoom (1/--matz)', !!brickaR && Math.abs(brickaR.width - 22) < 1.5 && Math.abs(matz - zoom) < 0.01,
+      brickaR ? `${brickaR.width.toFixed(1)} px vid zoom ${zoom.toFixed(2)} (--matz ${matz})` : 'ingen bricka');
+    ok('D: toasten "Moved by hand" med texten och Undo, role=status, i ett fast lager utanför brädet',
+      !!tk && tk.classList.contains('on') && $('#handToast').getAttribute('role') === 'status' && !gridEl.contains(tk) && getComputedStyle($('#handToast')).position === 'fixed'
+      && tk.querySelector('b').textContent === 'Moved by hand' && /The camera takes over again when you move the real card\./.test(tk.textContent) && tk.querySelector('button').textContent === 'Undo', tk ? tk.textContent.trim() : 'ingen toast');
+    ok('D: motståndarna får det handflyttade läget (slimDelat)', (() => { const d = slimDelat(mig.cards).find(c => c.cid === k1.cid); return d.x === k1.x && d.y === k1.y; })());
+    /* Kameran rapporterar samma bord, vrider bilden, byter skala och darrar: kortet står kvar. De andra flyttas. */
+    avstamBord(r, false); renderGrid(true);
+    const sammaBord = k1.x === p1.x && k1.y === p1.y;
+    const q2 = { x: k2.x, y: k2.y };
+    kamVand = 90; for (const c of mig.cards) delete c.kamRitad; renderGrid(true);
+    const vriden = k1.x === p1.x && k1.y === p1.y, andraVreds = k2.x !== q2.x || k2.y !== q2.y;
+    kamVand = 0; for (const c of mig.cards) delete c.kamRitad; renderGrid(true);
+    const las = kamSkala.las.get(mig.id), v0 = las.v; las.v = v0 * 1.3; renderGrid(true);
+    const skalad = k1.x === p1.x && k1.y === p1.y, andraSkalades = k2.x !== q2.x;
+    las.v = v0; renderGrid(true);
+    r[0] = S(81, 'Llanowar Elves', 0.21, 0.255); avstamBord(r, false); renderGrid(true);
+    const darr = k1.x === p1.x && k1.y === p1.y && !!k1.hand;
+    ok('D: kortet står kvar genom samma bord, ett orienteringsbyte, ett skalbyte och detektorns darr (de andra flyttas)',
+      sammaBord && vriden && andraVreds && skalad && andraSkalades && darr, `samma ${sammaBord}, vriden ${vriden} (andra ${andraVreds}), skalad ${skalad} (andra ${andraSkalades}), darr ${darr}`);
+    /* Det riktiga kortet flyttas: kameran tar över, brickan går. */
+    r[0] = S(81, 'Llanowar Elves', 0.3, 0.5); avstamBord(r, false); renderGrid(true);
+    const kp = kamPlats(k1, speglaKamPos.skala, gravRuta(matVy()));
+    ok('D: det riktiga kortet flyttas — kameran tar över, och brickan försvinner', !k1.hand && Math.abs(k1.x - kp.x) < 1 && Math.abs(k1.y - kp.y) < 1 && !elK(k1).querySelector('.handmark'), `x ${Math.round(k1.x)} mot kamerans ${Math.round(kp.x)}`);
+    /* Undo i toasten: bara det här kortet — läget och tap från före draget, och handflyttningen borta. */
+    const f2 = { x: k1.x, y: k1.y, t: k1.tapped };
+    dra(k1, 70, -40);
+    klickK(k1);   // ett tap efter draget: Undo tar tillbaka tap från före draget
+    const tappadMellan = k1.tapped;
+    r[1] = S(82, 'Forest', 0.5, 0.3); avstamBord(r, false); renderGrid(true);   // kameran skriver något annat efter draget
+    const forestEfter = { x: k2.x, y: k2.y };
+    $('#handToast').querySelector('.htangra').click();
+    ok('D: Undo i toasten ångrar bara kortet — läget och tap från före draget, handflyttningen borta — och rör inte det kameran skrev efteråt',
+      tappadMellan === 1 && Math.abs(k1.x - f2.x) < 1 && Math.abs(k1.y - f2.y) < 1 && k1.tapped === f2.t && !k1.hand && k2.x === forestEfter.x && k2.y === forestEfter.y && !handToastOppen(),
+      `tap mellan ${tappadMellan} → ${k1.tapped}, läge ${Math.round(k1.x)},${Math.round(k1.y)} mot ${Math.round(f2.x)},${Math.round(f2.y)}, Forest ${k2.x === forestEfter.x ? 'orörd' : 'flyttad'}`);
+    /* … men en tap som kameran sett efter draget står kvar (granskningen, fynd 6): där gäller bordet. */
+    dra(k1, 40, 40);
+    r[0] = Object.assign({}, r[0], { tappad: true }); avstamBord(r, false); renderGrid(true);
+    $('#handToast').querySelector('.htangra').click();
+    ok('D: … och en tap som kameran sett efter draget står kvar efter Undo', k1.tapped === 1 && !k1.hand, `tapped ${k1.tapped}`);
+    r[0] = Object.assign({}, r[0], { tappad: false }); avstamBord(r, false); renderGrid(true);
+    /* Klick = tap, och det står kvar tills kameran ser det riktiga kortet vridas (MODE-4). */
+    const k3 = kort(83);
+    klickK(k3);
+    const t1 = k3.tapped, toastVidKlick = handToastOppen();
+    avstamBord(r, false); avstamBord(r, false); const t2 = k3.tapped;
+    r[2] = S(83, 'Serra Angel', 0.64, 0.25, { tappad: true }); avstamBord(r, false); const t3 = k3.tapped;
+    r[2] = S(83, 'Serra Angel', 0.64, 0.25, { tappad: false }); avstamBord(r, false); const t4 = k3.tapped;
+    ok('D: ett klick tappar (ingen toast), tapet står kvar genom kamerans bord och följer när det riktiga kortet vrids', t1 === 1 && !toastVidKlick && t2 === 1 && t3 === 1 && t4 === 0, `klick ${t1}, bord ${t2}, vrids ${t3}, tillbaka ${t4}`);
+    /* En preliminär position (kortet bärs, vilar false) som ankras om när kortet lagt sig: handflyttningen står kvar. */
+    r[1] = S(82, 'Forest', 0.42, 0.55, { vilar: false }); avstamBord(r, false); renderGrid(true);
+    const prelNar = k2.kam.nar, varPrel = !!k2.kam.prel;
+    dra(k2, 60, 30); const pf = { x: k2.x, y: k2.y };
+    await vanta(5);
+    r[1] = S(82, 'Forest', 0.425, 0.553, { vilar: true }); avstamBord(r, false); renderGrid(true);
+    ok('D: en preliminär position som ankras om när kortet vilar släpper inte handflyttningen', varPrel && k2.kam.nar !== prelNar && !k2.kam.prel && !!k2.hand && k2.x === pf.x && k2.y === pf.y, `prel ${varPrel}, nytt nar ${k2.kam.nar !== prelNar}, hand ${!!k2.hand}`);
+    /* Ett nytt preliminärt läge långt bort (en hand över lådan) avgörs först när kortet vilar igen: vilar det där det
+       låg står kortet kvar (granskningen, fynd 4). */
+    r[1] = S(82, 'Forest', 0.62, 0.72, { vilar: false }); avstamBord(r, false); renderGrid(true);
+    const underPrel = !!k2.kam.prel && !!k2.hand && k2.x === pf.x && k2.y === pf.y;
+    r[1] = S(82, 'Forest', 0.426, 0.554, { vilar: true }); avstamBord(r, false); renderGrid(true);
+    ok('D: ett preliminärt läge långt bort släpper inte handflyttningen; vilar kortet där det låg står det kvar', underPrel && !k2.kam.prel && !!k2.hand && k2.x === pf.x && k2.y === pf.y, `under ${underPrel}, efter hand ${!!k2.hand}`);
+    /* Omladdning: lokalt bär slimKort handflyttningen; i ett spel byggs bordet ur raden (slimDelat), utan k.kam och
+       spår, och en ny telefonsession binder om korten. Kortet står kvar; flyttas det riktiga kortet tar kameran över. */
+    const lokalt = slimKort(mig.cards).find(c => c.cid === k2.cid);
+    mig.cards = JSON.parse(JSON.stringify(slimDelat(mig.cards))).map(normaliseraKort); renderGrid(true);
+    const k2b = mig.cards.find(c => c.cid === k2.cid), pr = { x: k2b.x, y: k2b.y };
+    const r2 = r.map(t => Object.assign({}, t, { id: t.id + 100 }));
+    avstamBord(r2, false); renderGrid(true);
+    const kvar = k2b.spar === 182 && !!k2b.kam && !!k2b.hand && k2b.x === pr.x && k2b.y === pr.y && !!elK(k2b).querySelector('.handmark');
+    r2[1] = S(182, 'Forest', 0.7, 0.7); avstamBord(r2, false); renderGrid(true);
+    ok('D: omladdning — slimKort bär handflyttningen, och i ett spel står kortet kvar ur raden tills det riktiga kortet flyttas',
+      !!lokalt.hand && lokalt.hand.nar === k2.hand.nar && kvar && !k2b.hand && (k2b.x !== pr.x || k2b.y !== pr.y), `lokalt ${JSON.stringify(lokalt.hand)}, kvar ${kvar}, efter flytt hand ${!!k2b.hand}`);
+    /* Gruppdrag med kort som kameran följer: alla flyttas och handflyttas, Undo tar tillbaka hela draget. */
+    const ga = mig.cards.find(c => c.spar === 181), gb = mig.cards.find(c => c.spar === 183);
+    matValda.clear(); matValda.add(ga.cid); matValda.add(gb.cid); renderSel();
+    const ga0 = { x: ga.x, y: ga.y }, gb0 = { x: gb.x, y: gb.y };
+    const ug = dra(ga, 50, 50);
+    const gruppOk = ga.x !== ga0.x && gb.x !== gb0.x && !!ga.hand && !!gb.hand && ug.chip && handToastOppen();
+    $('#handToast').querySelector('.htangra').click();
+    ok('D: gruppdrag — korten som kameran följer flyttas med, och Undo tar tillbaka hela draget', gruppOk && ga.x === ga0.x && gb.x === gb0.x && !ga.hand && !gb.hand, `grupp ${gruppOk}`);
+    matValda.clear(); renderSel();
+    /* Högar: Undo tar tillbaka högen draget ändrade, men inte ett kort i den som kameran tagit över sedan släppet
+       (granskningen av rättelse 2). Tre Forest: B läggs på A för hand, sedan C på högen; det riktiga B flyttas; Undo
+       tar C ur högen och lämnar B där kameran har det. */
+    r2.push(S(184, 'Forest', 0.5, 0.75), S(185, 'Forest', 0.3, 0.75));
+    avstamBord(r2, false); for (const c of mig.cards) delete c.ny; renderGrid(true);
+    const fo = mig.cards.find(c => c.spar === 182), is = mig.cards.find(c => c.spar === 184), sw = mig.cards.find(c => c.spar === 185);
+    for (const c of [fo, is, sw]) c.tok = 1;   // provet har ingen kortdata (nätet spärrat), så korten är inga land — tokens med samma namn staplas likadant (hogbar, findJoin)
+    renderGrid(true);
+    const mot = (c, mal) => { const a = mitt(c), b = mitt(mal); return [b.x - a.x + 6, b.y - a.y + 6]; };
+    await vanta(600);   // korten glider dit kameran lagt dem: elementens ruta är målet först när glidningen är klar
+    dra(is, ...mot(is, fo));
+    await vanta(600);
+    const hog1 = !!is.grp && is.grp === fo.grp && !!is.hand;
+    dra(sw, ...mot(sw, fo));
+    const hog2 = !!sw.grp && sw.grp === fo.grp && !!sw.hand;
+    r2[3] = S(184, 'Forest', 0.15, 0.2); avstamBord(r2, false); renderGrid(true);
+    const islandUt = !is.hand && !is.grp;
+    $('#handToast').querySelector('.htangra').click();
+    const kpI = kamPlats(is, speglaKamPos.skala, gravRuta(matVy()));
+    ok('D: Undo i en hög tar tillbaka högen men lämnar ett kort som kameran tagit över efter släppet',
+      hog1 && hog2 && islandUt && !sw.grp && !sw.hand && !is.grp && Math.abs(is.x - kpI.x) < 1 && Math.abs(is.y - kpI.y) < 1,
+      `hög efter B ${hog1}, efter C ${hog2}, B ut ${islandUt}, C grp ${sw.grp || '–'}, B grp ${is.grp || '–'} på kamerans plats ${Math.abs(is.x - kpI.x) < 1}`);
+    /* Toasten: en ny ersätter en öppen, klockan på 4 s pausar under pekaren och i fokus, Esc stänger den. */
+    dra(ga, 30, 0); dra(gb, 30, 0);
+    const en = $('#handToast').querySelectorAll('.htkort').length === 1, s = handToastStang;
+    const tk2 = $('#handToast').querySelector('.htkort');
+    tk2.dispatchEvent(new PointerEvent('pointerenter')); const paus = !s.tid && s.kvar > 3500;
+    tk2.dispatchEvent(new PointerEvent('pointerleave')); const vidare = !!s.tid;
+    tk2.querySelector('.htangra').focus(); const fokus = !s.tid;
+    tk2.querySelector('.htangra').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    ok('D: en ny toast ersätter en öppen; den pausar under pekaren och i fokus, och Esc stänger den', en && paus && vidare && fokus && !handToastOppen(), `en ${en}, paus ${paus}, vidare ${vidare}, fokus ${fokus}, öppen ${handToastOppen()}`);
+    dra(ga, -30, 0);
+    await vanta(4300);
+    ok('D: toasten går efter 4 s', !handToastOppen());
+    /* Minskad rörelse: toasten tonas, ingen förflyttning. */
+    window.__mattLugn = true;
+    for (let i = 0; i < 100 && !matchMedia('(prefers-reduced-motion: reduce)').matches; i++) await vanta(20);
+    dra(gb, -30, 0);
+    const tk3 = $('#handToast').querySelector('.htkort'), cs = tk3 && getComputedStyle(tk3);
+    ok('D: minskad rörelse — toasten tonas utan förflyttning', !!cs && cs.transform === 'none' && /opacity/.test(cs.transitionProperty) && !/transform/.test(cs.transitionProperty), cs ? `${cs.transform} · ${cs.transitionProperty}` : 'ingen toast');
+    window.__mattLugn = false;
+    for (let i = 0; i < 100 && matchMedia('(prefers-reduced-motion: reduce)').matches; i++) await vanta(20);
+    handToastStang();
+  } catch (e) { ok('flyttat för hand: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); window.__mattLugn = false; }
   return rad;
 };
 
