@@ -43,8 +43,8 @@ create table if not exists public.kort_handelser (
   namn      text,           -- namnet kortet fick (eller hade, för borttagen)
   fran      text,           -- bytt: namnet före bytet
   kalla     text,           -- namn/sent_namn: telefon | claude | minne — varifrån namnet kom
-  ms        integer,        -- namn/namnlos: från släppet till att kortet syntes på bordet
-  lage      text            -- spelarens läge: spegel, digital …
+  ms        integer,        -- namn/sent_namn/namnlos: ms från att telefonens detektor först såg kortet till att bordet skickades
+  lage      text            -- spelarens läge: bara 'bord' (spegeln) loggas
 );
 
 create index if not exists kort_handelser_spel on public.kort_handelser (game_id, tid);
@@ -94,7 +94,7 @@ grant select, insert, update, delete on public.kort_handelser, public.spel_betyg
 --    ratt_av_sig_sjalv  identifierat, och spelaren behövde aldrig röra det
 --    fel_namn           spelaren bytte ett namn kameran satt (löftet)
 --    rattningar         namngivna + bytta + tillagda + borttagna (huvudmåttet)
---    median_ms, p90_ms  från släppet till att kortet syntes med namn
+--    median_ms, p90_ms  från att telefonen först såg kortet till att det fick namn
 -- ═══════════════════════════════════════════════════════════════════
 
 create or replace view public.upplevelse_kort with (security_invoker = true) as
