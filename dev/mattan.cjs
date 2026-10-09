@@ -779,6 +779,40 @@ const PROV = async () => {
     ok('sleeves: har bordet redan sin färg (bordsraden efter en omladdning) står den kvar', lekFargSig(mig.slvFarg) === '120,30,34,0' && kropp() === 'sleeve', lekFargSig(mig.slvFarg));
     window.lekSlvSpara = spara0; mig.lekId = lekId0; lekAktiv = akt0; mig.bibHog = null; mig.slvFarg = null; kamLek = null; ofrGlom();
     spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, las0); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
+
+  /* Lekens två texter står på samma plats, mitt i övre tredjedelen av kamerans yta (Jesper 2026-10-09; förut
+     flyttade leken texten till den största fria delen bredvid sig, och "Play your first card" hoppade uppåt). */
+  { const sp0 = spelLage, kort0 = mig.cards, las0 = kamSkala.las.get(mig.id);
+    const text = () => { const t = $('#emptyHand .tomlek'); if (!t || !t.offsetWidth) return null; const r = t.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, r, txt: t.textContent.trim() }; };
+    const hogR = () => { const h = $('#grid .lekhog'); return h ? h.getBoundingClientRect() : null; };
+    const over = (a, b) => !!a && !!b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    const ramR = () => { const e = kamYta(); return e && !e.hidden ? e.getBoundingClientRect() : null; };
+    const xy = t => t ? Math.round(t.x) + ',' + Math.round(t.y) : '–';
+    const nytt = async id => {
+      matVyPerSpel.clear(); matVyer.delete(mig.id); kamSkala.las.delete(mig.id); ofrGlom();
+      spelLage = Object.assign({}, spelLage, { id }); oppSatt({ klar: true }); matVyAterta(spelLage.id, mig.id);
+      mig.cards = []; mig.bibHog = null; mig.slvFarg = null; kamLek = null; kamHaftKort = false; kamUpplosning = { w: 1920, h: 1080 };
+      renderAll(true); tagEmotLek(null); await vanta(400);
+    };
+    const leken = async (x, y) => { tagEmotLek({ id: 1, lage: 'ned', ruta: { x: x - 0.035, y: y - 0.085, w: 0.07, h: 0.17 }, farg: null }); renderAll(true); await vanta(400); };
+    await nytt('mattprov-text-1');
+    const t0 = text(), r0 = ramR();
+    ok('texten: "Put your library on the table" står mitt i övre tredjedelen av kamerans yta', !!t0 && !!r0 && /library on the table/.test(t0.txt)
+      && Math.abs(t0.x - (r0.left + r0.right) / 2) <= 2 && Math.abs(t0.y - (r0.top + r0.height / 6)) <= 2, `${xy(t0)}, ytan ${r0 ? [r0.left, r0.top, r0.right, r0.bottom].map(Math.round).join(',') : '–'}`);
+    await leken(0.22, 0.55);
+    const t1 = text();
+    ok('texten: "Play your first card" står på samma plats när leken ligger någon annanstans', !!t1 && /first card/.test(t1.txt) && !!t0 && Math.abs(t1.x - t0.x) <= 1 && Math.abs(t1.y - t0.y) <= 1 && !over(t1.r, hogR()),
+      `${xy(t0)} → ${xy(t1)}`);
+    await nytt('mattprov-text-2'); await leken(0.5, 1 / 6);
+    const t2 = text(), h2 = hogR(), r2 = ramR();
+    const glapp = t2 && h2 ? Math.max(h2.top - t2.r.bottom, t2.r.top - h2.bottom, h2.left - t2.r.right, t2.r.left - h2.right) : NaN;
+    ok('texten: ligger leken där texten står flyttas texten förbi den, så lite som behövs (högens luft, 28 px), och stannar i kamerans yta',
+      !!t2 && !over(t2.r, h2) && glapp >= 26 && glapp <= 31 && !!r2 && t2.r.top >= r2.top - 1 && t2.r.bottom <= r2.bottom + 1 && t2.r.left >= r2.left - 1 && t2.r.right <= r2.right + 1,
+      `texten ${xy(t2)}, glappet till leken ${Math.round(glapp)} px`);
+    kamAnsluten = false; renderAll(true); await vanta(100);
+    ok('texten: övriga texter på mattan står som förut (ingen fast plats)', !$('#emptyHand .tomlek') && !$('#emptyHand').classList.contains('fast') && !!$('#emptyHand .tomtyst'), $('#emptyHand').className);
+    kamAnsluten = true; mig.bibHog = null; kamLek = null; ofrGlom();
+    spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, las0); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
   } catch (e) { ok('utgångsläget: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); window.__mattLugn = false; }
   kamUpplosning = null;
 

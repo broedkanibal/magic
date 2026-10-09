@@ -921,6 +921,8 @@ body.lasvy .kortark{display:none!important}
 .matta .empty.bredvid{overflow:visible;padding:12px}
 .matta .empty.trang{gap:8px}
 .matta .empty.trang .empty-icon{display:none}
+/* Lekens texter på sin fasta plats (tomFastPlats): rutan är textens egen höjd, och texten rullar aldrig. */
+.matta .empty.fast{overflow:visible;padding:0}
 .matta .empty.glider{transition:left .32s cubic-bezier(.2,.8,.3,1),top .32s cubic-bezier(.2,.8,.3,1),width .32s cubic-bezier(.2,.8,.3,1),height .32s cubic-bezier(.2,.8,.3,1)}
 body.lasvy .mattachrome .btn{display:none!important}
 /* Bredden sätts av rutnätet ovan och följer fönstret: ett Magic-kort är 0.72
@@ -9701,13 +9703,30 @@ function matKamYta(p, v, fore) {
 function tomPlats(p) {
   const el = emptyEl, v = gridEl._matKamVy;
   el.classList.toggle('glider', gridEl.classList.contains('glider'));
-  if (!p || !v || !(v.z > 0) || !v.vp || el.classList.contains('hide')) { if (el.dataset.plats) { el.style.cssText = ''; el.dataset.plats = ''; el.classList.remove('bredvid', 'trang'); } return; }
+  if (!p || !v || !(v.z > 0) || !v.vp || el.classList.contains('hide')) { if (el.dataset.plats) { el.style.cssText = ''; el.dataset.plats = ''; el.classList.remove('bredvid', 'trang', 'fast'); } return; }
   const z = v.z, vy = { x0: -v.pan.x / z, y0: -v.pan.y / z, x1: (v.vp.w - v.pan.x) / z, y1: (v.vp.h - v.pan.y) / z };
   const R = kamYtaRam(p) || vy;
   /* Högarna i ytan, med luft för brickan under högen och lite till (skärm-px, som brickan). */
   const luft = 28 / z, hinder = lekPoster(p, false).map(x => x.ram).filter(Boolean)
     .map(r => ({ x0: r.x0 - luft, y0: r.y0 - luft, x1: r.x1 + luft, y1: r.y1 + luft }))
     .filter(r => r.x1 > R.x0 && r.x0 < R.x1 && r.y1 > R.y0 && r.y0 < R.y1);
+  /* Lekens två texter (renderTom, "Put your library on the table" → "Play your first card when you're ready") står
+     på en fast plats — mitt i övre tredjedelen av kamerans yta — i båda, så att bytet är kvittensen och texten inte
+     hoppar (Jesper 2026-10-09; förut flyttade leken texten till den största fria delen bredvid sig). Ligger en hög
+     där flyttas texten bara då, och bara så lite som behövs (tomFastPlats). */
+  const lek = el.querySelector('.tomlek');
+  if (lek) {
+    const W = (R.x1 - R.x0) * z;
+    el.classList.remove('bredvid', 'trang'); el.classList.add('fast');
+    if (el.style.width !== Math.round(W) + 'px') el.style.width = Math.round(W) + 'px';   // texten bryts i samma bredd som den står i
+    const q = lek.getBoundingClientRect(), c = tomFastPlats(R, hinder, q.width / z, q.height / z);
+    if (c) {
+      const st = `left:${Math.round(v.pan.x + c.x * z - W / 2)}px;top:${Math.round(v.pan.y + c.y * z - q.height / 2)}px;width:${Math.round(W)}px;height:${Math.round(q.height)}px;right:auto;bottom:auto`;
+      if (el.dataset.plats !== st) { el.style.cssText = st; el.dataset.plats = st; }
+      return;
+    }
+  }
+  el.classList.remove('fast');
   let A = R;
   if (hinder.length) {
     const O = hinder.reduce((a, b) => ({ x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) }));
@@ -9722,6 +9741,27 @@ function tomPlats(p) {
   el.classList.toggle('trang', A !== R && (A.y1 - A.y0) * z < 230);
   const st = `left:${Math.round(v.pan.x + A.x0 * z)}px;top:${Math.round(v.pan.y + A.y0 * z)}px;width:${Math.max(0, Math.round((A.x1 - A.x0) * z))}px;height:${Math.max(0, Math.round((A.y1 - A.y0) * z))}px;right:auto;bottom:auto`;
   if (el.dataset.plats !== st) { el.style.cssText = st; el.dataset.plats = st; }
+}
+/* Var lekens texter står (tomPlats): mitten av en text w × h (brädets px), mitt i övre tredjedelen av R. Täcker den en
+   hög (hinder, med luft) flyttas den så lite som behövs: förbi högen åt sidan, uppåt eller nedåt — också förbi två
+   högar i rad — och den stannar i R. null = ingen fri plats i R; då gäller den största fria delen, som förut. */
+function tomFastPlats(R, hinder, w, h) {
+  const hw = w / 2, hh = h / 2;
+  const klam = c => ({ x: R.x1 - R.x0 > w ? Math.max(R.x0 + hw, Math.min(R.x1 - hw, c.x)) : (R.x0 + R.x1) / 2,
+                       y: R.y1 - R.y0 > h ? Math.max(R.y0 + hh, Math.min(R.y1 - hh, c.y)) : (R.y0 + R.y1) / 2 });
+  const krock = c => hinder.filter(o => c.x - hw < o.x1 && c.x + hw > o.x0 && c.y - hh < o.y1 && c.y + hh > o.y0);
+  const c0 = klam({ x: (R.x0 + R.x1) / 2, y: R.y0 + (R.y1 - R.y0) / 6 });
+  let led = [c0], bast = null;
+  for (let varv = 0; varv < 3 && led.length; varv++) {
+    const nasta = [];
+    for (const c of led) {
+      const k = krock(c);
+      if (!k.length) { const d = Math.hypot(c.x - c0.x, c.y - c0.y); if (!bast || d < bast.d) bast = { c, d }; continue; }
+      for (const o of k) nasta.push(klam({ x: o.x0 - hw, y: c.y }), klam({ x: o.x1 + hw, y: c.y }), klam({ x: c.x, y: o.y0 - hh }), klam({ x: c.x, y: o.y1 + hh }));
+    }
+    led = nasta;
+  }
+  return bast && bast.c;
 }
 /* Bordets 100 % i rutan: 1, eller i bordsvyn rutan mot mitt bord när det är stort. */
 function zstegBas(vp) { const ref = bordRef || vp; return Math.min(1, vp.w / ref.w, vp.h / ref.h); }
@@ -13450,6 +13490,13 @@ function tomLage() {
 }
 function renderTom() {
   const el = $('#emptyHand'); if (!el) return;   // inte emptyEl: renderMode ritas tidigt
+  const lek = !!el.querySelector('.tomlek');
+  renderTomText(el);
+  /* Lekens texter har en fast plats som räknas på texten (tomPlats): den följer med när texten byts, också utanför
+     renderGrid (tagEmotLek byter texten efter att mattan ritats). Övriga texter står som förut. */
+  if (lek || el.querySelector('.tomlek')) tomPlats(player());
+}
+function renderTomText(el) {
   const l = tomLage();
   const n = l === 'okanda' ? kamSer - kamLast : 0;
   const harKo = l === 'okanda' && (malSpelare().pending || []).some(q => q.spar != null);
