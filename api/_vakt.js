@@ -41,6 +41,13 @@
      SUPABASE_SERVICE_ROLE_KEY  krävs för räknaren (ligger i Vercel sedan 2026-09-28)
      SUPABASE_JWT_SECRET        valfri, bara för HS256-tokens
      CLAUDE_TAK_PER_MANAD       valfri, förval 300
+     CLAUDE_TAK_PER_PARTI       valfri, förval 30 per konto och parti
+                                (Jespers beslut 2026-10-09); 0 = inga frågor i
+                                ett parti, tomt eller "av" = inget tak per parti
+
+   Taket per parti räknas i samma rpc, under samma lås, på spelkoden i
+   claude_fragor.spel (migrationen 20261009100000_claude_tak_per_parti.sql).
+   Frågor utanför ett parti (lekfotot) räknas bara mot månaden.
    ══════════════════════════════════════════════════════════════════ */
 import crypto from 'node:crypto';
 
@@ -52,6 +59,14 @@ export const TAK_FORVAL = 300;
 export function takPerManad() {
   const n = parseInt(env('CLAUDE_TAK_PER_MANAD'), 10);
   return Number.isFinite(n) && n >= 0 ? n : TAK_FORVAL;
+}
+export const TAK_PARTI_FORVAL = 30;
+/* null = inget tak per parti (CLAUDE_TAK_PER_PARTI=av). */
+export function takPerParti() {
+  const v = env('CLAUDE_TAK_PER_PARTI');
+  if (/^(av|off|ingen)$/i.test(v)) return null;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n >= 0 ? n : TAK_PARTI_FORVAL;
 }
 
 /* De nya nycklarna (sb_secret_…) är inga JWT och går bara i apikey; den
@@ -225,14 +240,15 @@ export async function verifiera(token) {
 }
 
 /* ── 2. taket ──────────────────────────────────────────────────────── */
-/* { ok, antal, tak, id, nollstalls } — eller kastar, när räknaren inte
-   gick att nå (då svarar identify 503). */
+/* { ok, antal, tak, id, nollstalls, parti, takParti, varfor } — eller
+   kastar, när räknaren inte gick att nå (då svarar identify 503). varfor är
+   'manad' eller 'parti' när ett tak är nått. */
 export async function reservera({ anvandare, mode, spel }) {
   if (!basUrl() || !tjanstNyckel()) throw new Error('SUPABASE_URL eller SUPABASE_SERVICE_ROLE_KEY saknas på servern');
-  const tak = takPerManad();
+  const tak = takPerManad(), takParti = takPerParti();
   const r = await fetch(basUrl() + '/rest/v1/rpc/claude_fraga_reservera', {
     method: 'POST', headers: tjanstHuvuden(),
-    body: JSON.stringify({ p_user: anvandare, p_tak: tak, p_mode: mode, p_spel: spel || null }),
+    body: JSON.stringify({ p_user: anvandare, p_tak: tak, p_mode: mode, p_spel: spel || null, p_tak_parti: takParti }),
     signal: AbortSignal.timeout(4000)
   });
   const txt = await r.text();
@@ -240,7 +256,8 @@ export async function reservera({ anvandare, mode, spel }) {
   let rad;
   try { const j = JSON.parse(txt); rad = Array.isArray(j) ? j[0] : j; } catch (e) {}
   if (!rad || typeof rad.ok !== 'boolean') throw new Error('räknaren svarade utan rad: ' + txt.slice(0, 200));
-  return { ok: rad.ok, antal: rad.antal, tak, id: rad.id, nollstalls: rad.nollstalls };
+  return { ok: rad.ok, antal: rad.antal, tak, id: rad.id, nollstalls: rad.nollstalls,
+           parti: rad.parti == null ? null : rad.parti, takParti, varfor: rad.varfor || (rad.ok ? null : 'manad') };
 }
 
 /* ── 3. loggen ─────────────────────────────────────────────────────── */
@@ -281,4 +298,9 @@ export function takText(tak, nollstalls) {
   return `Your AI help for this month is used up (${tak} of ${tak} questions to Claude). ` +
     (datum ? `It starts again on ${datum}. ` : 'It starts again next month. ') +
     'Mesa keeps recognizing cards on its own; the ones it is unsure of go to Which card is this?';
+}
+/* …och när partiets tak är nått. */
+export function takPartiText(tak) {
+  return `AI help is used up for this game (${tak} of ${tak} questions to Claude). ` +
+    'Mesa keeps recognizing cards on its own; the ones it is unsure of are yours to name.';
 }
