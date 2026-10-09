@@ -1,0 +1,28 @@
+# Vad som får följa med till Vercel. Allt annat i repot (planer, mätverktyg,
+# designunderlag, databasschema, agentinstruktioner) var tidigare nåbart för
+# vem som helst på samma adress som appen.
+#
+# Appen behöver: index.html, api/, assets/ och fyra filer under dev/ som
+# index.html laddar vid körning (detektorn och bildmodellens kod + detektorns vikter).
+# Lägger du en ny fil som appen hämtar vid körning: ta med den här, annars 404.
+
+/*
+!/index.html
+!/api
+!/assets
+!/dev
+
+/dev/*
+!/dev/embed
+!/dev/detektor
+
+/dev/embed/*
+!/dev/embed/embed.js
+
+/dev/detektor/*
+!/dev/detektor/modell
+
+/dev/detektor/modell/*
+!/dev/detektor/modell/detektor.js
+!/dev/detektor/modell/yolox_nano_mesa_960x544.onnx
+!/dev/detektor/modell/yolox_nano_mesa_960x544_fp16.onnx
