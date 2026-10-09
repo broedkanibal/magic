@@ -13085,8 +13085,9 @@ function renderTom() {
   /* Leken utan uppstart (MES-334 steg 3, sida 5 tavla 1–2): före första
      kortet säger mattan bara en sak — lägg ner leken, och när den ligger:
      spela första kortet. Samma stil och plats i båda; bytet är kvittensen.
-     Också medan kameran läser något okänt (leken själv innan den dömts). */
-  const lt = !opp && (l === 'redo' || l === 'okanda') ? lekText() : null;
+     Också medan kameran läser något okänt (leken själv innan den dömts) och
+     medan den ställer in sig (startar) — då ska inte "in a moment" hinna synas. */
+  const lt = !opp && (l === 'redo' || l === 'okanda' || l === 'startar') ? lekText() : null;
   const sig = l + n + (harKo ? 'k' : '') + mittLage() + (hittar ? 'h' : '') + (opp ? 'o' : '') + (lt ? '|' + lt : '');
   if (el.dataset.sig === sig) return;
   el.dataset.sig = sig;
