@@ -2,12 +2,14 @@
 # designunderlag, databasschema, agentinstruktioner) var tidigare nåbart för
 # vem som helst på samma adress som appen.
 #
-# Appen behöver: index.html, api/, assets/ och fyra filer under dev/ som
+# Appen behöver: index.html, terms.html, privacy.html, api/, assets/ och fyra filer under dev/ som
 # index.html laddar vid körning (detektorn och bildmodellens kod + detektorns vikter).
 # Lägger du en ny fil som appen hämtar vid körning: ta med den här, annars 404.
 
 /*
 !/index.html
+!/terms.html
+!/privacy.html
 !/api
 !/assets
 !/dev
