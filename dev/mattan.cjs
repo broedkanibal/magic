@@ -1005,6 +1005,83 @@ const PROV = async () => {
       }
     }
     ofrSokStang();
+    /* MES-351, läge 9 där etiketterna MÅSTE krocka: tre oframkallade kort på samma rad, tätt i sidled, inzoomat så
+       att korten är över 120 px (då döljs ingen etikett för storlekens skull). Minst en "NOT IDENTIFIED" döljs, och
+       ingen synlig täcker en knapp eller en annan etikett. Kontrollen: en dold etikett behåller sin ruta
+       (visibility:hidden), och på de rutorna hade etiketterna täckt varandra eller en knapp. */
+    const tat9 = [64, 65, 66];
+    tat9.forEach((id, i) => r.push(S(id, null, 0.48 + 0.02 * i, 0.45, { tillstand: 'okand', cands: [{ name: 'Forest', score: 0.4 }] })));
+    avstamBord(r, false);
+    await vanta(650);
+    /* Zooma och flytta vyn så att kortet står mitt i fönstret (vyn kan stå förskjuten efter tidigare prov). */
+    const centrera = async (el, z) => {
+      await zoomPa(el, z);
+      const p = player(), v = matVy(p), w = gridWrap.getBoundingClientRect(), q = rekt(el);
+      matVyFor(p).pan = clampPan({ x: v.pan.x + (w.left + w.width / 2) - (q.left + q.width / 2), y: v.pan.y + (w.top + w.height / 2) - (q.top + q.height / 2) }, v.z, v.board, v.vp, v.ram);
+      matSkriv(p); await vanta(400);
+    };
+    if (ofrEl(65)) await centrera(ofrEl(65), Math.max(1, 130 / MATTA.CH));
+    const skarT = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+    const synligaKnappar = () => [...gridEl.querySelectorAll(':scope > .ofrmark[data-ofr]')].filter(el => !el.classList.contains('dold'));
+    const tacker = (el, ovriga) => ovriga.some(b => b !== el && skarT(rekt(el), rekt(b)));
+    const etik9 = tat9.map(id => gridEl.querySelector(`:scope > .ofretik[data-ofr="${id}"]`)), kh9 = tat9.map(id => ofrEl(id) ? Math.round(rekt(ofrEl(id)).height) : 0);
+    const dold9 = etik9.filter(el => el && el.classList.contains('dold'));
+    const allaSyn = [...gridEl.querySelectorAll(':scope > .ofretik[data-ofr]')].filter(el => !el.classList.contains('dold'));
+    const synTackt = allaSyn.filter(el => tacker(el, allaSyn.concat(synligaKnappar())));
+    const utanDolj = etik9.every(Boolean) && etik9.some(el => tacker(el, etik9.concat(synligaKnappar())));
+    ok('läge 9, tät rad: korten över 120 px, minst en "NOT IDENTIFIED" dold för att den skulle täcka något', etik9.every(Boolean) && kh9.every(h => h >= OFR_ETIK_MIN) && dold9.length >= 1,
+      `kort ${kh9.join('/')} px, ${etik9.filter(el => el && !el.classList.contains('dold')).length} synliga, ${dold9.length} dolda`);
+    ok('… ingen synlig etikett täcker en knapp eller en annan etikett', etik9.every(Boolean) && !synTackt.length, synTackt.map(el => el.dataset.ofr).join(',') || '');
+    ok('… kontrollen: utan döljningen hade etiketterna täckt varandra eller en knapp', utanDolj, '');
+    /* Sökrutan öppen på ett kort i den täta raden: dess knapp döljs men läggs ut som om den syntes, så att
+       grannarnas knappar och etiketter står kvar. Kortet vars knapp läggs ut först (ankaret överst, sedan till
+       vänster: samma ordning som ofrMarkLagg) — utan rättelsen flyttade grannarna in på dess plats. */
+    const knapp9 = tat9.map(id => gridEl.querySelector(`:scope > .ofrmark[data-ofr="${id}"]`)).filter(Boolean)
+      .sort((a, b) => (parseFloat(a.style.top) - parseFloat(b.style.top)) || (parseFloat(a.style.left) - parseFloat(b.style.left)));
+    const forst9 = knapp9[0], fId = forst9 && forst9.dataset.ofr;
+    const lage9 = () => { const g = gridEl.getBoundingClientRect(); return [...gridEl.querySelectorAll(':scope > .ofrmark[data-ofr], :scope > .ofretik[data-ofr]')]
+      .filter(el => !(el.dataset.ofr === fId && el.classList.contains('ofrmark')))
+      .map(el => { const q = rekt(el); return `${el.dataset.ofr}${el.classList.contains('ofrmark') ? 'k' : 'e'}${el.classList.contains('dold') ? '·dold' : ''}@${Math.round(q.left - g.left)},${Math.round(q.top - g.top)}`; }).join(' '); };
+    const fore9 = lage9();
+    if (forst9) await riktigtKlick(forst9);
+    const oppen9 = !!document.querySelector('.ofrsok') && !!ofrSok && !!forst9 && ofrSok.pend === forst9.dataset.pend, under9 = lage9();
+    const forstK = () => gridEl.querySelector(`:scope > .ofrmark[data-ofr="${fId}"]`);
+    ok('sökrutan öppen i en tät rad: dess knapp är dold, grannarnas knappar och etiketter står kvar (samma ruta, samma klass)', oppen9 && !!forstK() && forstK().classList.contains('dold') && knapp9.length === 3 && fore9 === under9,
+      (fore9 === under9 ? `kort ${fId}` : `före ${fore9} · under ${under9}`) + ` · ruta ${oppen9}, knapp ${forstK() ? forstK().className : 'ingen'}, ${knapp9.length} knappar`);
+    ofrSokStang();
+    const efter9 = lage9();
+    ok('… och när rutan stängs står allt där det stod', !!forstK() && !forstK().classList.contains('dold') && efter9 === fore9, efter9 === fore9 ? '' : `före ${fore9} · efter ${efter9}`);
+    matZoomMot(zFit, 0, 0); await vanta(300);
+    /* Läge 7: ett tappat oframkallat kort (kamGrund = 0, spåret tappat). Etiketten står 9 px under den vridna
+       rutans överkant och knappen strax ovanför dess nederkant, båda raka (bara skala och förskjutning). */
+    r.push(S(67, null, 0.88, 0.6, { tillstand: 'okand', tappad: true, w: 0.11, h: 0.08, cands: [{ name: 'Forest', score: 0.4 }] }));
+    avstamBord(r, false);
+    await vanta(650);
+    const t7 = ofrEl(67);
+    if (t7) await zoomPa(t7, Math.max(1, 140 / MATTA.CW));
+    const e7 = gridEl.querySelector(':scope > .ofretik[data-ofr="67"]'), m7 = gridEl.querySelector(':scope > .ofrmark[data-ofr="67"]');
+    const rak = el => { const s = getComputedStyle(el), m = /^matrix\(([^)]+)\)$/.exec(s.transform), v = m ? m[1].split(',').map(Number) : null;
+      return (s.transform === 'none' || (!!v && Math.abs(v[1]) < 1e-6 && Math.abs(v[2]) < 1e-6)) && (!s.rotate || s.rotate === 'none' || parseFloat(s.rotate) === 0); };
+    const ur7 = t7 && rekt(t7), er7 = e7 && rekt(e7), mr7 = m7 && rekt(m7);
+    ok('läge 7, tappat kort: etiketten 9 px under den vridna rutans överkant, knappen strax ovanför dess nederkant, båda raka',
+      !!ur7 && !!er7 && !!mr7 && ur7.width > ur7.height && !e7.classList.contains('dold') && Math.abs(er7.top - ur7.top - 9) <= 1.5 && ur7.bottom - mr7.bottom >= 0 && ur7.bottom - mr7.bottom <= 10 && rak(e7) && rak(m7),
+      ur7 && er7 && mr7 ? `ruta ${Math.round(ur7.width)}×${Math.round(ur7.height)}, etikett ${(er7.top - ur7.top).toFixed(1)} px ned${e7.classList.contains('dold') ? ' (dold)' : ''}, knapp ${(ur7.bottom - mr7.bottom).toFixed(1)} px över nederkanten, ${getComputedStyle(e7).transform} / ${getComputedStyle(m7).transform}` : `kort ${!!t7}, etikett ${!!e7}, knapp ${!!m7}`);
+    matZoomMot(zFit, 0, 0); await vanta(300);
+    /* Läge 8: antalets fråga (overTak). Leken har ett Lightning Bolt och det ligger redan på bordet; ett nytt spår
+       med samma namn blir frågan "Another Lightning Bolt?" — kortet är identifierat, så ingen "NOT IDENTIFIED". */
+    const lekKort0 = lekKort, lekTal0 = lekTal;
+    lekKort = lekKort.concat([{ name: 'Lightning Bolt', n: 1 }]); sattLekTal(lekKort);
+    r.push(S(68, 'Lightning Bolt', 0.6, 0.85));
+    avstamBord(r, false);
+    await vanta(300);
+    const lagd8 = mig.cards.filter(c => c.name === 'Lightning Bolt').length;
+    r.push(S(69, 'Lightning Bolt', 0.8, 0.85));
+    avstamBord(r, false);
+    await vanta(650);
+    const o8 = ofrEl(69), m8 = gridEl.querySelector(':scope > .ofrmark[data-ofr="69"]'), e8 = gridEl.querySelector(':scope > .ofretik[data-ofr="69"]');
+    ok('läge 8, antalets fråga: knappen "Another Lightning Bolt?", ingen "NOT IDENTIFIED"', lagd8 === 1 && mig.pending.some(q => q.spar === 69 && q.overTak) && !!o8 && !!m8 && m8.textContent === 'Another Lightning Bolt?' && !e8,
+      `${lagd8} på bordet, fråga ${mig.pending.some(q => q.spar === 69 && q.overTak)}, kort ${!!o8}, knapp ${m8 ? m8.textContent : 'ingen'}, etikett ${e8 ? 'finns' : 'ingen'}`);
+    lekKort = lekKort0; lekTal = lekTal0;
   } catch (e) { ok('framkallningen: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); }
   return rad;
 };

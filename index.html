@@ -8432,7 +8432,8 @@ function ofrPek(id, pa) {
    ligger. Den står alltså så nära sitt eget kort som det går. Ankaret står kvar; --ofrdy är förskjutningen i
    skärm-px (.ofrmark). Körs efter varje omritning och varje zoom (matSkriv): knappen har samma storlek på
    skärmen vid all zoom, så det är zoomen som avgör om två knappar krockar. Knappen till kortet vars sökruta är
-   öppen döljs (MES-351, läge 5).
+   öppen döljs (MES-351, läge 5) — men läggs ut som om den syntes, så att grannarnas knappar och etiketter
+   står kvar och inget hoppar när rutan öppnas och stängs.
    Sedan etiketterna (MES-351, lägen 6 och 9): en etikett står där den står, eller döljs — när kortet är lägre
    än OFR_ETIK_MIN px på skärmen, eller när den skulle täcka en knapp eller en etikett som redan ligger. Det
    främsta kortet (sist i brädet) får sin etikett först. */
@@ -8452,7 +8453,7 @@ function ofrMarkLagg() {
     const dold = !!ofrSokPend && e.dataset.pend === ofrSokPend;
     if (e.classList.contains('dold') !== dold) e.classList.toggle('dold', dold);
     const q = ofr.get(e.dataset.ofr), a = q && ofrMarkAnkare(q);
-    return a && !dold ? { e, a, w: e.offsetWidth, h: e.offsetHeight, kh: (ofrTappad(q) ? MATTA.CW : MATTA.CH) * z } : null;
+    return a ? { e, a, w: e.offsetWidth, h: e.offsetHeight, kh: (ofrTappad(q) ? MATTA.CW : MATTA.CH) * z } : null;
   }).filter(Boolean).sort((p, q) => (p.a.y - q.a.y) || (p.a.x - q.a.x));
   for (const m of lista) {
     const cx = m.a.x * z, by = m.a.y * z, steg = m.h + OFR_MARK_LUFT;
