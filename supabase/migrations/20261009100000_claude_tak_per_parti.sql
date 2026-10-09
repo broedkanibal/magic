@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════
 --  Mesa — taket per parti (Jespers beslut 2026-10-09)
 --
+--  KÖRD i produktionen 2026-10-09 (Supabase MCP, apply_migration). Går att köra om.
+--
 --  Utöver taket per konto och kalendermånad (MES-316, 300) får ett konto
 --  högst p_tak_parti frågor till Claude i ett och samma parti (spelkoden i
 --  claude_fragor.spel). Taket kommer från servern (CLAUDE_TAK_PER_PARTI,
