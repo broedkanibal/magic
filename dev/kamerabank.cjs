@@ -2372,6 +2372,43 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       await new Promise(r => setImmediate(r));
     }
 
+    // LK12c (Jespers besked 2026-10-09: nedvända kort läggs ibland UTAN sleeves): leken med gröna sleeves och en ensam brun
+    //   baksidelåda bredvid. Bildmodellen känner igen Magic-baksidan på spåret (varfor 'baksida'): ett nedvänt kort, fast färgen
+    //   inte är lekens. Samma bruna låda som bildmodellen INTE känner igen ('baksida ficka', som i resten av blocket): inget.
+    // LK12d (samma dag): leken lyfts, och en vit hög läggs ner medan den är i luften — den blir inte library (fel färg). En grön
+    //   hög som läggs ner sedan blir library.
+    {
+      const N7 = { x: 60, y: 40, w: 30, h: 42 }, N8 = { x: 100, y: 90, w: 30, h: 42 };
+      const rgbaN = (...ytor) => { const d = rgbaRuta(false); for (const [b, farg] of ytor) for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) { const i = 4 * (y * W + x); d[i] = farg[0]; d[i + 1] = farg[1]; d[i + 2] = farg[2]; } return d; };
+      const stegF = async (ritar, lador, rgba) => {
+        nu += TAKT; const g = matta(W, H, 100, 3, lcg(2300 + nu)); for (const r of ritar) r(g);
+        Kamera.steg(g, nu, H, undefined, V, det(lador), rgba);
+        await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+        return Kamera.lek;
+      };
+      const korF = async (n, ritar, lador, rgba) => { let l = null; for (let i = 0; i < n; i++) l = await stegF(ritar, lador, rgba); return l; };
+      const BRUN = [110, 75, 45], VIT = [235, 235, 230], GRON = [40, 140, 80];
+      const forraSvar12 = namnSvar;
+      const vidN7 = t => !!t && !!t.box && Math.abs(t.box.x - N7.x) < 8 && Math.abs(t.box.y - N7.y) < 8;
+      namnSvar = (id, g) => { const t = Kamera.spar.find(q => q.id === id); return t && t.klass === 'baksida' && vidN7(t) ? { baksida: true, varfor: 'baksida', poang: 0.9 } : forraSvar12(id, g); };
+      await korF(26, [hog(L)], [lada(L, 'baksida')], rgbaN());
+      const utan = await korF(20, [hog(L), hog(N7)], [lada(L, 'baksida'), lada(N7, 'baksida')], rgbaN([N7, BRUN]));
+      namnSvar = forraSvar12;
+      await korF(30, [hog(L)], [lada(L, 'baksida')], rgbaN());
+      const ficka = await korF(20, [hog(L), hog(N7)], [lada(L, 'baksida'), lada(N7, 'baksida')], rgbaN([N7, BRUN]));
+      check(`LK12c nedvänt kort utan sleeves: lekens färg ${JSON.stringify(utan && utan.farg)}; Magic-baksidan igenkänd ned ${JSON.stringify(utan && utan.ned)}; inte igenkänd ned ${JSON.stringify(ficka && ficka.ned)}`,
+            !!utan && !!utan.farg && utan.ned.length === 1 && Math.abs(utan.ned[0].ruta.x * W - N7.x) < 2 && !!ficka && ficka.ned.length === 0);
+
+      await korF(30, [hog(L)], [lada(L, 'baksida')], rgbaN());
+      const lyft = await korF(40, [], [], rgbaN());
+      const vit = await korF(14, [hog(N7)], [lada(N7, 'baksida')], rgbaN([N7, VIT]));
+      const gron = await korF(14, [hog(N7), hog(N8)], [lada(N7, 'baksida'), lada(N8, 'baksida')], rgbaN([N7, VIT], [N8, GRON]));
+      check(`LK12d leken läggs ner igen i lekens färg: lyft ${lyft && lyft.lage}; vit hög ${vit && vit.lage} ${JSON.stringify(vit && vit.ruta)}; grön hög ${gron && gron.lage} ${JSON.stringify(gron && gron.ruta)}`,
+            !!lyft && lyft.lage === 'upp' && !!vit && vit.lage === 'upp' && !!gron && gron.lage === 'nere' && Math.abs(gron.ruta.x * W - N8.x) < 2);
+      nu += TAKT; Kamera.steg(matta(W, H, 100, 3, lcg(2400 + nu)), nu, H, undefined, V, det([]), new Uint8ClampedArray(0));
+      await new Promise(r => setImmediate(r));
+    }
+
     // ── Granskningen runda 1 (MES-334 steg 3): fynd 2, 3 och 5 som bänkfall (granskarens GP1–GP3) och fynd 1 (lekens ruta) ──
     // LK13 (GP1): grundläget ur leken nollas av en skrivning av raden utan grundläge (tillampaKalRad → satGrund(null)) — telefonen tar lekens vinkel igen
     await nyttBord('h');
