@@ -36818,7 +36818,8 @@ function villkorKnappar() {
 $('#villkorBox').onchange = villkorKnappar;
 $('#startBytBtn').onclick = () => visaStartLage(startLage === 'skapa' ? 'logga' : 'skapa');
 $('#toppLoggaIn').onclick = () => { visaStartLage('logga'); $('#loggaInBtn').focus(); };
-function villkorSparr() { visaStartLage('sparr'); $('#vyStart').classList.remove('vantar'); }
+/* Spärren är ett steg på vägen in i appen, inte landningssidan: bara kortet, utan presentationen runt om. */
+function villkorSparr() { $('#vyStart').classList.add('kompakt'); visaStartLage('sparr'); $('#vyStart').classList.remove('vantar'); }
 $('#villkorOkBtn').onclick = async () => {
   portalFel('#startFel', '');
   $('#villkorOkBtn').disabled = true;
