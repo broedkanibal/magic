@@ -28,6 +28,10 @@ create table if not exists public.decks (
 -- spelas inte upp två gånger.
 alter table public.decks
   add column if not exists klara jsonb not null default '[]'::jsonb;
+-- färgen telefonen mätte på lekens sleeves, {r, g, b, magic}, så att nästa
+-- parti börjar i dem (migrations/20261009130000_decks_slv_farg.sql)
+alter table public.decks
+  add column if not exists slv_farg jsonb;
 create index if not exists decks_user_uppdaterad on public.decks(user_id, uppdaterad desc);
 alter table public.decks enable row level security;
 

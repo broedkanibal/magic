@@ -6497,6 +6497,16 @@ const Moln = (() => {
     if (error) { console.warn('Lekvalet kunde inte sparas', error.message); return false; }
     return true;
   }
+  /* Sleevens färg som telefonen mätte på leken (decks.slv_farg, Jesper 2026-10-09): nästa parti börjar i den.
+     Bara kolumnen skrivs — uppdaterad står kvar, så leken räknas inte som ändrad och sparaLeks
+     överskrivningsskydd rörs inte. Saknas kolumnen (migrationen inte körd) blir det ett fel som loggas en gång. */
+  let slvFel = false;
+  async function sparaLekSlv(id, farg) {
+    const s = await klient(); if (!s || !inloggad() || !id) return false;
+    const { error } = await s.from('decks').update({ slv_farg: farg || null }).eq('id', id).eq('user_id', minId());
+    if (error) { if (!slvFel) console.warn('Sleevens färg kunde inte sparas', error.message); slvFel = true; return false; }
+    return true;
+  }
   async function minLekIGame(gameId) {
     const s = await klient(); if (!s || !inloggad() || !gameId) return null;
     const { data, error } = await s.from('game_players').select('lek_id, lek_info')
@@ -6969,7 +6979,7 @@ const Moln = (() => {
            VILLKOR_VERSION, villkorGodkand, godkannVillkor,
            skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
            avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
-           hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
+           hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, sparaLekSlv, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans, hamtaVektorer, hamtaRefs, sparaRefs, raderaRefs,
@@ -10197,6 +10207,7 @@ function tagEmotLek(l) {
   kamLek = l;
   const mig = minSpelare(); if (!mig) return;
   const fore = lekSig(mig);
+  const gissad = lekSlvBord(mig), matt = lekSlvMatt(l);   // sleevens färg från förra partiet, och telefonens mätning
   /* Ett klick (Not my library, It's my library) som telefonen inte svarat
      på: rapporterna från före klicket gäller inte, annars hoppade leken
      tillbaka en stund. Svaret är leken borta (inte) eller vald (ja). */
@@ -10218,15 +10229,19 @@ function tagEmotLek(l) {
       const kam = { x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, h: r.h };
       /* Samma regel som korten (kamLage): läget flyttas när mitten gått mer än AUTO_FLYTT av bredden — mindre är detektorns darr. */
       const flytt = !g || !g.kam || g.id !== l.id || Math.hypot(kam.x - g.kam.x, kam.y - g.kam.y) > AUTO_FLYTT * Math.max(kam.w, 0.01);
-      const farg = lekFarg(l.farg) || (g && g.farg) || null;
+      const farg = matt || (g && g.farg) || null;
       /* Sleeven läggs på (Jesper 2026-10-06): leken har visats med Magic-baksidan medan färgen mättes (~3 s), och
-         nu är den mätt — lekHogHtml spelar animeringen en gång. Inte när leken kommer med färgen direkt. */
-      const fargNar = farg && !farg.magic && g && g.id === l.id && !g.farg && !mig.slvFarg ? Date.now() : (g && g.fargNar) || 0;
-      mig.bibHog = Object.assign({}, g, { id: l.id, upp: l.lage === 'upp' ? 1 : 0, farg, fargNar,
+         nu är den mätt — lekHogHtml spelar animeringen en gång. Inte när leken kommer med färgen direkt. Med
+         förra partiets färg (gissad) har leken sleeves från början, och då bara när telefonen mätt andra sleeves:
+         den nya sleeven läggs på över den gamla (fargForr). */
+      const pa = farg && !farg.magic && g && g.id === l.id && !g.farg && (!mig.slvFarg || (gissad && lekFargSig(farg) !== lekFargSig(mig.slvFarg)));
+      mig.bibHog = Object.assign({}, g, { id: l.id, upp: l.lage === 'upp' ? 1 : 0, farg,
+                                          fargNar: pa ? Date.now() : (g && g.fargNar) || 0, fargForr: pa ? mig.slvFarg || null : (g && g.fargForr) || null,
                                           kam: flytt ? Object.assign(kam, { nar: Date.now() }) : g.kam });
     }
   }
-  { const f = lekFarg(l && l.farg) || (mig.bibHog && mig.bibHog.farg); if (f && lekFargSig(f) !== lekFargSig(mig.slvFarg)) mig.slvFarg = f; }   // bordets sleeves står kvar också utan lek (granskningen runda 1, fynd 6)
+  { const f = matt || (mig.bibHog && mig.bibHog.farg); if (f && lekFargSig(f) !== lekFargSig(mig.slvFarg)) mig.slvFarg = f; }   // bordets sleeves står kvar också utan lek (granskningen runda 1, fynd 6)
+  if (matt) lekSlvMattes(mig, l);
   if (!mig.bibHog) stangLekMeny();   // menyn hör till en lek som inte finns längre
   renderBibHog();   // strängdiffad; den fasta högen går och kommer med flödet (lekBordAktivt), inte bara med leken
   if (lekSig(mig) !== fore) { renderGrid(true); save(); }
@@ -10255,6 +10270,59 @@ function lekFargSig(f) { return f ? [f.r, f.g, f.b, f.magic ? 1 : 0].join(',') :
    också när leken inte ligger — efter Not my library, eller innan en ny lek hittats — så att nedvända kort
    har samma sleeves hela partiet och alla ser samma. */
 function slvAv(p) { return (p && (p.slvFarg || (p.bibHog && p.bibHog.farg))) || null; }
+/* Sleevens färg från förra partiet med leken (decks.slv_farg → lekAktiv.slv, Jesper 2026-10-09). Förut visades leken
+   med Magic-baksidan i varje parti tills telefonen mätt sleeven (8 prov à 350 ms efter att leken legat still, ~3 s),
+   och sedan lades sleeven på. Nu står bordet i förra partiets färg från första stund — leken och de nedvända korten —
+   och telefonens mätning byter den bara när den visar andra sleeves (slvLik): då läggs den nya sleeven på, en gång.
+   Första partiet med en lek är som förut. lekSlv hör till ett parti och en lek:
+     mal      färgen bordet står i; en mätning med samma sleeves blir den, så att färgen inte hoppar lite i taget
+     klar     telefonen har mätt i partiet, eller bordet hade redan sin färg (bordsraden efter en omladdning)
+     gissad   bordet står i den sparade färgen
+     skriven  det som sparats på leken i partiet (fargRad), så att samma färg skrivs en gång */
+let lekSlv = null;
+function lekSlvNu(mig) { return lekSlv && spelLage && mig && lekSlv.nyckel === spelLage.id + '|' + (mig.lekId || '') ? lekSlv : null; }
+/* Lägger den sparade färgen på bordet (tagEmotLek, före telefonens rapport). Sant medan bordet står i den och
+   telefonen inte mätt än. */
+function lekSlvBord(mig) {
+  if (!spelLage || !mig || !lekUtanFastPlats()) return false;
+  let s = lekSlvNu(mig);
+  if (!s) s = lekSlv = { nyckel: spelLage.id + '|' + (mig.lekId || ''), mal: mig.slvFarg || null, klar: !!mig.slvFarg, gissad: false, skriven: '' };
+  const sparad = !s.klar && !mig.slvFarg && lekAktiv && lekAktiv.id === mig.lekId ? lekFarg(lekAktiv.slv) : null;
+  if (sparad) { mig.slvFarg = s.mal = sparad; s.gissad = true; }
+  return s.gissad && !s.klar;
+}
+/* Telefonens färg på leken — eller bordets, när den visar samma sleeves. */
+function lekSlvMatt(l) {
+  const f = lekFarg(l && l.farg), s = lekSlvNu(minSpelare());
+  return f && s && s.mal && slvLik(f, s.mal) ? s.mal : f;
+}
+/* Telefonen har mätt: bordet står i sin färg för resten av partiet, och mätningen sparas på leken till nästa parti
+   (den senaste, också när den var lik den sparade — så följer färgen med om sleevesen bleks eller byts mot lika). */
+function lekSlvMattes(mig, l) {
+  const s = lekSlvNu(mig), f = lekFarg(l && l.farg); if (!s || !f) return;
+  s.klar = true; s.mal = mig.slvFarg || s.mal;
+  const rad = fargRad(f), sparad = lekAktiv && lekAktiv.id === mig.lekId ? fargRad(lekFarg(lekAktiv.slv)) : undefined;
+  if (mig.lekId && rad !== sparad && rad !== s.skriven) { s.skriven = rad; lekSlvSpara(mig.lekId, f); }
+}
+/* Samma sleeves? Samma gränser som telefonens regel för ett nedvänt kort i lekens sleeves (nedFargLik, NED_LJUS och
+   NED_TON i lekvakten): ljusheten inom 0,4–2,5 gånger och färgtonen högst 0,12 ifrån. Exakt likhet (lekFargSig) hade
+   spelat animeringen i varje parti — medianen ur kamerans prov blir aldrig densamma två gånger, och lampan och
+   telefonens vinkel skiljer mellan partierna — och de här gränserna säger redan "samma sleeves" om ett kort på bordet.
+   Mörkgröna mot svarta, röda mot blå eller ljusa mot mörka sleeves är olika. Magic-baksidan är bara lik sig själv. */
+const SLV_LJUS = [0.4, 2.5], SLV_TON = 0.12;
+function slvLik(a, b) {
+  if (!a || !b) return false;
+  if (a.magic || b.magic) return !!a.magic === !!b.magic;
+  const s1 = a.r + a.g + a.b + 1, s2 = b.r + b.g + b.b + 1, ljus = s1 / s2;
+  const ton = Math.hypot(a.r / s1 - b.r / s2, a.g / s1 - b.g / s2, a.b / s1 - b.b / s2);
+  return ljus >= SLV_LJUS[0] && ljus <= SLV_LJUS[1] && ton <= SLV_TON;
+}
+/* Sparar färgen på leken (Moln.sparaLekSlv). Bara min egen lek, och bara inloggad; lekAktiv följer med när raden
+   skrivits. Utan kolumnen (migrationen inte körd) blir ingenting sparat, och nästa parti börjar som förut. */
+function lekSlvSpara(id, f) {
+  if (!Moln.inloggad() || String(id).startsWith('lokal:')) return;
+  Moln.sparaLekSlv(id, f).then(ok => { if (ok && lekAktiv && lekAktiv.id === id) { lekAktiv.slv = f; LS.set(K.lekaktiv, lekAktiv); } }).catch(() => {});
+}
 /* Texten mitt på mattan före första kortet (renderTom): null = som förut. */
 function lekText() {
   const mig = minSpelare();
@@ -10289,9 +10357,9 @@ const lekKropp = slv => slv ? '<span class="lekslv"></span>' : `<img src="${BAKS
 function lekHogHtml(h, pos, egen, fargBord) {
   const upp = !!h.upp, slv = lekSlvStil(h.farg || fargBord);
   /* Sleeven läggs på: Magic-baksidan ligger kvar under, och sleeven glider ner över översta kortet med en glans
-     (.lekslv.pa). Efteråt bara sleeven, som förut. */
-  const pa = !!slv && !!h.fargNar && Date.now() - h.fargNar < 1200;
-  const kropp = pa ? `<img src="${BAKSIDA}" alt="" draggable="false"><span class="lekslv pa"></span>` : lekKropp(slv);
+     (.lekslv.pa). Efteråt bara sleeven, som förut. Byts förra partiets sleeves (fargForr) ligger de under i stället. */
+  const pa = !!slv && !!h.fargNar && Date.now() - h.fargNar < 1200, forr = pa ? lekSlvStil(h.fargForr) : '';
+  const kropp = pa ? (forr ? `<span class="lekslv" style="${forr}"></span>` : `<img src="${BAKSIDA}" alt="" draggable="false">`) + '<span class="lekslv pa"></span>' : lekKropp(slv);
   const etikett = upp ? 'Library, picked up' : 'Library';
   return `<div class="lekhog${upp ? ' upp' : ''}" data-lekhog="${egen ? 1 : 0}"${egen ? ' role="button" tabindex="0"' : ''} aria-label="${etikett}${egen ? '. Open the menu' : ''}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:1${slv ? ';' + slv : ''}">`
     + `<span class="avtryck"></span><span class="lekkropp">${kropp}</span>`
@@ -15307,7 +15375,7 @@ async function lekForhamta(kort) {
   }
 }
 function lekSattAktiv(rad) {
-  lekAktiv = rad ? { id: rad.id, namn: rad.namn, farger: rad.farger || [], antal: rad.antal || 0, ts: rad.ts || 0 } : null;
+  lekAktiv = rad ? { id: rad.id, namn: rad.namn, farger: rad.farger || [], antal: rad.antal || 0, ts: rad.ts || 0, slv: rad.slv_farg || null } : null;   // slv: sleevens färg från förra partiet (lekSlvBord)
   if (lekAktiv) LS.set(K.lekaktiv, lekAktiv); else LS.del(K.lekaktiv);
   /* Platshållarna ur ett lekfoto (MES-289) är inga kort att spela: de står
      under To check tills någon väljer kortet. */

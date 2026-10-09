@@ -739,6 +739,46 @@ const PROV = async () => {
     ok('pekar på första kortet: panelen kommer, och mattan passas in så att hela kamerabilden syns', $('#markKol').offsetWidth > 0 && inne() && !samma(ram()), `panelen ${$('#markKol').offsetWidth} px, ramen ${ram()}, inne ${inne()}`);
     matHover = null; state.sel = sel0; mig.bibHog = null; kamLek = null; ofrGlom();
     spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, las0); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
+
+  /* Leken har sleeves från första stund i nästa parti med samma lek (decks.slv_farg, Jesper 2026-10-09): förut
+     Magic-baksidan i varje parti tills telefonen mätt sleeven (~3 s). Sparningen fångas här (lekSlvSpara). */
+  { const sp0 = spelLage, kort0 = mig.cards, las0 = kamSkala.las.get(mig.id), lekId0 = mig.lekId, akt0 = lekAktiv, spara0 = window.lekSlvSpara;
+    const sparat = []; window.lekSlvSpara = (id, f) => sparat.push(id + ':' + fargRad(f));
+    const GRON = { r: 30, g: 92, b: 54 }, ruta = { x: 0.22, y: 0.42, w: 0.07, h: 0.17 };
+    const kropp = () => { const k = $('#grid .lekhog .lekkropp'); return !k ? '-' : k.querySelector('.lekslv.pa') ? (k.querySelector('.lekslv:not(.pa)') ? 'pålägg över sleeve' : 'pålägg över baksidan') : k.querySelector('.lekslv') ? 'sleeve' : 'baksidan'; };
+    /* Ett nytt parti med leken: telefonen ansluter (lek null), och leken hittas innan färgen är mätt. rad = bordets
+       färg ur bordsraden (en omladdning mitt i partiet). */
+    const parti = async (id, slv, rad) => {
+      kamSkala.las.delete(mig.id); ofrGlom();
+      spelLage = Object.assign({}, spelLage, { id }); oppSatt({ klar: true });
+      mig.cards = []; mig.bibHog = null; mig.slvFarg = rad || null; mig.nedHog = null; kamLek = null; kamHaftKort = false; sparat.length = 0;
+      mig.lekId = 'lek-slv'; lekSattAktiv({ id: 'lek-slv', namn: 'Elves', farger: ['G'], antal: 60, ts: 1, slv_farg: slv });
+      renderAll(true); tagEmotLek(null); tagEmotLek({ id: 1, lage: 'ned', ruta, farg: null }); renderAll(true); await vanta(100);
+    };
+    const mats = async f => { tagEmotLek({ id: 1, lage: 'ned', ruta, farg: f }); renderAll(true); await vanta(60); };
+    await parti('mattprov-slv-1', null);
+    const k1 = kropp(); await mats(GRON);
+    ok('sleeves: första partiet med en lek är som förut — Magic-baksidan tills telefonen mätt, sleeven läggs på, och färgen sparas på leken',
+      k1 === 'baksidan' && kropp() === 'pålägg över baksidan' && sparat.join() === 'lek-slv:30,92,54', `${k1} → ${kropp()}, sparat ${sparat.join() || 'inget'}`);
+    await parti('mattprov-slv-2', GRON);
+    const k2 = kropp(), s2 = lekFargSig(mig.slvFarg); await mats({ r: 36, g: 104, b: 60 });
+    ok('sleeves: nästa parti med leken har sleeven direkt, och samma sleeves (i annat ljus) ger ingen animering och ingen ny färg',
+      k2 === 'sleeve' && s2 === '30,92,54,0' && kropp() === 'sleeve' && lekFargSig(mig.slvFarg) === s2 && lekFargSig(mig.bibHog.farg) === s2, `${k2} (${s2}) → ${kropp()} (${lekFargSig(mig.slvFarg)})`);
+    ok('sleeves: den senaste mätningen sparas till nästa parti, en gång', sparat.join() === 'lek-slv:36,104,60' && (await mats({ r: 36, g: 104, b: 60 }), sparat.length === 1), sparat.join() || 'inget');
+    await parti('mattprov-slv-3', GRON);
+    await mats({ r: 120, g: 30, b: 34 });
+    ok('sleeves: mäter telefonen andra sleeves byts färgen, och den nya sleeven läggs på över den gamla',
+      kropp() === 'pålägg över sleeve' && lekFargSig(mig.slvFarg) === '120,30,34,0' && sparat.join() === 'lek-slv:120,30,34', `${kropp()}, ${lekFargSig(mig.slvFarg)}, sparat ${sparat.join() || 'inget'}`);
+    await vanta(1300); renderAll(true); await vanta(60);
+    ok('sleeves: animeringen spelas en gång', kropp() === 'sleeve', kropp());
+    await parti('mattprov-slv-4', { r: 0, g: 0, b: 0, magic: true });
+    const k4 = kropp(); await mats({ r: 52, g: 40, b: 30, magic: true });
+    ok('sleeves: Magic-baksidan sparas också och står kvar — telefonens Magic-baksida byter ingenting',
+      k4 === 'baksidan' && kropp() === 'baksidan' && !!mig.slvFarg && mig.slvFarg.magic && sparat.length === 0, `${k4} → ${kropp()}, sparat ${sparat.join() || 'inget'}`);
+    await parti('mattprov-slv-5', GRON, { r: 120, g: 30, b: 34, magic: false });
+    ok('sleeves: har bordet redan sin färg (bordsraden efter en omladdning) står den kvar', lekFargSig(mig.slvFarg) === '120,30,34,0' && kropp() === 'sleeve', lekFargSig(mig.slvFarg));
+    window.lekSlvSpara = spara0; mig.lekId = lekId0; lekAktiv = akt0; mig.bibHog = null; mig.slvFarg = null; kamLek = null; ofrGlom();
+    spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, las0); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
   } catch (e) { ok('utgångsläget: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); window.__mattLugn = false; }
   kamUpplosning = null;
 
