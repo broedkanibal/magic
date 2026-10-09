@@ -173,7 +173,7 @@ fs.writeFileSync(KROPP, JSON.stringify({ mode: 'kamera', image: BILD, names: LEK
 const URL_API = `http://localhost:${PORT_API}/api/identify`;
 const POST = ['-X POST', URL_API, "-H 'Content-Type: application/json'", `--data @${KROPP}`];
 const MED = ['-H "Authorization: Bearer $TOKEN"'];
-const rader = async u => (await db.query('select id, mode, modell, input_tokens, output_tokens, status, ok, spel, raknas from public.claude_fragor where user_id = $1 order by id', [u])).rows;
+const rader = async u => (await db.query('select id, mode, modell, input_tokens, output_tokens, dollar, status, ok, spel, raknas from public.claude_fragor where user_id = $1 order by id', [u])).rows;
 
 (async () => {
   const pg = hittaPglite();
@@ -250,6 +250,11 @@ const rader = async u => (await db.query('select id, mode, modell, input_tokens,
   for (const x of ra) console.log('  ' + JSON.stringify(x));
   prov(`${TAK} rader, alla räknade, status 200, ok, modell och tokens ifyllda, spelkoden med`,
     ra.length === TAK && ra.every(x => x.raknas && x.status === 200 && x.ok && x.modell && x.input_tokens > 0 && x.output_tokens > 0 && x.mode === 'kamera' && x.spel === 'PROV42'));
+  const PRIS_PROV = { 'claude-opus-5': [5, 25], 'claude-sonnet-5': [2, 10] };   // egen kopia: provet ska inte räkna med funktionen det prövar
+  prov('dollar ifyllt på varje rad, och lika med tokens × modellens pris',
+    ra.every(x => PRIS_PROV[x.modell] && x.dollar != null &&
+      Math.abs(+x.dollar - (x.input_tokens * PRIS_PROV[x.modell][0] + x.output_tokens * PRIS_PROV[x.modell][1]) / 1e6) < 1e-9),
+    ra.length ? 'rad 1: ' + ra[0].modell + ' ' + ra[0].dollar + ' USD' : '');
 
   console.log('\n══ fler fall ══');
   r = await curl('annat konto', POST.concat(MED), { TOKEN: TB });

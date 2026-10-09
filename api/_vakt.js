@@ -30,9 +30,9 @@
       MES-316). Når servern inte räknaren svarar den 503 — hellre AI-hjälpen
       pausad än frågor som ingen räknar.
 
-   3. LOGGEN. När svaret gått fylls raden i: modell, tokens, svarstid,
-      status, om svaret gick att använda, och om Anthropic alls svarade 200
-      (raknas). En fråga som aldrig nådde Anthropic räknas inte mot taket:
+   3. LOGGEN. När svaret gått fylls raden i: modell, tokens, dollar,
+      svarstid, status, om svaret gick att använda, och om Anthropic alls
+      svarade 200 (raknas). En fråga som aldrig nådde Anthropic räknas inte mot taket:
       ett avbrott hos dem ska inte äta upp spelarnas månad. Fel i loggen
       ignoreras — den får aldrig fälla ett svar.
 
@@ -244,8 +244,26 @@ export async function reservera({ anvandare, mode, spel }) {
 }
 
 /* ── 3. loggen ─────────────────────────────────────────────────────── */
+/* USD per miljon tokens [in, ut]: samma tal som AI_PRIS i index.html (den
+   raden är klientens kopia, den här är den som hamnar i claude_fragor.dollar).
+   Ändras ett pris ändras båda. Modellens id stryks på datumsuffix (-YYYYMMDD)
+   före uppslaget. Cache: läsning kostar 0,1 × inpriset, skrivning (5 min) 1,25 ×
+   — och Anthropics input_tokens räknar inte cache-tokens, så de läggs till. */
+const PRIS = { 'claude-opus-5': [5, 25], 'claude-sonnet-5': [2, 10], 'claude-fable-5-1': [10, 50], 'claude-haiku-4-5': [1, 5] };
+const CACHE_LASA = 0.1, CACHE_SKRIV = 1.25;
+/* Dollar för en fråga, eller null när modellen eller tokens saknas: "okänt"
+   är ett svar, 0 vore en lögn. */
+export function dollar(modell, f) {
+  const p = modell && PRIS[String(modell).replace(/-\d{8}$/, '')];
+  if (!p || !f || f.input_tokens == null || f.output_tokens == null) return null;
+  const n = v => (v == null || !Number.isFinite(+v)) ? 0 : +v;
+  const inTok = n(f.input_tokens) + n(f.cache_read) * CACHE_LASA + n(f.cache_write) * CACHE_SKRIV;
+  return Math.round((inTok * p[0] + n(f.output_tokens) * p[1])) / 1e6;
+}
 export async function logga(id, falt) {
   if (id == null || !basUrl() || !tjanstNyckel()) return;
+  const d = falt && falt.dollar == null ? dollar(falt.modell, falt) : null;
+  if (d != null) falt = Object.assign({}, falt, { dollar: d });
   try {
     const r = await fetch(basUrl() + '/rest/v1/claude_fragor?id=eq.' + encodeURIComponent(id), {
       method: 'PATCH', headers: tjanstHuvuden({ Prefer: 'return=minimal' }),
