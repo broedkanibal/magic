@@ -1419,6 +1419,20 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     for (let v = 0; v < 5; v++) { for (let i = 0; i < 12; i++) await rutaTra({}, v % 2 ? ETT : FLYTT); laster21c.push(identifieringar - fr21c); }
     check(`W21c okänt kort flyttas fem gånger: ${fmt(t)}, frågad ${t.aiFragad}, prövas ${t.provas}, läsningar efter varje flytt ${laster21c.join(',')}`,
           t.tillstand === 'okand' && t.aiFragad === true && t.provas === false && laster21c[laster21c.length - 1] >= 3 && laster21c[laster21c.length - 1] <= 6 && laster21c[4] === laster21c[3]);
+    /* W21d: ingen fråga ställdes (Claude av, ingen beskärning — aiFragad aldrig satt). Omläsningen efter flytten
+       sätter aiFragad, så att den inte blir en ny väg till Claude. */
+    namnSvar = osaker; nystart(); await refTra();
+    for (let i = 0; i < 12; i++) await rutaTra({}, ETT);
+    t = Kamera.spar.find(x => x.tillstand === 'okand') || { id: -1 };
+    const fragad21d = !!t.aiFragad, fr21d = identifieringar;
+    for (let i = 0; i < 12; i++) await rutaTra({}, FLYTT);
+    check(`W21d okänt utan fråga, flyttat: frågad före ${fragad21d}, efter ${t.aiFragad}, ${fmt(t)}, lästes lokalt ${identifieringar - fr21d}`,
+          fragad21d === false && t.aiFragad === true && t.tillstand === 'okand' && identifieringar - fr21d >= 1);
+    /* W21e: frågan gick ut men svaret har inte kommit (aiUte, provas släppt efter PROVA_MS) — ingen omläsning. */
+    t = await ettOkant(); t.provas = false; t.aiUte = true;
+    const fr21e = identifieringar;
+    for (let i = 0; i < 12; i++) await rutaTra({}, FLYTT);
+    check(`W21e frågan ute utan svar, flyttat: ${fmt(t)}, lästes lokalt ${identifieringar - fr21e}`, t.tillstand === 'okand' && identifieringar === fr21e);
 
     /* ── tiderna till sammanfattningen när auto stängs av ──
        identifiera mäter den lokala kedjan med väggklockan (performance.now),

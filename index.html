@@ -28043,9 +28043,13 @@ const Kamera = (() => {
              Inte ett TÄCKT spår (arTackt: maskat, omlott eller med ett kort ovanpå): där är det högen som rör sig,
              och omläsningen tog det övre kortets remsa — golden 18: Pacifism under Plains blev Plains, och den
              riktiga Plains dömdes sedan som samma kort och försvann (Hittade 9 → 8). */
-          else if (bast.tillstand === 'okand' && !bast.provas && !bast.aiInget && !arHelbild(bast) && !arTackt(bast, bast.maskad) && (bast.okandOmN || 0) < OKAND_OM) {
+          /* Samma vakter som Match the camera (lasOm, MES-357): inte en fråga som gick ut och saknar svar (aiUte —
+             provas släpps efter PROVA_MS, svaret kan ändå komma), och aiFragad SÄTTS — den står inte alltid kvar,
+             för med Claude av eller utan beskärning ställdes ingen fråga, och då hade omläsningen frågat. t.ai står
+             kvar: det är vad aiUte-vakten läser. */
+          else if (bast.tillstand === 'okand' && !bast.provas && !bast.aiInget && !(bast.aiUte && bast.aiFragad && !bast.ai) && !arHelbild(bast) && !arTackt(bast, bast.maskad) && (bast.okandOmN || 0) < OKAND_OM) {
             bast.okandOmN = (bast.okandOmN || 0) + 1;
-            bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.sid = null; bast.saker = false; bast.namnLast = null; bast.del = false;
+            bast.tillstand = 'ny'; bast.fragad = false; bast.aiFragad = true; bast.namn = null; bast.sid = null; bast.saker = false; bast.namnLast = null; bast.del = false;
             bast.spek = null; bast.spekN = 0; bast.skrapN = 0; bast.utbrandN = 0; bast.vantaN = 0;
           }
           /* Den optimistiska tap-domen (MES-214): första rutan där kortet syns
