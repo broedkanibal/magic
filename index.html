@@ -13293,7 +13293,9 @@ $('#oppstart').addEventListener('click', ev => {
    fasta högar. Pillret öppnar uppstarten igen. */
 function oppUtan() {
   oppSatt({ avbojd: true });
-  if (prefs.autoLage === true) { if (kamAnsluten) stangAvAuto(false); else { prefs.autoLage = false; savePrefs(); } }
+  /* Alltid av, också när värdet aldrig satts: en telefon kan sitta i spelets kanal utan att steg 3 körts
+     (en kopierad länk, ett datorbyte), och då hade kameraLage skrivit tillbaka 'bord' (granskningen av 8ff33d9). */
+  if (kamAnsluten) stangAvAuto(false); else if (prefs.autoLage !== false) { prefs.autoLage = false; savePrefs(); }
   bytLage('utan');
   renderMode();
 }

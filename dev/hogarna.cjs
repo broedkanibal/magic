@@ -494,7 +494,8 @@ const PROV = async steg => {
     ok('kameran på utan telefon i spelet: raden står kvar på Digital table', mig().lage === 'utan' && W.__lage.length === 0, `${mig().lage} [${W.__lage}]`);
     kamAnsluten = true; renderMode(); await vanta(40);
     ok('kameran på i Digital table: raden blir Mirror my table', mig().lage === 'bord' && W.__lage.join() === 'bord', `${mig().lage} [${W.__lage}]`);
-    W.__lage = []; oppSatt({ klar: false, avbojd: false }); oppUtan(); await vanta(40);
+    /* …också när autoLage aldrig satts och en telefon sitter i kanalen: valet står sig (granskningen av 8ff33d9). */
+    W.__lage = []; oppSatt({ klar: false, avbojd: false }); delete prefs.autoLage; kamAnsluten = true; oppUtan(); await vanta(40); renderMode(); await vanta(40);
     ok('Digital table i uppstarten: raden blir utan och kameran stängs av', mig().lage === 'utan' && W.__lage.join() === 'utan' && prefs.autoLage !== true && oppFor().avbojd === true,
        `${mig().lage} [${W.__lage}] auto ${prefs.autoLage} avbojd ${oppFor().avbojd}`);
     /* Menyns Digital table: kameran av, raden 'utan', och uppstarten avböjd — annars slog steg 3 på kameran igen. */
