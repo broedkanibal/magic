@@ -33013,7 +33013,7 @@ function autoRemsaModell(spar, mig, extra) {
   if (rorligt) { m.not = 'Something is moving on the table'; m.slag = 'rorligt'; }
   else if (senast && autoAvgjort(senast)) { m.not = `${vem} went to the review`; m.slag = 'granskning'; }
   else if (senast && senast.tillstand === 'okand') { m.not = `${vem}: asking Claude …`; m.puls = true; m.slag = 'claude'; }
-  else if (senast && e.rad) { m.not = `${vem} is hard to read. ${autoRadSkal(e.rad)}`; m.puls = true; m.slag = 'svar'; }
+  else if (senast && e.rad) { m.not = `${vem} is hard to read: ${autoRadSkal(e.rad)}`; m.puls = true; m.slag = 'svar'; }
   else if (senast) { m.not = `${vem} is being read …`; m.puls = true; m.slag = 'laser'; }
   else if (e.sma > 0) { m.not = e.sma === 1 ? 'One card is too small to read' : `${autoAntal(e.sma)} cards are too small to read`; m.slag = 'sma'; }
   m.vem = vem;
