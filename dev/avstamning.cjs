@@ -114,6 +114,8 @@ const tid = t => {
 const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + svarKod + `
 return {
   avstamBord, tackning, sammaPlats, lekPrior,
+  /* Match the camera och lugnt läge (MES-357). */
+  matcha: () => matchaBordet(), get lugn() { return lugnFrys; },
   oppOppnasIgen,
   set gravFlode(v) { gravFlode = !!v; },
   set gravSpeglar(v) { gravSpeglar = !!v; },
@@ -3075,6 +3077,175 @@ prov('SP5 (MES-356) tre kort flyttas samtidigt: inga oframkallade kort bredvid k
   tid(klocka.t + 100);
   assert.deepEqual(kort.map(k => k.spar), [11, 12, 13], 'vart kort dit det lades');
   assert.deepEqual(ofrSlag(), []); assert.equal(app.kort.length, 3);
+});
+
+// ── LU: lugnt läge (MES-357) ─────────────────────────────────────────
+/* Jespers parti 2026-10-10: många kort flyttas samtidigt och mattan blir förvirrad. Tre spår som funnits i 2 s
+   (kort som legat på bordet) och som dör eller flyttas inom 1 s fryser mattan; när inget hänt på 1 s stäms bordet av. */
+const RAD = (n, y = 0.2) => Array.from({ length: n }, (_, i) => box(0.05 + (i % 11) * 0.08, y + Math.floor(i / 11) * 0.12, 0.063, 0.088));
+const NAMNEN = ['Ukud Cobra', 'Grizzly Bears', 'Llanowar Elves', 'Shock', 'Opt', 'Duress', 'Negate', 'Divination'];
+const liggande = (n, rest) => RAD(n).map((b, i) => klar(1 + i, NAMNEN[i % NAMNEN.length] + (i >= NAMNEN.length ? ' ' + i : ''), Object.assign({ sen: 0, kortlik: true, vilar: true }, b, rest)));
+const lagdaKort = n => { stam(liggande(n)); klocka.t += 2500; stam(liggande(n)); return Array.from({ length: n }, (_, i) => app.kort.find(c => c.spar === i + 1)); };
+const paSpar = (...ids) => ids.map(id => app.kort.find(c => c.spar === id));
+prov('LU1 tre kort lyfts samtidigt: mattan fryser, och när bordet legat stilla 1 s räknas väntan från när spåren dog', () => {
+  const kort = lagdaKort(4);
+  klocka.t += 150; const dog = klocka.t; stam(liggande(4).slice(3));               // tre lyfts i samma stund
+  assert.ok(app.lugn, 'mattan frös inte');
+  assert.deepEqual(kort.slice(0, 3).map(k => k.spar), [1, 2, 3], 'korten ändrades medan mattan stod fryst'); assert.ok(kort.every(k => !k.borta));
+  klocka.t += 500; stam(liggande(4).slice(3));
+  assert.ok(app.lugn, 'släppte före 1 s stilla');
+  tid(dog + 1200);                                                                  // telefonen är tyst: timern stämmer av
+  assert.ok(!app.lugn, 'släppte inte när bordet legat stilla');
+  assert.deepEqual(kort.slice(0, 3).map(k => k.borta), [dog, dog, dog], 'väntan räknas från när spåren dog');
+  assert.equal(kort[3].spar, 4); assert.ok(!kort[3].borta);
+});
+prov('LU2 ett kort som flyttas, och nya korta spår (händer, flimmer) som dör, fryser inte mattan', () => {
+  const kort = lagdaKort(3);
+  klocka.t += 150; stam(liggande(3).concat([7, 8, 9].map(id => vilande(id, box(0.1 * id - 0.4, 0.6, 0.063, 0.088), { tillstand: 'ny' }))));
+  klocka.t += 150; stam(liggande(3));                                               // tre unga spår dör
+  assert.ok(!app.lugn, 'unga spår frös mattan');
+  const flyttad = liggande(3); flyttad[0] = klar(1, NAMNEN[0], { sen: 0, kortlik: true, vilar: true, ...box(0.5, 0.6, 0.063, 0.088) });
+  klocka.t += 150; stam(flyttad);
+  assert.ok(!app.lugn, 'ett kort som flyttas frös mattan'); assert.ok(Math.abs(kort[0].kam.y - 0.644) < 1e-9, 'flytten syns direkt');
+});
+prov('LU3 tre kort flyttas samtidigt: de glider dit först när bordet lagt sig', () => {
+  const kort = lagdaKort(3);
+  const fore = kort.map(k => k.kam.y);
+  const dit = RAD(3, 0.6).map((b, i) => klar(1 + i, NAMNEN[i], { sen: 0, kortlik: true, vilar: true, ...b }));
+  klocka.t += 150; stam(dit);
+  assert.ok(app.lugn); assert.deepEqual(kort.map(k => k.kam.y), fore, 'mattan rörde sig medan bordet gjorde det');
+  tid(klocka.t + 1200);
+  assert.ok(!app.lugn); assert.ok(kort.every(k => Math.abs(k.kam.y - 0.644) < 1e-9), 'korten kom inte till sina platser');
+});
+prov('LU4 ett bord som aldrig lugnar sig stäms av ändå efter LUGN_MAX', () => {
+  lagdaKort(22);
+  const t0 = klocka.t; let frys = 0, slapp = 0;
+  for (let n = 21; n >= 2; n--) {                                                   // ett kort lyfts var 400:e ms i 8 s
+    klocka.t += 400; stam(liggande(22).slice(0, n));
+    if (app.lugn && !frys) frys = klocka.t;
+    if (frys && !app.lugn && !slapp) slapp = klocka.t;
+  }
+  assert.ok(frys, 'frös aldrig'); assert.ok(slapp, 'släppte aldrig'); assert.ok(slapp - frys >= 6000 && slapp - frys < 6500, 'fryst ' + (slapp - frys) + ' ms');
+  assert.ok(app.kort.filter(k => k.borta).length > 0, 'avstämningen tog inte bordet');
+  assert.ok(klocka.t - t0 <= 8000);
+});
+prov('LU5 Match the camera tar bordet direkt, också när mattan står fryst', () => {
+  const kort = lagdaKort(4);
+  klocka.t += 150; stam(liggande(4).slice(3));
+  assert.ok(app.lugn);
+  const r = app.matcha();
+  assert.ok(!app.lugn, 'Match släppte inte frysningen'); assert.equal(r.bort, 3); assert.ok(kort.slice(0, 3).every(iHanden));
+});
+
+// ── MA: Match the camera (MES-357, MES-356 punkt 4–5) ───────────────────
+prov('MA1 ett kort kameran inte ser lämnar mattan direkt, utan nåden; kortet som ligger rätt rörs inte', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Grizzly Bears', { sen: 0, ...LANGT })]);
+  const [a, b] = paSpar(1, 2), lage = k => JSON.stringify([k.name, k.spar, k.kam, k.tapped]), kamA = lage(a);
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  assert.ok(b.borta && app.kort.includes(b), 'B väntar inte (utan Match)');
+  const r = app.matcha();
+  assert.ok(iHanden(b), 'B lämnade inte mattan'); assert.equal(lage(a), kamA, 'A ändrades');
+  assert.equal(r.bort, 1); assert.equal(r.flyttade, 0); assert.deepEqual(r.spoken, []); assert.deepEqual(r.lasOm, []);
+});
+prov('MA2 kortet flyttas till spårets plats, också medan spåret inte vilat färdigt', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const a = app.kort[0];
+  klocka.t += 150; stam([{ id: 1, tillstand: 'ny', namn: null, sen: 0, kortlik: true, vilar: false, ...NY_PLATS }]);
+  assert.ok(Math.abs(a.kam.x - mitt(PORT)) < 1e-9, 'flyttades utan Match');
+  const r = app.matcha();
+  assert.ok(Math.abs(a.kam.x - mitt(NY_PLATS)) < 1e-9, 'kortet flyttades inte'); assert.equal(r.flyttade, 1); assert.equal(r.bort, 0);
+});
+prov('MA3 knuffen (fall 8): tre kort vars spår dog samtidigt står kvar av sig själva — Match tar dem av mattan när kameran inte ser dem', () => {
+  const kort = lagdaKort(3);
+  klocka.t += 150; stam([]);
+  tid(klocka.t + 9000); klocka.t += 9000; stam([]);
+  assert.ok(kort.every(k => app.kort.includes(k)), 'knuffen tog bort kort av sig själv');
+  const r = app.matcha();
+  assert.ok(kort.every(iHanden), 'korten lämnade inte mattan'); assert.equal(r.bort, 3);
+});
+prov('MA4 tokens, kort lagda för hand och auror på ett kort som syns rörs inte', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Soldier', { sen: 0, ...LANGT }), klar(3, 'Pacifism', { sen: 0, ...NY_PLATS })]);
+  const [a, tok, aura] = paSpar(1, 2, 3);
+  tok.tok = 1; aura.attachedTo = a.cid;
+  app.kort.push({ cid: 'hand1', name: 'Opt', x: 10, y: 10 });                       // lagt för hand: inget kameraläge
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  app.matcha();
+  assert.ok(app.kort.includes(tok), 'token togs bort'); assert.ok(app.kort.includes(aura), 'auran togs bort');
+  assert.ok(app.kort.some(c => c.cid === 'hand1'), 'kortet lagt för hand togs bort'); assert.ok(app.kort.includes(a));
+});
+prov('MA5 spöket: ett oframkallat kort som telefonens läsning ger namnet på kortet som ligger där tas bort, men inte ett kort som telefonen sett ligga över det', () => {
+  const OVER = box(0.405, 0.405, 0.063, 0.088);
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), vilande(2, OVER, { namn: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.4 }] })]);
+  tid(klocka.t + 700);
+  assert.equal(app.pending.length, 1, 'inget spöke att ta bort');
+  const r = app.matcha();
+  assert.deepEqual(r.spoken, [2]); assert.equal(app.pending.length, 0); assert.deepEqual(ofrSlag(), []); assert.equal(app.kort.length, 1);
+  assert.deepEqual(r.lasOm, [], 'spöket läses om');
+  app.nollstall(); klocka.t = 1e6;
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), vilande(2, OVER, { namn: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.4 }], under: [1] })]);
+  tid(klocka.t + 700);
+  const r2 = app.matcha();
+  assert.deepEqual(r2.spoken, [], 'ett kort ovanpå ett annat med samma namn togs bort'); assert.deepEqual(r2.lasOm, [2], 'det namnlösa kortet läses inte om');
+});
+prov('MA5b två kort med samma namn och var sin namnremsa är inget spöke, och inte heller Claudes klunga', () => {
+  const OVER = box(0.405, 0.405, 0.063, 0.088);
+  stam([klar(1, 'Island', { sen: 0, ...PORT, rl: box(0.40, 0.40, 0.063, 0.012) })]);
+  klocka.t += 150; stam([klar(1, 'Island', { sen: 0, ...PORT, rl: box(0.40, 0.40, 0.063, 0.012) }),
+    vilande(2, OVER, { namn: 'Island', cands: [{ name: 'Island', score: 0.4 }], rl: box(0.405, 0.48, 0.063, 0.012) })]);
+  tid(klocka.t + 700);
+  assert.deepEqual(app.matcha().spoken, [], 'ett andra Island med egen remsa togs bort');
+  app.nollstall(); klocka.t = 1e6;
+  const ai = { kort: 2, klunga: 1, modell: 'x' };
+  stam([klar(1, 'Island', { sen: 0, ai, ...PORT })]);
+  klocka.t += 150; stam([klar(1, 'Island', { sen: 0, ai, ...PORT }), vilande(2, OVER, { namn: 'Island', cands: [{ name: 'Island', score: 0.4 }], ai })]);
+  tid(klocka.t + 700);
+  assert.deepEqual(app.matcha().spoken, [], 'Claudes andra kort i klungan togs bort');
+});
+prov('LU6 efter Match fryser nästa bord inte mattan på det som rörde sig före', () => {
+  lagdaKort(4);
+  klocka.t += 150; stam(liggande(4).slice(3));
+  assert.ok(app.lugn);
+  app.matcha();
+  klocka.t += 150; stam(liggande(4).slice(3));
+  assert.ok(!app.lugn, 'frös igen');
+});
+prov('MA6 namnlösa kort läses om med telefonens läsning — inte ett spår som väntar på Claude', () => {
+  stam([vilande(1, PORT, { namn: 'Opt', cands: [{ name: 'Opt', score: 0.3 }] }), vilande(2, LANGT, { provas: true }), vilande(3, NY_PLATS, { tillstand: 'stilla' })]);
+  tid(klocka.t + 700);
+  const r = app.matcha();
+  assert.deepEqual(r.lasOm, [1]);
+});
+prov('MA7 kortet bärs till spåret där telefonens remsa säger dess namn, utan att vänta ut nåden', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), { id: 9, tillstand: 'okand', namn: null, cands: [], sen: 0, ...NY_PLATS }]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS, { tillstand: 'stilla' })]);
+  klocka.t += 150; stam([vilande(2, NY_PLATS, { namn: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.4 }], remsa: { namn: 'Ukud Cobra', saker: false, marginal: 0.12 } })]);
+  assert.equal(k.spar, 1, 'bars före nåden utan Match');
+  const r = app.matcha();
+  assert.equal(k.spar, 2, 'kortet bars inte'); assert.equal(k.name, 'Ukud Cobra'); assert.equal(r.flyttade, 1); assert.equal(r.bort, 0);
+  assert.equal(app.kort.length, 1); assert.deepEqual(ofrSlag(), []);
+});
+prov('MA8 graveyard-frågan för ett kort som ligger bredvid leken utan att ha flyttats dit', () => {
+  gyStart();
+  const land = [klar(1, 'Forest', { sen: 10, ...kortVid(0.75, 0.7) }), klar(2, 'Plains', { sen: 10, ...kortVid(0.83, 0.7) })];
+  const bord = () => land.concat(klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.58, 0.7) }));   // bredvid leken, på landens sida
+  stam(land);
+  klocka.t += 2000; stam(bord());
+  klocka.t += 2000; stam(bord());
+  assert.equal(fraga(), null, 'reglerna frågade själva');
+  const r = app.matcha();
+  assert.ok(r.grav, 'ingen fråga'); assert.equal(fraga().orsak, 'flytt'); assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra']);
+  assert.equal(app.kort.find(c => c.name === 'Ukud Cobra').zon, undefined, 'graveyard före Yes');
+});
+prov('MA9 ingenting fel: ingenting ändras', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Grizzly Bears', { sen: 0, ...LANGT })]);
+  const fore = JSON.stringify(app.kort);
+  const r = app.matcha();
+  assert.equal(JSON.stringify(app.kort), fore); assert.deepEqual([r.flyttade, r.bort, r.spoken.length, r.lasOm.length, r.grav], [0, 0, 0, 0, false]);
 });
 
 console.log([...ok, ...fel].join('\n'));

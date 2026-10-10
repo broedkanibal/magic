@@ -1551,6 +1551,13 @@ body.utanins .hints:not(.sok){display:none}
 .kampaus[hidden]{display:none}
 .kampaus .btn.bred{height:40px;justify-content:center;gap:7px;font-size:14px}
 .kampaus .kamfin2{text-align:center}
+.kammatch{display:flex;align-items:center;gap:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--dim)}
+.kammatch[hidden]{display:none}
+.kammatch .t{flex:1;min-width:0}
+.kammatch .btn{flex:none}
+.kamstatus .lankknapp{font:inherit;font-weight:600;color:#a9bcff;background:none;border:0;padding:0;cursor:pointer}
+.kamstatus .lankknapp:hover{text-decoration:underline}
+.kamstatus .lankknapp[hidden]{display:none}
 .pbvand{position:absolute;right:8px;top:8px;z-index:3;width:34px;height:34px;display:grid;place-items:center;border-radius:8px;background:#0b0e13cc;border:1px solid #ffffff1a;color:var(--txt);cursor:pointer}
 .pbvand:hover{background:#0b0e13f0}
 .pbvand[hidden],.pbpaus[hidden]{display:none}
@@ -4085,11 +4092,16 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
         <!-- Statusmeningen (MES-358): en rad om läget, och en mening om vad spelaren kan göra. Ritas av renderKamPop. -->
         <div class="kamstatus" id="kamRad1" hidden>
           <span class="ic" id="kamRadIc"></span>
-          <div class="txt"><p class="rub" id="kamRadRub"></p><p class="sub" id="kamRadSub" hidden></p></div>
+          <div class="txt"><p class="rub" id="kamRadRub"></p><p class="sub" id="kamRadSub" hidden><span id="kamRadSubTxt"></span> <button type="button" class="lankknapp" id="kamRadAngra" data-mode="matchangra" hidden>Undo</button></p></div>
         </div>
         <div class="kampaus" id="kamPaus" hidden>
           <button type="button" class="btn prim bred" data-mode="aterupta"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>Resume</button>
-          <p class="kamfin2">The mat catches up with your table when you resume.</p>
+          <p class="kamfin2">The mat is matched to your table when you resume.</p>
+        </div>
+        <!-- Match the camera (MES-357, designytan Mesa Camera Panel sida 1 A och E): reserven när mattan inte stämmer. -->
+        <div class="kammatch" id="kamMatch" hidden>
+          <span class="t">Mat doesn't match your table?</span>
+          <button type="button" class="btn sm" data-mode="match" title="Match the mat to what the camera sees (M)">Match</button>
         </div>
         <!-- Utvecklarlådan (MES-358): allt som bara byggaren behöver, bakom ?debug. -->
         <details class="kamdev dbg" id="kamDev" open>
@@ -4275,6 +4287,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
             <dt><kbd>Space</kbd> + drag</dt><dd>Move the mat — or drag with two fingers on the trackpad</dd>
             <dt><kbd>S</kbd></dt><dd>Switch between select and pan. In pan, click and drag anywhere to move the mat</dd>
             <dt><kbd>U</kbd></dt><dd>Untap all — every tapped card on your table stands back up. Not in Mirror my table</dd>
+            <dt><kbd>M</kbd></dt><dd>Mirror my table: match the mat to what the camera sees. Undo puts it back</dd>
             <dt>Drag on the mat</dt><dd>In select: mark every card the box touches — <kbd>⇧</kbd> adds, <kbd>⇧</kbd>-click adds or removes one card. Drag a marked card to move them all; <kbd>T</kbd> taps them all; <kbd>Esc</kbd> or a click on the mat clears</dd>
             <dt>Drag a mana stack</dt><dd>Moves the whole stack — a click still taps just the card you hit. <kbd>⌃ Ctrl</kbd> + drag takes one card out of the stack (<kbd>⌥</kbd> works too), as does ⋯ on the card</dd>
             <dt><kbd>Esc</kbd></dt><dd>Close overlay / leave the search box</dd>
@@ -13118,6 +13131,7 @@ function renderKamPop() {
   $('#kamVandKnapp').hidden = !(bord && kamAnsluten && !fel);
   $('#kamPausSloja').hidden = fel !== 'paus';
   $('#kamPaus').hidden = fel !== 'paus';
+  $('#kamMatch').hidden = !(bord && kamAnsluten && !fel);
   $('#kamVerktyg').hidden = !(bord && kamAnsluten && !fel);
   const sp = $('#kamSpegelKnapp'), spTxt = kamSpegel ? '⇋ Unmirror' : '⇋ Mirror'; if (sp && sp.textContent !== spTxt) sp.textContent = spTxt;
   $('#pbHelbild').hidden = !(kamAnsluten && fel === 'hittar');
@@ -13139,6 +13153,10 @@ function kamStatusModell(fel) {
   if (fel === 'paus') return { ton: 'av', rub: '<b>The mat doesn\'t follow your table</b>', sub: 'Shuffle, tidy up or move the phone. Place cards on the mat yourself meanwhile.' };
   if (fel || !kamAnsluten) return null;
   if (kamFas === 'ljus' || kamFas === 'lar') return { ton: 'las', rub: '<b>Hold the phone still</b>', sub: 'The camera is learning the table. Keep your hands out of the picture for a few seconds.' };
+  /* Match the camera (MES-357, designytan sida 1 E): resultatet som en mening med Undo, en stund. */
+  if (kamMatchSvar && Date.now() - kamMatchSvar.t < KAM_MATCH_MS) return { ton: 'ok', rub: '<b>The mat matches your table</b>', sub: kamMatchSvar.text, angra: kamMatchSvar.kanAngra };
+  /* Lugnt läge (MES-357): mattan väntar ut röran. */
+  if (lugnFrys) return { ton: 'las', rub: '<b>Waiting for the table to settle</b>', sub: 'Many cards are moving. The mat catches up when the table is still.' };
   const mig = minSpelare();
   const mo = autoRemsaModell(senasteSpar, mig, { nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad });
   const n = autoKortPaBordet(mig), vag = mo.paVag.length, namn = mo.granska;
@@ -13177,8 +13195,9 @@ function ritaKamStatus(s) {
   const kl = 'kamstatus ' + s.ton; if (el.className !== kl) el.className = kl;
   const ic = $('#kamRadIc'); if (ic.dataset.t !== s.ton) { ic.dataset.t = s.ton; ic.innerHTML = KAM_STATUS_IK[s.ton]; }
   const r = $('#kamRadRub'); if (r.dataset.h !== s.rub) { r.dataset.h = s.rub; r.innerHTML = s.rub; }
-  const su = $('#kamRadSub'), st = s.sub || ''; if (su.textContent !== st) su.textContent = st;
-  su.hidden = !st;
+  const su = $('#kamRadSub'), sut = $('#kamRadSubTxt'), st = s.sub || ''; if (sut.textContent !== st) sut.textContent = st;
+  $('#kamRadAngra').hidden = !s.angra;
+  su.hidden = !st && !s.angra;
 }
 
 /* ── Uppstarten (MES-102, "Get ready for the game" MES-170) ──────────
@@ -13620,7 +13639,7 @@ async function bytLage(v) {
   mig.lage = v; lageByte = true;
   if (v === 'utan') {
     for (const c of mig.cards) delete c.borta;
-    clearTimeout(lyftT); closeArk(); save();
+    clearTimeout(lyftT); lugnGlom(); closeArk(); save();
   }
   renderAll(true);
   const ok = await Moln.sattLage(spelLage.id, v).catch(() => false);
@@ -13666,6 +13685,8 @@ function modeKlick(ev) {
   if (a === 'redo') { oppnaOppstart(true); return; }
   if (a === 'visaqr') { kamQrTvinga = true; kamStegSynk(); return; }
   if (a === 'aterupta') { aterupptaKameran(); return; }
+  if (a === 'match') { matchaKameran('panel'); return; }
+  if (a === 'matchangra') { matchaAngra(); return; }
   if (a === 'vand') { kamVand = (kamVand + 90) % 360; sparaKamOrientering(); renderMode(); return; }
   if (a === 'spegel') { kamSpegel = !kamSpegel; sparaKamOrientering(); renderMode(); return; }
   if (a === 'stang') { stangAvAuto(true).then(() => renderMode()); return; }
@@ -15367,6 +15388,11 @@ function angra() {
     closeKortMeny(); closeCounters(); if (ark) closeArk();
     p.cards = JSON.parse(s.bild);
     ofrAterstall(s.ofr);
+    /* Match the camera (MES-357): spökena den spärrade får sina spår tillbaka, och ett kort som Match skickade
+       till raden vid nederkanten och som nu ligger på mattan igen står inte kvar i raden (Still on the table hade
+       annars lagt dit det en gång till). */
+    if (s.match) { for (const id of s.match.borttagna) borttagna.delete(id); if (kamMatchSvar && kamMatchSvar.t === s.match.id) kamMatchSvar = null; }
+    if (p === minSpelare()) handRad = handRad.filter(h => h.val || !p.cards.some(c => c.cid === h.cid));
     /* Ett kort som togs bort för hand spärrade sitt kameraspår (removeAt).
        Är det tillbaka ska kameran få binda det igen. */
     for (const k of p.cards) if (k.spar != null) borttagna.delete(k.spar);
@@ -21544,6 +21570,7 @@ $('#menuBtn').onclick = ev => {
     <div class="hd">Table mode</div>
     ${lagerad('bord', M_LAGE_BORD)}
     <button data-a="lage-utan" class="val${!kamPa ? ' pa' : ''}" title="${esc(LAGE_TXT.utan)}">${M_LAGE_UTAN}${esc(LAGE_NAMN.utan)}<span class="bock">✓</span></button>
+    ${kamPa && lg === 'bord' && kamAnsluten && redigerbar() ? `<button data-a="match" title="Match the mat to what the camera sees. Undo puts it back">Match the camera${meta('M')}</button>` : ''}
     <hr>
     <div class="hd">Game ${esc(spelLage.kod)}</div>
     <button data-a="bjudin">Copy invitation link</button>
@@ -21570,6 +21597,7 @@ menuEl.addEventListener('click', ev => {
   const a = b.dataset.a;
   if (a === 'clearhand') $('#clearHand').click();   // samma väg, med ångra
   if (a === 'bjudin') $('#spelKnapp').click();
+  if (a === 'match') matchaKameran('meny');   // Match the camera (MES-357)
   /* Lägesbytet mitt i spelet (MES-209), och den enda väg som finns när
      kameran är av. Var kameran av slår Mirror my table på den igen (samma
      som gamla "Turn on camera"). */
@@ -21670,7 +21698,7 @@ addEventListener('keydown', ev => {
   if (spelLage && lower === 'e' && !bifogbart) { if (bordTangent(ev)) ev.preventDefault(); return; }
   /* Tangenter som ÄNDRAR bordet stoppas på någon annans flik. De som bara
      navigerar, förstorar eller söker släpps igenom — man ska kunna titta. */
-  const skriver = ' t e g d n r h c u '.includes(' ' + lower + ' ') || k === ' ';
+  const skriver = ' t e g d n r h c u m '.includes(' ' + lower + ' ') || k === ' ';
   if (!redigerbar() && skriver) return;
   if (lower === 'f') { ev.preventDefault(); vaxlaFokus(); }
   else if ((lower === 'a' || k === '/') && !spelLage) { ev.preventDefault(); closeFocus(); searchInput.focus(); searchInput.select(); }
@@ -21692,6 +21720,7 @@ addEventListener('keydown', ev => {
   else if (lower === 'g' && !te && !matValda.size && spelLage && arMitt(player())) { ev.preventDefault(); closeFocus(); hfOppna(ZON_GRAV); }
   else if (lower === 's') { ev.preventDefault(); satMatVerktyg(matVerktyg === 'pan' ? 'valj' : 'pan'); }
   else if (lower === 'u') { ev.preventDefault(); untapAlla(); }
+  else if (lower === 'm' && spelLage && mittLage() === 'bord' && prefs.autoLage === true) { ev.preventDefault(); matchaKameran('tangent'); }   // Match the camera (MES-357)
   else if (lower === 'n') { ev.preventDefault(); if (addPlayer()) startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
   else if (lower === 'd' && te) { ev.preventDefault(); addCards([te.tok ? { name: te.name, sid: te.sid, tok: 1 } : te.name]); }
@@ -25398,6 +25427,7 @@ const Kamera = (() => {
      som i dag när spåret är stilla. Aldrig en fråga till Claude för en
      tidig läsning, och högst SPEK_MAX per spår. */
   const SPEK_RUTOR = 2, SPEK_FORM = 0.06, SPEK_MAX = 2;
+  const OKAND_OM = 3;   // omläsningar av ett okänt kort som flyttats (matcha, 2026-10-10)
   /* Läsningen på första hela rutan (MES-227, T.luft). Uppmätt ruta för ruta
      i golden 07/09–12 (kor.cjs --rutlogg): kortet syns aldrig oskymt "i
      luften" — handen täcker det tills det ligger, och första rutan där
@@ -28153,6 +28183,26 @@ const Kamera = (() => {
             /* Ett första "inget kort" kan ha varit en exponering som dippat — samma
                skäl som de lokala omförsöken. En fråga till efter rörelse, aldrig fler. */
             if (bast.aiInget === 1) { bast.aiFragad = false; bast.ai = null; } }
+          /* Ett okänt kort som flyttas läses om när det vilat (2026-10-10). Jespers parti: kortet räknades stilla
+             medan handen låg över det, lästes med fingrarna i beskärningen, blev okänt — och när handen släppte
+             21 s senare låg det skarpt på bordet men lästes aldrig mer ("Read started 21,3 s before the card
+             last moved"). Bara den lokala kedjan: aiFragad står kvar, så omläsningen frågar inte Claude en gång
+             till (CLAUDE.md, Claude är reserven), och ett kort som fortfarande är okänt går till Name this card
+             som förut. Inte medan frågan är ute (svarAI dömer spåret), inte efter Claudes "inget kort" (aiInget:
+             då dömer omläsningen spåret till skräp), och högst OKAND_OM gånger per spår — en hand som flyttar
+             samma kort fram och tillbaka får inte läsa det i full kedja varje gång det stannar.
+             Inte ett TÄCKT spår (arTackt: maskat, omlott eller med ett kort ovanpå): där är det högen som rör sig,
+             och omläsningen tog det övre kortets remsa — golden 18: Pacifism under Plains blev Plains, och den
+             riktiga Plains dömdes sedan som samma kort och försvann (Hittade 9 → 8). */
+          /* Samma vakter som Match the camera (lasOm, MES-357): inte en fråga som gick ut och saknar svar (aiUte —
+             provas släpps efter PROVA_MS, svaret kan ändå komma), och aiFragad SÄTTS — den står inte alltid kvar,
+             för med Claude av eller utan beskärning ställdes ingen fråga, och då hade omläsningen frågat. t.ai står
+             kvar: det är vad aiUte-vakten läser. */
+          else if (bast.tillstand === 'okand' && !bast.provas && !bast.aiInget && !(bast.aiUte && bast.aiFragad && !bast.ai) && !arHelbild(bast) && !arTackt(bast, bast.maskad) && (bast.okandOmN || 0) < OKAND_OM) {
+            bast.okandOmN = (bast.okandOmN || 0) + 1;
+            bast.tillstand = 'ny'; bast.fragad = false; bast.aiFragad = true; bast.namn = null; bast.sid = null; bast.saker = false; bast.namnLast = null; bast.del = false;
+            bast.spek = null; bast.spekN = 0; bast.skrapN = 0; bast.utbrandN = 0; bast.vantaN = 0;
+          }
           /* Den optimistiska tap-domen (MES-214): första rutan där kortet syns
              igen efter att handen släppt har mitten flyttat — kortet vreds
              runt ett hörn — och räknas som rörelse, så den stilla domen
@@ -30801,7 +30851,7 @@ const Kamera = (() => {
       t.aiFragad = true; t.aiFragadNar = nu || 0;
       if (latens) (t.ts || (t.ts = {})).fraga = Date.now();   // frågan till Claude gick (MES-242)
       try { t.provas = cb.fragaAI(c, t.id) === true; } catch (e) { t.provas = false; }
-      if (t.provas) kedjaBorja(t, 'claude');
+      if (t.provas) { t.aiUte = true; kedjaBorja(t, 'claude'); }   // aiUte: en fråga gick verkligen ut (lasOm, MES-357)
     }
     rapportera();
   }
@@ -31406,6 +31456,23 @@ const Kamera = (() => {
     t.spek = null; t.formN = 0; t.spekN = 0; t.del = false;
     remsMinne = remsMinne.filter(e => e.sparId !== id);   // människan sa att namnet var fel: minnet av remsan får inte sätta det igen (MES-331 pass 6)
   }
+  /* Match the camera (MES-357): datorn ber om en ny läsning av kort som telefonen läst utan säkert namn. Som
+     glomKort, men bara telefonens egen kedja: aiFragad sätts, så att omläsningen aldrig frågar Claude (CLAUDE.md:
+     Claude är reserven, och Match får inte skicka fler kort dit), och minnet av remsan står kvar — ingen har sagt
+     att namnet var fel. Inte medan frågan till Claude är ute (svarAI dömer spåret), inte efter Claudes "inget kort"
+     (aiInget: då dömer omläsningen spåret till skräp), inte ett spår vars fråga verkligen gick ut men inte fått svar
+     (aiUte: ett sent svar hade landat mitt i omläsningen, svarAI). aiFragad ensamt säger inget: det sätts också när
+     Claude är av eller taket nått, och då ska kortet läsas om och inte ett spår ur helbilden (ingen region att läsa). Claudes osäkra förslag
+     (t.ai) glöms: det som kommer tillbaka är telefonens egen läsning, och är kortet fortfarande okänt visar "Name this
+     card" telefonens förslag. */
+  function lasOm(ids) {
+    for (const id of ids || []) {
+      const t = spar.find(x => x.id === id);
+      if (!t || t.tillstand !== 'okand' || t.provas || t.aiInget || (t.aiUte && t.aiFragad && !t.ai) || arHelbild(t)) continue;
+      t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.aiFragad = true; t.ai = null; t.tillstand = 'ny'; t.stillaFran = performance.now();
+      t.namnLast = null; t.spek = null; t.formN = 0; t.spekN = 0; t.del = false;
+    }
+  }
   /* Datorn namngav kortet i granskningen. Spåret får namnet så att ett spöke
      av det bär något, och så att det inte hamnar i granskningen igen. */
   function namnge(id, namn, sid) {
@@ -31433,7 +31500,7 @@ const Kamera = (() => {
     const ok = satGrund(v); if (ok) grundKalla = v == null ? null : 'rad'; return ok;
   };
   const grundFranSparUtifran = (id, tappat) => { const ok = grundFranSpar(id, tappat); if (ok) grundKalla = 'rad'; return ok; };
-  return { start, installera, stopp, satKalibrering, satUpp, satGrund: satGrundUtifran, satGrundGrader, foljGrundGrader, sparVinkel, satGrav, satBib, grundFranSpar: grundFranSparUtifran, stillbild, forhandsbild, bildAndrad, bildSkickad, nyReferens, glomKort, namnge, svarAI, rapportera, fotonIgen,
+  return { start, installera, stopp, satKalibrering, satUpp, satGrund: satGrundUtifran, satGrundGrader, foljGrundGrader, sparVinkel, satGrav, satBib, grundFranSpar: grundFranSparUtifran, stillbild, forhandsbild, bildAndrad, bildSkickad, nyReferens, glomKort, lasOm, namnge, svarAI, rapportera, fotonIgen,
            detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
            beskarVridning,   // hur beskärningen vrids med kortets vinkel (MES-334 steg 1) — bänken
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
@@ -32466,6 +32533,7 @@ function kamKommando(m) {
   if (m.typ === 'nyref') { Kamera.nyReferens(); return; }    // ta om bilden av tom matta
   if (m.typ === 'helbild') { Kamera.helbild(); return; }     // provbordet bad Claude titta på hela bordet
   if (m.typ === 'glom') { Kamera.glomKort(m.spar); return; } // datorn rättade — läs om
+  if (m.typ === 'lasom') { Kamera.lasOm(m.spar); return; }   // Match the camera (MES-357): namnlösa kort läses om, utan Claude
   if (m.typ === 'namn') { Kamera.namnge(m.spar, m.namn, m.sid); return; } // granskningen gav kortet ett namn
   if (m.typ === 'lekinte') { Kamera.lekInte(m.id); return; }   // Not my library (MES-334 steg 3): högen blir ett nedvänt kort
   if (m.typ === 'lekja') { Kamera.lekJa(m.id); return; }       // It's my library: det nedvända kortet blir leken igen
@@ -32686,6 +32754,8 @@ let kamHalsaSenast = null;       // { t, halsa } ur senaste bordet (MES-240); ha
    ger dubbletter. */
 function glomSpar() {
   clearTimeout(lyftT); lyftT = null;
+  lugnGlom();   // lugnt läge (MES-357): timern får inte stämma av ett bord vars bindningar är borta
+  kamBordNar = 0;   // Match the camera väntar på nästa riktiga bord (en ny numrering)
   hoppade = new Set(); borttagna = new Set();
   /* Remsans minne av spåren hör till samma numrering som bindningen. */
   losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map();
@@ -34036,8 +34106,139 @@ function gravFragaSteg(mig, nu, synliga) {
     const a = under(c);
     if (a) fraga([a.cid, c.cid], 'ovanpa');
   }
+  /* Match the camera (MES-357): graveyard-frågan för kort som ligger bredvid leken, också när de inte nyss lagts
+     dit. Kortet närmast leken, och korten vars mitt ligger på det (högen). Inte på en plats spelaren sagt No till. */
+  if (matchar && !L.fraga) {
+    const h = mig.bibHog, lv = h && h.kam ? kamVridet(h.kam) : null;
+    const nara = mig.cards.filter(c => pa(c) && c.name && c.spar != null && synliga.has(c.spar) && !c.attachedTo && naraLek(c)
+      && !L.nej.some(s => gravMittI(kamRekt(c.kam), kamRekt(s.kam))));
+    if (nara.length && lv) {
+      const avst = c => Math.abs(kamVridet(c.kam).x - lv.x);
+      const forst = nara.slice().sort((a, b) => avst(a) - avst(b))[0];
+      const hog = nara.filter(c => c === forst || gravMittI(kamRekt(c.kam), kamRekt(forst.kam)));
+      fraga(hog.map(c => c.cid), 'flytt');
+    }
+  }
   if (andrat) gravSpara();
   return andrat;
+}
+
+/* ── Lugnt läge (MES-357) ───────────────────────────────────────────────
+   Jesper (2026-10-10, spelet 2YBSJX): när han flyttar många kort samtidigt blir mattan förvirrad. Kort försvinner,
+   läggs till och hamnar på fel ställe, för avstämningen tar varje rapport för sig medan bordet är i rörelse. Nu fryser
+   mattan när för mycket rör sig. När bordet legat stilla LUGN_STILLA stäms allt av på en gång mot det senaste
+   bordet, och korten glider till sina platser (matSynk). Statusmeningen säger "Waiting for the table to settle";
+   mattan visar inget extra.
+   Jespers beslut: 3 eller fler spår som rör sig, dör eller föds inom 1 s. Mätt i Mat tests åtta fall 2026-10-10:
+   räknas varje spår står mattan fryst 30–75 % av tiden, för detektorn föder och dödar korta spår hela tiden (händer,
+   flimmer, högar). Därför räknas bara spår som funnits i LUGN_ALDER och bär ett kort på mattan (lugnPaMattan), alltså
+   kort som legat på bordet, och som dör eller flyttas mer än LUGN_FLYTT kortbredder. Ett nytt spår räknas inte för
+   sig: ett kort som flyttas ger sitt gamla spårs död. Med åldern men utan kravet på kort stod mattan fryst 0–2 % av
+   tiden i golden och 4,6 % i passet 2026-09-22; med båda är Mat test samma som utan lugnt läge i varje fall.
+   Reglerna provas i LU1–LU5 (dev/avstamning.cjs).
+   Medan mattan är fryst tas bordet emot (sparSedd, graveyard-högen, raden) men avstäms inte. Ett kort vars spår dog
+   räknas från när det dog (lugnDod), så att högvakten och väntan ser samma tider som utan frysning. Högst LUGN_MAX åt
+   gången: ett bord som aldrig lugnar sig stäms av ändå, och det som rört sig glöms så att tre nya händelser behövs.
+   Match the camera tar bordet direkt, fryst eller inte. */
+/* Spåren som bär ett kort på mattan. Inte de oframkallade korten (NOT IDENTIFIED): räknades de frös mattan oftare i
+   Mat tests parti-kedjan, och avståndsfelet blev sämre (median 0,17 → 0,19 kortbredder, 2026-10-10). */
+function lugnPaMattan(mig) {
+  return new Set(mig.cards.filter(c => c.spar != null && zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil').map(c => c.spar));
+}
+const LUGN_N = 3, LUGN_FONSTER = 1000, LUGN_STILLA = 1000, LUGN_ALDER = 2000, LUGN_MAX = 6000, LUGN_FLYTT = 0.5;
+let lugnForra = null;        // spår-id → spåret i förra bordet (bara spår med låda)
+let lugnFodd = new Map();    // spår-id → när spåret först sågs (också i första bordet: ett kort räknas först när det legat LUGN_ALDER)
+let lugnHand = new Map();    // spår-id → senast spåret dog eller flyttades, för ett etablerat spår
+let lugnDod = new Map();     // spår-id → när spåret dog, tills avstämningen tagit det
+let lugnFrys = 0;            // när mattan frös; 0 = inte fryst
+let lugnT = null;
+function lugnGlom() { lugnForra = null; lugnFodd = new Map(); lugnHand = new Map(); lugnDod = new Map(); lugnFrys = 0; clearTimeout(lugnT); lugnT = null; }
+/* Ett steg per bord, före avstämningen. true = mattan står fryst, och avstamBord tar inte bordet. tvinga: Match.
+   bundna: spåren som bär ett kort på mattan. */
+function lugnSteg(spar, nu, tvinga, bundna) {
+  const lador = spar.filter(t => t.w != null && t.h != null && !franHelbild(t));
+  const nuSpar = new Map(lador.map(t => [t.id, t]));
+  for (const t of lador) if (!lugnFodd.has(t.id)) lugnFodd.set(t.id, nu);
+  const etablerat = id => bundna.has(id) && nu - (lugnFodd.has(id) ? lugnFodd.get(id) : nu) >= LUGN_ALDER;
+  if (lugnForra) {
+    for (const t of lador) {
+      const p = lugnForra.get(t.id);
+      if (p && etablerat(t.id) && Math.hypot(t.x + t.w / 2 - p.x - p.w / 2, t.y + t.h / 2 - p.y - p.h / 2) > LUGN_FLYTT * t.w) lugnHand.set(t.id, nu);
+    }
+    for (const id of lugnForra.keys()) if (!nuSpar.has(id)) { if (etablerat(id)) lugnHand.set(id, nu); if (!lugnDod.has(id)) lugnDod.set(id, nu); }
+  }
+  for (const id of [...lugnFodd.keys()]) if (!nuSpar.has(id)) lugnFodd.delete(id);
+  lugnForra = nuSpar;
+  for (const [id, t] of lugnHand) if (nu - t > LUGN_FONSTER + LUGN_STILLA) lugnHand.delete(id);
+  const var0 = lugnFrys;
+  if (tvinga) lugnHand = new Map();   // Match har tagit bordet: det som rörde sig före räknas inte igen
+  if (!lugnFrys && !tvinga && [...lugnHand.values()].filter(t => nu - t <= LUGN_FONSTER).length >= LUGN_N) lugnFrys = nu;
+  if (lugnFrys) {
+    const senast = lugnHand.size ? Math.max(...lugnHand.values()) : 0;
+    if (tvinga || nu - senast >= LUGN_STILLA) lugnFrys = 0;
+    else if (nu - lugnFrys >= LUGN_MAX) { lugnFrys = 0; lugnHand = new Map(); }
+  }
+  clearTimeout(lugnT); lugnT = null;
+  if (lugnFrys) {
+    const senast = Math.max(...lugnHand.values());
+    lugnT = setTimeout(() => avstamBord(senasteRa), Math.max(0, Math.min(senast + LUGN_STILLA, lugnFrys + LUGN_MAX) - nu) + 50);
+  }
+  if (!!var0 !== !!lugnFrys) renderMode();
+  return !!lugnFrys;
+}
+
+/* ── Match the camera (MES-357, MES-356 punkt 4–5) ──────────────────────
+   Reserven när mattan inte stämmer med bordet, till exempel efter en knuff: samma rättelser som avstämningen gör
+   av sig själv, fast på hela bordet och på en gång. Avstämningen körs en gång på telefonens senaste bord med
+   matchar på, och då
+   - väntar inget kort ut nåden eller väntan: ett kort kameran inte ser lämnar mattan till raden vid nederkanten
+     (tillHanden), som när väntan tar slut. Knuffundantaget (fall 8) gäller inte, det är just knuffen Match är till för.
+     Det som kan ligga kvar osett väntar som förut (orort): under handen, täckt av ett annat kort, i sin hög,
+     utskjutet ur bilden, eller medan ett oläst kort kan vara det;
+   - bärs ett kort i väntan till ett spår där telefonens egna vittnen säger dess namn (spoketsKort, utan nåden);
+   - flyttas varje kort till spårets plats, också medan spåret inte vilat färdigt (kamLage);
+   - ställs graveyard-frågan för kort som ligger bredvid leken (gravFragaSteg).
+   Sedan tas spöken bort: ett oframkallat kort vars spår telefonens egen läsning ger namnet på ett kort som ligger
+   nästan på samma plats (MATCH_SPOKE), och som telefonen inte sett ligga över eller under det (ofrSkilda) eller
+   skilt ut med en egen namnremsa (skildaRemsor) eller som ett eget kort i Claudes svar (syskon). Spåret
+   spärras som när spelaren tar bort ett kort (borttagna), tills det lyfts eller Undo. Namnlösa kort läses om med
+   telefonens egen läsning (lasOm, aldrig Claude).
+   Ingen ombyggnad: kort som ligger rätt, tokens, counters, auror och namn spelaren skrivit rörs inte (frasktBord gör
+   en hel ombyggnad och används inte här). Inget kort får ett nytt namn, så Match kan inte ge ett säkert fel namn.
+   Ren nog att provas i dev/avstamning.cjs. */
+const MATCH_SPOKE = 0.6;   // ett oframkallat kort som täcker ett namngivet så mycket (av det minsta) är samma kort sett två gånger
+let matchar = false;
+function matchaBordet() {
+  const mig = minSpelare(); if (!mig) return null;
+  const paM = c => zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil';
+  const fore = new Map(mig.cards.filter(paM).map(c => [c.cid, c.kam ? Object.assign({}, c.kam) : null]));
+  const fraga0 = gravLageNu().fraga;
+  matchar = true;
+  try { avstamBord(senasteRa); } finally { matchar = false; }
+  const synl = new Map(senasteSpar.filter(t => t.w != null && t.h != null && !franHelbild(t)).map(t => [t.id, t]));
+  const kortPa = id => mig.cards.find(c => c.spar === id);
+  const spoken = [];
+  for (const t of synl.values()) {
+    if (kortPa(t.id) || t.tillstand === 'klar' || borttagna.has(t.id)) continue;
+    const namn = telefonensNamn(t); if (!namn.size) continue;
+    if (mig.cards.some(c => { const u = c.spar != null ? synl.get(c.spar) : null;
+      return !!u && namn.has(c.name) && paM(c) && tackning(u, t) >= MATCH_SPOKE && !ofrSkilda(u.id, t.id) && !skildaRemsor(u, t) && !syskon(u, t); })) spoken.push(t.id);   // samma skydd som sammaPlats: två egna namnremsor, Claudes klunga
+  }
+  for (const id of spoken) borttagna.add(id);
+  if (spoken.length) {
+    mig.pending = mig.pending.filter(q => !spoken.includes(q.spar));
+    for (const [pid, p] of [...ofrMinne]) if (spoken.includes(p.spar)) ofrMinne.delete(pid);
+  }
+  const lasOm = [...synl.values()].filter(t => !kortPa(t.id) && t.tillstand === 'okand' && !t.provas && !t.ned && !!t.kortlik
+    && !hoppade.has(t.id) && !borttagna.has(t.id)).map(t => t.id);
+  let flyttade = 0, bort = 0;
+  for (const [cid, kam] of fore) {
+    const c = mig.cards.find(x => x.cid === cid);
+    if (!c || !paM(c)) { bort++; continue; }
+    if (kam && c.kam && Math.hypot(c.kam.x - kam.x, c.kam.y - kam.y) > AUTO_FLYTT * (kam.w || c.kam.w)) flyttade++;
+  }
+  const L = gravLageNu();
+  return { flyttade, bort, spoken, lasOm, grav: !!L.fraga && L.fraga !== fraga0 };
 }
 
 function avstamBord(spar, nollstall, fas, yta, rad, grav) {
@@ -34059,11 +34260,11 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   spar = spar.filter(t => !gravIgnorerad(t));
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
-  if (nollstall) { gravGlomPlatser(); glomSpar(); ofrGlom(); losKort = new Map(); gravHandelser = []; gravSistaN = null; gravTomNar = 0; gravTomSparr = false; gravFoljdaSpar = new Map(); gravTid = new Map(); sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); flyttVantan = new Map(); platsMinne = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
+  if (nollstall) { gravGlomPlatser(); glomSpar(); ofrGlom(); losKort = new Map(); gravHandelser = []; gravSistaN = null; gravTomNar = 0; gravTomSparr = false; gravFoljdaSpar = new Map(); gravTid = new Map(); sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); flyttVantan = new Map(); platsMinne = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; lugnGlom(); renderMode(); uppdateraPbStatus(); return; }
   /* Medan telefonen lär sig ljuset spårar den redan, men bordet tas emot
      först när fasen bytt: det som kommer under sekunden är preliminärt, och
      telefonen skickar hela bordet igen så fort referensen är klar. */
-  if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { losKort = new Map(); renderMode(); uppdateraPbStatus(); return; }
+  if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { losKort = new Map(); lugnGlom(); renderMode(); uppdateraPbStatus(); return; }   // spåren föds om efter ljuset: inget av det är kort som rört sig (lugnt läge)
   const nu = Date.now();
   gravTaEmot(grav, nu);
   handRadStada(nu);   // raden vid nederkanten (MES-343): valet som gått ut står fast — handen
@@ -34080,6 +34281,12 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     for (const t of spar) if (!sparSedd.has(t.id)) sparSedd.set(t.id, nu);
     for (const id of [...sparSedd.keys()]) if (!spar.some(t => t.id === id)) sparSedd.delete(id);
     senasteSpar = spar; renderMode(); uppdateraPbStatus(); return;
+  }
+  /* Lugnt läge (MES-357): för mycket rör sig, och mattan står still tills bordet lagt sig. Spåren som föds medan
+     den står räknas från när de syntes, som utan frysning. */
+  if (lugnSteg(spar, nu, matchar, lugnPaMattan(mig))) {
+    for (const t of spar) if (!sparSedd.has(t.id)) sparSedd.set(t.id, nu);
+    uppdateraPbStatus(); return;
   }
   /* Ett spår som kommer tillbaka på en ny plats bär inte längre sitt kort (tvivelSteg). */
   /* Handzonen (handNara) läser bordet FÖRE tvivelSteg: ett spår som tvivlas på (Pharika's Chosen på
@@ -34169,7 +34376,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     /* Ett kort som burits till spåret utan namn (flyttFran, steg 3b) följer spårets viloläge också
        medan spåret är nytt eller osäkert: läget är det enda beviset för att kortet ligger där. */
     const buret = !!k.flyttFran && k.spar === t.id && !!t.vilar;
-    if (t.w == null || t.h == null || franHelbild(t) || (t.tillstand !== 'stilla' && t.tillstand !== 'klar' && !buret)) return;
+    if (t.w == null || t.h == null || franHelbild(t) || (t.tillstand !== 'stilla' && t.tillstand !== 'klar' && !buret && !matchar)) return;   // Match: kortet till spårets plats nu (MES-357)
     /* Telefonens viloläge (vx, vy) när det finns: lådan i rapporten är den i rutan rapporten gick, och rör sig med en hand intill (MES-214). */
     const cx = t.vx != null ? t.vx : t.x + t.w / 2, cy = t.vy != null ? t.vy : t.y + t.h / 2;
     /* Ett läge som skrevs innan kortet vilat (telefonens vilar false: kortet
@@ -34545,7 +34752,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     const medNamn = mig.cards.filter(c => n.has(c.name) && paBordet(c) && c.spar != null && !synliga.has(c.spar));
     if (medNamn.length !== 1) return null;
     const k = medNamn[0];
-    if (!k.kam || k.fysisk || k.attachedTo || k.borta == null || nu - k.borta <= BORTA_NAD || annatKort(k, t)) return null;
+    if (!k.kam || k.fysisk || k.attachedTo || k.borta == null || (nu - k.borta <= BORTA_NAD && !matchar) || annatKort(k, t)) return null;   // Match väntar inte ut nåden
     if ((sparSedd.has(t.id) ? sparSedd.get(t.id) : nu) < k.borta - FLYTT_FORE) return null;
     if (spar.some(u => u.w != null && u.h != null && !franHelbild(u) && !u.skymd && (u.tillstand === 'klar' || u.kortlik) && tackning(kamRekt(k.kam), u) >= SAMMA_KORT_TACKNING)) return null;
     if (spar.some(u => u !== t && u.tillstand !== 'klar' && !iFysiskt.has(u.id) && !bunden(u.id) && telefonensNamn(u).has(k.name))) return null;
@@ -34671,7 +34878,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   /* Det gissade spåret dog utan namn (skräp hos Claude, eller borta): gissningen föll. Kortet tillbaka
      där det låg, och väntan räknas från det första försvinnandet (kontrollgranskningen, V2sparDor). */
   for (const k of mig.cards) if (k.flyttFran && k.spar != null && !synliga.has(k.spar)) aterstallFlytt(k);
-  for (const k of mig.cards) if (k.spar != null && !synliga.has(k.spar) && !k.borta) { k.borta = nu; gravTid.set(k.cid, nu); andrat = true; }
+  for (const k of mig.cards) if (k.spar != null && !synliga.has(k.spar) && !k.borta) { k.borta = lugnDod.has(k.spar) ? lugnDod.get(k.spar) : nu; gravTid.set(k.cid, k.borta); andrat = true; }   // dog spåret medan mattan stod fryst: från när det dog (lugnt läge)
   /* En flytt utan namn (steg 3b) som inget namn bekräftat upphävs av högen: växte graveyard i fönstret
      efter att kortets spår dog (flyttFran.borta) lämnade kortet bordet — det ligger inte där det nya
      spåret vilar. Högen är det starkare beviset (MES-291: "högen som växer bevisar att kortet lämnat
@@ -34735,13 +34942,14 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const dogSamtidigt = borta0 => mig.cards.filter(c => paBordet(c) && gravTid.has(c.cid) && (c.spar == null || !synliga.has(c.spar)) && Math.abs(gravTid.get(c.cid) - borta0) < SAMTIDIGT_MS).length >= 3;
   for (const k of mig.cards.slice().sort((a, b) => (a.attachedTo ? 1 : 0) - (b.attachedTo ? 1 : 0))) {   // en kopia: tillHanden tar kortet ur listan; värdarna före sina auror, så att auran följer värden (granskningen T2b)
     if (k.spar == null || synliga.has(k.spar) || !k.borta) continue;
+    if (matchar && k.tok) continue;   // Match the camera rör inte tokens (MES-356 punkt 2)
     const vantat = nu - k.borta;
-    if (vantat <= SLAPP_MS) continue;                                                        // nåden: inget avgörs än
+    if (vantat <= SLAPP_MS && !matchar) continue;                                            // nåden: inget avgörs än (Match väntar inte)
     /* Handzonen (MES-341, princip 3): en hand nära platsen betyder orört, hur länge den än ligger kvar
        (granskningen T1: taket HAND_MAX fanns för nedtoningen, där priset var ett grått kort — nu är priset
        en borttagning, och issuens regel är "platsen syns och är tom när händerna nära den gått"). */
     const hand = handNara(k, sparRa);
-    if ((vantat <= BORTA_NAD || hand) && tillHand(k, k.borta) && !gravAutoKan(k, k.borta)) continue;   // väntan: kortet antas flyttat, tills högen växer
+    if (((vantat <= BORTA_NAD && !matchar) || hand) && tillHand(k, k.borta) && !gravAutoKan(k, k.borta)) continue;   // väntan: kortet antas flyttat, tills högen växer
     if (tillHand(k, k.borta) && !gravAutoKan(k, k.borta) && orort(k)) continue;                       // osäkert betyder orört: väntar vidare
     const borta0 = k.borta;
     delete k.spar; delete k.borta; andrat = true;
@@ -34755,7 +34963,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     if (besvarjelse(k, borta0)) { k.zon = ZON_GRAV; delete k.attachedTo; k.spellAuto = nu; gravTa(borta0); continue; }   // högens ändring var besvärjelsen (MES-85)
     if (tackt(k)) continue;                    // ligger under sin värd eller sin hög
     if (gravAutoOm(k, borta0)) continue;       // högen i bild ändrades: det lades där (MES-85)
-    if (dogSamtidigt(borta0)) { k.slappt = borta0; continue; }   // fall 8: telefonen knuffad — ingenting ändras
+    if (dogSamtidigt(borta0) && !matchar) { k.slappt = borta0; continue; }   // fall 8: telefonen knuffad — ingenting ändras (Match: knuffen är det den rättar)
     tillHanden(mig, k, borta0, nu);            // fall 1: till handen (fall 7: en token upphör, med Ångra)
   }
   /* Efterskottet (MES-85): högen blev stilla först efter väntan, och kortet
@@ -34783,9 +34991,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const olastNagot = spar.some(t => t.w != null && !franHelbild(t) && !bunden(t.id) && !t.ned && !!t.kortlik && t.tillstand !== 'klar'
     && !hoppade.has(t.id) && !borttagna.has(t.id) && !sammaSomKlart.has(t.id));
   for (const k of mig.cards.slice().sort((a, b) => (a.attachedTo ? 1 : 0) - (b.attachedTo ? 1 : 0))) {
-    if (k.spar != null || !paBordet(k) || !k.kam || k.fysisk || k.kvarSagt || k.slappt != null || k.attachedTo || tackt(k)) { losKort.delete(k.cid); continue; }
-    if (!losKort.has(k.cid)) { losKort.set(k.cid, nu); continue; }
-    if (nu - losKort.get(k.cid) < LOS_MS || olastNagot || namnAnnanstans(k) || tacktAvKort(k) || handNara(k, sparRa)) continue;
+    if (k.spar != null || !paBordet(k) || !k.kam || k.fysisk || k.kvarSagt || (k.slappt != null && !matchar) || k.attachedTo || (k.tok && matchar) || tackt(k)) { losKort.delete(k.cid); continue; }   // Match: ett släppt kort (fall 8) som kameran inte ser lämnar mattan; tokens rörs inte
+    if (!losKort.has(k.cid)) { losKort.set(k.cid, nu); if (!matchar) continue; }
+    if ((nu - losKort.get(k.cid) < LOS_MS && !matchar) || olastNagot || namnAnnanstans(k) || tacktAvKort(k) || handNara(k, sparRa)) continue;
     losKort.delete(k.cid);
     /* borta0 null: högvakten parar ingen ändring av graveyard med det här kortet — det lyftes inte nu. */
     if (tillHanden(mig, k, null, nu)) andrat = true;
@@ -34843,6 +35051,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      millisekunden, inte vid nästa rapport (telefonen är tyst när kortet ligger still). */
   const tider = frister.map(t => t + 100).concat(ofrFrister);
   if (tider.length) lyftT = setTimeout(() => avstamBord(senasteRa), Math.max(0, Math.min(...tider) - nu));
+  lugnDod = new Map();   // avstämningen har tagit varje spår som dog (lugnt läge)
   senasteSpar = spar;
   /* Även när ingenting ändrades på bordet kan något annat ha gjort det
      (renderGrid ritar bara om när signaturen ändrats). */
@@ -36369,11 +36578,33 @@ function frasktBord() {
 }
 /* En bildruta från telefonen. Måtten är telefonens egna; pbW/pbH följer dem. */
 let kamBildW = 0, kamBildH = 0;
+/* Felrapportens bild (Match the camera, MES-357): den senaste bildrutan när den är färsk, annars ber datorn
+   telefonen om förhandsbilden en stund och tar första rutan. null om ingen kommer inom KAM_BILD_VANTA. */
+const KAM_BILD_VANTA = 4000;
+let kamBildSenast = null, kamBildVantare = [];
+function kamBildNu() {
+  if (kamBildSenast && Date.now() - kamBildSenast.t < 1500) return Promise.resolve(kamBildSenast.b64);
+  if (!kamAnsluten) return Promise.resolve(null);
+  return new Promise(res => {
+    const v = {};
+    v.klar = b => {
+      clearTimeout(v.t); kamBildVantare = kamBildVantare.filter(x => x !== v);
+      if (!kamBildVantare.length && !kamTittar) Moln.sandKam('strom', { pa: false });
+      res(b);
+    };
+    v.t = setTimeout(() => v.klar(null), KAM_BILD_VANTA);
+    kamBildVantare.push(v);
+    if (!kamTittar) Moln.sandKam('strom', { pa: true, bredd: 640 });
+  });
+}
 function kamBild(m) {
+  if (!m || !m.b64) return;
+  kamBildSenast = { t: Date.now(), b64: m.b64 };
+  for (const v of kamBildVantare.slice()) v.klar(m.b64);
   /* Villkoret stod förut på kamOppen, alltså på om MODALEN var öppen. Det gav
      popovern noll bildrutor och ett "Väntar på bild från telefonen…" som
      aldrig gick över. */
-  if (!m || !m.b64 || !kamTittar) return;
+  if (!kamTittar) return;
   kamBildW = m.w || kamBildW; kamBildH = m.h || kamBildH;
   pbW = kamBildW; pbH = kamBildH;
   if (pbPa) { const pi = $('#pbImg'); pi.src = m.b64; $('#pbVantar').hidden = true; pi.decode().then(ritaPbLager).catch(() => {}); }
@@ -36410,7 +36641,7 @@ function kamTogsEmot(m) {
     if (prefs.autoLage === false) return;
     /* Pausen (MES-358): mattan följer inte bordet. Senaste bordet sparas, med en nollställning som kom
        under pausen, och Resume spelar upp det så att mattan hinner ikapp direkt. */
-    if (kamPaus) { kamPausBord = Object.assign({}, m, { nollstall: !!(m.nollstall || (kamPausBord && kamPausBord.nollstall)) }); return; }
+    if (kamPaus) { kamPausBord = Object.assign({}, m, { nollstall: !!(m.nollstall || (kamPausBord && kamPausBord.nollstall)), pausNar: Date.now() }); return; }
     /* Leken utan uppstart (MES-334 steg 3): före avstämningen, så att bordet ritas med leken där den ligger. */
     if (m.lek !== undefined) tagEmotLek(m.lek);
     loggaBord(m);   // bordsloggen: passet går att spela upp efteråt (dev/dubbletter.cjs --logg)
@@ -36428,6 +36659,9 @@ function kamTogsEmot(m) {
       const fas = m.fas || kamFas;
       if (fas !== 'ljus' && fas !== 'lar' && fas !== 'ingen' && !oppstartSparr()) { kamFrasktVantar = false; frasktBord(); }
     }
+    /* Match the camera stämmer av mot det här bordet (MES-357): ett riktigt bord, inte nollställningen eller ljuset. Ett
+       bord från pausen räknas från när det kom, inte från Resume. */
+    if (!m.nollstall && !['ljus', 'lar', 'ingen'].includes(m.fas || kamFas)) kamBordNar = m.pausNar || Date.now();
     return avstamBord(m.spar || [], m.nollstall, m.fas, m.yta, m.rad, m.grav);
   }
   if (m.typ === 'grund') return tagEmotGrundSvar(m);
@@ -36650,16 +36884,109 @@ $('#kamKoppla').onclick = () => pausaKameran();
 function pausaKameran() {
   if (!kamAnsluten) return stangAvAuto(true);
   kamPaus = true; kamPausBord = null;
+  lugnGlom();   // en fryst matta stäms inte av under pausen; Resume matchar
   renderMode();
 }
-/* Resume: mattan hinner ikapp med senaste bordet från pausen. Avstämningen tar det som vilket bord som
-   helst, så ingen ombyggnad som frasktBord. Kom inget bord under pausen tar nästa hjärtslag det. */
+/* Resume: mattan matchas mot bordet (MES-357, designytan sida 1 F: "The mat is matched to your table when you
+   resume"). Senaste bordet från pausen tas emot som vilket bord som helst, och sedan gör Match the camera samma
+   rättelser på hela bordet. Förut tog bara avstämningen bordet: under pausen har spelaren blandat, städat eller
+   flyttat telefonen, och korten som lyfts stod kvar på mattan genom nåden och väntan, och en flyttad telefon
+   (fall 8) lämnade dem kvar tills kameran bundit om dem. Ingen felrapport: Resume är inget fel. */
 function aterupptaKameran() {
   if (!kamPaus) return;
   kamPaus = false;
   const m = kamPausBord; kamPausBord = null;
   renderMode();
   if (m) kamTogsEmot(m);
+  matchaKameran('resume');
+}
+
+/* ── Match the camera (MES-357) ────────────────────────────────────────
+   Knappen i panelens rad, raden i menyn och M. Rättelserna gör matchaBordet (i avstämningen, provad i
+   dev/avstamning.cjs). Här: ångrapunkten, omläsningen på telefonen, resultatet och felrapporten.
+   Resultatet står i statusmeningen med Undo (designytan sida 1 E) när panelen är öppen, annars som en notis
+   med Undo: mattan visar inte själv vad som rättades. */
+const KAM_MATCH_MS = 10000;   // så länge står resultatet i statusmeningen
+const KAM_MATCH_FARSK = 10000;   // telefonens senaste bord får inte vara äldre (hjärtslaget går var tredje sekund)
+let kamBordNar = 0;              // när ett riktigt bord från telefonen senast togs emot (inte ett fasbyte, inte under pausen)
+let kamMatchSvar = null;      // { t, text, kanAngra, andrat, spoken }
+function matchaKameran(kalla) {
+  const mig = minSpelare();
+  if (!spelLage || !mig || mittLage() !== 'bord' || prefs.autoLage !== true || !redigerbar()) return;
+  if (!kamAnsluten) { if (kalla !== 'resume') toast('Connect your phone first. Match uses what the camera sees.', 'err'); return; }
+  if (kamPaus) { aterupptaKameran(); return; }   // M under pausen: Resume, som matchar
+  /* Match stämmer av mot telefonens senaste bord. Efter en omladdning är det tomt tills telefonen skickat sitt
+     första, och ett tomt bord hade tagit varje kort av mattan. */
+  if (!kamBordNar || Date.now() - kamBordNar > KAM_MATCH_FARSK) {
+    if (kalla !== 'resume') toast("The camera hasn't sent the table yet. Try again in a few seconds.", 'err');
+    return;
+  }
+  if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen' || oppstartSparr()) {
+    if (kalla !== 'resume') toast('The camera is still learning the table. Try again in a few seconds.', 'err');
+    return;
+  }
+  const fore = JSON.stringify(mig.cards), foreRapport = kalla !== 'resume' ? matchRapportBord(mig) : null;
+  const r = matchaBordet(); if (!r) return;
+  const andrat = JSON.stringify(mig.cards) !== fore, id = Date.now();
+  /* En egen ångrapunkt, märkt: Undo i meningen och notisen ångrar bara den, och ⌘Z som tagit den släcker Undo. */
+  if (andrat && !angraTyst && !fjarrLas) { angraStack.push({ pid: mig.id, bild: fore, sel: state.sel, match: { id, borttagna: r.spoken.slice() } }); if (angraStack.length > ANGRA_MAX) angraStack.shift(); }
+  if (r.lasOm.length) Moln.sandKam('lasom', { spar: r.lasOm });   // telefonens egen läsning, aldrig Claude
+  save(); renderAll(true);
+  const kort = n => n + (n === 1 ? ' card' : ' cards');
+  const bort = r.bort + r.spoken.length, delar = [];
+  if (r.flyttade) delar.push(kort(r.flyttade) + ' moved');
+  if (bort) delar.push((delar.length ? bort : kort(bort)) + ' taken off the mat');
+  if (r.lasOm.length) delar.push((delar.length ? r.lasOm.length : kort(r.lasOm.length)) + ' read again');
+  const text = delar.length ? delar.join(', ').replace(/^./, c => c.toUpperCase()) + '.' : 'Nothing needed changing.';
+  kamMatchSvar = { t: id, text, kanAngra: andrat || r.spoken.length > 0, andrat, spoken: r.spoken.slice() };
+  if (kamOppen) renderMode();
+  else if (kalla !== 'resume' || andrat) toast('The mat matches your table. ' + text, null, kamMatchSvar.kanAngra ? matchaAngra : null);
+  if (foreRapport) matchRapport(kalla, foreRapport, r);
+}
+/* Undo: ångrapunkten Match lade (korten), och spökena får sina spår tillbaka. Har spelaren gjort något på mattan
+   sedan dess ligger Matchs punkt inte överst, och då ångras ingenting här: ⌘Z tar det senaste först. */
+function matchaAngra() {
+  const s = kamMatchSvar; if (!s || !s.kanAngra) return;
+  const top = angraStack[angraStack.length - 1];
+  if (s.andrat && !(top && top.match && top.match.id === s.t)) { kamMatchSvar = null; renderMode(); toast('The mat changed after Match. Use ⌘Z to undo step by step.', 'err'); return; }
+  if (s.andrat) {
+    const mig = minSpelare();
+    if (mig && JSON.stringify(mig.cards) === top.bild) angraStack.pop();   // kameran har redan lagt korten så: inget att lägga tillbaka, och angra() hade tagit punkten under
+    else if (!angra()) return;                                              // ett drag pågår: Undo står kvar
+  }
+  kamMatchSvar = null;
+  for (const id of s.spoken) borttagna.delete(id);
+  if (s.spoken.length && kamAnsluten && !kamPaus) avstamBord(senasteRa);   // de oframkallade korten tillbaka nu, inte vid nästa bord
+  renderMode();
+}
+/* Felrapporten (MES-356 punkt 5): kamerans bild just då och mattans läge före och efter, sparad som kortens
+   andra händelser (kort_handelser, typ 'match'). Material till nya fall i uppspelaren (dev/mattest) och golden.
+   Inget skickas till Claude. Mattans läge är bara bordets kort, aldrig handen eller leken. Bilden och spåren är
+   kamerans, så ett kort som hålls ovanför bordet kan synas där; raderna läses bara av service_role. */
+function matchRapportBord(mig) {
+  const r3 = v => v == null ? v : Math.round(v * 1000) / 1000;
+  const kam = k => k ? { x: r3(k.x), y: r3(k.y), w: r3(k.w), h: r3(k.h) } : null;
+  return {
+    kort: mig.cards.filter(paMattan).map(c => ({ cid: c.cid, namn: c.name, spar: c.spar == null ? null : c.spar, kam: kam(c.kam),
+      tappad: c.tapped ? 1 : 0, borta: c.borta ? 1 : 0, tok: c.tok ? 1 : 0, bifogad: c.attachedTo || null })),
+    oframkallade: [...ofrMinne.values()].map(p => ({ spar: p.spar, kam: kam(p.kam) })),
+    granskning: mig.pending.map(q => ({ spar: q.spar, namn: q.cands && q.cands[0] ? q.cands[0].name : null }))
+  };
+}
+async function matchRapport(kalla, fore, r) {
+  try {
+    if (!Moln.inloggad() || !spelLage) return;
+    const spel = spelLage.id, mig = minSpelare(), efter = matchRapportBord(mig);
+    const r3 = v => v == null ? v : Math.round(v * 1000) / 1000;
+    const spar = senasteRa.map(t => ({ id: t.id, x: r3(t.x), y: r3(t.y), w: r3(t.w), h: r3(t.h), tillstand: t.tillstand, namn: t.namn || null,
+      saker: !!t.saker, gissning: t.gissning || null, tappad: !!t.tappad, vilar: t.vilar, skymd: !!t.skymd, under: t.under || undefined }));
+    const bild = await kamBildNu();
+    if (!spelLage || spelLage.id !== spel) return;
+    Mix.track('Mat Matched', { moved: r.flyttade, removed: r.bort + r.spoken.length, read_again: r.lasOm.length, source: kalla });
+    await Moln.loggaKortHandelser([{ game_id: spel, kort: null, typ: 'match', lage: 'bord', tid: new Date().toISOString(),
+      rapport: { kalla, fore, efter, spar, bild, fas: kamFas, grund: kamGrund == null ? null : kamGrund, vand: kamVand, spegel: !!kamSpegel,
+        ser: kamSer, last: kamLast, resultat: { flyttade: r.flyttade, bort: r.bort, spoken: r.spoken, lasOm: r.lasOm, grav: r.grav } } }]);
+  } catch (e) { console.warn('Felrapporten', e); }   // rapporten får aldrig stoppa spelet
 }
 
 /* ── Skruvrummet: andra steget i kameravyn ──────────────────────────
