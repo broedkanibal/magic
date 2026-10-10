@@ -30033,6 +30033,7 @@ const Kamera = (() => {
     cb.bord(spar.map(t => ({
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
       sen: t.regionNar != null ? Math.max(0, Math.round(forra - t.regionNar)) : null,   // ms sedan detektorn gav spåret en region; null = aldrig (helbild, svarAI-del). forra, inte performance.now(): bänken och golden styr klockan själva
+      alder: t.fodd != null ? Math.max(0, Math.round(forra - t.fodd)) : null,   // ms sedan spåret föddes (detektorn såg kortet först) — spelupplevelsens tid till namn (kort_handelser.ms). Inte sen: den är ~0 för varje kort i bild
       stilla: arStilla(t),   // legat stilla i stillaMs (MES-166): datorns provkortslås låser bara ett stilla kort; och kamLage ankrar om ett läge som skrevs innan kortet vilat (MES-214)
       kortlik: skuggklar(t),   // regionen har ETT KORTS MÅTT, eller har stått formstilla i två rutor: datorn ritar skuggan direkt, utan den halva sekund som skyddar mot en hand (MES-226)
       ned: arNedKort(t),   // spåret är ett ensamt nedvänt kort (lek.ned, Rättelse 2): datorn ritar det kortet, ingen platshållare
@@ -33866,9 +33867,14 @@ function khNamnlos(q, t) { try { khNamnlosNu(q, t); } catch (e) { console.warn('
 function khNamnlosNu(q, t) {
   if (!q || q.overTak || !khSakra()) return;
   if (t && t.id != null) KH.spar.set('s:' + t.id, String(q.id));
-  khLogga('namnlos', q.id, { ms: t && t.sen != null ? Math.round(t.sen) : null });
+  khLogga('namnlos', q.id, { ms: khMs(t) });
 }
-/* Kameran satte namnet. t.sen = ms sedan telefonens detektor först såg kortet, när bordet skickades. */
+/* Tiden i kort_handelser.ms: t.alder = ms sedan telefonens detektor först såg kortet (spåret föddes), när bordet
+   skickades. Förut t.sen, som är ms sedan detektorn SENAST såg kortet — 0 för varje kort i bild, så 36 av 37 rader
+   i spelen 9–10 okt fick 0 (den 37:e, 5326, var ett kort som var skymt just då). En telefon som inte skickar alder
+   (äldre kod) ger null, aldrig 0. Ett spår som föds om (kortet tappades ur bild) räknar från det nya spåret. */
+const khMs = t => t && t.alder != null ? Math.round(t.alder) : null;
+/* Kameran satte namnet. */
 function khKameransNamn(cid, t) { try { khKameransNamnNu(cid, t); } catch (e) { console.warn('Spelupplevelsen', e); } }
 function khKameransNamnNu(cid, t) {
   if (!khSakra()) return;
@@ -33878,7 +33884,7 @@ function khKameransNamnNu(cid, t) {
   const k = khNyckel(cid);
   if (KH.sedda.has('namngiven|' + k) || KH.sedda.has('tillagd|' + k)) return;
   const ai = autoSumMetod(t) === 'ai';
-  khLogga(fore ? 'sent_namn' : 'namn', cid, { namn: t.namn || null, kalla: ai ? 'claude' : 'telefon', ms: t.sen != null ? Math.round(t.sen) : null });
+  khLogga(fore ? 'sent_namn' : 'namn', cid, { namn: t.namn || null, kalla: ai ? 'claude' : 'telefon', ms: khMs(t) });
 }
 function autoSumKort(cid, t) {
   if (cid == null || !t) return false;
