@@ -30678,7 +30678,7 @@ const Kamera = (() => {
       t.aiFragad = true; t.aiFragadNar = nu || 0;
       if (latens) (t.ts || (t.ts = {})).fraga = Date.now();   // frågan till Claude gick (MES-242)
       try { t.provas = cb.fragaAI(c, t.id) === true; } catch (e) { t.provas = false; }
-      if (t.provas) kedjaBorja(t, 'claude');
+      if (t.provas) { t.aiUte = true; kedjaBorja(t, 'claude'); }   // aiUte: en fråga gick verkligen ut (lasOm, MES-357)
     }
     rapportera();
   }
@@ -31287,14 +31287,15 @@ const Kamera = (() => {
      glomKort, men bara telefonens egen kedja: aiFragad sätts, så att omläsningen aldrig frågar Claude (CLAUDE.md:
      Claude är reserven, och Match får inte skicka fler kort dit), och minnet av remsan står kvar — ingen har sagt
      att namnet var fel. Inte medan frågan till Claude är ute (svarAI dömer spåret), inte efter Claudes "inget kort"
-     (aiInget: då dömer omläsningen spåret till skräp), inte ett spår vars fråga gick ut utan svar (ett sent svar hade
-     landat mitt i omläsningen, svarAI) och inte ett spår ur helbilden (ingen region att läsa). Claudes osäkra förslag
+     (aiInget: då dömer omläsningen spåret till skräp), inte ett spår vars fråga verkligen gick ut men inte fått svar
+     (aiUte: ett sent svar hade landat mitt i omläsningen, svarAI). aiFragad ensamt säger inget: det sätts också när
+     Claude är av eller taket nått, och då ska kortet läsas om och inte ett spår ur helbilden (ingen region att läsa). Claudes osäkra förslag
      (t.ai) glöms: det som kommer tillbaka är telefonens egen läsning, och är kortet fortfarande okänt visar "Name this
      card" telefonens förslag. */
   function lasOm(ids) {
     for (const id of ids || []) {
       const t = spar.find(x => x.id === id);
-      if (!t || t.tillstand !== 'okand' || t.provas || t.aiInget || (t.aiFragad && !t.ai) || arHelbild(t)) continue;
+      if (!t || t.tillstand !== 'okand' || t.provas || t.aiInget || (t.aiUte && t.aiFragad && !t.ai) || arHelbild(t)) continue;
       t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.aiFragad = true; t.ai = null; t.tillstand = 'ny'; t.stillaFran = performance.now();
       t.namnLast = null; t.spek = null; t.formN = 0; t.spekN = 0; t.del = false;
     }
@@ -32581,6 +32582,7 @@ let kamHalsaSenast = null;       // { t, halsa } ur senaste bordet (MES-240); ha
 function glomSpar() {
   clearTimeout(lyftT); lyftT = null;
   lugnGlom();   // lugnt läge (MES-357): timern får inte stämma av ett bord vars bindningar är borta
+  kamBordNar = 0;   // Match the camera väntar på nästa riktiga bord (en ny numrering)
   hoppade = new Set(); borttagna = new Set();
   /* Remsans minne av spåren hör till samma numrering som bindningen. */
   losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map();
@@ -36461,7 +36463,7 @@ function kamTogsEmot(m) {
     if (prefs.autoLage === false) return;
     /* Pausen (MES-358): mattan följer inte bordet. Senaste bordet sparas, med en nollställning som kom
        under pausen, och Resume spelar upp det så att mattan hinner ikapp direkt. */
-    if (kamPaus) { kamPausBord = Object.assign({}, m, { nollstall: !!(m.nollstall || (kamPausBord && kamPausBord.nollstall)) }); return; }
+    if (kamPaus) { kamPausBord = Object.assign({}, m, { nollstall: !!(m.nollstall || (kamPausBord && kamPausBord.nollstall)), pausNar: Date.now() }); return; }
     /* Leken utan uppstart (MES-334 steg 3): före avstämningen, så att bordet ritas med leken där den ligger. */
     if (m.lek !== undefined) tagEmotLek(m.lek);
     loggaBord(m);   // bordsloggen: passet går att spela upp efteråt (dev/dubbletter.cjs --logg)
@@ -36479,7 +36481,9 @@ function kamTogsEmot(m) {
       const fas = m.fas || kamFas;
       if (fas !== 'ljus' && fas !== 'lar' && fas !== 'ingen' && !oppstartSparr()) { kamFrasktVantar = false; frasktBord(); }
     }
-    kamBordNar = Date.now();   // Match the camera stämmer av mot det här bordet (MES-357)
+    /* Match the camera stämmer av mot det här bordet (MES-357): ett riktigt bord, inte nollställningen eller ljuset. Ett
+       bord från pausen räknas från när det kom, inte från Resume. */
+    if (!m.nollstall && !['ljus', 'lar', 'ingen'].includes(m.fas || kamFas)) kamBordNar = m.pausNar || Date.now();
     return avstamBord(m.spar || [], m.nollstall, m.fas, m.yta, m.rad, m.grav);
   }
   if (m.typ === 'grund') return tagEmotGrundSvar(m);
@@ -36767,8 +36771,12 @@ function matchaAngra() {
   const s = kamMatchSvar; if (!s || !s.kanAngra) return;
   const top = angraStack[angraStack.length - 1];
   if (s.andrat && !(top && top.match && top.match.id === s.t)) { kamMatchSvar = null; renderMode(); toast('The mat changed after Match. Use ⌘Z to undo step by step.', 'err'); return; }
+  if (s.andrat) {
+    const mig = minSpelare();
+    if (mig && JSON.stringify(mig.cards) === top.bild) angraStack.pop();   // kameran har redan lagt korten så: inget att lägga tillbaka, och angra() hade tagit punkten under
+    else if (!angra()) return;                                              // ett drag pågår: Undo står kvar
+  }
   kamMatchSvar = null;
-  if (s.andrat) angra();
   for (const id of s.spoken) borttagna.delete(id);
   if (s.spoken.length && kamAnsluten && !kamPaus) avstamBord(senasteRa);   // de oframkallade korten tillbaka nu, inte vid nästa bord
   renderMode();
