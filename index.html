@@ -13348,12 +13348,16 @@ async function bytLage(v) {
    Kameran är på så länge prefs.autoLage inte är false, som i avstamBord. Telefonen och inte bara prefs.autoLage: valet gäller hela webbläsaren, och ett Digital table-spel som
    öppnas efter ett Mirror-spel hade annars fått 'bord' utan någon kamera (granskningen, 3a). Valet av Digital
    table stänger av kameran först (oppUtan, menyn), så de två drar aldrig åt olika håll. Går skrivningen inte
-   igenom säger bytLage det, och nästa försök kommer tidigast efter en minut (kameraLage.fel — på funktionen,
-   för renderKamPop ritas tidigt); en lyckad skrivning spärrar ingenting (granskningen, 3b). */
+   igenom säger bytLage det, och nästa försök kommer tidigast efter en minut (kameraLage.fel); en lyckad
+   skrivning spärrar ingenting (granskningen, 3b). Medan en skrivning pågår (kameraLage.pagar) görs inget nytt
+   försök: bytLage ritar om när den rullar tillbaka, innan fel hunnit sättas, och utan spärren blev det en
+   oändlig loop av skrivningar (dev/mattan.cjs hängde, inget nät i provet). Flaggorna ligger på funktionen,
+   för renderKamPop ritas tidigt. */
 function kameraLage() {
-  if (!spelLage || kameraEnhet || prefs.autoLage === false || !kamAnsluten || !minSpelare() || mittLage() === 'bord') return;
+  if (!spelLage || kameraEnhet || prefs.autoLage === false || !kamAnsluten || !minSpelare() || mittLage() === 'bord' || kameraLage.pagar) return;
   if (kameraLage.fel && Date.now() - kameraLage.fel < 60000) return;
-  bytLage('bord').then(() => { kameraLage.fel = mittLage() === 'bord' ? 0 : Date.now(); });
+  kameraLage.pagar = true;
+  bytLage('bord').catch(() => {}).then(() => { kameraLage.pagar = false; kameraLage.fel = mittLage() === 'bord' ? 0 : Date.now(); });
 }
 /* Ett enda ställe tar emot klicken: pillret, panelen och statusfältet.
    Pillret ritas om vid varje rendering, så en bindning mot dess id hade

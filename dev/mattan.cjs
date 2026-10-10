@@ -845,9 +845,9 @@ const PROV = async () => {
     const c = tal();
     fitView(); await vanta(450); gridEl.classList.remove('glider');
     ok('zoomtalet: med egen zoom procenten, och "fit" igen efter Fit camera view', /^\d+%$/.test(c) && tal() === 'fit', `${c} → ${tal()}`);
-    mig.lage = 'utan'; renderAll(true); await vanta(300);
+    const auto0 = prefs.autoLage; mig.lage = 'utan'; prefs.autoLage = false; renderAll(true); await vanta(300);   // Digital table: kameran av, som valet gör (oppUtan)
     ok('zoomtalet: andra bord (Digital table) som förut, med procenten', /^\d+% fit$/.test(tal()), tal());
-    mig.lage = lage0; mig.bibHog = null; kamLek = null; ofrGlom();
+    mig.lage = lage0; prefs.autoLage = auto0; mig.bibHog = null; kamLek = null; ofrGlom();
     spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, las0); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
   } catch (e) { ok('utgångsläget: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); window.__mattLugn = false; }
   kamUpplosning = null;
