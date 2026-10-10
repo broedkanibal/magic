@@ -60,9 +60,6 @@ const LJUS = arg('--ljus', '');
    profilens cache. */
 const UTAN_MODELL = process.argv.includes('--utan-modell'), WASM = process.argv.includes('--wasm');
 const UTAN_LEKEN = arg('--utan-leken', '');
-/* --utan-bib: facits library-ruta ges inte till telefonen — som när uppstartens steg 4 inte satt någon (MES-334 steg 3, leken utan uppstart). Raden "Leken" per fall säger vad lekvakten valde och om det låg i facits ruta. Jämförs men sparas aldrig. */
-const UTAN_BIB = process.argv.includes('--utan-bib');
-if (UTAN_BIB && SPARA) { console.error('--utan-bib med --spara vägras: baslinjen mäter fallen med facits library-ruta.'); process.exit(2); }
 /* --lek-som-den-ar: baslandens antal i golden-leken ur lek.txt som de står, utan lyftet kor.html gör till förval (max(lek.txt, det största antalet av baslandet i något enskilt fall)). Bara för prov: baslinjen mäts alltid med lyftet, och raden "Leken:" under "Poolen:" säger vilka antal kameran fick. */
 const LEK_SOM_DEN_AR = process.argv.includes('--lek-som-den-ar');
 if (LEK_SOM_DEN_AR && SPARA) { console.error('--lek-som-den-ar med --spara vägras: baslinjen mäter fallen med baslanden lyfta till det största ett fall visar.'); process.exit(2); }
@@ -294,7 +291,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   for (const ljus of varianter) {
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
   const param = [(AIFLAG || STUB_KAMERA) && 'ai=1', REFFLAG && (REFANVAND ? 'refanvand=1' : 'ref=1'), LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
-                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')), UTAN_BIB && 'utanbib=1', LEK_SOM_DEN_AR && 'lekasis=1',
+                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')), LEK_SOM_DEN_AR && 'lekasis=1',
                  (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER,
                  FACIT_ERS && 'facit=' + encodeURIComponent(FACIT_ERS.split(',').map(x => x.trim().replace('=', ':')).join('|')),
                  VIDEO_URL && 'video=' + encodeURIComponent(VIDEO_URL), EMBED_LOKALT && !UTAN_MODELL && 'embedv=' + Math.round(fs.statSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')).mtimeMs), REMS_URL && 'remsmodell=' + encodeURIComponent(REMS_URL), MODELL_URL && 'modellfil=' + encodeURIComponent(MODELL_URL), NY_EMBED && 'nyembed=1'].filter(Boolean).join('&');
@@ -342,10 +339,10 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   /* K7: referenserna — hur många poolen bar per fall (--ref) och hur många varje fall lärde (--lar-ref). */
   if (REFFLAG || LARFLAG) { const rs = JSON.parse(json); console.log('\n  lärda referenser: ' + rs.map(r => `${r.id.slice(0, 2)}: ${REFFLAG ? r.ref + ' i poolen' : ''}${REFFLAG && LARFLAG ? ', ' : ''}${LARFLAG ? '+' + (r.larda || 0) + ' lärda' : ''}, ${r.refSparade || 0} sparade`).join(' · ')); }
   for (const r of JSON.parse(json)) if (r.videoErsatt) console.log(`\n  ${r.id}: videon ${r.videoErsatt} (${r.kallStorlek})`);
-  /* Leken utan uppstart (MES-334 steg 3): fallen där telefonen letade själv (ingen library-ruta) — när och var leken valdes, om det var inne i facits ruta, och slutläget. */
+  /* Leken utan uppstart (MES-334 steg 3): telefonen letar själv efter leken i alla fall (facits library-ruta ges inte till den, MES-360) — när och var leken valdes, om det var inne i facits ruta, och slutläget. */
   { const rs = JSON.parse(json).filter(r => r.lek && (r.lek.logg || []).some(x => x.lek));
     if (rs.length) {
-      console.log(`\n  Leken${UTAN_BIB ? ' (--utan-bib: facits library-ruta gavs inte till telefonen)' : ''}: fall utan library-ruta, där telefonen letar efter leken själv`);
+      console.log('\n  Leken: telefonen letar efter leken själv (facits library-ruta dömer bara valet)');
       for (const r of rs) {
         const L = r.lek, v = L.vald, sl = L.slut;
         console.log(`    ${r.id.slice(0, 2)}: ${v ? `vald ${v.s} s${v.inne === true ? ' INNE i facits ruta' : v.inne === false && L.fel != null ? ' UTANFÖR facits ruta' : ' (facit har ingen ruta)'}, grundläget ${v.grund == null ? '–' : v.grund + '°'}` : 'ingen lek vald'}`

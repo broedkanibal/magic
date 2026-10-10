@@ -64,8 +64,8 @@ const runda = (v, n = 4) => { const f = 10 ** n; return Math.round(v * f) / f; }
    Fyra sorters namn: lekens (ur lek.txt), "token <typ>", "baksida" och
    "library" — själva leken som ligger med baksidan upp. Bara lekens kort hör
    hemma i facits kort[] — det är dem kor.html räknar. Library ligger alltid
-   i zonen 'bib' och ger facits library-ruta (bib), som golden ger appen så
-   att leken inte mäts som ett kort. */
+   i zonen 'bib' och ger facits library-ruta (bib), som golden dömer
+   lekvaktens val mot — telefonen får inte rutan (MES-360). */
 const arToken = n => /^token\s+\S/i.test(String(n || '').trim());
 const arBaksida = n => /^baksida$/i.test(String(n || '').trim());
 const arLibrary = n => /^library$/i.test(String(n || '').trim());

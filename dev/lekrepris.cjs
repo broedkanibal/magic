@@ -16,7 +16,7 @@
    Det som INTE provas här: upplockad (masken är tom — den tomma mattan ser
    alltid tom ut, så en låda som försvinner blir upplockad efter 1,5 + 2 s) och
    sleevesens färg (ingen färgbild). Det provas i bänken (LK3–LK5, LK12) och
-   i golden (--utan-bib).
+   i golden.
    Facit: var leken ligger enligt del A (LEKEN nedan, bildandelar, ur del A:s
    rapporter och golden-facit) — valet ska ligga där, och ingen annan hög. */
 'use strict';

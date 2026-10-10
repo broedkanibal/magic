@@ -14,14 +14,14 @@
    ändras, och inget sparas som baslinje.
 
    Det som sparas är telefonens bordslogg (varje bord datorn hade fått, med
-   videons tid) plus golden-sidans eget resultat för fallet. Loggen bär också
-   library-rutans läge per bord (bib: { ligger, tackt, lek }) — kor.html
-   loggar bara högvakten, så återkopplingen lindas in här.
+   videons tid) plus golden-sidans eget resultat för fallet.
 
    Rutorna för graveyard och library är avlästa ur videon (samma platser
    hela passet), och grundläget sätts till 90° (ett otappat kort står
-   lodrätt i bilden): i appen sparades båda i uppstartens steg 4, och utan
-   grundläge rör datorns avstämning aldrig tap-läget.
+   lodrätt i bilden): utan grundläge rör datorns avstämning aldrig
+   tap-läget. Graveyard-rutan ges till telefonen; library-rutan är bara
+   facit — telefonen letar efter leken själv, som i ett riktigt parti
+   (MES-360), och kor.html dömer lekvaktens val mot rutan.
 
    Egen Chrome-profil (os.tmpdir()/mesa-spegel-profil) så att en golden-
    körning i en annan session inte krockar med den här; första gången
@@ -185,24 +185,11 @@ for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(130)
   console.log(poolRad);
   if (poolN !== 114) console.log(`\n  VARNING: poolen har ${poolN} kort, inte 114 — siffrorna nedan går inte att lita på (SNABBGUIDE: Innan du litar på en körning).\n`);
 
-  /* 4. fallet in i sidans lista, bib in i bordsloggen, och kör */
+  /* 4. fallet in i sidans lista, och kör */
   await kor(`(() => {
     const f = { id: ${JSON.stringify(ID)}, facit: ${JSON.stringify(facit)}, fel: null };
     f.facit.ruta = Object.assign({ x: 0, y: 0, w: 1, h: 1, upp: 'v' }, f.facit.ruta);
     fall.push(f);
-    if (!window.__spegelAter) {
-      window.__spegelAter = true;
-      const orig = aterkoppling;
-      aterkoppling = function (ff, prov) {
-        const a = orig(ff, prov), bord = a.bord;
-        a.bord = (spar, noll, extra) => {
-          const n = prov.bordLogg ? prov.bordLogg.length : 0;
-          bord(spar, noll, extra);
-          if (prov.bordLogg && prov.bordLogg.length > n && extra && extra.bib !== undefined) prov.bordLogg[prov.bordLogg.length - 1].bib = extra.bib ? Object.assign({}, extra.bib) : null;
-        };
-        return a;
-      };
-    }
     korDessa([f]);
     return 'ok';
   })()`);

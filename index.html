@@ -26597,11 +26597,6 @@ const Kamera = (() => {
        så stor som de andra korten. Uppmätt i golden-fall 03: paret sida vid
        sida är 153×74, de ensamma korten omkring 75×105. */
     const regioner = [];
-    /* Library-rutan (MES-138): en post per region som täcker den — också
-       de som döms bort nedan (slät, blänk, fel kvot, damm). En lek i
-       enfärgade plastfickor är slät, och fickorna gör den större än ett
-       kort, så bibSag dömer på formen och på hur mycket av rutan som täcks. */
-    const bz = kal.bib ? zonPx(kal.bib, W, H) : null, bibDelar = [];
     let tail = 0;
     for (let s0 = 0; s0 < n; s0++) {
       if (!mask[s0] || lab[s0]) continue;
@@ -26618,7 +26613,6 @@ const Kamera = (() => {
       }
       const cnt = tail - p0;
       dia.regioner++;
-      if (bz) bibDel(bz, bibDelar, ko, p0, tail, W, H);
       if (cnt < minAreaPx()) { dia.forSma++; smaPx += cnt; for (let q = p0; q < tail; q++) { if (kalla[ko[q]] === 2) sprittP++; else sprittM++; } continue; }  // damm
       /* En region med en mättad kärna är ett blänk som flyttat sig, inte ett
          kort: kort är ljusa men inte utbrända. Mättnaden räknas över regionen
@@ -27265,7 +27259,7 @@ const Kamera = (() => {
     skarLogg.push({ ruta: ++rutaNr, skurna: dia.skurna, prov: skarProv.map(p => p.lang + '×' + p.kort + ' ' + p.grader + '° ' + p.dom + (p.minne ? ' (minne)' : '')) });
     if (skarLogg.length > 40) skarLogg.shift();
     dia.skarLogg = skarLogg;
-    return { fynd, mask, texturerade, bibDelar };
+    return { fynd, mask, texturerade };
   }
 
   /* ── den tränade detektorns lådor som regioner (MES-329) ──────────
@@ -27937,7 +27931,6 @@ const Kamera = (() => {
   let fodKand = [];
   function matcha(spar, fynd, mask, nu, dt, upp, fodNya = true) {
     if (kal.grav) fynd = fynd.filter(f => !iGrav(f));   // högen är inte bordet (K9-lite)
-    if (kal.bib) fynd = fynd.filter(f => !iBib(f));     // leken är inte bordet (MES-122)
     const kvar = new Set(spar);
     const anv = new Set();
     const kandForra = fodKand.filter(c => nu - c.nu <= 1.5 * (dt || 0) + 50); fodKand = [];
@@ -28260,7 +28253,7 @@ const Kamera = (() => {
           bast.helN = avv <= LAGE_HEL ? 0 : (ror > stillaPxNu() ? 1 : (bast.helN || 0) + 1);
           if (d > 3 * stillaPxNu() && (avv <= LAGE_HEL || (bast.helN >= R(LAGE_TALAMOD) && d > 0.75 * avv * bast.lang))) sattVila(bast, f.area);
         }
-      } else if (fodNya && !(lekZon && !kal.bib && iZon(lekZon, f))) {   // lekens egen ruta (MES-334 steg 3): inga nya spår på leken — men spår som redan fanns där matchas som vanligt, annars blev de stående (golden 07: ett Plains som plockats bort "låg kvar" med fel namn)
+      } else if (fodNya && !iLek(f)) {   // lekens egen ruta (MES-334 steg 3): inga nya spår på leken — men spår som redan fanns där matchas som vanligt, annars blev de stående (golden 07: ett Plains som plockats bort "låg kvar" med fel namn)
         /* Diagnos (MES-83): varför föddes spåret — närmaste lediga spår och
            dess avstånd mot gränsen, och närmaste spår som redan tagit en
            region i rutan. Bara de senaste 40; golden-provet skriver dem. */
@@ -28493,9 +28486,8 @@ const Kamera = (() => {
     const upp = k && k.ruta ? (k.ruta.upp === 'h' ? 'h' : 'v') : kal.ruta.upp;
     const grund = k && k.ruta ? graderTillGrund(k.ruta.grund) : kal.grund;
     const grav = k && k.ruta ? gravRuta(k.ruta.grav) : (kal.grav || null);
-    const bib = k && k.ruta ? gravRuta(k.ruta.bib) : (kal.bib || null);
-    kal = { ruta: Object.assign({}, HELA_BILDEN, { upp }), grund, grav, bib };
-    glomBib(); glomLek();
+    kal = { ruta: Object.assign({}, HELA_BILDEN, { upp }), grund, grav };
+    glomLek();
     spar = []; spoken = []; snittMinne = []; remsMinne = []; vinkelMinne = []; lage = 'lar';
     glomReferens();
     dia.gravProv = [];
@@ -28511,86 +28503,16 @@ const Kamera = (() => {
     ? { x: Math.max(0, r.x), y: Math.max(0, r.y), w: Math.min(1, r.w), h: Math.min(1, r.h) } : null;
   function satGrav(r) { kal.grav = gravRuta(r); glomGravVakt(); }
   const iGrav = f => { const g = kal.grav; if (!g || !AW || !AH) return false; const x = f.cx / AW, y = f.cy / AH; return x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h; };
-  /* Library-rutan (MES-122): där spelaren lägger sin lek. Som graveyard-
-     rutan föder den inga spår och räknas inte som fri yta, men i stället för
-     en högvakt säger bibSag om en lek ligger i rutan — det är så datorn ser
-     att leken lagts dit i uppstarten, och att den lyfts i spel (MES-125). En ändringsvakt vore fel
-     signal: en tom ruta som får en lek dömdes slät av gravSkillnad (duken runt
-     leken är det som ändrats), och en lek ser likadan ut när ett kort dras.
-     satBib nollställer bara när rutan faktiskt flyttats: varje skrivning av
-     raden i camera_setups kommer hit med realtid. */
   const iZon = (g, f) => { if (!g || !AW || !AH) return false; const x = f.cx / AW, y = f.cy / AH; return x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h; };
-  /* Uppstartens ruta, annars lekens egen (lekZon, MES-334 steg 3): där föds inga spår och där är inte mattan. */
-  const iBib = f => iZon(kal.bib || lekZon, f);
-  let bibFran = 0, bibSist = 0, bibSkymd = 0, bibLigger = false, bibNu = null;
-  const glomBib = () => { bibFran = bibSist = bibSkymd = 0; bibLigger = false; bibNu = null; };
-  const sammaZon = (a, b) => (!a && !b) || (!!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h);
-  function satBib(r) { const z = gravRuta(r); if (sammaZon(z, kal.bib || null)) return; kal.bib = z; glomBib(); }
-  /* Rutan i analysens bildpunkter, som friYta() räknar den. */
-  const zonPx = (g, W, H) => {
-    const x0 = Math.max(0, Math.floor(g.x * W)), x1 = Math.min(W, Math.ceil((g.x + g.w) * W));
-    const y0 = Math.max(0, Math.floor(g.y * H)), y1 = Math.min(H, Math.ceil((g.y + g.h) * H));
-    return { x0, x1, y0, y1, n: Math.max(0, x1 - x0) * Math.max(0, y1 - y0) };
-  };
-  /* En region ur detektera(): hur mycket av rutan den täcker, dess låda och
-     om den går ut ur bilden. Regioner som täcker under 15 % av rutan hoppas
-     över. */
-  function bibDel(z, ut, ko, p0, p1, W, H) {
-    let inne = 0, minx = W, maxx = -1, miny = H, maxy = -1;
-    for (let q = p0; q < p1; q++) {
-      const i = ko[q], x = i % W, y = (i - x) / W;
-      if (x >= z.x0 && x < z.x1 && y >= z.y0 && y < z.y1) inne++;
-      if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y;
-    }
-    if (inne < 0.15 * z.n) return;
-    ut.push({ inne, cnt: p1 - p0, w: maxx - minx + 1, h: maxy - miny + 1, kant: minx === 0 || miny === 0 || maxx === W - 1 || maxy === H - 1 });
-  }
-  /* Leken ligger i rutan när regioner med en leks form täcker minst halva
-     rutan i stillaMs. Formen, inte ytan eller strukturen (MES-138): förut
-     krävdes ett kort i rutan — en region som kortreglerna godkänt, högst
-     1,6 rutor stor — och en lek i enfärgade plastfickor döms slät, och
-     fickorna, lekens tjocklek och fingrarna gör den 1,7–1,9 rutor stor
-     (uppmätt i Jespers inspelning: aldrig "ligger" på 7 s). En leks form:
-     inte avlång (kortsidan minst halva långsidan — armen i BB3 är 0,45),
-     lådan minst 60 % fylld, högst BIB_STORST rutor stor (en lek som vuxit
-     ihop med graveyard-högen bredvid är ett par), och inte en region som går
-     ut ur bilden och är större än två rutor: en arm. Handen som lägger leken
-     gör regionen till en arm tills den gått. Luckor under bortaMs
-     överbryggas. Leken räknas lyft först efter två bortaMs där rutan varken
-     har en lek eller är täckt av något annat: en hand som vilar på leken
-     lyfter den inte. osaker = bilden kan ha flyttats eller ljuset slog i
-     taket: då döms ingenting. bibNu är rutan just nu, för uppstartens
-     kvittens (MES-139): 'lek' — en leks form täcker halva rutan (handen har
-     släppt, leken ska ligga still i stillaMs); 'tackt' — något annat täcker
-     den, också en hand som håller leken; null — tom. */
-  const BIB_STORST = 3;
-  function bibSag(delar, nu, osaker) {
-    const z = kal.bib; if (!z || !AW || !AH) { glomBib(); return; }
-    if (osaker) return;
-    const zn = zonPx(z, AW, AH).n; if (!zn) return;
-    let lek = 0, tackt = 0;
-    for (const d of delar || []) {
-      tackt += d.inne;
-      if (d.kant && d.cnt > 2 * zn) continue;
-      if (d.cnt <= BIB_STORST * zn && Math.min(d.w, d.h) >= 0.5 * Math.max(d.w, d.h) && d.cnt >= 0.6 * d.w * d.h) lek += d.inne;
-    }
-    dia.bib = { lek: Math.round(100 * lek / zn) / 100, tackt: Math.round(100 * tackt / zn) / 100 };
-    bibNu = lek >= 0.5 * zn ? 'lek' : tackt >= 0.5 * zn ? 'tackt' : null;
-    if (lek >= 0.5 * zn) {
-      if (!bibFran || nu - bibSist > T.bortaMs) bibFran = nu;
-      bibSist = nu;
-      if (nu - bibFran >= T.stillaMs) bibLigger = true;
-    } else {
-      if (tackt >= 0.5 * zn) bibSkymd = nu;
-      if (bibLigger && nu - Math.max(bibSist, bibSkymd) > 2 * T.bortaMs) { bibLigger = false; bibFran = 0; }
-    }
-  }
-  const bibLage = () => kal.bib ? { ligger: bibLigger, tackt: !!bibNu, lek: bibNu === 'lek' } : null;
+  /* Lekens egen ruta (lekZon, MES-334 steg 3): där föds inga spår och där
+     är inte mattan. Telefonen tog förut också emot en library-ruta från
+     uppstartens steg 4 (kal.bib, MES-122); steget togs bort i MES-353 och
+     rutan i MES-360 — bara golden gav den, med facits ruta. */
+  const iLek = f => iZon(lekZon, f);
 
   /* ── Leken utan uppstart (MES-334 steg 3) ────────────────────────────
-     Utan library-ruta från uppstartens steg 4 (kal.bib) hittar telefonen
-     leken själv bland den tränade detektorns baksidelådor (klassen
-     baksida, MES-329). Byggunderlaget (dev/plan/hogarna-principer.md): en
+     Telefonen hittar leken själv bland den tränade detektorns
+     baksidelådor (klassen baksida, MES-329). Byggunderlaget (dev/plan/hogarna-principer.md): en
      nedvänd hög som ligger still före första kortet antas vara library;
      ligger flera där är library den som ligger kvar när de andra plockats
      upp. "Ligger still" genomförs med del A:s mått (hogarna-matning.md,
@@ -28646,18 +28568,18 @@ const Kamera = (() => {
   let lek = null;        // { id, box, ref {cx,cy,w,h}, stillaFran, sist, lag (låg senast still), forra/forraNar (platsen före steg 3:s flytt, och när), tomFran, upp, farg, prov [[r,g,b]…], provNar, magic }
   /* Lekens egen ruta (granskningen runda 1, fynd 1): Mesa sätter den själv
      när leken hittats och flyttar den med leken. Inga nya spår föds där
-     (matcha), Claudes klunga och helbilden lägger inga kort där (iBib), och
+     (matcha), Claudes klunga och helbilden lägger inga kort där (iLek), och
      platsen räknas inte som mattan (friYta) — men till skillnad från
-     uppstartens ruta (kal.bib, som tar bort regionerna helt) matchas spår
-     som redan fanns där som vanligt. Två skäl: rutan kommer mitt i passet,
-     och ett kort som låg där innan ska kunna plockas bort (golden 07, där
+     uppstartens library-ruta (som tog bort regionerna helt, borta sedan
+     MES-360) matchas spår som redan fanns där som vanligt. Två skäl:
+     rutan kommer mitt i passet, och ett kort som låg där innan ska kunna
+     plockas bort (golden 07, där
      en ruta som tog bort regionerna lät ett Plains "ligga kvar" med fel
      namn); och lekens eget spår måste få sina regioner, annars mäts aldrig
      lekens vinkel igen och grundläget kan inte följa leken när den vrids
-     (steg 1:s sparVinkel läser spårets uppmätta vinkel). Den stänger inte
-     av lekvakten: kal.bib betyder fortfarande "uppstartens steg 4 satte en
-     ruta". Lådan plus en tiondel åt varje håll (facits rutor är från lådan
-     själv i 18 till +30 % i 13).
+     (steg 1:s sparVinkel läser spårets uppmätta vinkel). Lådan plus en
+     tiondel åt varje håll (facits rutor är från lådan själv i 18 till
+     +30 % i 13).
      Golden 18 utan ruta: 7 hittade, 1 rätt namn, som utan rutan; facits ruta
      från första rutan ger 9 och 2. Varianterna (steg3-rapport.md) gav 7–9
      hittade, en körning var, men korten som skiljer ligger 3–4 kortbredder
@@ -28865,7 +28787,7 @@ const Kamera = (() => {
        ett sent spår på ett tappat kort fick annars ge grundläget (granskningen av besluten, fynd 5). */
     if (lekKortVid > 0 && nu - kortVaktStart < KORT_START_MS) for (const t of riktiga) kortVidStart.add(t.id);   // bara när bordet hade kort vid starten: på ett tomt bord är varje kort nytt
     if (!lekForsta && riktiga.length) lekForsta = nu;
-    if (kal.bib || lek || grundKalla != null || kal.grund != null) return;   // uppstartens library-ruta: provkortet gav grundläget, som förut
+    if (lek || grundKalla != null || kal.grund != null) return;
     const stillaRiktiga = riktiga.filter(arStilla);   // T.stillaMs som förut: 1,5 s gjorde fönstret för ett tappat land större (granskningen varv 2)
     if (!stillaRiktiga.length) return;
     const nya = stillaRiktiga.filter(t => !kortVidStart.has(t.id)).sort((a, b) => a.stillaFran - b.stillaFran);
@@ -28880,7 +28802,7 @@ const Kamera = (() => {
     if (v != null) { lekGrund.sat(v); grundKalla = 'kort'; }
   }
   function lekVakt(fynd, mask, nu, osaker, harDet, dt) {
-    if (kal.bib || !harDet || !AW || !AH) return;
+    if (!harDet || !AW || !AH) return;
     if (!lekStart) lekStart = nu;
     const W = AW, H = AH;
     const hogar = lekHogar(fynd);
@@ -29128,9 +29050,9 @@ const Kamera = (() => {
     return true;
   }
   const lekAndel = b => b ? { x: +(b.x / AW).toFixed(4), y: +(b.y / AH).toFixed(4), w: +(b.w / AW).toFixed(4), h: +(b.h / AH).toFixed(4) } : null;
-  /* Vad datorn får (rapporten, Kamera.lek): null med uppstartens ruta eller
-     innan vakten gått en gång (ingen tränad detektor än). */
-  const lekLage = () => (kal.bib || !lekStart || !AW) ? null : {
+  /* Vad datorn får (rapporten, Kamera.lek): null innan vakten gått en gång
+     (ingen tränad detektor än). */
+  const lekLage = () => (!lekStart || !AW) ? null : {
     lage: !lek ? 'ingen' : lek.upp ? 'upp' : 'nere',
     id: lek ? lek.id : null,
     ruta: lek ? lekAndel(lek.box) : null,
@@ -29603,10 +29525,9 @@ const Kamera = (() => {
     dia.gain = gain; senasteGain = gain;
     if (Math.abs(gain - 1) > 0.01) for (let i = 0; i < n; i++) g[i] *= gain;
 
-    const { fynd, mask, texturerade, bibDelar } = detektera(g, ref, AW, AH, undefined, undefined, det);
+    const { fynd, mask, texturerade } = detektera(g, ref, AW, AH, undefined, undefined, det);
     Object.assign(klocka, dia.tid); tFore = nuRiktig();
     smaMinne.push(dia.smaKort); if (smaMinne.length > R(REF_RUTOR)) smaMinne.shift();
-    bibSag(bibDelar, nu, klamd || felRader > 0);
     matcha(spar, fynd, mask, nu, dt, upp, !klamd);
     minnesvard(nu);   // minnet av remsor följer sina spår (MES-331 pass 6)
     lekVakt(fynd, mask, nu, klamd || felRader > 0, !!(det && det.lador), dt);   // leken utan uppstart (MES-334 steg 3)
@@ -29950,7 +29871,7 @@ const Kamera = (() => {
      500 ms, :g, :s) var densamma före och efter och blev aldrig en rapport
      (MES-166). Nollställningen skickar ett tomt bord och sätter den själv. */
   let sandSignatur = null;
-  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${!t.namn && skuggklar(t) ? ':k' : ''}${arNedKort(t) ? ':n' : ''}${t.tillstand === 'klar' && arVila(t) ? ':v' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}${gravTom ? 't' : ''}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '') + lekSig();
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${!t.namn && skuggklar(t) ? ':k' : ''}${arNedKort(t) ? ':n' : ''}${t.tillstand === 'klar' && arVila(t) ? ':v' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}${gravTom ? 't' : ''}` + lekSig();
 
   /* 1 där inget spår ligger, med marginal. Samma yta för driften och för
      ljusmätningen. */
@@ -29958,7 +29879,7 @@ const Kamera = (() => {
     const n = AW * AH;
     const fri = new Uint8Array(n).fill(1);
     if (blankM) for (let i = 0; i < n; i++) if (blankM[i]) fri[i] = 0;
-    for (const g of [kal.grav, kal.bib || lekZon]) if (g) {
+    for (const g of [kal.grav, lekZon]) if (g) {
       const x0 = Math.max(0, Math.floor(g.x * AW)), x1 = Math.min(AW, Math.ceil((g.x + g.w) * AW));
       const y0 = Math.max(0, Math.floor(g.y * AH)), y1 = Math.min(AH, Math.ceil((g.y + g.h) * AH));
       for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) fri[y * AW + x] = 0;
@@ -30087,7 +30008,7 @@ const Kamera = (() => {
     /* Tredje argumentet: det som inte är spår men hör till bordet — hur
        många kortformade regioner som var för små att läsa, och vilken
        upplösning strömmen ger. sandBord lägger dem i meddelandet. */
-    const extra = { sma: smaNu(), upplosning: upplosning ? { w: upplosning.w, h: upplosning.h } : null, grav: gravLage(), bib: bibLage(), lek: lekLage(), bildlage: bildlage() };
+    const extra = { sma: smaNu(), upplosning: upplosning ? { w: upplosning.w, h: upplosning.h } : null, grav: gravLage(), lek: lekLage(), bildlage: bildlage() };
     if (latens) { extra.bortaTs = bortaTs.splice(0); extra.bildTid = bildTid; }
     /* Vem ligger över vem (MES-331, golden-måttet Högar): spårets tackt är
        lådorna för de kort som ligger ÖVER det (fyndUrLador, passaKort). Här
@@ -31111,12 +31032,13 @@ const Kamera = (() => {
        spår hunnit bli klart — förut gällde då Claudes antal, och en klunga
        delade lådan i spår på Claudes lägen. */
     const ettKort = ref ? lang0 * kort0 < 1.6 * ref : true;
-    /* Delarna i graveyard- och library-rutan är högarna, inte bordet (MES-180):
-       detektorns regioner filtreras på rutorna (iGrav/iBib), men en klunga
+    /* Delarna i graveyard-rutan och lekens ruta är högarna, inte bordet (MES-180):
+       detektorns regioner filtreras på graveyard-rutan (iGrav) och föder inga
+       spår i lekens (iLek), men en klunga
        av högen och leken bredvid som sträckte sig utanför rutan frågades
        Claude om, och varje namn Claude såg — Trusty Retriever som stack ut
        ur högen — blev ett eget säkert spår på sin plats (golden 11). */
-    let delar = svar.filter(k => { const p = lage(k); return !iGrav(p) && !iBib(p); });
+    let delar = svar.filter(k => { const p = lage(k); return !iGrav(p) && !iLek(p); });
     if (!delar.length && svar.length) { rapportera(); return; }
     /* Klungan (MES-331, se ovan): fler kort än ett utanför högarna. Inget
        ur den blir säkert — varken på spåret eller på nya spår. Posten
@@ -31315,7 +31237,7 @@ const Kamera = (() => {
          Faithful Pikemaster efter att det lagts på högen. Detektorns
          regioner och Claudes delar (svarAI) prövas mot rutorna; helbilden
          gjorde det inte. */
-      if (iGrav(p) || iBib(p)) continue;
+      if (iGrav(p) || iLek(p)) continue;
       /* …eller strax utanför ett eget spår som redan bär samma namn. Claudes
          läge är en uppskattning ur hela bilden; ett tappat kort är brett och
          lågt, och en punkt en tiondels kort utanför lådan blev ett nytt,
@@ -31500,7 +31422,7 @@ const Kamera = (() => {
     const ok = satGrund(v); if (ok) grundKalla = v == null ? null : 'rad'; return ok;
   };
   const grundFranSparUtifran = (id, tappat) => { const ok = grundFranSpar(id, tappat); if (ok) grundKalla = 'rad'; return ok; };
-  return { start, installera, stopp, satKalibrering, satUpp, satGrund: satGrundUtifran, satGrundGrader, foljGrundGrader, sparVinkel, satGrav, satBib, grundFranSpar: grundFranSparUtifran, stillbild, forhandsbild, bildAndrad, bildSkickad, nyReferens, glomKort, lasOm, namnge, svarAI, rapportera, fotonIgen,
+  return { start, installera, stopp, satKalibrering, satUpp, satGrund: satGrundUtifran, satGrundGrader, foljGrundGrader, sparVinkel, satGrav, grundFranSpar: grundFranSparUtifran, stillbild, forhandsbild, bildAndrad, bildSkickad, nyReferens, glomKort, lasOm, namnge, svarAI, rapportera, fotonIgen,
            detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
            beskarVridning,   // hur beskärningen vrids med kortets vinkel (MES-334 steg 1) — bänken
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
@@ -31518,9 +31440,8 @@ const Kamera = (() => {
            get rad() { return radAvstand() || (yta && yta.dom !== 'lugn' ? yta.rad : null); },
            get analysMatt() { return { aw: AW, ah: AH }; },
            get sma() { return smaNu(); },
-           get lek() { return lekLage(); },    // leken utan uppstart (MES-334 steg 3): { lage 'ingen'|'nere'|'upp', id, ruta, farg, ute, grund }; null med uppstartens ruta
+           get lek() { return lekLage(); },    // leken utan uppstart (MES-334 steg 3): { lage 'ingen'|'nere'|'upp', id, ruta, farg, ute, grund }; null innan vakten gått
            lekInte, lekJa,                      // datorn: Not my library / It's my library
-           get bib() { return bibLage(); },    // library-rutan (MES-122): { ligger, tackt, lek } — leken ligger i rutan; något täcker den; en leks form täcker den (MES-139); null utan ruta
            get grav() { return gravLage(); },   // högvakten (MES-85): { n ändringar av graveyard-högen, sen ms sedan den senaste }; null utan ruta                                                   // kortformade regioner för små att läsa, median över sex rutor
            get bildlage() { return bildlage(); },   // MES-229: '4k15' eller '1080p30', rutor/s ur spåret, analystakten
            get upplosning() { return upplosning ? Object.assign({}, upplosning) : null; },  // { w, h, max, begard }; null innan första rutan
@@ -31721,8 +31642,7 @@ function bordExtra(extra) {
   return { sma: extra && extra.sma != null ? extra.sma : Kamera.sma, upplosning: u ? { w: u.w, h: u.h } : null,
            bildlage: (extra && extra.bildlage) || Kamera.bildlage,   // MES-229: '4k15' eller '1080p30', rutor/s, analystakt — Latency-panelen och inspelningsprovet säger vilket läge som kördes
            grav: extra && extra.grav !== undefined ? extra.grav : Kamera.grav,   // högvakten (MES-85); null utan ruta
-           bib: extra && extra.bib !== undefined ? extra.bib : Kamera.bib,       // leken i library-rutan (MES-122); null utan ruta — saknas nyckeln är telefonen äldre
-           lek: extra && extra.lek !== undefined ? extra.lek : Kamera.lek,       // leken utan uppstart (MES-334 steg 3); null med uppstartens ruta — saknas nyckeln är telefonen äldre
+           lek: extra && extra.lek !== undefined ? extra.lek : Kamera.lek,       // leken utan uppstart (MES-334 steg 3); null innan vakten gått — saknas nyckeln är telefonen äldre
            bok: kamAiBokLage(),   // kostnadsboken (kamAiBokfor): datorn räknar skillnaden sedan auto slogs på
            ai: !!prefs.aiAuto,    // telefonens AI-brytare: datorn skickar sin om de skiljer sig (aiJamforTelefonen)
            /* Latensmätningen (MES-215, bara ?debug): spår som släppts sedan förra rapporten, rutans tid och när rapporten skickas — telefonens klocka. */
@@ -32466,7 +32386,6 @@ function tillampaKalRad(ruta) {
   Kamera.satUpp(ruta.upp);
   Kamera.satGrund(typeof ruta.grund === 'number' ? ruta.grund * Math.PI / 180 : null);
   Kamera.satGrav(ruta.grav || null);
-  Kamera.satBib(ruta.bib || null);
 }
 
 /* ── telefonens ström till datorn ────────────────────────────────────

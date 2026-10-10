@@ -193,9 +193,6 @@ const EMBED_PA = PARAMS.get('embed') !== '0', EMBED_LOKALT = PARAMS.get('embedlo
 const REMS_MODELL = PARAMS.get('remsmodell') || '';   // kor.cjs --rems-modell: remsornas egen bildmodell (embed.js remsModell)
 const MODELL_FIL = PARAMS.get('modellfil') || '', NY_EMBED = PARAMS.get('nyembed') === '1';   // kor.cjs --modell, --ny-embed
 const EMBED_V = PARAMS.get('embedv') ? '?v=' + PARAMS.get('embedv') : '';   // de lokala filernas ändringstid: en utbytt fil är en annan modell (cache och lagringens nycklar, embed.js helTagg)
-/* ?utanbib=1 (kor.cjs --utan-bib): facits library-ruta (bib) ges INTE till modulen — som när uppstartens steg 4 inte satt någon (MES-334 steg 3). Telefonen letar då själv efter leken bland detektorns baksidelådor, och resultatet bär vad den kom fram till (res.lek), dömt mot facits ruta. */
-const UTAN_BIB = PARAMS.get('utanbib') === '1';
-const facitBib = f => UTAN_BIB ? null : (f.facit.bib || null);
 const LEK_SOM_DEN_AR = PARAMS.get('lekasis') === '1';   // --lek-som-den-ar: baslandens antal ur lek.txt, utan lyftet till det största ett fall visar (prov, aldrig baslinje)
 let lekLyft = [];   // [{ namn, fran, till, fall }] — vilka basland som lyftes och varför (byggPool)
 const UTAN_LEKEN = new Set((PARAMS.get('utanleken') || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean));
@@ -617,8 +614,9 @@ function sokTill(v, s) {
 async function korFall(f) {
   beskarningar[f.id] = [];
   /* Graveyard-rutan (K9-lite) ur facit: { "grav": { x, y, w, h } } i bildandelar; utan = ingen ruta.
-     Library-rutan (MES-122) på samma sätt: { "bib": { x, y, w, h } } där leken ligger. */
-  try { if (K.satGrav) K.satGrav(f.facit.grav || null); if (K.satBib) K.satBib(facitBib(f)); } catch (e) {}
+     Facits library-ruta ("bib") ges inte till telefonen: den letar efter leken själv, som i ett
+     riktigt parti (MES-360). Rutan dömer bara lekvaktens val (avsluta, res.lek). */
+  try { if (K.satGrav) K.satGrav(f.facit.grav || null); } catch (e) {}
   const vf = f.facit.video || null;
   const kalla = vf ? await laddaVideo(VIDEO_ERSATT || `fall/${encodeURIComponent(f.id)}/${vf.fil || 'video.mp4'}`)
                    : await laddaBild(`fall/${encodeURIComponent(f.id)}/bild.jpg`);
@@ -659,11 +657,9 @@ function stallUpp(f, kalla, kb, kh) {
      facit; rutan ignoreras, modulen läser hela bilden). start() kör första
      varvet av loopen synkront, och med förra fallets mått kvar i modulen
      gick den rutan genom steg() innan satKalibrering hann nollställa. */
-  /* Graveyard- och library-rutan går i raden, som camera_setups.ruta.grav/.bib
-     i appen — satKalibrering läser dem därifrån och nollar annars en ruta satt
-     före. I appen finns library-rutan alltid sedan uppstartens steg 4 (MES-122);
-     ett fall där leken ligger i bild utan "bib" i facit mäter leken som ett kort. */
-  K.satKalibrering({ ruta: Object.assign({}, f.facit.ruta, { grav: f.facit.grav || null, bib: facitBib(f) }) });
+  /* Graveyard-rutan går i raden, som camera_setups.ruta.grav i appen —
+     satKalibrering läser den därifrån och nollar annars en ruta satt före. */
+  K.satKalibrering({ ruta: Object.assign({}, f.facit.ruta, { grav: f.facit.grav || null }) });
   if (LUFT === '0' || LUFT === '1') K.satTrosklar({ luft: +LUFT });
   /* ?tro=snabb:1,stillaMs:600 (kor.cjs --tro): valfria trösklar till Kamera.satTrosklar före varje fall — för prov som inte ska bli förval. */
   if (PARAMS.get('tro')) K.satTrosklar(Object.fromEntries(PARAMS.get('tro').split(',').map(x => x.split(':')).filter(x => x.length === 2 && isFinite(+x[1])).map(([k, v]) => [k.trim(), +v])));
@@ -872,7 +868,7 @@ function avsluta(f, prov, tid, tak, takS) {
     const b = f.facit.bib || null, inne = r => !!(b && r && r.x + r.w / 2 >= b.x && r.x + r.w / 2 <= b.x + b.w && r.y + r.h / 2 >= b.y && r.y + r.h / 2 <= b.y + b.h);
     const valda = prov.lekLogg.filter(x => x.lek && x.lek.ruta && x.lek.lage === 'nere');
     const forsta = valda[0] || null, slut = K.lek;
-    res.lek = { utanBib: UTAN_BIB, logg: prov.lekLogg, slut: slut ? JSON.parse(JSON.stringify(slut)) : null, ned: Object.values(prov.nedLogg || {}),
+    res.lek = { logg: prov.lekLogg, slut: slut ? JSON.parse(JSON.stringify(slut)) : null, ned: Object.values(prov.nedLogg || {}),
                 vald: forsta ? { s: forsta.s, inne: inne(forsta.lek.ruta), ruta: forsta.lek.ruta, grund: forsta.grund } : null,
                 fel: b ? valda.filter(x => !inne(x.lek.ruta)).length : null };
   }

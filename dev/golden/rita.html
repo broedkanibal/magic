@@ -916,7 +916,7 @@ function visaValt() {
   t.push(`<span class="tagg${r.tappad ? ' tapp' : ''}">${r.tappad ? 'tappad' : 'otappad'} · ${Math.round(G.vinkel(k.horn, S.W, S.H))}°</span>`);
   if (r.hog) t.push(`<span class="tagg hog">hög ${r.hog}</span>`);
   if (r.avskuret) t.push('<span class="tagg fel" title="mer än 2 % av kortet ligger utanför bilden — hamnar i avskurna">avskuret</span>');
-  if (G.arLibrary(n)) t.push('<span class="tagg ok" title="sparas som facits library-ruta (bib), som golden ger appen så att leken inte mäts som ett kort">leken · sparas som library-rutan</span>');
+  if (G.arLibrary(n)) t.push('<span class="tagg ok" title="sparas som facits library-ruta (bib), som golden dömer lekvaktens val mot">leken · sparas som library-rutan</span>');
   else if (k.zon) t.push(`<span class="tagg">${k.zon === 'grav' ? 'graveyard' : 'library'}</span>`);
   t.push(`<span class="tagg" title="namnradens längd">${Math.round(G.bredd(k.horn, S.W, S.H))} px</span>`);
   if (n && G.arLekkort(n) && !S.lek.includes(n)) t.push('<span class="tagg fel">finns inte i lek.txt</span>');

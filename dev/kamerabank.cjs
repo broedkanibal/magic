@@ -761,124 +761,6 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 8; i++) await ruta(NYTT);
   check(`GY5 ingen ruta: grav ${JSON.stringify(Kamera.grav)} (null), i rapporten ${bordExtra && JSON.stringify(bordExtra.grav)}`, Kamera.grav === null && !!bordExtra && bordExtra.grav === null);
 
-  // ── BB1–BB7: library-rutan (MES-122) — inga spår föds i rutan, och `ligger` säger att en lek ligger där ──
-  /* En kortbaksida: svart kant, mörk fläckig ram, brun oval med en ljus ring.
-     Leken har tjocklek: två mörka lager en bildpunkt ner och till höger. */
-  function baksida(g, x, y, w, h) {
-    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
-      const u = (xx - x) / w - 0.5, v = (yy - y) / h - 0.5, e = (u / 0.38) ** 2 + (v / 0.44) ** 2;
-      let p = 70 + ((xx * 5 + yy * 3) % 7) * 3;
-      if (e < 1) p = 125 + ((xx * 3 + yy * 7) % 5) * 3;
-      if (e >= 0.82 && e < 1) p = 165;
-      if (xx === x || yy === y || xx === x + w - 1 || yy === y + h - 1) p = 30;
-      g[yy * W + xx] = p;
-    }
-  }
-  const LEK = g => { for (let k = 2; k >= 1; k--) for (let yy = 52 + k; yy < 94 + k; yy++) for (let xx = 150 + k; xx < 180 + k; xx++) g[yy * W + xx] = 45; baksida(g, 150, 52, 30, 42); };
-  const BIB = { x: 0.6, y: 0.3, w: 0.17, h: 0.38 };     // 41×57 px: ett kort (30×42) med luft, som uppstartens förslag
-  const liggerNu = () => !!(Kamera.bib && Kamera.bib.ligger);
-
-  nystart(); await referens(); Kamera.satBib(BIB);
-  for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 150, 52, 30, 42, 180));
-  check(`BB1 kort i library-rutan: ${s.length} spår (0)`, s.length === 0);
-  for (let i = 0; i < 8; i++) s = await ruta(g => { kort(g, W, 150, 52, 30, 42, 180); KORT(g); });
-  check(`BB1 kort utanför rutan: ${s.length} spår, klart ${s[0] && s[0].st}`, s.length === 1 && s[0].st === 'klar');
-  Kamera.satBib(null);
-  for (let i = 0; i < 8; i++) s = await ruta(g => { kort(g, W, 150, 52, 30, 42, 180); KORT(g); });
-  check(`BB1 rutan borta: ${s.length} spår (2)`, s.length === 2);
-
-  nystart(); await referens(); Kamera.satBib(BIB);
-  for (let i = 0; i < 6; i++) await ruta(null);
-  const bb2Fore = liggerNu();
-  /* BB11 (MES-139): uppstartens kvittens. "tackt" medan handen lägger leken
-     — datorn säger Got it direkt — och "lek" när handen släppt men leken
-     inte legat still i stillaMs än — datorn ritar ramen runt. */
-  let bb11Tackt = false, bb11Lek = false;
-  for (let i = 0; i < 3; i++) { await ruta(g => { LEK(g); hand(g, W, 175 + 6 * i, 85, 26, 30, 150); }); if (Kamera.bib && Kamera.bib.tackt) bb11Tackt = true; }   // handen lägger leken
-  let bb2Ruta = -1;
-  for (let i = 0; i < 12; i++) { await ruta(LEK); if (!liggerNu() && Kamera.bib && Kamera.bib.lek) bb11Lek = true; if (bb2Ruta < 0 && liggerNu()) bb2Ruta = i + 1; }
-  check(`BB2 leken läggs i rutan: ligger före ${bb2Fore} (false), ligger efter ${bb2Ruta} rutor (≤ 8), i rapporten ${bordExtra && JSON.stringify(bordExtra.bib)}`,
-        !bb2Fore && bb2Ruta > 0 && bb2Ruta <= 8 && !!bordExtra && !!bordExtra.bib && bordExtra.bib.ligger === true);
-  check(`BB11 (MES-139) täckt medan handen lägger leken: ${bb11Tackt} (true), en lek som ska ligga still innan den ligger: ${bb11Lek} (true)`, bb11Tackt && bb11Lek);
-  let bb4Ruta = -1;
-  for (let i = 0; i < 16; i++) { await ruta(null); if (bb4Ruta < 0 && !liggerNu()) bb4Ruta = i + 1; }
-  check(`BB4 leken lyfts: ligger falsk efter ${bb4Ruta} rutor (≤ ${Math.ceil(2 * 700 / TAKT) + 2})`, bb4Ruta > 0 && bb4Ruta <= Math.ceil(2 * 700 / TAKT) + 2);
-
-  const ARM_B = (g, sl) => { for (let y = 90; y < H; y++) { const dx = Math.round((sl() - 0.5) * 6); for (let x = 146 + dx; x < 184 + dx; x++) g[y * W + x] = 150; } hand(g, W, 165, 76, 22, 26, 150); };
-  nystart(); await referens(); Kamera.satBib(BIB);
-  for (let i = 0; i < 10; i++) await ruta(ARM_B);
-  for (let i = 0; i < 6; i++) await ruta(null);
-  check(`BB3 en arm vilar i rutan: ligger ${liggerNu()} (false)`, !liggerNu());
-
-  nystart(); await referens(); Kamera.satGrav(ZON); Kamera.satBib(BIB);
-  for (let i = 0; i < 10; i++) await ruta(HOG);
-  const bb5a = Kamera.grav ? Kamera.grav.n : null;
-  for (let i = 0; i < 12; i++) await ruta(g => { HOG(g); LEK(g); });
-  const bb5b = Kamera.grav ? Kamera.grav.n : null;
-  for (let i = 0; i < 3; i++) await ruta(g => { HOG(g); LEK(g); hand(g, W, 70 + 10 * i, 70, 30, 25, 150); });
-  for (let i = 0; i < 10; i++) await ruta(g => { NYTT(g); LEK(g); });
-  const bb5c = Kamera.grav ? Kamera.grav.n : null;
-  check(`BB5 båda rutorna: leken ändrar inte högen (${bb5b - bb5a}, 0), ett nytt kort på högen (${bb5c - bb5b}, 1), ligger ${liggerNu()}`,
-        bb5b - bb5a === 0 && bb5c - bb5b === 1 && liggerNu());
-  const bb7Fore = liggerNu();
-  Kamera.satBib(Object.assign({}, BIB));
-  check(`BB7 samma ruta igen nollställer inte: ligger ${bb7Fore} → ${liggerNu()}`, bb7Fore && liggerNu());
-  Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v', bib: BIB } });
-  check(`BB7 raden bär rutan: bib ${JSON.stringify(Kamera.bib)}`, Kamera.bib !== null && Kamera.bib.ligger === false);
-  Kamera.satGrav(null);
-
-  // ── BB8–BB10 (MES-138): en lek i plastfickor, en lek intill graveyard-högen, en hand som vilar på leken ──
-  /* Enfärgade fickor: ingen struktur alls, och större än kortet (fickan,
-     lekens tjocklek). Kortreglerna dömer den slät, och förut såg rutan den
-     aldrig — Jespers lek i gröna fickor låg i rutan i 7 s utan "ligger". */
-  const FICKLEK = g => {
-    for (let k = 3; k >= 1; k--) for (let yy = 50 + k; yy < 98 + k; yy++) for (let xx = 147 + k; xx < 182 + k; xx++) g[yy * W + xx] = 40;
-    for (let yy = 50; yy < 98; yy++) for (let xx = 147; xx < 182; xx++) g[yy * W + xx] = 55;
-  };
-  /* Telefonens avvikelse och spridning på Jespers bord (22–29 och 13–17 i
-     inspelningen), inte bänkens: på den brusfria bänken sjunker avvikelsen
-     av sig själv, spridningskravet med den, och en slät lek såg ut som ett
-     kort. Gäller BB8–BB10. */
-  const TELEFON = { autoUts: 0, utseende: 25, spridning: 15 };
-  nystart(); Kamera.satTrosklar(TELEFON); await referens(); Kamera.satBib(BIB);
-  for (let i = 0; i < 6; i++) await ruta(null);
-  const bb8Fore = liggerNu();
-  for (let i = 0; i < 3; i++) await ruta(g => { FICKLEK(g); hand(g, W, 178 + 6 * i, 88, 26, 30, 150); });
-  let bb8Ruta = -1;
-  for (let i = 0; i < 12; i++) { await ruta(FICKLEK); if (bb8Ruta < 0 && liggerNu()) bb8Ruta = i + 1; }
-  check(`BB8 lek i enfärgade fickor (slät, större än kortet): ligger före ${bb8Fore} (false), ligger efter ${bb8Ruta} rutor (≤ 8)`, !bb8Fore && bb8Ruta > 0 && bb8Ruta <= 8);
-
-  /* Graveyard-högen till vänster har vuxit ihop med leken: en region över
-     båda rutorna, större än 1,6 rutor och med mitten nära gränsen. */
-  const GZ = { x: 0.42, y: 0.3, w: 0.17, h: 0.38 };
-  const HOG9 = g => kort(g, W, 112, 52, 35, 46, 180);
-  nystart(); Kamera.satTrosklar(TELEFON); await referens(); Kamera.satGrav(GZ); Kamera.satBib(BIB);
-  for (let i = 0; i < 8; i++) await ruta(HOG9);
-  let bb9Ruta = -1;
-  for (let i = 0; i < 12; i++) { await ruta(g => { HOG9(g); FICKLEK(g); }); if (bb9Ruta < 0 && liggerNu()) bb9Ruta = i + 1; }
-  check(`BB9 leken intill graveyard-högen (en region): ligger efter ${bb9Ruta} rutor (≤ 8), spår ${Kamera.spar.length} (0)`, bb9Ruta > 0 && bb9Ruta <= 8 && Kamera.spar.length === 0);
-  Kamera.satGrav(null);
-
-  /* I spel: handen vilar på leken, med armen in från bildens nederkant, i
-     3 s. Leken är inte lyft — förut räknades den lyft efter två bortaMs. */
-  const VILA = (g, sl) => {
-    FICKLEK(g);
-    for (let y = 95; y < H; y++) { const dx = Math.round((sl() - 0.5) * 4); for (let x = 150 + dx; x < 182 + dx; x++) g[y * W + x] = 150; }
-    hand(g, W, 166, 84, 20, 16, 150);
-  };
-  nystart(); Kamera.satTrosklar(TELEFON); await referens(); Kamera.satBib(BIB);
-  for (let i = 0; i < 12; i++) await ruta(FICKLEK);
-  const bb10Fore = liggerNu();
-  let bb10Lyft = false;
-  for (let i = 0; i < 20; i++) { await ruta(VILA); if (!liggerNu()) bb10Lyft = true; }
-  for (let i = 0; i < 6; i++) await ruta(FICKLEK);
-  check(`BB10 en hand vilar på leken i 3 s: ligger före ${bb10Fore} (true), lyft under tiden ${bb10Lyft} (false), ligger efter ${liggerNu()} (true)`, bb10Fore && !bb10Lyft && liggerNu());
-  Kamera.satBib(null); Kamera.satTrosklar({ autoUts: 1 });
-
-  nystart(); await referens();
-  for (let i = 0; i < 8; i++) s = await ruta(KORT);
-  check(`BB6 ingen library-ruta: bib ${JSON.stringify(Kamera.bib)} (null), i rapporten ${bordExtra && JSON.stringify(bordExtra.bib)}`, Kamera.bib === null && !!bordExtra && bordExtra.bib === null);
-
   // ── T9: varaktig ljusändring till 55 % — inga falska spår, referensen följer ──
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
@@ -1295,17 +1177,17 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const d3 = kortSpar();
     check(`D3 tappat runt hörnet med hand: spår sist ${d3.length} (${fmt(d3)}), flest klara samtidigt ${flestKlara}`,
           d3.length === 1 && d3[0].tappad && flestKlara <= 1);
-    /* D4: helbildens kort i graveyard- och library-rutan är högarna, inte
-       bordet (MES-180). Golden 11: Claude såg högens översta kort, och det
-       blev säkra spår — Night's Whisper medan högen bläddrades, Faithful
-       Pikemaster efter att det lagts på högen. Ett kort utanför rutorna
-       blir ett spår som förut. */
-    nystart(); await referens(); Kamera.satGrav({ x: 0, y: 0.5, w: 0.25, h: 0.5 }); Kamera.satBib({ x: 0.25, y: 0.5, w: 0.2, h: 0.5 });
-    Kamera.tillampaHelbild([{ x: 0.12, y: 0.75, namn: 'Plains', sid: 's1', saker: true }, { x: 0.35, y: 0.75, namn: 'Swamp', sid: 's2', saker: true },
+    /* D4: helbildens kort i graveyard-rutan är högen, inte bordet
+       (MES-180). Golden 11: Claude såg högens översta kort, och det blev
+       säkra spår — Night's Whisper medan högen bläddrades, Faithful
+       Pikemaster efter att det lagts på högen. Ett kort utanför rutan blir
+       ett spår som förut. */
+    nystart(); await referens(); Kamera.satGrav({ x: 0, y: 0.5, w: 0.25, h: 0.5 });
+    Kamera.tillampaHelbild([{ x: 0.12, y: 0.75, namn: 'Plains', sid: 's1', saker: true },
                             { x: 110 / W, y: 40 / H, namn: 'Island', sid: 's3', saker: true }], { helbild: true, skal: 'auto' }, nu);
     const d4 = Kamera.spar.map(t => t.namn);
-    Kamera.satGrav(null); Kamera.satBib(null);
-    check(`D4 helbildens kort i graveyard- och library-rutan: spår ${JSON.stringify(d4)}`, d4.length === 1 && d4[0] === 'Island');
+    Kamera.satGrav(null);
+    check(`D4 helbildens kort i graveyard-rutan: spår ${JSON.stringify(d4)}`, d4.length === 1 && d4[0] === 'Island');
   }
 
   // ── MES-29 skräp: Claudes "inget kort" och spår som prövas ─────────
@@ -2191,7 +2073,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   }
 
   // ── LK: leken utan uppstart (MES-334 steg 3) ─────────────────────
-  /* Ingen library-ruta (kal.bib null): lekvakten letar efter leken bland
+  /* Lekvakten letar efter leken bland
      detektorns baksidelådor (klass baksida). Högen ritas som ett mörkt
      kort så att masken ser den, och lådan matas in som i appen
      (steg(…, det)). Identifieringen svarar 'baksida ficka' för spår med
@@ -2766,11 +2648,6 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       KVl.kortVinkel = kvForra; lvSvar = null;
     }
 
-    // LK11: med uppstartens library-ruta gäller dagens lekvakt (bibSag) — ingen ny lek i rapporten
-    nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v', bib: { x: L.x / W - 0.02, y: L.y / H - 0.02, w: L.w / W + 0.04, h: L.h / H + 0.04 } } }); namnSvar = svar;
-    await kor(26, [hog(L)], [lada(L, 'baksida')]);
-    check(`LK11 med uppstartens ruta: Kamera.lek ${JSON.stringify(Kamera.lek)}, rapporten ${bordExtra && JSON.stringify(bordExtra.lek)}, bib ${JSON.stringify(Kamera.bib)}`,
-          Kamera.lek === null && bordExtra && bordExtra.lek === null && !!Kamera.bib);
     nystart(); namnSvar = forraSvar;
   }
 

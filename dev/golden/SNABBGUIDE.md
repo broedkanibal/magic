@@ -946,9 +946,10 @@ alltid ger samma svar. Räkna med sämre siffror än på ett foto; det är poän
    flytten, inom 8 s), och en graveyard-ruta i bildandelar för högen i bild:
    `"grav": { "x": 0, "y": 0.46, "w": 0.175, "h": 0.54 }` (K9-lite; utan rutan
    blir högens översta kort ett falskt spår med säkert namn), och på samma sätt
-   `"bib"` för leken (library-rutan, MES-122). Appen har alltid båda rutorna
-   sedan uppstartens steg 4 — ligger leken i bild utan `"bib"` i facit mäter
-   provet leken som ett kort på bordet, vilket appen aldrig gör.
+   `"bib"` för leken (library-rutan, MES-122). `"bib"` är bara facit: golden
+   ger inte telefonen rutan (MES-360), utan telefonen letar efter leken
+   själv som i ett riktigt parti, och raden `Leken` under tabellen säger om
+   lekvakten valde en hög inne i facits ruta.
 
    `t` är sekunder in i videon (±0,5 s duger), `takt_ms` hur tätt rutorna matas
    in (150 = appens egen takt), `svans_s` hur många sekunder till kameran får
@@ -999,7 +1000,7 @@ gröna bandet på det valda kortet är namnraden.
 | L | lås storleken till de ritade kortens — klicken ger bara riktningen |
 | F · ⇧F | fäst vid förslaget · lossa |
 | G | kortet ligger i graveyard (räknas inte som kort i spel) |
-| B | **leken** (baksidan upp): rita den som ett kort och tryck B — inget namn behövs. Den heter `library` och sparas som facits library-ruta `bib`, som golden ger appen så att leken inte mäts som ett kort. B på ett av lekens kort: kortet ligger i library |
+| B | **leken** (baksidan upp): rita den som ett kort och tryck B — inget namn behövs. Den heter `library` och sparas som facits library-ruta `bib`, som golden dömer lekvaktens val mot (telefonen får inte rutan, MES-360). B på ett av lekens kort: kortet ligger i library |
 | ⌫ | ta bort det valda kortet |
 | R · ⇧R | vrid **visningen** 90° moturs · medurs så att korten går att läsa i en bild som är tagen på tvären. Bara visningen: hörnen sparas i bildens egen riktning |
 | 0 · 1 · + − | hela bilden · 100 % · zooma (nyp eller ⌘-hjul zoomar mot pekaren, två fingrar panorerar) |

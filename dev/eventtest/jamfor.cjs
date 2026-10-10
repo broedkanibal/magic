@@ -165,7 +165,7 @@ function spelaUpp(logg, lek) {
   const loggat = logg.find(r => r.grund !== undefined && r.grund !== null);
   const grund = loggat ? loggat.grund : GRUND_PROD;
   const { app, klocka, timers } = byggApp(grund, lek);
-  const hand = logg.map((r, i) => ({ t: VIRT0 + Math.round(r.s * 1000), s: r.s, fas: r.fas, nollstall: !!r.nollstall, spar: r.spar, grav: r.grav, bib: r.bib, slag: 'rapport', nr: i }));
+  const hand = logg.map((r, i) => ({ t: VIRT0 + Math.round(r.s * 1000), s: r.s, fas: r.fas, nollstall: !!r.nollstall, spar: r.spar, grav: r.grav, slag: 'rapport', nr: i }));
   const alla = hand.slice();
   const tSlut = hand[hand.length - 1].t + Math.round(SVANS_S * 1000);
   for (let t = hand[0].t + HJARTSLAG_MS; t <= tSlut; t += HJARTSLAG_MS) alla.push({ t, slag: 'hjärtslag' });
@@ -272,8 +272,6 @@ function jamfor(rader, bilder, h, logg) {
     const vard = c.fast && bord.kort.find(x => x.cid === c.fast);
     return !!(vard && vard.namn === till);
   };
-  /* Telefonens library-ruta: första gången i fönstret leken gick från att ligga till att inte ligga (lyftes, eller skymdes av en hand). */
-  const bibLyft = r => { let forra = null; for (const b of logg) { if (!b.bib) continue; const l = b.bib.ligger; if (b.s >= r.t - FORE && b.s <= r.t + EFTER && forra === true && l === false) return +(b.s - r.t).toFixed(2); if (b.s > r.t + EFTER) break; forra = l; } return null; };
   const gravAndrad = r => {
     let fore = null;
     for (const b of logg) { if (!b.grav || typeof b.grav.n !== 'number') continue; if (b.s < r.t - FORE) { fore = b.grav.n; continue; } if (b.s > r.t + EFTER) break; if (fore != null && b.grav.n > fore) return +(b.s - r.t).toFixed(2); if (fore == null) fore = b.grav.n; }
@@ -364,7 +362,6 @@ function jamfor(rader, bilder, h, logg) {
       if (varv === 1) return null;
       const f = bibDig(r.t - FORE), e = bibDig(r.t + EFTER);
       o.hur = `appen räknar inte drag (library = lekens antal − kort ute${e > f ? `; ${e - f} kort kom ut i fönstret, på bordet` : ''})`;
-      const l = bibLyft(r); o.not = l == null ? 'telefonen såg inte leken lämna sin ruta' : `telefonen såg leken lämna sin ruta ${fs2(l)}`;
     } else if (r.handelse === 'grav_till_hand' || r.handelse === 'grav_exile' || r.handelse === 'grav_ur_bild') {
       const i = forsta(r, x => x.typ === 'ut ur graveyard' && x.namn === r.kort);
       if (i < 0 && varv === 1) return null;
