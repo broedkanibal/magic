@@ -3921,7 +3921,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
         <!-- Telefonen är borta (MES-355, D1): hur länge mattan stått frusen. Och
              medan datorn letar efter telefonen efter en omladdning (D2). -->
         <div class="kamfrusen" id="kamFrusen" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19"/></svg><span id="kamFrusenTxt"></span></div>
-        <div class="kamletarmatt" id="kamLetarMatt" role="status" hidden><svg class="kamsnurr" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f0a52a" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg><span>Finding your phone — it’s still on your table.</span><span>Your cards are back from where you left off.</span></div>
+        <div class="kamletarmatt" id="kamLetarMatt" role="status" hidden><svg class="kamsnurr" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f0a52a" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg><span>Reconnecting to your phone.</span><span>This usually takes a few seconds. Leave the phone where it is.</span></div>
         <!-- Solfjädern (MES-145): korten ur en hög i handen. Ritas av hfLage(). -->
         <div class="handfan" id="handFan" hidden></div>
         <!-- Uppstartens steg 1 (MES-170, G1/G1Edit/G2): den valda leken som
@@ -12943,7 +12943,7 @@ function renderMode() {
 }
 
 /* Mattan medan telefonen är borta (MES-355): "Frozen as it looked 2 min ago"
-   i hörnet när kameran är tappad (D1), och "Finding your phone" nertill
+   i hörnet när kameran är tappad (D1), och "Reconnecting to your phone" nertill
    medan datorn letar efter en omladdning (D2). Mattan tonas inte ned. */
 function ritaKamMatt() {
   const fr = $('#kamFrusen'), le = $('#kamLetarMatt'); if (!fr || !le) return;
@@ -12963,7 +12963,7 @@ function kamPillModell() {
   const lage = mittLage();
   if (prefs.autoLage !== true) return { klass: 'av', text: 'Camera off', lage, fel: 'av' };
   if (!kamAnsluten) return !kamHarVarit ? { klass: 'vantar', text: 'Waiting for phone', lage }
-    : kamLetar() ? { klass: 'vantar', text: 'Camera · finding your phone', lage, fel: 'letar' }
+    : kamLetar() ? { klass: 'vantar', text: 'Camera · reconnecting', lage, fel: 'letar' }
     : { klass: 'tappad', text: 'Camera lost', lage, fel: 'tappad' };
   if (kamFas === 'ingen') return { klass: 'vantar', text: 'Reload the phone', lage, fel: 'gammal' };
   if (kamFas === 'ljus' || kamFas === 'lar') return { klass: 'vantar', text: 'Camera · learning the light', lage };
@@ -13029,7 +13029,7 @@ function renderKamPop() {
   const ov = $('#kamOv'); if (!ov || !spelLage) return;
   rensaOppstartsRutor();
   const m = kamPillModell(), bord = m.lage === 'bord', fel = m.fel || '';
-  const rubTxt = fel === 'tappad' ? 'Your phone stopped sending' : fel === 'letar' ? 'Finding your phone' : fel === 'gammal' ? 'Reload Mesa on your phone'
+  const rubTxt = fel === 'tappad' ? 'Your phone stopped sending' : fel === 'letar' ? 'Reconnecting to your phone' : fel === 'gammal' ? 'Reload Mesa on your phone'
     : fel === 'hittar' ? "The camera can't find your cards" : kamAnsluten || fel === 'av' ? 'Camera' : 'Connect your phone';
   const rub = $('#kamOvRubrik'); if (rub.textContent !== rubTxt) rub.textContent = rubTxt;
   $('#kamOvSt').hidden = !kamAnsluten || !!fel;
@@ -13045,11 +13045,11 @@ function renderKamPop() {
      (D3): Turn on camera, och koden. */
   const felHtml = fel === 'tappad'
       ? (kamAvSjalv ? '<p class="poptxt">You disconnected the phone. The cards stay as they were.</p>' : '')
-    : fel === 'letar' ? '<p class="poptxt">It’s still on your table, and it usually turns up in a few seconds. The cards stay as they are in the meantime.</p>'
+    : fel === 'letar' ? '<p class="poptxt">The connection to your phone dropped. Mesa is reconnecting, which usually takes a few seconds. Leave the phone where it is. Your cards will show up again as soon as it's back.</p>'
     : fel === 'av' ? '<p class="poptxt">The camera is off. You place and move cards yourself until you turn it on again.</p>'
         + '<div class="kamfelknappar"><button type="button" class="btn prim bred" data-mode="auto">Turn on camera</button></div>'
     : fel === 'gammal'
-      ? '<p class="poptxt">Your phone runs an older version of Mesa. Reload the page on the phone — the camera carries on where it stopped.</p>'
+      ? '<p class="poptxt">Your phone runs an older version of Mesa. Reload the page on the phone and the camera carries on where it stopped.</p>'
         + (kamQrTvinga ? '' : '<div class="kamfelknappar"><button type="button" class="btn" data-mode="visaqr">Show the QR code</button></div>')
     : fel === 'hittar' ? `<p class="poptxt">${esc(kamHittarRad())}</p>` : '';
   const fe = $('#kamFel'); if (fe.dataset.h !== felHtml) { fe.dataset.h = felHtml; fe.innerHTML = felHtml; }
