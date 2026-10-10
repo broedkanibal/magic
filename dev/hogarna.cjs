@@ -492,7 +492,12 @@ const PROV = async steg => {
        ett Mirror-spel) byter inte läget (granskningen, 3a). */
     kameraLage.fel = 0; kamAnsluten = false; prefs.autoLage = true; renderMode(); await vanta(40);
     ok('kameran på utan telefon i spelet: raden står kvar på Digital table', mig().lage === 'utan' && W.__lage.length === 0, `${mig().lage} [${W.__lage}]`);
-    kamAnsluten = true; renderMode(); await vanta(40);
+    /* Skrivningen går inte igenom (inget nät): ett försök, ingen loop — bytLage ritar om när den rullar tillbaka. */
+    Moln.sattLage = (id, l) => { W.__lage.push(l); return Promise.resolve(false); };
+    kamAnsluten = true; renderMode(); await vanta(200); renderMode(); await vanta(40);
+    ok('skrivningen går inte igenom: ett försök, raden står kvar, nästa försök tidigast efter en minut', mig().lage === 'utan' && W.__lage.join() === 'bord' && kameraLage.fel > 0, `${mig().lage} [${W.__lage}] fel ${kameraLage.fel}`);
+    Moln.sattLage = (id, l) => { W.__lage.push(l); return Promise.resolve(true); };
+    W.__lage = []; kameraLage.fel = 0; renderMode(); await vanta(40);
     ok('kameran på i Digital table: raden blir Mirror my table', mig().lage === 'bord' && W.__lage.join() === 'bord', `${mig().lage} [${W.__lage}]`);
     /* …också när autoLage aldrig satts och en telefon sitter i kanalen: valet står sig (granskningen av 8ff33d9). */
     W.__lage = []; oppSatt({ klar: false, avbojd: false }); delete prefs.autoLage; kamAnsluten = true; oppUtan(); await vanta(40); renderMode(); await vanta(40);
