@@ -49,6 +49,8 @@ let kamGrund = 20;
    Sätts per prov med app.lek = new Map([['Sol Ring', 1]]). */
 let lekTal = new Map();
 const lekAntal = namn => lekTal.has(namn) ? lekTal.get(namn) : Infinity;
+/* Baslandets typ — samma som appens landTyp (ett basland med egen remsa räknar lekens antal annorlunda). */
+function landTyp(namn) { const m = /^(?:Snow-Covered )?(Plains|Island|Swamp|Mountain|Forest|Wastes)$/.exec(String(namn || '')); return m ? m[1] : null; }
 /* Typraden (besvärjelseregeln, MODE-3): per namn i provet, annars tom. */
 let typRad = new Map();
 function typLinje(k) { return typRad.get(k.name) || ''; }
@@ -1191,6 +1193,59 @@ prov('Q2 leken har 1 Sol Ring: det andra spåret blir en fråga, inte ett kort; 
   assert.equal(app.pending.length, 1, 'dubblett av frågan'); assert.equal(app.kort.length, 1);
   stam([klar(1, 'Sol Ring', { sen: 20, ...PORT })]);       // spåret dör: frågan försvinner
   assert.equal(app.pending.length, 0); assert.equal(app.kort.length, 1);
+});
+/* QB1–QB4: ett basland med egen namnremsa (rl) som ligger skild från kortet på bordets (skildaRemsor) är
+   ett kort till, också över lekens antal — Jespers bord 2026-10-10: Island lagt över Island, leken har ett.
+   Remsa som täcker kortets egen, syntetisk remsa eller ett annat kort än basland: frågan som förut. */
+const OVER = box(0.42, 0.415, 0.063, 0.088);
+const RL_A = box(0.403, 0.403, 0.057, 0.008), RL_B = box(0.423, 0.418, 0.057, 0.008), RL_PA_A = box(0.404, 0.404, 0.056, 0.008);
+prov('QB1 leken har 1 Island: ett Island över det första, med egen skild remsa, blir ett kort till utan fråga', () => {
+  app.lek = new Map([['Island', 1]]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A })]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A }), klar(2, 'Island', { sen: 20, ...OVER, rl: RL_B })]);
+  assert.equal(app.pending.length, 0, 'frågan ställdes'); assert.equal(app.kort.length, 2);
+  assert.deepEqual(app.kort.map(k => k.spar).sort(), [1, 2]);
+});
+prov('QB1c samma, och telefonen ser det nya ligga över det undre (under): ingen väntan — ett kort till direkt', () => {
+  app.lek = new Map([['Island', 1]]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A })]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A, skymd: true, under: [2] }), klar(2, 'Island', { sen: 20, ...OVER, rl: RL_B })]);
+  assert.equal(app.pending.length, 0, 'frågan ställdes'); assert.equal(app.kort.length, 2, 'väntade');
+});
+prov('QB1d utan lek: Island på Island med under väntar inte heller', () => {
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A })]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A, skymd: true, under: [2] }), klar(2, 'Island', { sen: 20, ...OVER, rl: RL_B })]);
+  assert.equal(app.kort.length, 2, 'väntade');
+});
+prov('QB1b samma, med det undre kortets spår skymt av det övre: dubbletten väntar (DUBBLETT_VANTA), sedan ett kort till', () => {
+  app.lek = new Map([['Island', 1]]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A })]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A, skymd: true }), klar(2, 'Island', { sen: 20, ...OVER, rl: RL_B })]);
+  klocka.t += 3100;
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A, skymd: true }), klar(2, 'Island', { sen: 20, ...OVER, rl: RL_B })]);
+  assert.equal(app.pending.length, 0, 'frågan ställdes'); assert.equal(app.kort.length, 2);
+});
+prov('QB2 leken har 1 Island: ett andra spår vars remsa täcker kortets egen blir frågan, inte ett kort', () => {
+  app.lek = new Map([['Island', 1]]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A })]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A }), klar(2, 'Island', { sen: 20, ...LANGT, rl: Object.assign({}, RL_PA_A) }), ]);
+  assert.equal(app.kort.length, 1, 'ett kort till skapades'); assert.equal(app.pending.length, 1); assert.ok(app.pending[0].overTak);
+});
+prov('QB3 leken har 1 Island: syntetisk remsa eller ingen remsa ger frågan som förut', () => {
+  app.lek = new Map([['Island', 1]]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A })]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A }), klar(2, 'Island', { sen: 20, ...LANGT, rl: box(0.803, 0.103, 0.057, 0.008), rsynt: 1 })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.pending.length, 1); assert.ok(app.pending[0].overTak);
+  app.nollstall(); app.lek = new Map([['Island', 1]]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A })]);
+  stam([klar(1, 'Island', { sen: 20, ...PORT, rl: RL_A }), klar(2, 'Island', { sen: 20, ...LANGT })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.pending.length, 1); assert.ok(app.pending[0].overTak);
+});
+prov('QB4 leken har 1 Sol Ring: egen skild remsa ändrar inget för annat än basland — frågan som förut', () => {
+  app.lek = new Map([['Sol Ring', 1]]);
+  stam([klar(1, 'Sol Ring', { sen: 20, ...PORT, rl: RL_A })]);
+  stam([klar(1, 'Sol Ring', { sen: 20, ...PORT, rl: RL_A }), klar(2, 'Sol Ring', { sen: 20, ...LANGT, rl: box(0.803, 0.103, 0.057, 0.008) })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.pending.length, 1); assert.ok(app.pending[0].overTak);
 });
 prov('Q3 spåret dör och ett nytt föds på annan plats i samma bord: samma kort binder om, ingen fråga', () => {
   app.lek = new Map([['Sol Ring', 1]]);

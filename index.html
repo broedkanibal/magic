@@ -30884,6 +30884,21 @@ const Kamera = (() => {
      Remsornas avstånd (T.remsaIsar) är det som skiljer två kort i en hög
      från två lådor på ett kort; 06 står på 0,63. */
   const sammaKortSom = t => spar.find(q => q !== t && q.tillstand === 'klar' && q.saker && q.namn === t.namn && !arHelbild(q) && !skildaRemsor(t, q) && ladTackning(t.ram || t.box, q.ram || q.box) >= SAMMA_SPAR) || null;
+  /* Antalspriorns räkning för ett basland (K6, kamIdentifiera och kamLasRemsa): som upptagna, men ett
+     säkert spår vars namnremsa ligger skild från spårets egen (skildaRemsor) är ett annat fysiskt kort och
+     räknas inte. Två egna remsor är två kort, och ett extra basland är legitimt (lekAntal: ett prior,
+     aldrig ett tak) — lekens antal av basland stämmer dessutom sällan (lekfotot tappar dem i högar,
+     spelare lägger till fler). Jespers bord 2026-10-10 (spelet QN74EE): Island lagt över Island, leken
+     har ett. Det andra blev 'fler än leken', Claude frågades (4,5 s) och svarade, men samma prior
+     spärrade svaret — kortet blev "Name this card". Kräver spårets EGEN remsa från detektorn (inte den
+     syntetiska ur lådans kant): en region som vuxit in över kortet har ingen, och räknas som förut.
+     Andra kort än basland räknas som förut. Golden lyfter basländerna i lek.txt (SNABBGUIDE, 2026-10-07)
+     av samma skäl; --lek-som-den-ar visar appens läge. */
+  const upptagnaLek = (namn, id) => {
+    const t = spar.find(q => q.id === id);
+    const egen = !!(t && landTyp(namn) && t.remsaLada && !t.remsaSynt);
+    return spar.filter(q => q !== t && q.id !== id && q.tillstand !== 'skrap' && q.saker && q.namn === namn && !bevisatBorta(q) && !(egen && skildaRemsor(t, q))).length;
+  };
   function dubblettAv(t, q) {
     t.tillstand = 'skrap'; t.skrapN = 3; t.fragad = true; t.provas = false;
     t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.gissning = null; t.del = false; t.varfor = 'samma kort som #' + q.id;
@@ -31434,7 +31449,7 @@ const Kamera = (() => {
            /* Steget som pågår (den tränade detektorn räknar asynkront, MES-329) — golden väntar in det innan rutan döms. */
            vantaSteg: () => stegPagar || Promise.resolve(),
            get strom() { return stream; },
-           get lage() { return lage; }, get spar() { return spar; }, get spoken() { return spoken; }, upptagna,
+           get lage() { return lage; }, get spar() { return spar; }, get spoken() { return spoken; }, upptagna, upptagnaLek,
            /* Minnet av remsor (MES-331 pass 6): posterna utan vektorerna, och räknarna — golden (--detalj, raden minne) och bänken. */
            get remsMinne() { return remsMinne.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: e.prov.length, mx: e.mx, my: e.my, L: e.L, sedd: e.sedd, tagen: e.tagen, lever: !!e.lever })); },
            get minneStat() { return Object.assign({ poster: remsMinne.length }, minneStat); },
@@ -32007,7 +32022,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      eller en klon/ett extra land: granskningen får avgöra. */
   if (saker && c0 && kamLekAntal) {
     const tak = kamLekAntal.get(norm(c0.name));
-    const upptagna = Kamera.upptagna(c0.name, id);   // utan spår som bevisat är på väg bort: kortet som just flyttats är inte ett exemplar till (MES-214)
+    const upptagna = Kamera.upptagnaLek(c0.name, id);   // utan spår som bevisat är på väg bort: kortet som just flyttats är inte ett exemplar till (MES-214); ett basland med egen skild remsa räknar inte de andra (upptagnaLek)
     if (!lekPrior(true, tak == null ? Infinity : tak, upptagna)) { saker = false; varfor = 'fler än leken'; }
   }
   const namnLast = namn ? { text: namn.text, namn: namn.namn, poang: namn.poang, marginal: namn.marginal, ms: namn.ms, hoppad: namn.hoppad || null, start: namn.start, vand: !!namn.vand } : null;
@@ -32162,7 +32177,7 @@ async function kamLasRemsa(canvas, id, o) {
   if (!saker && ocrNamn && ocrNamn === cands[0].name && ocr.poang >= 0.5 && ocr.marginal >= 0.15 && marginal >= T.remsaVittne) { saker = true; varfor = 'remsa+namn'; }
   if (saker && kamLekAntal) {
     const tak = kamLekAntal.get(norm(cands[0].name));
-    if (!lekPrior(true, tak == null ? Infinity : tak, Kamera.upptagna(cands[0].name, id))) { saker = false; varfor = 'fler än leken'; }
+    if (!lekPrior(true, tak == null ? Infinity : tak, Kamera.upptagnaLek(cands[0].name, id))) { saker = false; varfor = 'fler än leken'; }
   }
   return { namn: cands[0].name, sid: cands[0].sid, saker, varfor, marginal, poang: cands[0].score, cands, titel, minne,
            ocr: ocr ? { text: ocr.text || '', namn: ocrNamn, poang: ocr.poang, marginal: ocr.marginal, hoppad: ocr.hoppad || null } : null,
@@ -34556,7 +34571,10 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
       const u = spar.find(x => x.id === c.spar);
       return !!u && u.w != null && !franHelbild(u) && (u.skymd || (u.sen != null && !farsktSpar(u)) || u.vilar === false);
     };
-    if (pol.flytt && mig.cards.some(c => c.name === g.namn && paBordet(c) && c.spar != null && synliga.has(c.spar) && !g.spar.some(q => q.id === c.spar) && iHanderna(c))) {
+    /* …utom kortet som telefonen ser ligga UNDER det nya spåret (ofrSkilda, telefonens under): det är inte handen
+       som skymmer det utan kortet som lagts ovanpå — ett land på ett land med samma namn. Förut väntade det nya
+       kortet DUBBLETT_VANTA (3 s) varje gång (Island på Island, Jespers bord 2026-10-10). */
+    if (pol.flytt && mig.cards.some(c => c.name === g.namn && paBordet(c) && c.spar != null && synliga.has(c.spar) && !g.spar.some(q => q.id === c.spar) && !ofrSkilda(c.spar, t.id) && iHanderna(c))) {
       if (!flyttVantan.has(t.id)) flyttVantan.set(t.id, nu);
       if (nu - flyttVantan.get(t.id) < DUBBLETT_VANTA) { g.vantar = true; continue; }
     }
@@ -34586,8 +34604,14 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
        legitima, så det är ingen spärr — kortet blir en fråga på platsen
        ("Your deck has only N × name — one more?") i stället för ett kort.
        Ligger en kopia i nådatiden (borta) väntar vi: det är oftast samma
-       kort som flyttats. Frågan ställs en gång per spår. */
-    if (isFinite(tak) && paBord >= tak && !mig.cards.some(c => c.name === g.namn && paBordet(c) && c.borta)) {
+       kort som flyttats. Frågan ställs en gång per spår.
+       Ett basland med egen namnremsa (rl, inte den syntetiska) räknar bara de kort vars spår inte ligger
+       med en skild remsa (skildaRemsor): två egna remsor är två kort, som telefonens upptagnaLek. Ett kort
+       utan levande spår räknas som förut. Island över Island, leken har ett (Jespers bord 2026-10-10). */
+    const egenRemsa = !!(typeof landTyp === 'function' && landTyp(g.namn) && t.rl && !t.rsynt);   // landTyp finns inte i alla harnessar
+    const kanVaraDet = c => { if (!egenRemsa || c.spar == null) return true; const u = spar.find(x => x.id === c.spar); return !u || !skildaRemsor(u, t); };
+    const paBordLek = egenRemsa ? mig.cards.filter(c => c.name === g.namn && (paBordet(c) || c.fysisk) && kanVaraDet(c)).length : paBord;
+    if (isFinite(tak) && paBordLek >= tak && !mig.cards.some(c => c.name === g.namn && paBordet(c) && c.borta)) {
       if (!hoppade.has(t.id) && !mig.pending.some(q => q.spar === t.id)) {
         const id = uid();
         for (const w of [220, 260]) { const d = cropCache.get('spar-' + t.id + '@' + w); if (d) cropCache.set(id + '@' + w, d); }
