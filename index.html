@@ -1517,6 +1517,7 @@ body.utanins .hints:not(.sok){display:none}
 .ov.kampop .modal .body{flex:1;min-height:0;overflow:auto;padding:0 16px 14px;display:flex;flex-direction:column;gap:12px}
 .ov.kampop .foot{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid #1c2330;background:none}
 .ov.kampop .foot .grow{flex:1}
+.ov.kampop .foot[hidden]{display:none}
 .ov.kampop .kamskruv{margin:0;gap:10px}
 .ov.kampop .kamskruv .kalbild{margin:0}
 .ov.kampop .kamsteg .lead{margin-top:0}
@@ -1533,6 +1534,36 @@ body.utanins .hints:not(.sok){display:none}
 .kamtool .btn{flex:none}
 .kamfelknappar{display:flex;gap:8px}
 .kamaipris{font-size:11.5px;color:var(--dim2)}
+/* Panelen för spelaren (MES-358, designytan Mesa Camera Panel): bilden, en mening, ↻ och Pause. */
+.kamstatus{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.45;color:var(--txt)}
+.kamstatus[hidden]{display:none}
+.kamstatus .ic{flex:none;width:20px;height:20px;margin-top:-1px;display:grid;place-items:center;border-radius:50%}
+.kamstatus.ok .ic{background:#173222;color:var(--green)}
+.kamstatus.varn .ic,.kamstatus.las .ic{background:#352710;color:var(--acc)}
+.kamstatus.av .ic{background:var(--bg4);color:var(--dim)}
+.kamstatus .txt{min-width:0}
+.kamstatus .rub{margin:0}
+.kamstatus .rub b{font-weight:650}
+.kamstatus .sub{margin:2px 0 0;color:var(--dim);font-size:12.5px}
+.kamstatus .sub[hidden]{display:none}
+.kamstatus .snurr{width:11px;height:11px;border-radius:50%;border:2px solid #4a3a17;border-top-color:var(--acc);animation:kamsnurr 1s linear infinite}
+.kampaus{display:flex;flex-direction:column;gap:6px}
+.kampaus[hidden]{display:none}
+.kampaus .btn.bred{height:40px;justify-content:center;gap:7px;font-size:14px}
+.kampaus .kamfin2{text-align:center}
+.pbvand{position:absolute;right:8px;top:8px;z-index:3;width:34px;height:34px;display:grid;place-items:center;border-radius:8px;background:#0b0e13cc;border:1px solid #ffffff1a;color:var(--txt);cursor:pointer}
+.pbvand:hover{background:#0b0e13f0}
+.pbvand[hidden],.pbpaus[hidden]{display:none}
+.pbpaus{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#0b0e13b8;color:var(--txt);font:600 13px var(--sans)}
+.kamdev{margin:2px -16px -14px;padding:0 16px 10px;border-top:1px dashed #4a5870;background:#0f131a}
+.kamdev > summary{display:flex;align-items:center;gap:8px;padding:9px 0;cursor:pointer;list-style:none;font:600 12.5px var(--sans);color:var(--txt)}
+.kamdev > summary::-webkit-details-marker{display:none}
+.kamdev > summary code{font:600 10.5px var(--mono);padding:2px 5px;border-radius:4px;background:#2a2140;color:#c7b6ff}
+.kamdev > summary .grow{flex:1}
+.kamdev .kamverktyg{padding:0 4px 8px}
+.campill.paus{background:var(--bg3);border-color:var(--line);color:var(--dim)}
+.campill.paus:hover{border-color:var(--panelram2);color:var(--txt)}
+.campill.paus .led{background:#3a4658}
 @media (max-width:620px){ .ov.kampop{inset:var(--pop-top,52px) 8px auto 8px;width:auto} }
 /* Mattan i ett spel säger bara var korten kommer att synas; hur kameran mår
    står i pillret (MES-98). */
@@ -4014,20 +4045,14 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
   <div class="modal kammodal">
     <header class="pophd">
       <h2 id="kamOvRubrik">Camera</h2>
-      <span class="st" id="kamOvSt" hidden><i></i>Phone connected</span>
       <button class="close" data-close="kamOv" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body">
-      <div class="popsec" id="kamLageSec">
-        <span class="poplbl">How the camera works</span>
-        <p class="poptxt" id="kamLageTxt"></p>
-      </div>
       <div class="popsec" id="kamFel" hidden></div>
       <div class="kamsteg" id="kamStegQr">
-        <p class="lead">Scan the code with your phone's camera — nothing to install. You sign
-          in with the same account, and the phone becomes your camera in this game. Put it in
-          a holder straight above your cards, and keep the deck and the graveyard out of the
-          picture.</p>
+        <p class="lead">Scan the code with your phone's camera — nothing to install, and you
+          sign in with the same account. Then put the phone in a holder, straight above your
+          cards.</p>
         <div class="kamqr" id="kamQr"></div>
         <!-- Camera lost och Camera off (MES-355, D1 och D3): koden står framme
              direkt, med vad den gör. Ritas av renderKamPop(). -->
@@ -4050,12 +4075,28 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <div class="kalvantar" id="pbVantar">Waiting for a picture from the phone…</div>
           <span class="kamskruv-rakn dbg" id="kamSkruvRakn"></span>
           <span class="pbfarger dbg"><i style="background:#5fbf7f"></i>recognised <i style="background:#e2606a"></i>unknown <i style="background:#e8b33a"></i>reading <i style="background:#6b7280"></i>not a card</span>
+          <!-- ↻ (MES-358, designytan Mesa Camera Panel): spelarens enda inställning av bilden. Spegling,
+               grundläget och referensbilden ligger i utvecklarlådan. -->
+          <button type="button" class="pbvand" id="kamVandKnapp" data-mode="vand" aria-label="Turn the mat a quarter" title="Turn the mat a quarter" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+          <div class="pbpaus" id="kamPausSloja" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg><span>Paused</span></div>
         </div>
-        <p class="popline" id="kamRad1" hidden></p>
-        <p class="pbstatus dbg" id="pbStatus"></p>
-        <!-- Verktygen gäller bara Follow the table: där speglar mattan bordet,
+        <!-- Statusmeningen (MES-358): en rad om läget, och en mening om vad spelaren kan göra. Ritas av renderKamPop. -->
+        <div class="kamstatus" id="kamRad1" hidden>
+          <span class="ic" id="kamRadIc"></span>
+          <div class="txt"><p class="rub" id="kamRadRub"></p><p class="sub" id="kamRadSub" hidden></p></div>
+        </div>
+        <div class="kampaus" id="kamPaus" hidden>
+          <button type="button" class="btn prim bred" data-mode="aterupta"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>Resume</button>
+          <p class="kamfin2">The mat catches up with your table when you resume.</p>
+        </div>
+        <!-- Utvecklarlådan (MES-358): allt som bara byggaren behöver, bakom ?debug. -->
+        <details class="kamdev dbg" id="kamDev" open>
+          <summary><span>Developer</span><code>?debug</code><span class="grow"></span><button type="button" class="btn sm ghost" id="kamDebugAv" title="Debug stays on in this browser until it is turned off">Turn off debug</button></summary>
+        <p class="pbstatus" id="pbStatus"></p>
+        <!-- Verktygen gäller bara Mirror my table: där speglar mattan bordet,
              så orienteringen, graveyard-rutan och grundläget (vinkeln ett
-             otappat kort har i bilden, visaKamGrund) spelar roll. -->
+             otappat kort har i bilden, visaKamGrund) spelar roll. Spelaren har
+             bara ↻ på bilden (MES-358). -->
         <div class="kamverktyg" id="kamVerktyg" hidden>
           <div class="kamtool"><span class="t">Mat turned or flipped?</span>
             <button type="button" class="btn sm" data-mode="vand" title="Rotate the camera picture a quarter turn">↻ Rotate</button>
@@ -4066,6 +4107,8 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
         </div>
         <div class="pbknappar dbg">
           <button class="btn sm dbg" id="pbRef" title="Retake the picture of the table — do it when the light has changed. The cards can stay">New reference picture</button>
+          <button class="btn sm" id="kamRedo" data-mode="redo" title="Go through deck, phone and the untapped card again">Redo setup</button>
+          <button class="btn sm" id="pbHelbildDev" title="The phone sends the whole picture to Claude and puts out the cards it sees">✦ Whole table to Claude</button>
           <button class="btn sm ghost dbg" id="pbDiagnos" title="Saves what the phone sees as a file, for troubleshooting">Save diagnostics</button>
         </div>
         <!-- Bildläget (MES-229, MES-244): 4K · 15 är förvalet; 1080p · 30 analyserar
@@ -4142,17 +4185,18 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <div class="pbreglage" id="pbReglage"></div>
           <div class="pbknappar"><button class="btn sm ghost" id="pbAter">Reset the thresholds</button></div>
         </details>
+        </details>
       </div>
     </div>
     <div class="foot">
-      <!-- Hela bordet till Claude: bara när kameran inte hittar korten (5c)
-           — eller för byggaren. Telefonen skickar bilden. -->
-      <button class="btn" id="kamRedo" data-mode="redo" title="Go through deck, phone, mode and the untapped card again">Redo setup</button>
+      <!-- Hela bordet till Claude: bara när kameran inte hittar korten (5c).
+           Telefonen skickar bilden. Byggaren har knappen i utvecklarlådan. -->
       <button class="btn" id="pbHelbild" hidden title="The phone sends the whole picture to Claude and puts out the cards it sees — for tables where the camera cannot find the cards by itself">✦ Let AI read the table</button>
-      <span class="grow"></span>
       <span class="kamaipris" id="kamAiPris" hidden>A few cents per read</span>
+      <span class="grow"></span>
       <span class="dbg" id="kamOvStatus"></span>
-      <button class="btn ghost" id="kamKoppla">Turn off camera</button>
+      <!-- Pause camera med telefonen ansluten (MES-358), Play without camera utan den. -->
+      <button class="btn ghost" id="kamKoppla">Pause camera</button>
     </div>
   </div>
 </div>
@@ -7155,6 +7199,10 @@ let kameraEnhet = false;
    Att auto "slås på" är för övrigt en synvilla: kortavläsningen har alltid
    gått oberoende av dialogen. Det som saknades var att SE att den gjorde det. */
 let kamAnsluten = false;      // sitter en telefon i spelets närvarolista?
+/* Pause camera (MES-358): telefonen är kvar och bilden strömmar, men mattan följer inte bordet medan
+   spelaren blandar, städar eller flyttar telefonen. kamPausBord är senaste bordet under pausen — Resume
+   spelar upp det. Gäller den här sidan; en omladdning slutar pausen. */
+let kamPaus = false, kamPausBord = null;
 let kamOppen = false;         // står #kamOv öppen?
 let kamTittar = false;        // tittar någon på telefonens bild? (popovern)
 let kamUpp = 'v';             // hur ett otappat kort ligger i telefonens bild: 'v' stående, 'h' liggande — reserven när inget grundläge är sparat; följer med i raden
@@ -12770,6 +12818,7 @@ function kamPillModell() {
   if (!kamAnsluten) return !kamHarVarit ? { klass: 'vantar', text: 'Waiting for phone', lage }
     : kamLetar() ? { klass: 'vantar', text: 'Camera · finding your phone', lage, fel: 'letar' }
     : { klass: 'tappad', text: 'Camera lost', lage, fel: 'tappad' };
+  if (kamPaus) return { klass: 'paus', text: 'Camera paused', lage, fel: 'paus' };
   if (kamFas === 'ingen') return { klass: 'vantar', text: 'Reload the phone', lage, fel: 'gammal' };
   if (kamFas === 'ljus' || kamFas === 'lar') return { klass: 'vantar', text: 'Camera · learning the light', lage };
   /* Uppstarten är öppen (MES-122): bordet ställs i ordning, och ett tomt
@@ -12837,9 +12886,6 @@ function renderKamPop() {
   const rubTxt = fel === 'tappad' ? 'Your phone stopped sending' : fel === 'letar' ? 'Finding your phone' : fel === 'gammal' ? 'Reload Mesa on your phone'
     : fel === 'hittar' ? "The camera can't find your cards" : kamAnsluten || fel === 'av' ? 'Camera' : 'Connect your phone';
   const rub = $('#kamOvRubrik'); if (rub.textContent !== rubTxt) rub.textContent = rubTxt;
-  $('#kamOvSt').hidden = !kamAnsluten || !!fel;
-  $('#kamLageSec').hidden = !!fel;
-  const lt = $('#kamLageTxt'); if (lt.textContent !== LAGE_TXT[m.lage]) lt.textContent = LAGE_TXT[m.lage];
   /* Camera lost (MES-355, D1): QR-koden står framme direkt (kamStegSynk) —
      ingen knapp att klicka fram den med, och ingen väg till uppstarten.
      Hur länge mattan stått frusen står på mattan (ritaKamMatt). Camera off
@@ -12872,27 +12918,73 @@ function renderKamPop() {
   const ef = $('#kamFelEfter'); if (ef.dataset.h !== efterHtml) { ef.dataset.h = efterHtml; ef.innerHTML = efterHtml; }
   ef.hidden = !efterHtml;
   $('#pbBild').classList.toggle('dold', fel === 'gammal');
-  /* En statusrad: avstämningens egen mening (samma som statusfältet hade),
-     utan "Camera · " — panelen heter redan Camera — och med telefonens råd
-     efter sig när det finns ett. */
-  let r1 = '';
-  if (!fel && kamAnsluten) {
-    const mo = autoRemsaModell(senasteSpar, minSpelare(), { nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad });
-    r1 = mo.text.replace(/^Camera · /, '');
-    r1 = r1 ? r1[0].toUpperCase() + r1.slice(1) : '';
-    if (mo.not) r1 += ' — ' + mo.not;
-    else if (kamSer && kamSer === kamLast && !mo.paVag.length) r1 += ' · all recognised';
-  }
-  const re = $('#kamRad1'); if (re.textContent !== r1) re.textContent = r1;
-  re.hidden = !r1;
+  ritaKamStatus(kamStatusModell(fel));
+  /* ↻ på bilden är spelarens enda inställning av bilden (MES-358); spegling och grundläget ligger i
+     utvecklarlådan (kamVerktyg). Pausen lägger en slöja över bilden och Resume under meningen. */
+  $('#kamVandKnapp').hidden = !(bord && kamAnsluten && !fel);
+  $('#kamPausSloja').hidden = fel !== 'paus';
+  $('#kamPaus').hidden = fel !== 'paus';
   $('#kamVerktyg').hidden = !(bord && kamAnsluten && !fel);
   const sp = $('#kamSpegelKnapp'), spTxt = kamSpegel ? '⇋ Unmirror' : '⇋ Mirror'; if (sp && sp.textContent !== spTxt) sp.textContent = spTxt;
-  $('#pbHelbild').hidden = !(kamAnsluten && (fel === 'hittar' || DEBUG));
+  $('#pbHelbild').hidden = !(kamAnsluten && fel === 'hittar');
+  $('#pbHelbildDev').hidden = !kamAnsluten;
   $('#kamAiPris').hidden = fel !== 'hittar';
-  $('#kamKoppla').hidden = prefs.autoLage !== true || fel === 'hittar';
-  /* Redo setup står kvar när kameran är av: från Digital table är det vägen
-     tillbaka till kamerans lägen. */
+  const ko = $('#kamKoppla'), koTxt = kamAnsluten ? 'Pause camera' : 'Play without camera';
+  ko.hidden = prefs.autoLage !== true || fel === 'paus';
+  if (ko.textContent !== koTxt) ko.textContent = koTxt;
+  $('#kamOv .foot').hidden = !DEBUG && ko.hidden && $('#pbHelbild').hidden;   // pausen: ingen tom fot under Resume
+  /* Redo setup ligger i utvecklarlådan sedan MES-358, och lådan syns bara medan telefonen är ansluten
+     (kamSkruv). Spelaren med kameran av har Turn on camera. */
   $('#kamRedo').hidden = !redigerbar() || (!!fel && fel !== 'av');
+}
+/* Statusmeningen (MES-358, designytan Mesa Camera Panel): en rad om läget och en mening om vad spelaren
+   gör åt det. Avstämningens egen modell (autoRemsaModell) bär antalet och notisen; här blir de en rubrik
+   och ett råd. ton: ok, las (något läses), varn (spelaren kan göra något), av (pausad). rub är HTML av
+   tal och fasta ord, sub ren text. */
+function kamStatusModell(fel) {
+  if (fel === 'paus') return { ton: 'av', rub: '<b>The mat doesn\'t follow your table</b>', sub: 'Shuffle, tidy up or move the phone. Place cards on the mat yourself meanwhile.' };
+  if (fel || !kamAnsluten) return null;
+  if (kamFas === 'ljus' || kamFas === 'lar') return { ton: 'las', rub: '<b>Hold the phone still</b>', sub: 'The camera is learning the table. Keep your hands out of the picture for a few seconds.' };
+  const mig = minSpelare();
+  const mo = autoRemsaModell(senasteSpar, mig, { nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad });
+  const n = autoKortPaBordet(mig), vag = mo.paVag.length, namn = mo.granska;
+  const kort = k => k + (k === 1 ? ' card' : ' cards');
+  let ton = 'ok', rub;
+  if (/the table is empty$/.test(mo.text)) rub = '<b>Ready</b> — put cards on the table';
+  else {
+    rub = n || !kamSer ? `<b>${kort(n)} on the table</b>` : `<b>Sees ${kort(kamSer)}</b>`;
+    if (vag) { rub += ` · ${vag} on the way`; ton = 'las'; }
+    else if (namn) { rub += ` · ${namn} ${namn === 1 ? 'needs' : 'need'} a name`; ton = 'varn'; }
+    else if (kamSer && kamSer === kamLast && !mo.slag) rub += ' · all recognised';   // inte bredvid "too small" eller "moving"
+  }
+  /* Rådet: notisen när den säger vad man gör, annars ytans råd (mönster, blänk, för ljus duk). */
+  const RAD = {
+    rorligt: 'Something is moving on the table. The camera reads what changed when it is still.',
+    granskning: `${mo.vem} needs a name — type it on the mat.`,
+    sma: `${mo.not}. If it keeps happening, lower the phone a little.`
+  };
+  let sub = mo.slag ? RAD[mo.slag] || mo.not : '';
+  if ((mo.slag === 'rorligt' || mo.slag === 'granskning' || mo.slag === 'sma') && ton === 'ok') ton = 'varn';
+  const yta = kamYta && kamYta.dom && kamYta.dom !== 'lugn' ? kamYta.rad : '';
+  if (!sub && yta) { sub = yta; if (ton === 'ok') ton = 'varn'; }
+  if (!sub && namn) sub = 'Type the names on the mat.';
+  return { ton, rub, sub };
+}
+const KAM_STATUS_IK = {
+  ok: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  las: '<span class="snurr" aria-hidden="true"></span>',
+  varn: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 6v7M12 17.5v.01"/></svg>',
+  av: '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>'
+};
+/* Strängdiffat som resten av panelen: renderMode går vid varje hjärtslag. */
+function ritaKamStatus(s) {
+  const el = $('#kamRad1'); if (!el) return;
+  el.hidden = !s; if (!s) return;
+  const kl = 'kamstatus ' + s.ton; if (el.className !== kl) el.className = kl;
+  const ic = $('#kamRadIc'); if (ic.dataset.t !== s.ton) { ic.dataset.t = s.ton; ic.innerHTML = KAM_STATUS_IK[s.ton]; }
+  const r = $('#kamRadRub'); if (r.dataset.h !== s.rub) { r.dataset.h = s.rub; r.innerHTML = s.rub; }
+  const su = $('#kamRadSub'), st = s.sub || ''; if (su.textContent !== st) su.textContent = st;
+  su.hidden = !st;
 }
 
 /* ── Uppstarten (MES-102, "Get ready for the game" MES-170) ──────────
@@ -13375,6 +13467,7 @@ function modeKlick(ev) {
   }
   if (a === 'redo') { oppnaOppstart(true); return; }
   if (a === 'visaqr') { kamQrTvinga = true; kamStegSynk(); return; }
+  if (a === 'aterupta') { aterupptaKameran(); return; }
   if (a === 'vand') { kamVand = (kamVand + 90) % 360; sparaKamOrientering(); renderMode(); return; }
   if (a === 'spegel') { kamSpegel = !kamSpegel; sparaKamOrientering(); renderMode(); return; }
   if (a === 'stang') { stangAvAuto(true).then(() => renderMode()); return; }
@@ -13390,7 +13483,7 @@ function modeKlick(ev) {
   if (a === 'skruv') { renderMode(); visaKamSkruv(); }
 
 }
-function modeKlickAuto() { prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); visaKamOv(); }
+function modeKlickAuto() { prefs.autoLage = true; savePrefs(); kamPaus = false; kamPausBord = null; autoSumStarta(); renderMode(); visaKamOv(); }   // påslagen är inte pausad (MES-358)
 $('#modeSlot').addEventListener('click', modeKlick);
 $('#modeRad').addEventListener('click', modeKlick);
 $('#autoBar').addEventListener('click', modeKlick);
@@ -32912,12 +33005,14 @@ function autoRemsaModell(spar, mig, extra) {
      går över av sig själv), sedan kortet man just la ut, ett kort som är
      för litet (det syns ingen annanstans, och står tills man flyttat
      telefonen), sist det nedtonade (bordet visar det redan). */
-  if (rorligt) m.not = 'Something is moving on the table';
-  else if (senast && autoAvgjort(senast)) m.not = `${vem} went to the review`;
-  else if (senast && senast.tillstand === 'okand') { m.not = `${vem} — asking Claude …`; m.puls = true; }
-  else if (senast && e.rad) { m.not = `${vem} is hard to read — ${autoRadSkal(e.rad)}`; m.puls = true; }
-  else if (senast) { m.not = `${vem} is being read …`; m.puls = true; }
-  else if (e.sma > 0) m.not = e.sma === 1 ? 'One card is too small to read' : `${autoAntal(e.sma)} cards are too small to read`;
+  /* slag säger vilken notis det blev, så att kamerapanelen kan säga vad spelaren gör åt den (MES-358). */
+  if (rorligt) { m.not = 'Something is moving on the table'; m.slag = 'rorligt'; }
+  else if (senast && autoAvgjort(senast)) { m.not = `${vem} went to the review`; m.slag = 'granskning'; }
+  else if (senast && senast.tillstand === 'okand') { m.not = `${vem} — asking Claude …`; m.puls = true; m.slag = 'claude'; }
+  else if (senast && e.rad) { m.not = `${vem} is hard to read — ${autoRadSkal(e.rad)}`; m.puls = true; m.slag = 'svar'; }
+  else if (senast) { m.not = `${vem} is being read …`; m.puls = true; m.slag = 'laser'; }
+  else if (e.sma > 0) { m.not = e.sma === 1 ? 'One card is too small to read' : `${autoAntal(e.sma)} cards are too small to read`; m.slag = 'sma'; }
+  m.vem = vem;
   return m;
 }
 /* ── Framkallningen (MES-344) ─────────────────────────────────────────
@@ -34696,6 +34791,7 @@ async function stangAvAuto(fraga) {
   kamFrasktVantar = false;
   kamLetarTill = 0; kamLetarOmladd = false; kamIntrade = false; kamAvSjalv = false;
   kamTappadNar = 0; kamLast = kamTot = kamSer = 0; kamFas = ''; kamSma = 0; kamUpplosning = null;
+  kamPaus = false; kamPausBord = null;   // avstängd är inte pausad (MES-358)
   prefs.autoLage = false; savePrefs();
   glomSpar();
   stangKamSkruv();          // panelen stängs: utan auto finns inget att koppla eller skruva
@@ -34778,6 +34874,10 @@ function tagEmotDiagnos(m) {
 }
 $('#pbDiagnos') && ($('#pbDiagnos').onclick = () => { Moln.sandKam('diagnos'); toast('Fetching what the phone sees…'); });
 $('#pbHelbild') && ($('#pbHelbild').onclick = () => { Moln.sandKam('helbild'); toast('The phone is asking Claude about the whole table…'); });
+$('#pbHelbildDev') && ($('#pbHelbildDev').onclick = () => $('#pbHelbild').onclick());   // samma fråga ur utvecklarlådan (MES-358)
+/* Debug sitter kvar i webbläsaren tills ?debug=0 (se DEBUG). Knappen ligger i lådans rubrik: klicket ska
+   inte fälla ihop lådan. */
+$('#kamDebugAv') && ($('#kamDebugAv').onclick = ev => { ev.preventDefault(); const u = new URL(location.href); u.searchParams.set('debug', '0'); location.href = u.toString(); });
 /* Bilden byter storlek när Avancerat fälls ut; lagret mäts om direkt. */
 $('#pbAvancerat') && $('#pbAvancerat').addEventListener('toggle', () => requestAnimationFrame(ritaPbLager));
 
@@ -35710,17 +35810,25 @@ function ritaPbLager() {
   const sx = G.bw / pbMatt.aw;
   x.font = '600 11px ui-monospace, monospace'; x.textBaseline = 'bottom';
   /* Graveyard-rutan (streckad, amber): den som Yes på graveyard-frågan sparade. */
+  /* Spelaren (MES-358) ser bara det som behöver hen: igenkända kort med en svag grön ram, kort som läses
+     gult streckat, kort som behöver ett namn gult med ett frågetecken. Skräp ritas inte, och graveyard-rutan
+     är grå — gult betyder "något för dig". Byggaren (?debug) ser telefonens färger som förut. */
+  const spelare = !DEBUG;
+  /* Bara spår som avstämningen tog emot: skräp, ett ensamt nedvänt kort och Ignore this spot sållas bort
+     där (avstamBord), och mattan ber aldrig om ett namn för dem. */
+  const tagna = spelare ? new Set(senasteSpar.map(s => s.id)) : null;
   const gr = kamGravRad;
   if (gr && gr.w > 0 && gr.h > 0) {
-    const q = pbRutaPx(G, gr);
-    x.save(); x.strokeStyle = '#e8b33a'; x.lineWidth = 2; x.setLineDash([6, 4]);
-    x.fillStyle = '#e8b33a22';
+    const q = pbRutaPx(G, gr), gf = spelare ? '#93a1b6' : '#e8b33a';
+    x.save(); x.strokeStyle = gf; x.lineWidth = spelare ? 1.5 : 2; x.setLineDash([6, 4]);
+    x.fillStyle = spelare ? '#93a1b614' : '#e8b33a22';
     x.fillRect(q.x, q.y, q.w, q.h);
     x.strokeRect(q.x, q.y, q.w, q.h);
-    x.fillStyle = '#e8b33a'; x.fillText('Graveyard', q.x + 4, q.y + 14);
+    x.fillStyle = gf; x.fillText('Graveyard', q.x + 4, q.y + 14);
     x.restore();
   }
   for (const t of pbRa) {
+    if (spelare && (t.tillstand === 'skrap' || !tagna.has(t.id))) continue;
     const p = pbPx(G, { x: t.cx / pbMatt.aw, y: t.cy / pbMatt.ah });
     const w = t.lang * sx, h = t.kort * sx, vinkel = t.vinkel;
     x.save();
@@ -35730,11 +35838,22 @@ function ritaPbLager() {
        gissning som namn ritades gröna för noll igenkända kort (MES-26). */
     /* Samma färger som telefonens sparFarg: ett spår som prövas (väntar på
        Claude) är gult, "läses" — statusraden räknar det så — inte rött. */
-    const farg = t.tillstand === 'klar' ? '#5fbf7f' : t.tillstand === 'okand' && !t.provas ? '#e2606a' : t.tillstand === 'skrap' ? '#6b7280' : '#e8b33a';
+    const okand = t.tillstand === 'okand' && !t.provas;
+    const farg = spelare
+      ? (t.tillstand === 'klar' ? '#57c785b0' : '#f0a52a')
+      : t.tillstand === 'klar' ? '#5fbf7f' : okand ? '#e2606a' : t.tillstand === 'skrap' ? '#6b7280' : '#e8b33a';
     x.strokeStyle = farg;
-    x.lineWidth = 2;
-    x.setLineDash(t.skymd ? [5, 4] : []);
+    x.lineWidth = spelare && t.tillstand === 'klar' ? 1.5 : 2;
+    x.setLineDash(t.skymd || (spelare && t.tillstand !== 'klar' && !okand) ? [5, 4] : []);
     x.strokeRect(-w / 2, -h / 2, w, h);
+    if (spelare && okand) {
+      /* Frågetecknet i kortets övre högra hörn, upprätt oavsett kortets vinkel. */
+      x.translate(w / 2, -h / 2); x.rotate(-vinkel);
+      x.setLineDash([]);
+      x.fillStyle = '#f0a52a'; x.beginPath(); x.arc(0, 0, 8, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#1a1205'; x.font = '800 11px -apple-system, BlinkMacSystemFont, sans-serif';
+      x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('?', 0, 0.5);
+    }
     x.restore();
     /* Igenkänningskedjan (?debug): samma rad som på mattan — delen som arbetar nu, eller domen med tiden och om Claude var med. */
     const k = DEBUG && kamKedja.get(t.id);
@@ -35855,6 +35974,7 @@ function kamNarvaro(kameror) {
      bord" fast ingenting läste mitt. Närvaron bär redan avsändarens id. */
   kamAnsluten = kameror.some(k => k.id && k.id === Moln.minId());
   if (kamAnsluten === fanns) return;
+  kamPausBord = null;             // pausens bord från före tappet ska inte spelas upp vid Resume (MES-358)
   renderBibHog();                 // utan telefon ritas leken som liggande
   /* Telefonen kan ha laddats om utan att säga det. Bryt bindningen när
      sessionen byts, åt båda hållen — nollställningsmeddelandet täcker
@@ -35964,6 +36084,9 @@ function kamTogsEmot(m) {
     if (m.barafas) { gravFasByte(m.fas || ''); kamFas = m.fas || ''; if (m.yta) kamYta = m.yta; kamRad = m.rad || ''; renderMode(); uppdateraPbStatus(); return; }
     /* Auto av betyder av. Förut lydde datorn ändå, så länge telefonen sände. */
     if (prefs.autoLage === false) return;
+    /* Pausen (MES-358): mattan följer inte bordet. Senaste bordet sparas, med en nollställning som kom
+       under pausen, och Resume spelar upp det så att mattan hinner ikapp direkt. */
+    if (kamPaus) { kamPausBord = Object.assign({}, m, { nollstall: !!(m.nollstall || (kamPausBord && kamPausBord.nollstall)) }); return; }
     /* Leken utan uppstart (MES-334 steg 3): före avstämningen, så att bordet ritas med leken där den ligger. */
     if (m.lek !== undefined) tagEmotLek(m.lek);
     loggaBord(m);   // bordsloggen: passet går att spela upp efteråt (dev/dubbletter.cjs --logg)
@@ -36194,9 +36317,26 @@ async function normaliseraKamRad(forsok) {
 }
 /* Datorn kopplar bort telefonen. Telefonen slutar titta av sig själv; närvaron
    försvinner och dialogen går tillbaka till QR-koden. */
-$('#kamKoppla').onclick = async () => {
-  await stangAvAuto(true);
-};
+$('#kamKoppla').onclick = () => pausaKameran();
+/* Pause camera (MES-358, designytan Mesa Camera Panel sida 1 F): telefonen förblir ansluten och bilden
+   strömmar, men mattan står still. Telefonens AI-brytare rörs inte: en brytare av under pausen gjorde kort
+   som telefonen läste då okända för gott (telefonen frågar ett spår en gång, aiFragad), och den blev kvar av
+   om pausen slutade utan Resume (granskningen). Utan ansluten telefon finns inget att pausa — då gör knappen
+   det den gjorde förut, och heter Play without camera: kameran av. */
+function pausaKameran() {
+  if (!kamAnsluten) return stangAvAuto(true);
+  kamPaus = true; kamPausBord = null;
+  renderMode();
+}
+/* Resume: mattan hinner ikapp med senaste bordet från pausen. Avstämningen tar det som vilket bord som
+   helst, så ingen ombyggnad som frasktBord. Kom inget bord under pausen tar nästa hjärtslag det. */
+function aterupptaKameran() {
+  if (!kamPaus) return;
+  kamPaus = false;
+  const m = kamPausBord; kamPausBord = null;
+  renderMode();
+  if (m) kamTogsEmot(m);
+}
 
 /* ── Skruvrummet: andra steget i kameravyn ──────────────────────────
    Var en popover under chippet som stängdes av ett klick var som helst:
@@ -36974,6 +37114,7 @@ async function lamnaSpelet() {
   spelLage = null;
   kameraEnhet = false;
   kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; kamVand = 0; kamSpegel = false; kamGravRad = null; kamRutaRest = false; kamLek = undefined; if (kamSkala.las) kamSkala.las.clear(); lekLokalt = null; stangLekMeny();
+  kamPaus = false; kamPausBord = null;   // pausen hör till spelet den gjordes i (MES-358)
   autoSum = null;                           // passet hör till spelet man lämnar; det sparade ligger kvar under spelets nyckel
   kamAnsluten = false; kamOppen = false;
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man
