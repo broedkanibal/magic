@@ -6805,8 +6805,9 @@ const Moln = (() => {
   }
   async function hamtaKalibrering(gameId) {
     const s = await klient(); if (!s || !inloggad()) return null;
-    const { data } = await s.from('camera_setups')
+    const { data, error } = await s.from('camera_setups')
       .select('*').eq('game_id', gameId).eq('user_id', minId()).maybeSingle();
+    if (error) throw error;   // ett läsfel är inte "ingen rad": autoVandUrKorten får inte tro att spelaren inte valt (MES-359)
     return data || null;
   }
 
@@ -28801,7 +28802,7 @@ const Kamera = (() => {
     if (lekKortVid > 0 && nu - kortVaktStart < KORT_START_MS) for (const t of riktiga) kortVidStart.add(t.id);   // bara när bordet hade kort vid starten: på ett tomt bord är varje kort nytt
     if (!lekForsta && riktiga.length) lekForsta = nu;
     if (lek || grundKalla != null || kal.grund != null) return;
-    const stillaRiktiga = riktiga.filter(arStilla);   // T.stillaMs som förut: 1,5 s gjorde fönstret för ett tappat land större (granskningen varv 2)
+    const stillaRiktiga = riktiga.filter(t => arStilla(t) && !avskuren(t));   // inte ur en klippt låda (MES-359)   // T.stillaMs som förut: 1,5 s gjorde fönstret för ett tappat land större (granskningen varv 2)
     if (!stillaRiktiga.length) return;
     const nya = stillaRiktiga.filter(t => !kortVidStart.has(t.id)).sort((a, b) => a.stillaFran - b.stillaFran);
     let v = null;
@@ -29715,7 +29716,7 @@ const Kamera = (() => {
     if (latens) stegHist[Math.min(100, Math.floor(dia.ms / STEG_FACK))]++;
     /* Ett kort delvis utanför bilden (kantVakt, MES-359) går före antalet: det är det spelaren kan göra något åt. */
     if (kantN) säg('kant', 'A card is partly outside the picture', 'Move it in a little. The camera can\'t see the whole card, so it\'s not on the mat yet.');
-    else säg(riktiga.length ? 'kort' : 'tom', riktiga.length ? antalText(riktiga.length, skymda) : 'Ready: put cards on the table', radAvstand() || undefined);
+    else säg(riktiga.length ? 'kort' : 'tom', riktiga.length ? antalText(riktiga.length, skymda) : 'Ready: put cards on the table', radAvstand() || (lage === 'kant' ? '' : undefined));   // ur 'kant': den långa raden töms, annars stod "Move it in a little" kvar
   }
 
   /* Medelavvikelse mellan rutan och referensen över fri yta, var tredje
@@ -36661,13 +36662,13 @@ function kamTogsEmot(m) {
     if (kamPaus) { kamPausBord = Object.assign({}, m, { nollstall: !!(m.nollstall || (kamPausBord && kamPausBord.nollstall)), pausNar: Date.now() }); return; }
     /* Leken utan uppstart (MES-334 steg 3): före avstämningen, så att bordet ritas med leken där den ligger. */
     if (m.lek !== undefined) tagEmotLek(m.lek);
-    if (m.riktning != null) autoVandUrKorten(m.riktning);   // mattan vrids efter korten (MES-359), före avstämningen som lägger dem
     loggaBord(m);   // bordsloggen: passet går att spela upp efteråt (dev/dubbletter.cjs --logg)
     /* Grundläget följer med varje bord (också hjärtslaget): så vet datorn
        om spelet är kalibrerat innan den frågar. Före avstämningen, som
        läser det. En telefon utan fältet lämnar undefined. */
     if (m.grund !== undefined && m.grund !== kamGrund) { kamGrund = m.grund; visaKamGrund(); }
     if (m.grund !== undefined) grundTillRad();   // telefonens grundläge till raden (MES-334, granskningen av sida 5: V3)
+    if (m.riktning != null) autoVandUrKorten(m.riktning);   // mattan vrids efter korten (MES-359): efter grundläget, som raden skrivs med, före avstämningen som lägger dem
     if (m.dia) provbordData(m);
     if (DEBUG) LatensDator.bord(m, Date.now());   // latensmätningen (MES-215): mottaget, och ritat i nästa ritning
     /* Telefonen kom tillbaka (frasktBord): mattan töms före avstämningen, som då skapar korten på nytt.
@@ -36897,11 +36898,14 @@ async function normaliseraKamRad(forsok) {
   let lasFel = false;
   const k = await Moln.hamtaKalibrering(id).catch(() => { lasFel = true; return null; });
   if (!spelLage || spelLage.id !== id) return;
+  /* Raden gick inte att läsa: rör varken orienteringen eller raden (en skrivning hade lagt vand 0 över spelarens ↻).
+     Ett nytt försök om en stund, som när skrivningen inte går fram. */
+  if (lasFel) { if ((forsok || 0) < 3 && kamAnsluten) setTimeout(() => normaliseraKamRad((forsok || 0) + 1), 5000); return; }
   const r = k && k.ruta;
   kamUpp = r && r.upp === 'h' ? 'h' : 'v';
   kamGrundRad = r && typeof r.grund === 'number' ? r.grund : null; visaKamGrund();
   lasKamOri(r);
-  if (!lasFel && Moln.inloggad()) kamOriLast = true;   // en rad som inte gick att läsa säger inget om spelarens val (autoVandUrKorten)
+  if (Moln.inloggad()) kamOriLast = true;   // en rad som inte gick att läsa säger inget om spelarens val (autoVandUrKorten)
   if (r && r.x === 0 && r.y === 0 && r.w === 1 && r.h === 1) return;
   /* Gick skrivningen inte fram står en telefon med äldre kod kvar i 'ingen'
      hela kvällen: ingen annan skriver raden. Några försök till, sedan får
@@ -37060,7 +37064,9 @@ function kamStegSynk() {
     visaKamGrund();
     if (spelLage) { const id = spelLage.id; Moln.hamtaKalibrering(id)
       .then(k => { if (!spelLage || spelLage.id !== id) return; const r = k && k.ruta;
-                   kamUpp = r && r.upp === 'h' ? 'h' : 'v'; kamGrundRad = r && typeof r.grund === 'number' ? r.grund : null; lasKamOri(r); visaKamGrund(); }).catch(() => {}); }
+                   kamUpp = r && r.upp === 'h' ? 'h' : 'v'; kamGrundRad = r && typeof r.grund === 'number' ? r.grund : null;
+                   const varSpelare = kamVandKalla === 'spelare'; lasKamOri(r); if (varSpelare) kamVandKalla = 'spelare';   // en gammal läsning medan ↻ skrivs släpper inte spelarens val (MES-359)
+                   visaKamGrund(); }).catch(() => {}); }
     /* Rutan ritas mot en bild som just fått en storlek. Ritas den medan
        steget fortfarande är display:none blir varje mått noll, och lagret
        står kvar som en tom canvas tills nästa bildruta råkar komma. */
