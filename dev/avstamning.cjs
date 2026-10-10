@@ -3189,6 +3189,28 @@ prov('MA5 spöket: ett oframkallat kort som telefonens läsning ger namnet på k
   const r2 = app.matcha();
   assert.deepEqual(r2.spoken, [], 'ett kort ovanpå ett annat med samma namn togs bort'); assert.deepEqual(r2.lasOm, [2], 'det namnlösa kortet läses inte om');
 });
+prov('MA5b två kort med samma namn och var sin namnremsa är inget spöke, och inte heller Claudes klunga', () => {
+  const OVER = box(0.405, 0.405, 0.063, 0.088);
+  stam([klar(1, 'Island', { sen: 0, ...PORT, rl: box(0.40, 0.40, 0.063, 0.012) })]);
+  klocka.t += 150; stam([klar(1, 'Island', { sen: 0, ...PORT, rl: box(0.40, 0.40, 0.063, 0.012) }),
+    vilande(2, OVER, { namn: 'Island', cands: [{ name: 'Island', score: 0.4 }], rl: box(0.405, 0.48, 0.063, 0.012) })]);
+  tid(klocka.t + 700);
+  assert.deepEqual(app.matcha().spoken, [], 'ett andra Island med egen remsa togs bort');
+  app.nollstall(); klocka.t = 1e6;
+  const ai = { kort: 2, klunga: 1, modell: 'x' };
+  stam([klar(1, 'Island', { sen: 0, ai, ...PORT })]);
+  klocka.t += 150; stam([klar(1, 'Island', { sen: 0, ai, ...PORT }), vilande(2, OVER, { namn: 'Island', cands: [{ name: 'Island', score: 0.4 }], ai })]);
+  tid(klocka.t + 700);
+  assert.deepEqual(app.matcha().spoken, [], 'Claudes andra kort i klungan togs bort');
+});
+prov('LU6 efter Match fryser nästa bord inte mattan på det som rörde sig före', () => {
+  lagdaKort(4);
+  klocka.t += 150; stam(liggande(4).slice(3));
+  assert.ok(app.lugn);
+  app.matcha();
+  klocka.t += 150; stam(liggande(4).slice(3));
+  assert.ok(!app.lugn, 'frös igen');
+});
 prov('MA6 namnlösa kort läses om med telefonens läsning — inte ett spår som väntar på Claude', () => {
   stam([vilande(1, PORT, { namn: 'Opt', cands: [{ name: 'Opt', score: 0.3 }] }), vilande(2, LANGT, { provas: true }), vilande(3, NY_PLATS, { tillstand: 'stilla' })]);
   tid(klocka.t + 700);

@@ -8,9 +8,10 @@
 --  Match ändrade. Material till nya fall i uppspelaren (dev/mattest) och
 --  golden. Inget skickas till Claude.
 --
---  Bara bordets kort, som alla vid bordet redan ser: aldrig handen eller
---  leken. Vyerna upplevelse_* räknar bara rader med ett kort, så måtten
---  rörs inte.
+--  Mattans läge är bara bordets kort, aldrig handen eller leken. Bilden och
+--  spåren är kamerans, så ett kort som hålls ovanför bordet kan synas där.
+--  Ingen klient kan läsa raderna (bara service_role). Vyerna upplevelse_*
+--  räknar bara rader med ett kort, så måtten rörs inte.
 --
 --  Går att köra om. Koden i index.html tål att kolumnen saknas: skrivningen
 --  faller, loggas i konsolen och spelet går vidare.
