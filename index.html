@@ -10018,15 +10018,47 @@ function hogSkarm() {
    ställe än det oframkallade låg. Här räknas den skalan som kamSkala sedan räknar den (kamKortsida). Finns
    ett mätt värde (kort, lek) gäller kamSkala som den är: det första kortet byter det inte förrän
    en ny median stått sig i 3 s. */
-function ofrSkala(p, q) {
+function ofrSkala(p, q, ks) {   // ks: kamSkala(p) när den redan är räknad — den samlar mätvärden vid varje anrop
   const l = kamSkala.las && kamSkala.las.get(p.id), matt = !!l && (typeof l !== 'object' || l.kalla !== 'gissning');
-  if (matt || p.cards.some(c => c.kam && c.kam.w && paMattan(c)) || (p.bibHog && p.bibHog.kam && p.bibHog.kam.w)) return kamSkala(p);
+  if (matt || p.cards.some(c => c.kam && c.kam.w && paMattan(c)) || (p.bibHog && p.bibHog.kam && p.bibHog.kam.w)) return ks || kamSkala(p);
   const asp = kamUpplosning && kamUpplosning.w && kamUpplosning.h ? kamUpplosning.h / kamUpplosning.w : 4 / 3;
   return MATTA.CW / Math.max(0.03, kamKortsida(q.kam, asp));
 }
 /* De oframkallade kortens platser (MES-344): post-id → {x,y}. Kortet som skapas ur ett oframkallat kort tar
    över platsen (matPlacera), så att det framkallas exakt där det oframkallade låg. */
 const ofrPos = new Map();
+/* Ett oframkallat kort på mitt speglade bord (matPlacera; speglaKamPos när grannen det lades bredvid är tillbaka). */
+function ofrKamLagg(p, q, g) {
+  /* Flyttat för hand (Jespers beslut 2026-10-10, som korten i MES-352): står där handen lade det (q.hand: läget
+     vid släppet och platsen på mattan, mx/my) tills kameran ser att det riktiga kortet flyttats (handVidKam). */
+  let fore = q.kamFore, ankare = q.kamGrann;   // läget i bilden förra gången kameran lade ut kortet, och grannen det lades efter (kamGrannSteg)
+  if (q.hand) {
+    const h = handVidKam(q.hand, q.kam);
+    if (h) {
+      q.hand = h;
+      const var0 = ofrPos.get(q.id);
+      if (!var0 || var0.x !== h.mx || var0.y !== h.my) ofrPos.set(q.id, { x: h.mx, y: h.my });
+      return;
+    }
+    fore = q.hand; ankare = undefined;   // ett kort handen flyttat ligger inte längre efter någon
+    delete q.hand; delete q.kamRitad;   // som handKvar: kameran lägger ut det nu (också när Undo lagt tillbaka en äldre handflytt)
+  }
+  /* Kameran lägger ut kortet när den har något nytt att säga: ett nytt viloläge (q.kam.nar), en ny skala eller
+     vridning — som korten (kamRitad i speglaKamPos). Annars står det kvar, också när kortet under det tagits ut för
+     hand (⌃-drag). Efter Undo lägger kameran ut det igen (ofrAterstall). Bredvid ett handflyttat kort som på bordet
+     (kamGrannSteg); grannarna räknas med samma skala som kortet (ofrSkala ger kortens när de finns). */
+  const skala = ofrSkala(p, q), nyckel = ofrKamNyckel(p, q, skala);
+  if (q.kamRitad === nyckel && ofrPos.has(q.id)) return;
+  q.kamRitad = nyckel;
+  let ny = ofrKamPlats(p, q, g, skala);
+  const d = kamGrannSteg(p, { utom: q, jag: 'o:' + q.id, r0: ofrRekt(q, ny), nu: ofrRekt(q),
+                              fore: fore && fore.w ? ofrRekt(q, ofrKamPlats(p, Object.assign({}, q, { kam: fore }), g, skala)) : null, ankare }, skala, g);
+  if (d) { ny = clampKort({ name: '', x: ny.x + d.x, y: ny.y + d.y }, { w: 1e6, h: 1e6 }, g); q.kamGrann = d.ankare; q.kamGrannD = { x: d.x, y: d.y }; }
+  else { delete q.kamGrann; delete q.kamGrannD; }
+  q.kamFore = kamBox(q.kam);
+  const var0 = ofrPos.get(q.id);
+  if (!var0 || Math.hypot(var0.x - ny.x, var0.y - ny.y) > 6) ofrPos.set(q.id, ny);
+}
 /* Ger plats åt kort som saknar en: ett bord utan några placerade kort med
    tre eller fler läggs i rader (layoutAll); annars tar varje kort platsen
    dess oframkallade kort hade, eller nästa lediga plats bredvid de andra
@@ -10047,7 +10079,9 @@ function matPlacera(p, ofr, v) {
         andrat = true;
       }
     }
-    /* Det som just kom hamnar överst — som ett kort man lägger på bordet. */
+    /* Det som just kom hamnar överst — som ett kort man lägger på bordet. Ett nytt kort (inte ett oidentifierat som
+       fått namn) har inget förra läge på bordet (kamNy, speglaKamPos): grannarna räknas fullt (kamGrannSteg). */
+    for (const c of oplacerade) if (!c.ofrFran) c.kamNy = 1;
     let z = cards.reduce((a, c) => Math.max(a, c.z || 0), 0);
     for (const c of oplacerade) {
       if (c.x != null && c.y != null) continue;
@@ -10062,24 +10096,7 @@ function matPlacera(p, ofr, v) {
     kvar.add(q.id);
     /* Table leads: det oframkallade kortet ligger där kortet vilar i bilden (q.kam, viloläget — det följer
        inte en hand som bär kortet), räknat som korten (speglaKamPos). Under sex bildpunkter är darr. */
-    if (kamSpeglar(p) && q.kam) {
-      /* Flyttat för hand (Jespers beslut 2026-10-10, som korten i MES-352): står där handen lade det (q.hand: läget
-         vid släppet och platsen på mattan, mx/my) tills kameran ser att det riktiga kortet flyttats (handVidKam). */
-      if (q.hand) {
-        const h = handVidKam(q.hand, q.kam);
-        if (h) {
-          q.hand = h;
-          const var0 = ofrPos.get(q.id);
-          if (!var0 || var0.x !== h.mx || var0.y !== h.my) ofrPos.set(q.id, { x: h.mx, y: h.my });
-          continue;
-        }
-        delete q.hand;
-      }
-      const m = kamTillMatta(q.kam, ofrSkala(p, q));
-      const ny = clampKort({ name: '', x: m.x - MATTA.CW / 2, y: m.y - MATTA.CH / 2 }, { w: 1e6, h: 1e6 }, g), var0 = ofrPos.get(q.id);
-      if (!var0 || Math.hypot(var0.x - ny.x, var0.y - ny.y) > 6) ofrPos.set(q.id, ny);
-      continue;
-    }
+    if (kamSpeglar(p) && q.kam) { ofrKamLagg(p, q, g); continue; }
     if (ofrPos.has(q.id)) continue;
     const upptagna = cards.concat([...ofrPos.values()].map(r => ({ cid: 'ofr', name: '', x: r.x, y: r.y, tapped: 0, cts: [] })));
     const pos = slotBeside(upptagna, 'perm', v.board);
@@ -10267,6 +10284,109 @@ function handKvar(c) {
   if (c.grp) { c.grp = null; c.gi = null; }
   return false;
 }
+/* ═══ GRANNARNA PÅ MATTAN (Jespers bord 2026-10-10 eftermiddag, pass-2026-10-10-1226) ═══
+   Ett kort som flyttats för hand ligger inte där kameran har det. När kameran sedan lägger ut ett annat kort —
+   ett nytt, eller ett vars riktiga kort flyttats — räknat bara ur bilden, kan det hamna över det handflyttade fast
+   korten ligger isär på bordet, eller bredvid det fast det ligger på det. Jesper lade Eager First-year (NOT
+   IDENTIFIED) på ett Island, flyttade högen för hand åt höger och lyfte sedan det riktiga Eager två kortbredder åt
+   höger: kamerans plats för det låg där handen lagt Island, och NOT IDENTIFIED täckte en femtedel av Island.
+   Regeln: kortet läggs där det har samma grannar på mattan som på bordet. Kamerans plats prövas mot platsen flyttad
+   lika långt som varje grannkort som inte ligger där kameran har det (d = mattans läge − kamerans plats): ett kort
+   som flyttats för hand och står kvar (handVidKam), eller som själv lagts efter en sådan granne. För varje granne
+   jämförs hur mycket korten ligger omlott på mattan med hur mycket de gör i bilden; den plats där det stämmer bäst
+   vinner, och kamerans plats vinner om ingen annan är KAM_GRANNE_VINST bättre. Utan handflyttade kort är det alltså
+   kamerans plats, som förut. Gäller kort och oidentifierade kort lika, och bara när kameran lägger ut kortet (nytt
+   kort, nytt viloläge, ny skala eller vridning).
+   En skillnad som handen gjort står kvar tills bordet ändras: har kortet tagits ur en hög med ⌃ (mattan skiljer dem,
+   bordet inte) och rubbas sedan lite på bordet utan att lämna högen, räknas bara omlott som bordet inte har — kortet
+   hoppar inte tillbaka på det handflyttade (granskningen, X4).
+   Kortet minns grannen det lades efter (kamGrann). När den åter ligger där kameran har den — dess riktiga kort har
+   flyttats, eller handens flytt har ångrats — lägger kameran ut kortet igen (speglaKamPos), så att mattan följer
+   bordet. En granne som lagts efter kortet självt flyttar det inte: annars låser två kort varandra (X5). Telefonens
+   egna lådor och mattans lägen; ingen fråga till Claude.
+   Ett kort som ligger under ett annat syns bara till en del, och kamerans plats är den synliga delens mitt — som för
+   alla kort på mattan. Läggs ett kort på ett handflyttat kort hamnar det därför lika mycket omlott med det som
+   kamerans platser visar, inte som de riktiga korten (granskningen, punkt 5). */
+const KAM_GRANNE_VINST = 0.1;   // andel av ett kort som ligger fel omlott: så mycket bättre måste en flyttad plats vara
+const kamOmlott = (a, b) => Math.max(overlapAndel(a, b), overlapAndel(b, a));
+const kamBox = k => ({ x: k.x, y: k.y, w: k.w, h: k.h });   // ett läge i bilden, att jämföra med nästa (kamFore)
+/* Ligger kortet inte där kameran har det: flyttat för hand och står kvar, eller lagt efter en sådan granne? */
+const kamForskjuten = (hand, kam, grann) => !!grann || (!!hand && (!kam || !!handVidKam(hand, kam)));
+/* Där kameran lägger ett oidentifierat kort (ofrSkala: dess egen skala tills korten gett en). */
+function ofrKamPlats(p, q, g, skala) {
+  const m = kamTillMatta(q.kam, skala || ofrSkala(p, q));
+  return clampKort({ name: '', x: m.x - MATTA.CW / 2, y: m.y - MATTA.CH / 2 }, { w: 1e6, h: 1e6 }, g);
+}
+const ofrKamNyckel = (p, q, skala) => q.kam.nar + '|' + kamOriNyckel() + '|' + (skala || ofrSkala(p, q)).toFixed(3);
+/* Korten och de oidentifierade korten på mattan, utom det som läggs ut: r där det ligger, m där kameran har det,
+   flytt när det inte ligger där kameran har det (kamForskjuten; för de andra är m = r), d = r − m. En handflyttning
+   bär ingen granne: kortet ligger där handen lade det, inte efter någon (en gammal kamGrann räknas inte).
+   Ett kort som kameran lägger ut i samma ritning — nytt läge, ny skala, eller en handflyttning som släpper nu — är
+   vantar: det läggs ut efter samma regel och flyttas med (kamGrannSteg räknar det inte). De oidentifierade läggs ut
+   (matPlacera) före korten (speglaKamPos), och vid ett skalbyte flyttas alla. */
+function kamGrannar(p, skala, g, utom) {
+  const ori = kamOriNyckel() + '|' + skala.toFixed(3), ut = [];
+  const post = (r, m, n, hand, kam, grann) => kamForskjuten(hand, kam, hand ? null : grann)
+    ? { r, m, n, flytt: true, hand: !!hand, grann: hand ? undefined : grann, d: { x: r.x - m.x, y: r.y - m.y } } : { r, m: r, n };
+  for (const k of p.cards) {
+    if (k === utom || !paMattan(k) || k.attachedTo || k.x == null || k.y == null) continue;
+    const r = matRect(k), n = 'c:' + k.cid;
+    if (k.spar == null || !k.kam) { ut.push(post(r, r, n, k.hand, null, null)); continue; }
+    const m = matRect(Object.assign({}, k, kamPlats(k, skala, g)));
+    if (k.hand ? !handVidKam(k.hand, k.kam) : k.kamRitad !== k.kam.nar || k.kamOri !== ori) { ut.push({ r: m, m, n, vantar: true }); continue; }
+    ut.push(post(r, m, n, k.hand, k.kam, k.kamGrann));
+  }
+  for (const q of ofrNu()) {
+    const r = q !== utom && ofrRekt(q), n = 'o:' + q.id;
+    if (!r) continue;
+    if (!q.kam) { ut.push(post(r, r, n, q.hand, null, null)); continue; }
+    const sk = ofrSkala(p, q, skala), m = ofrRekt(q, ofrKamPlats(p, q, g, sk));
+    if (q.hand ? !handVidKam(q.hand, q.kam) : q.kamRitad !== ofrKamNyckel(p, q, sk)) { ut.push({ r: m, m, n, vantar: true }); continue; }
+    ut.push(post(r, m, n, q.hand, q.kam, q.kamGrann));
+  }
+  return ut;
+}
+/* Ska kortet läggas ut igen för att grannen det lades efter (kamGrann: 'c:' + cid eller 'o:' + post-id, d: flytten
+   det fick) har ändrats? Grannen är borta från mattan, ligger där kameran har den, eller ligger förskjuten på ett
+   annat sätt för att kameran lagt ut den efter en annan granne. En granne som handen flyttar igen drar inte med sig
+   kortet: handens val gäller bara det kort handen tog i. */
+function kamGrannBorta(p, n, d, skala, g) {
+  const a = kamGrannar(p, skala, g, null).find(e => e.n === n);
+  return !a || !a.flytt || (!a.hand && !!d && Math.hypot(a.d.x - d.x, a.d.y - d.y) > 6);
+}
+/* Hur långt kortet ska flyttas från kamerans plats för att få samma grannar som på bordet: { x, y, ankare } (ankare:
+   grannen det flyttas efter — den det ligger mest på i bilden, helst en handflyttad), eller null för kamerans plats.
+   x: { utom (kortet), jag (dess nyckel), r0 (kortet på kamerans plats), nu (där det ligger på mattan, eller null),
+   fore (kortet på kamerans förra plats, eller null), ankare (kamGrann) }. */
+function kamGrannSteg(p, x, skala, g) {
+  const grannar = kamGrannar(p, skala, g, x.utom).filter(n => !n.vantar), efter = new Map(grannar.map(n => [n.n, n.grann]));
+  const efterMig = n => { for (let k = n.grann, i = 0; k && i < 8; k = efter.get(k), i++) if (k === x.jag) return true; return false; };
+  const bild = grannar.map(n => kamOmlott(x.r0, n.m)), ror = v => v > 0.05;
+  /* Har handen skilt mattan från bordet för ett par (mattan och bordet var inte överens före) och bordet har inte
+     ändrats sedan, räknas bara omlott som bordet inte har. */
+  const hel = grannar.map((n, i) => {
+    if (!x.fore || !x.nu || n.n === x.ankare) return true;
+    const bordFore = ror(kamOmlott(x.fore, n.m));
+    return bordFore !== ror(bild[i]) || ror(kamOmlott(x.nu, n.r)) === bordFore;
+  });
+  const steg = [];
+  grannar.forEach((n, i) => {
+    if (!n.flytt || efterMig(n)) return;
+    const d = { x: n.d.x, y: n.d.y, ankare: n.n, vikt: bild[i] + (n.hand ? 0.01 : 0) };
+    if (Math.hypot(d.x, d.y) <= 6) return;
+    const lika = steg.find(e => Math.hypot(e.x - d.x, e.y - d.y) <= 6);
+    if (!lika) steg.push(d);
+    else if (d.vikt > lika.vikt) { lika.ankare = d.ankare; lika.vikt = d.vikt; }
+  });
+  if (!steg.length) return null;
+  const fel = d => grannar.reduce((s, n, i) => {
+    const ov = kamOmlott({ x: x.r0.x + d.x, y: x.r0.y + d.y, w: x.r0.w, h: x.r0.h }, n.r);
+    return s + (hel[i] ? Math.abs(ov - bild[i]) : Math.max(0, ov - bild[i]));
+  }, 0);
+  let bast = null, minst = fel({ x: 0, y: 0 }) - KAM_GRANNE_VINST;
+  for (const d of steg) { const f = fel(d); if (f < minst) { minst = f; bast = d; } }
+  return bast;
+}
 function speglaKamPos(p, v) {
   if (!kamSpeglar(p)) {
     /* Kameran tappad på mitt speglade bord: korten står frysta, men en hög som fått en ny ruta (Yes medan
@@ -10281,8 +10401,25 @@ function speglaKamPos(p, v) {
   const skala = kamSkala(p), g = gravRuta(v), ori = kamOriNyckel() + '|' + skala.toFixed(3);   // den låsta skalan också (kamSkala)
   speglaKamPos.skala = skala;   // kamerans ram under ett drag (handDragStart) räknas med samma skala
   let andrat = false;
+  /* Kamerans plats för kortet — bredvid ett handflyttat kort som på bordet (kamGrannSteg). fore: kortets läge i
+     bilden förra gången: handens läge när en handflyttning släpper, annars kamFore, för ett kort som tar över ett
+     oidentifierat dess läge (ofrFran.fore), och för ett kort som legat på mattan förut (en omladdning, där kamFore
+     inte sparas) dess läge nu. Bara ett nytt kort (kamNy, matPlacera) har inget. */
+  const lagg = (c, hand0) => {
+    const fran = c.ofrFran || {}, fore = hand0 || (c.kamNy ? null : c.kamFore || fran.fore || c.kam);
+    const ankare = hand0 ? undefined : c.kamGrann || fran.grann;   // ett kort handen flyttat ligger inte längre efter någon
+    let k = kamPlats(c, skala, g);
+    const rekt = kam => matRect(Object.assign({}, c, kamPlats(Object.assign({}, c, { kam }), skala, g)));
+    const d = kamGrannSteg(p, { utom: c, jag: 'c:' + c.cid, r0: matRect(Object.assign({}, c, k)), nu: c.x != null && c.y != null ? matRect(c) : null,
+                                fore: fore && fore.w ? rekt(fore) : null, ankare }, skala, g);
+    if (d) { k = clampKort(Object.assign({}, c, { x: k.x + d.x, y: k.y + d.y }), { w: 1e6, h: 1e6 }, g); c.kamGrann = d.ankare; c.kamGrannD = { x: d.x, y: d.y }; }
+    else { delete c.kamGrann; delete c.kamGrannD; }
+    if (Math.abs((c.x || 0) - k.x) > 0.5 || Math.abs((c.y || 0) - k.y) > 0.5) { c.x = k.x; c.y = k.y; andrat = true; }
+    c.kamRitad = c.kam.nar; c.kamOri = ori; c.kamFore = kamBox(c.kam); delete c.kamNy;
+  };
   for (const c of p.cards) {
     if (c.hand && !paMattan(c)) delete c.hand;   // i graveyard eller exile ligger kortet inte där handen lade det
+    if (c.kamFore && !paMattan(c)) { delete c.kamFore; delete c.kamGrann; delete c.kamGrannD; }   // inte heller där kameran senast lade ut det
     if (c.spar == null || !c.kam || !paMattan(c) || c.attachedTo) continue;
     /* Kortet som tar över ett oidentifierat kort som flyttats för hand (ofrFran.hand) ligger där det oidentifierade
        låg och är självt flyttat för hand: kameran tar över först när det riktiga kortet flyttas, som för korten. En
@@ -10293,11 +10430,25 @@ function speglaKamPos(p, v) {
       if (fr) { c.x = fr.x; c.y = fr.y; c.hand = handSnap(c.kam); delete c.kamRitad; andrat = true; }
     }
     /* Flyttat för hand (MES-352): kortet står där det lades tills det riktiga kortet flyttats (handKvar). */
+    const hand0 = c.hand;
     if (c.hand) { if (handKvar(c)) continue; andrat = true; }
     if (c.kamRitad === c.kam.nar && c.kamOri === ori) continue;
-    const k = kamPlats(c, skala, g);
-    if (Math.abs((c.x || 0) - k.x) > 0.5 || Math.abs((c.y || 0) - k.y) > 0.5) { c.x = k.x; c.y = k.y; andrat = true; }
-    c.kamRitad = c.kam.nar; c.kamOri = ori;
+    lagg(c, hand0);
+  }
+  /* Ett kort som lagts bredvid ett handflyttat (kamGrann) följer bordet igen när det kortet ligger där kameran har
+     det, eller har förskjutits på ett annat sätt (kamGrannBorta): kameran lägger ut det på nytt. I flera led (ett
+     kort lagt bredvid ett sådant kort). */
+  for (let varv = 0; varv < 3; varv++) {
+    let fler = false;
+    for (const c of p.cards) {
+      if (!c.kamGrann || c.hand || c.spar == null || !c.kam || !paMattan(c) || c.attachedTo || !kamGrannBorta(p, c.kamGrann, c.kamGrannD, skala, g)) continue;
+      lagg(c); fler = true;
+    }
+    for (const q of ofrNu()) {
+      if (!q.kamGrann || q.hand || !q.kam || !kamGrannBorta(p, q.kamGrann, q.kamGrannD, skala, g)) continue;
+      delete q.kamRitad; ofrKamLagg(p, q, g); fler = true;
+    }
+    if (!fler) break;
   }
   if (lekPlacera(p, skala, g, ori)) andrat = true;   // leken bland korten (MES-334 steg 3)
   if (gravPlacera(p, skala, g, ori)) andrat = true;   // graveyard bland korten (MES-334 steg 5)
@@ -14531,8 +14682,8 @@ function flyttaElement(k) {
    Det mattan visar är det som flyttas: inget av det bygger på telefonens relationer eller på Claude. Tokenhögar
    (en token med grp) drar man fortfarande ut ett kort ur. Utanför Mirror my table gäller manahögarna som förut. */
 function hogOmlottAktiv() { return !!spelLage && redigerbar() && kamSpeglar(minSpelare()) && arMitt(player()); }
-function ofrRekt(q) {
-  const p = ofrPos.get(q.id);
+function ofrRekt(q, pos) {   // pos: en annan plats än den på mattan (kamGrannar)
+  const p = pos || ofrPos.get(q.id);
   if (!p) return null;
   return ofrTappad(q) ? { x: p.x + (MATTA.CW - MATTA.CH) / 2, y: p.y + (MATTA.CH - MATTA.CW) / 2, w: MATTA.CH, h: MATTA.CW } : { x: p.x, y: p.y, w: MATTA.CW, h: MATTA.CH };
 }
@@ -14564,7 +14715,7 @@ function ofrAterstall(fore) {
     const q = ofrMinne.get(id);
     if (!q) continue;   // kortet har fått namn eller gått: inget att lägga tillbaka
     if (hd) { q.hand = Object.assign({}, hd); ofrPos.set(id, { x: hd.mx, y: hd.my }); }
-    else { delete q.hand; if (pos) ofrPos.set(id, pos); }   // kameran lägger det där den har det (matPlacera)
+    else { delete q.hand; delete q.kamRitad; if (pos) ofrPos.set(id, pos); }   // kameran lägger det där den har det (matPlacera, ofrKamLagg)
     andrat = true;
   }
   return andrat;
@@ -14675,7 +14826,7 @@ function handDragStart(kort, ofr) {
     gridEl.appendChild(el);
   }
   if (skala) for (const q of oq) {
-    const m = kamTillMatta(q.kam, ofrSkala(player(), q)), p = clampKort({ name: '', x: m.x - MATTA.CW / 2, y: m.y - MATTA.CH / 2 }, { w: 1e6, h: 1e6 }, g), el = document.createElement('div');
+    const p = ofrKamPlats(player(), q, g), el = document.createElement('div');
     el.className = 'kamplats' + (ofrTappad(q) ? ' tappad' : '');
     el.style.cssText = `left:${Math.round(p.x)}px;top:${Math.round(p.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px`;
     el.innerHTML = kamIkon(18, '#8d98ad');
@@ -33273,7 +33424,11 @@ function ofrKam(t, nu) {
   return { x: cx, y: cy, w: t.w, h: t.h, nar: nu };
 }
 /* Fotot följer med kortet som tar över: elementets nyckel, fotot, om dess mitt var skarp (MES-351), och när. */
-function ofrFranAv(p, nu) { return { nyckel: 'o:' + p.id, foto: p.foto || null, skarp: !!p.pend, t: nu, hand: p.hand ? 1 : undefined }; }
+function ofrFranAv(p, nu) {
+  /* fore, grann: var kameran hade det oframkallade kortet förra gången och grannen det lagts efter (kamGrannSteg) —
+     kortet som tar över är samma kort på bordet, inte ett nytt. */
+  return { nyckel: 'o:' + p.id, foto: p.foto || null, skarp: !!p.pend, t: nu, hand: p.hand ? 1 : undefined, fore: p.kamFore, grann: p.kamGrann };
+}
 function ofrFotoSatt(spar, b64) {
   if (spar == null || typeof b64 !== 'string' || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b64) || ofrFoto.has(spar)) return false;
   ofrFoto.set(spar, b64);

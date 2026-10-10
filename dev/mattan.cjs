@@ -1435,6 +1435,7 @@ const PROV = async () => {
    kvar där handen lade det, och NOT IDENTIFIED följer det riktiga B. Kört ensamt: node dev/mattan.cjs --hog. */
 const HOGPROV = async () => {
   const rad = [], ok = (namn, villkor, detalj) => rad.push([namn, !!villkor, detalj || '']);
+  let aterstall = () => {};   // grannarnas avsnitt byter bildformat och lek: tillbaka också när något kastar
   const vanta = ms => new Promise(r => setTimeout(r, ms));
   const els = () => new Map([...gridEl.querySelectorAll('.card[data-cid]')].map(e => [e.dataset.cid, e]));
   try {
@@ -1599,7 +1600,349 @@ const HOGPROV = async () => {
     kamAnsluten = false;
     ok('H19: utan kameran ansluten finns ingen hög på mattan (manahögarna som förut)', !hogOmlottAv(kA()) && !hogOmlottAktiv());
     kamAnsluten = true;
+
+    /* ── Grannarna på mattan (Jespers bord 2026-10-10 eftermiddag, pass-2026-10-10-1226) ──
+       Kortet kameran lägger ut ska ha samma grannar på mattan som på bordet, också bredvid ett handflyttat kort.
+       Var kameran har ett kort på brädet, utan handens flytt (som kamPlats: klämd mot graveyard-rutan, som efter
+       provets första avsnitt står där korten ligger): */
+    const kamM = k => { const m = kamTillMatta(k, speglaKamPos.skala); return clampKort({ name: '', x: m.x - MATTA.CW / 2, y: m.y - MATTA.CH / 2 }, { w: 1e6, h: 1e6 }, gravRuta(matVy())); };
+    const rekt = pos => pos ? { x: pos.x, y: pos.y, w: MATTA.CW, h: MATTA.CH } : null;
+    const omlott = (a, b) => !a || !b ? 0 : Math.max(overlapAndel(a, b), overlapAndel(b, a));
+    const somBordet = (pos, gr, kpos, kgr, tol) => !!pos && !!gr && Math.abs((pos.x - gr.x) - (kpos.x - kgr.x)) <= (tol || 3) && Math.abs((pos.y - gr.y) - (kpos.y - kgr.y)) <= (tol || 3);
+    const ofrXY = o => o && ofrPos.get(o.id) ? { x: Math.round(ofrPos.get(o.id).x), y: Math.round(ofrPos.get(o.id).y) } : null;
+    /* H18:s kort (104) lades på det riktiga C efter att C flyttats för hand: på mattan ligger det på C, som på bordet,
+       och inte där kameran har C. */
+    const o104 = ofrLista().find(o => o.spar === 104), p104 = ofrXY(o104);
+    /* C syns bara som remsa under 104, och kamerans plats är remsans mitt: på mattan ligger 104 lika mycket på C som
+       kamerans platser säger (inte som de riktiga korten — samma för alla kort i en hög). */
+    ok('H20: ett kort som läggs på ett handflyttat kort ligger på det på mattan, som i bilden',
+      !!o104 && somBordet(p104, xy(kC()), kamM(o104.kam), kamM(kC().kam)) && omlott(rekt(p104), matRect(kC())) > 0.1
+        && Math.abs(omlott(rekt(p104), matRect(kC())) - omlott(rekt(kamM(o104.kam)), rekt(kamM(kC().kam)))) < 0.02,
+      `NOT IDENTIFIED ${JSON.stringify(p104)}, C ${JSON.stringify(xy(kC()))}, i bilden ${o104 ? JSON.stringify(kamM(o104.kam)) : '–'} och ${JSON.stringify(kamM(kC().kam))}`);
+
+    /* Jespers bord: Eager First-year (NOT IDENTIFIED, spår 34) ligger på ett Island (33); högen flyttas för hand åt
+       höger, och sedan lyfts det riktiga Eager två kortbredder åt höger (spår 42). Kamerans plats för det låg där
+       handen lagt Island, och NOT IDENTIFIED lades över en fjärdedel av Island. Lådorna är loggens; bilden 16:9. */
+    handToastStang();
+    const upp0 = kamUpplosning, lek0 = lekKort;
+    aterstall = () => { kamUpplosning = upp0; lekKort = lek0; sattLekTal(lekKort); };
+    kamUpplosning = { w: 1920, h: 1080 };
+    lekKort = [{ name: 'Island', n: 10 }, { name: 'Serra Angel', n: 1 }]; sattLekTal(lekKort);
+    const scen = async (ovre, namn) => {
+      mig.cards = []; mig.pending = []; ofrGlom(); ofrPos.clear(); angraStack.length = 0;
+      if (kamSkala.las) kamSkala.las.clear();
+      renderAll(true);
+      const j = [S(33, 'Island', 0.272, 0.567, { w: 0.128, h: 0.325 })];
+      avstamBord(j, false);
+      for (const c of mig.cards) delete c.ny;
+      renderAll(true); await vanta(500);
+      if (!namn) tagEmotFoto({ spar: ovre, b64: FOTO });
+      j[0] = S(33, 'Island', 0.269, 0.567, { w: 0.128, h: 0.31, under: [ovre] });
+      j[1] = S(ovre, namn, 0.294, 0.645, { w: 0.131, h: 0.32, tillstand: namn ? 'klar' : 'okand' });
+      avstamBord(j, false); renderGrid(true); await vanta(700);
+      for (const c of mig.cards) delete c.ny;
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      return j;
+    };
+    /* Det övre kortet på mattan: { xy, kam } för NOT IDENTIFIED eller kortet. */
+    const ovreAv = (ovre, ny, namn) => {
+      if (namn) { const c = mig.cards.find(k => k.name === namn); return c ? { xy: xy(c), kam: c.kam, r: matRect(c), hand: !!c.hand } : null; }
+      const o = ofrLista().find(q => q.spar === ovre || q.spar === ny);
+      return o ? { xy: ofrXY(o), kam: o.kam, r: rekt(ofrPos.get(o.id)), hand: !!o.hand } : null;
+    };
+    for (const [ovre, ny, namn, nr] of [[34, 42, null, 21], [35, 43, 'Serra Angel', 25]]) {
+      const vad = namn ? 'kortet (' + namn + ')' : 'NOT IDENTIFIED';
+      const j = await scen(ovre, namn);
+      const I = kort(33);
+      /* Handen lägger Island så att kamerans plats för det lyfta kortet täcker en fjärdedel av det, som på Jespers bord. */
+      const ny0 = kamM({ x: 0.61, y: 0.788 }), mal = { x: Math.round(ny0.x - 0.75 * MATTA.CW), y: Math.round(ny0.y - 0.2 * MATTA.CH) };
+      const i0 = xy(I), zj = matVy().z;
+      draEl(elK(I), (mal.x - i0.x) * zj, (mal.y - i0.y) * zj);
+      const i1 = xy(I), o1 = ovreAv(ovre, ny, namn);
+      ok(`H${nr}: Jespers bord — högen (Island och ${vad}) flyttas för hand åt höger`, !!I.hand && nara(i1, mal, 3) && !!o1 && o1.hand,
+        `Island ${JSON.stringify(i0)} → ${JSON.stringify(i1)} (mål ${JSON.stringify(mal)}), övre ${o1 ? JSON.stringify(o1.xy) + ' hand ' + o1.hand : '–'}`);
+      handToastStang();
+      /* Det riktiga övre kortet lyfts (Island syns hela, lådan darrar) och läggs ned åt höger som ett nytt spår. */
+      j.length = 1; j[0] = S(33, 'Island', 0.272, 0.562, { w: 0.133, h: 0.384, vilar: false });
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      if (!namn) tagEmotFoto({ spar: ny, b64: FOTO });
+      j[0] = S(33, 'Island', 0.269, 0.567, { w: 0.128, h: 0.325 });
+      j[1] = S(ny, namn, 0.533, 0.611, { w: 0.153, h: 0.35, tillstand: namn ? 'klar' : 'okand' });
+      avstamBord(j, false); renderGrid(true); await vanta(1500);
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      const i2 = xy(I), o2 = ovreAv(ovre, ny, namn);
+      ok(`H${nr + 1}: … det riktiga övre kortet flyttas — Island står kvar där handen lade det`, !!I.hand && nara(i2, i1), `${JSON.stringify(i1)} → ${JSON.stringify(i2)}, hand ${!!I.hand}`);
+      ok(`H${nr + 2}: … ${vad} ligger inte över Island, utan bredvid det som på bordet`,
+        !!o2 && omlott(o2.r, matRect(I)) < 0.05 && somBordet(o2.xy, i2, kamM(o2.kam), kamM(I.kam), 4),
+        o2 ? `${vad} ${JSON.stringify(o2.xy)}, Island ${JSON.stringify(i2)}, omlott ${omlott(o2.r, matRect(I)).toFixed(2)}; i bilden ${JSON.stringify(kamM(o2.kam))} och ${JSON.stringify(kamM(I.kam))}, graveyard-rutan ${JSON.stringify(gravRuta(matVy()))}` : 'inget övre kort');
+      if (namn) continue;
+      /* Det riktiga Island flyttas: kameran tar över Island (MES-352), och kortet som lades bredvid det följer bordet
+         igen — båda där kameran har dem. */
+      j[0] = S(33, 'Island', 0.08, 0.12, { w: 0.128, h: 0.325 });
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      avstamBord(j, false); renderGrid(true); await vanta(100);
+      const o3 = ovreAv(ovre, ny, namn);
+      ok(`H${nr + 3}: … det riktiga Island flyttas — Island och ${vad} ligger där kameran har dem`,
+        !I.hand && nara(xy(I), kamPlats(I, speglaKamPos.skala, gravRuta(matVy())), 1) && !!o3 && nara(o3.xy, kamM(o3.kam), 2),
+        `Island ${JSON.stringify(xy(I))} hand ${!!I.hand} mot ${JSON.stringify(kamPlats(I, speglaKamPos.skala, gravRuta(matVy())))}, ${vad} ${o3 ? JSON.stringify(o3.xy) + ' mot ' + JSON.stringify(kamM(o3.kam)) : '–'}`);
+    }
+    /* Ett kort som flyttas långt från de handflyttade läggs där kameran har det, som förut. */
+    const jL = [S(33, 'Island', 0.269, 0.567, { w: 0.128, h: 0.325 }), S(43, 'Serra Angel', 0.80, 0.15, { w: 0.15, h: 0.35 })];
+    avstamBord(jL, false); renderGrid(true); await vanta(400);
+    const sL = mig.cards.find(k => k.name === 'Serra Angel');
+    ok('H28: ett kort som läggs långt från de handflyttade ligger där kameran har det', !!sL && nara(xy(sL), kamPlats(sL, speglaKamPos.skala, gravRuta(matVy())), 1),
+      sL ? `${JSON.stringify(xy(sL))} mot ${JSON.stringify(kamPlats(sL, speglaKamPos.skala, gravRuta(matVy())))}` : 'inget kort');
+    /* ⌃-drag tar Island ur högen: NOT IDENTIFIED som låg på det står kvar där kameran har det — genom nästa bord,
+       detektorns darr, och när det riktiga övre kortet knuffas utan att lämna Island (ett tap, en hand som rättar
+       kortet). Det hoppar inte över på det handflyttade Island: handens val står tills bordet ändras (granskningen X4). */
+    const jK = await scen(36, null);
+    const IK = kort(33), oK = () => ofrLista().find(q => q.spar === 36), e0 = ofrXY(oK());
+    draEl(elK(IK), 0, 300 * matVy().z, { ctrlKey: true });
+    handToastStang();
+    avstamBord(jK, false); renderGrid(true); await vanta(300);
+    jK[1] = S(36, null, 0.296, 0.646, { w: 0.131, h: 0.32, tillstand: 'okand' }); avstamBord(jK, false); renderGrid(true); await vanta(300);
+    const e1 = ofrXY(oK());
+    jK[1] = S(36, null, 0.334, 0.645, { w: 0.131, h: 0.32, tillstand: 'okand' }); avstamBord(jK, false); renderGrid(true); await vanta(700);
+    avstamBord(jK, false); renderGrid(true); await vanta(300);
+    const e2 = ofrXY(oK());
+    ok('H29: ⌃-drag tar Island ur högen — NOT IDENTIFIED står kvar där kameran har det, genom darr och en knuff som inte lämnar Island',
+      !!IK.hand && !!oK() && !oK().hand && nara(e1, e0, 2) && nara(e2, kamM(oK().kam), 2) && e2.x > e0.x + 20 && omlott(rekt(e2), matRect(IK)) < 0.05,
+      `${JSON.stringify(e0)} → ${JSON.stringify(e1)} → ${JSON.stringify(e2)} (kameran ${JSON.stringify(kamM(oK().kam))}), Island ${JSON.stringify(xy(IK))} hand ${!!IK.hand}`);
+    /* … sedan knuffas det riktiga Island, fortfarande under kortet: kameran tar över Island, och korten låser inte
+       varandra kvar på mattan (granskningen X5). */
+    jK[0] = S(33, 'Island', 0.299, 0.567, { w: 0.128, h: 0.31, under: [36] });
+    avstamBord(jK, false); renderGrid(true); await vanta(700);
+    avstamBord(jK, false); renderGrid(true); await vanta(300);
+    const kpI = kamPlats(IK, speglaKamPos.skala, gravRuta(matVy()));
+    ok('H30: … det riktiga Island knuffas — kameran tar över Island, och NOT IDENTIFIED ligger där kameran har det',
+      !IK.hand && nara(xy(IK), kpI, 2) && nara(ofrXY(oK()), kamM(oK().kam), 2),
+      `Island ${JSON.stringify(xy(IK))} mot ${JSON.stringify(kpI)} hand ${!!IK.hand} granne ${IK.kamGrann || '–'}; NOT IDENTIFIED ${JSON.stringify(ofrXY(oK()))} mot ${JSON.stringify(kamM(oK().kam))} granne ${oK().kamGrann || '–'}`);
+    /* Högen flyttas för hand, och sedan flyttas hela den riktiga högen på bordet: kameran tar över båda korten, och de
+       låser inte varandra (granskningen X1). */
+    const jH = await scen(37, null);
+    const IH = kort(33), oH = () => ofrLista().find(q => q.spar === 37);
+    draEl(elK(IH), 200 * matVy().z, 0);
+    handToastStang();
+    const h0 = xy(IH), hand0 = !!IH.hand && !!oH() && !!oH().hand;
+    jH[0] = S(33, 'Island', 0.369, 0.667, { w: 0.128, h: 0.31, under: [37] });
+    jH[1] = S(37, null, 0.394, 0.745, { w: 0.131, h: 0.32, tillstand: 'okand' });
+    avstamBord(jH, false); renderGrid(true); await vanta(700);
+    avstamBord(jH, false); renderGrid(true); await vanta(300);
+    const kpH = kamPlats(IH, speglaKamPos.skala, gravRuta(matVy()));
+    ok('H31: hela den riktiga högen flyttas efter handflytten — kameran tar över båda korten',
+      hand0 && !!oH() && !IH.hand && !oH().hand && nara(xy(IH), kpH, 2) && nara(ofrXY(oH()), kamM(oH().kam), 2),
+      `handflyttade ${hand0}; Island ${JSON.stringify(h0)} → ${JSON.stringify(xy(IH))} mot ${JSON.stringify(kpH)} granne ${IH.kamGrann || '–'}; NOT IDENTIFIED ${oH() ? JSON.stringify(ofrXY(oH())) + ' mot ' + JSON.stringify(kamM(oH().kam)) + ' granne ' + (oH().kamGrann || '–') : '–'}`);
+    /* NOT IDENTIFIED dras för sig (⌃), det riktiga kortet flyttas (kameran tar över), sedan ⌘Z: kortet ligger där
+       kameran har det, inte där det låg före draget (granskningen X3). */
+    const jU = await scen(38, null);
+    const oU = () => ofrLista().find(q => q.spar === 38);
+    draEl(ofrEl(38), 250 * matVy().z, 0, { ctrlKey: true });
+    handToastStang();
+    const uHand = !!oU() && !!oU().hand;
+    jU[0] = S(33, 'Island', 0.272, 0.567, { w: 0.128, h: 0.325 });
+    jU[1] = S(38, null, 0.75, 0.10, { w: 0.131, h: 0.32, tillstand: 'okand' });
+    avstamBord(jU, false); renderGrid(true); await vanta(700);
+    avstamBord(jU, false); renderGrid(true); await vanta(300);
+    const u1 = ofrXY(oU());
+    const angrat2 = angra(); renderGrid(true); await vanta(100);
+    avstamBord(jU, false); renderGrid(true); await vanta(300);
+    ok('H32: ⌘Z efter att kameran tagit över NOT IDENTIFIED — det ligger där kameran har det', uHand && angrat2 && !!oU() && !oU().hand && nara(ofrXY(oU()), kamM(oU().kam), 2),
+      `handflyttat ${uHand}, ångrat ${angrat2}: ${JSON.stringify(u1)} → ${JSON.stringify(ofrXY(oU()))} mot ${JSON.stringify(kamM(oU().kam))}`);
+
+    /* ── Den andra granskningen (2026-10-10): namngivning, omladdning, två drag och Undo, gamla grannar, högar som flyttas i ett bord ── */
+    const nyScen = async () => { mig.cards = []; mig.pending = []; ofrGlom(); ofrPos.clear(); angraStack.length = 0; if (kamSkala.las) kamSkala.las.clear(); renderAll(true); };
+    const kamR = c => matRect(Object.assign({}, c, kamPlats(c, speglaKamPos.skala, gravRuta(matVy()))));
+    const r2 = v => Math.round(v * 100) / 100;
+    /* H33: ofr ⌃-dras två gånger (andra draget börjar handflyttat), kameran tar över, ⌘Z: läggs där kameran har det? */
+    try {
+      const j = await scen(60, null);
+      const o = () => ofrLista().find(q => q.spar === 60);
+      draEl(ofrEl(60), 250 * matVy().z, 0, { ctrlKey: true }); handToastStang();
+      const h1 = o() && o().hand ? { mx: Math.round(o().hand.mx), my: Math.round(o().hand.my) } : null;
+      await vanta(100);
+      draEl(ofrEl(60), 0, 120 * matVy().z, { ctrlKey: true }); handToastStang();
+      const p2 = ofrXY(o());
+      j[0] = S(33, 'Island', 0.272, 0.567, { w: 0.128, h: 0.325 });
+      j[1] = S(60, null, 0.75, 0.10, { w: 0.131, h: 0.32, tillstand: 'okand' });
+      avstamBord(j, false); renderGrid(true); await vanta(700);
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      const p3 = ofrXY(o()), hand3 = !!o().hand;
+      const ang = angra(); renderGrid(true); await vanta(100);
+      const p4 = ofrXY(o()), hand4 = !!o().hand;
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      ok('H33: NOT IDENTIFIED ⌃-draget två gånger, kameran tar över, ⌘Z — det ligger där kameran har det',
+        ang && nara(ofrXY(o()), kamM(o().kam), 2) && !o().hand,
+        `h1 ${JSON.stringify(h1)}, efter drag 2 ${JSON.stringify(p2)}, kameran tog över ${JSON.stringify(p3)} hand ${hand3}; direkt efter ⌘Z ${JSON.stringify(p4)} hand ${hand4}; efter två bord ${JSON.stringify(ofrXY(o()))} hand ${!!o().hand}, kameran ${JSON.stringify(kamM(o().kam))}`);
+    } catch (e) { ok('H33: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
+
+    /* H34: I handflyttad, NOT IDENTIFIED E läggs på riktiga I (E.kamGrann = I), högen dras för hand (båda hand), sedan
+       flyttas riktiga I men ligger kvar under E: ligger I under E på mattan som i bilden? Till höger i bilden, långt
+       från graveyard-rutan: efter provets första avsnitt står den till vänster, och kläms I:s plats undan blir de två
+       bara 0,09 omlott i bilden. */
+    try {
+      await nyScen();
+      const j = [S(33, 'Island', 0.572, 0.567, { w: 0.128, h: 0.325 })];
+      avstamBord(j, false); for (const c of mig.cards) delete c.ny; renderAll(true); await vanta(500);
+      const I = kort(33);
+      draEl(elK(I), 200 * matVy().z, 0); handToastStang();
+      const iHand = !!I.hand;
+      tagEmotFoto({ spar: 61, b64: FOTO });
+      j[0] = S(33, 'Island', 0.569, 0.567, { w: 0.128, h: 0.08, under: [61] });
+      j[1] = S(61, null, 0.594, 0.645, { w: 0.131, h: 0.32, tillstand: 'okand' });
+      avstamBord(j, false); renderGrid(true); await vanta(700);
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      const E = () => ofrLista().find(q => q.spar === 61);
+      const g1 = E() && E().kamGrann, om1 = E() ? omlott(rekt(ofrPos.get(E().id)), matRect(I)) : -1;
+      draEl(elK(I), 0, 150 * matVy().z); handToastStang();
+      const bada = !!I.hand && !!E().hand, g2 = E().kamGrann;
+      j[0] = S(33, 'Island', 0.50, 0.567, { w: 0.128, h: 0.31, under: [61] });
+      avstamBord(j, false); renderGrid(true); await vanta(700);
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      const ovMat = omlott(matRect(I), rekt(ofrPos.get(E().id))), ovBild = omlott(kamR(I), rekt(kamM(E().kam)));
+      ok('H34: E (lagd efter handflyttat I, sedan själv handflyttad med högen) — riktiga I flyttas under E: I under E på mattan som i bilden',
+        iHand && bada && !I.hand && ovBild > 0.1 && Math.abs(ovMat - ovBild) < 0.06,
+        `I hand först ${iHand}; E kamGrann efter läggning ${g1 || '–'} (omlott med I ${r2(om1)}); högen dragen: båda hand ${bada}, E.kamGrann kvar ${g2 || '–'}; efter: I hand ${!!I.hand} I ${JSON.stringify(xy(I))} kamplats ${JSON.stringify(kamPlats(I, speglaKamPos.skala, gravRuta(matVy())))} kamGrann ${I.kamGrann || '–'}, E ${JSON.stringify(ofrXY(E()))}; omlott mattan ${r2(ovMat)} bilden ${r2(ovBild)}`);
+    } catch (e) { ok('H34: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
+
+    /* H35: X4 efter en omladdning. Serra Angel på Island; ⌃-drag tar Island ur högen; sidan laddas om (kortlistan
+       genom slimKort); samma bord: står Serra Angel kvar där kameran har det? */
+    try {
+      const jR = await scen(62, 'Serra Angel');
+      const IR = kort(33), SR = () => mig.cards.find(k => k.name === 'Serra Angel');
+      const s0 = xy(SR());
+      draEl(elK(IR), 0, 300 * matVy().z, { ctrlKey: true }); handToastStang();
+      avstamBord(jR, false); renderGrid(true); await vanta(300);
+      const s1 = xy(SR()), iHand = !!IR.hand;
+      mig.cards = JSON.parse(JSON.stringify(slimKort(mig.cards)));
+      renderAll(true); await vanta(100);
+      const s1b = xy(SR());
+      avstamBord(jR, false); renderGrid(true); await vanta(500);
+      avstamBord(jR, false); renderGrid(true); await vanta(300);
+      const S2 = SR(), I2 = mig.cards.find(k => k.name === 'Island');
+      ok('H35: X4 efter omladdning — Serra Angel står kvar där kameran har det, inte på det handflyttade Island',
+        iHand && nara(xy(S2), s1, 2) && omlott(matRect(S2), matRect(I2)) < 0.05,
+        `S ${JSON.stringify(s0)} → ⌃-drag ${JSON.stringify(s1)} → omladdat ${JSON.stringify(s1b)} → efter bordet ${JSON.stringify(xy(S2))} spar ${S2.spar} kamGrann ${S2.kamGrann || '–'}; Island ${JSON.stringify(xy(I2))} hand ${!!I2.hand} spar ${I2.spar}; omlott ${r2(omlott(matRect(S2), matRect(I2)))}`);
+    } catch (e) { ok('H35: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
+
+    /* H36: samma som H35 men omladdningen simuleras bara som att kamRitad/kamOri/kamFore/kamGrann försvinner (spar kvar). */
+    try {
+      const jR = await scen(65, 'Serra Angel');
+      const IR = kort(33), SR = () => mig.cards.find(k => k.name === 'Serra Angel');
+      draEl(elK(IR), 0, 300 * matVy().z, { ctrlKey: true }); handToastStang();
+      avstamBord(jR, false); renderGrid(true); await vanta(300);
+      const s1 = xy(SR());
+      for (const c of mig.cards) { delete c.kamRitad; delete c.kamOri; delete c.kamFore; delete c.kamGrann; }
+      avstamBord(jR, false); renderGrid(true); await vanta(300);
+      const S2 = SR();
+      ok('H36: X4 när kamRitad/kamFore saknas (som efter omladdning) — Serra Angel står kvar där kameran har det',
+        nara(xy(S2), s1, 2) && omlott(matRect(S2), matRect(IR)) < 0.05,
+        `S ${JSON.stringify(s1)} → ${JSON.stringify(xy(S2))} kamGrann ${S2.kamGrann || '–'}; Island ${JSON.stringify(xy(IR))} hand ${!!IR.hand}; omlott ${r2(omlott(matRect(S2), matRect(IR)))}`);
+    } catch (e) { ok('H36: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
+
+    /* H37: I handflyttad åt höger. En hög — Serra Angel (A, under) och NOT IDENTIFIED (E, över) — läggs bredvid riktiga
+       I i samma bord, där kamerans plats för A ligger mycket på I:s handplats och E:s lite. Hel hög bredvid I? */
+    try {
+      await nyScen();
+      const j = [S(33, 'Island', 0.272, 0.25, { w: 0.128, h: 0.325 })];
+      avstamBord(j, false); for (const c of mig.cards) delete c.ny; renderAll(true); await vanta(500);
+      const I = kort(33), sk = speglaKamPos.skala, CW = MATTA.CW, CH = MATTA.CH, asp = 1080 / 1920;
+      const aC = { x: 0.494, y: 0.4125 }, eC = { x: 0.494, y: 0.4125 + 0.6 * CH / (asp * sk) };
+      const aCam = kamM(aC), mal = { x: Math.round(aCam.x - 0.2 * CW), y: Math.round(aCam.y) };
+      const i0 = xy(I), z = matVy().z;
+      draEl(elK(I), (mal.x - i0.x) * z, (mal.y - i0.y) * z); handToastStang();
+      const iHand = !!I.hand, i1 = xy(I);
+      tagEmotFoto({ spar: 64, b64: FOTO });
+      j.push(S(63, 'Serra Angel', aC.x - 0.064, aC.y - 0.06, { w: 0.128, h: 0.12, under: [64] }));
+      j.push(S(64, null, eC.x - 0.064, eC.y - 0.1625, { w: 0.128, h: 0.325, tillstand: 'okand' }));
+      avstamBord(j, false); renderGrid(true); await vanta(700);
+      for (const c of mig.cards) delete c.ny;
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      const A = kort(63), E = ofrLista().find(q => q.spar === 64);
+      const aR = A ? matRect(A) : null, eR = E ? rekt(ofrPos.get(E.id)) : null;
+      const ovAE = omlott(aR, eR), ovAEbild = A && E ? omlott(kamR(A), rekt(kamM(E.kam))) : -1;
+      const dA = A ? { x: Math.round(A.x - kamPlats(A, sk, gravRuta(matVy())).x), y: Math.round(A.y - kamPlats(A, sk, gravRuta(matVy())).y) } : null;
+      const dE = E ? { x: Math.round(ofrPos.get(E.id).x - kamM(E.kam).x), y: Math.round(ofrPos.get(E.id).y - kamM(E.kam).y) } : null;
+      ok('H37: hög (kort + NOT IDENTIFIED) läggs bredvid handflyttat I i samma bord — högen hel, ingen över I',
+        iHand && !!A && !!E && Math.abs(ovAE - ovAEbild) < 0.06 && omlott(aR, matRect(I)) < 0.05 && omlott(eR, matRect(I)) < 0.05,
+        `I ${JSON.stringify(i1)} hand ${iHand}; A förskjutet ${JSON.stringify(dA)} kamGrann ${A && A.kamGrann || '–'}, E förskjutet ${JSON.stringify(dE)} kamGrann ${E && E.kamGrann || '–'}; omlott A–E mattan ${r2(ovAE)} bilden ${r2(ovAEbild)}; A på I ${r2(omlott(aR, matRect(I)))}, E på I ${r2(omlott(eR, matRect(I)))}`);
+    } catch (e) { ok('H37: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
+
+    /* H38: som H37, men högen (A under, E över) finns redan och flyttas i ETT bord till platsen bredvid riktiga I. */
+    try {
+      await nyScen();
+      const sk0 = MATTA.CW / 0.128, asp = 1080 / 1920, dy = 0.6 * MATTA.CH / (asp * sk0);
+      const j = [S(33, 'Island', 0.272, 0.25, { w: 0.128, h: 0.325 })];
+      avstamBord(j, false); for (const c of mig.cards) delete c.ny; renderAll(true); await vanta(400);
+      tagEmotFoto({ spar: 68, b64: FOTO });
+      const fA = { x: 0.80, y: 0.40 }, fE = { x: 0.80, y: 0.40 + dy };
+      j.push(S(67, 'Serra Angel', fA.x - 0.064, fA.y - 0.06, { w: 0.128, h: 0.12, under: [68] }));
+      j.push(S(68, null, fE.x - 0.064, fE.y - 0.1625, { w: 0.128, h: 0.325, tillstand: 'okand' }));
+      avstamBord(j, false); renderGrid(true); await vanta(700);
+      for (const c of mig.cards) delete c.ny;
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      const I = kort(33), sk = speglaKamPos.skala, CW = MATTA.CW, CH = MATTA.CH;
+      const aC = { x: 0.494, y: 0.4125 }, eC = { x: 0.494, y: 0.4125 + 0.6 * CH / (asp * sk) };
+      const aCam = kamM(aC), mal = { x: Math.round(aCam.x - 0.2 * CW), y: Math.round(aCam.y) };
+      const i0 = xy(I), z = matVy().z;
+      draEl(elK(I), (mal.x - i0.x) * z, (mal.y - i0.y) * z); handToastStang();
+      const iHand = !!I.hand, i1 = xy(I);
+      const A = kort(67), E = () => ofrLista().find(q => q.spar === 68);
+      const fore = { A: A && xy(A), E: E() && ofrXY(E()), Ahand: !!(A && A.hand), Ehand: !!(E() && E().hand) };
+      j[1] = S(67, 'Serra Angel', aC.x - 0.064, aC.y - 0.06, { w: 0.128, h: 0.12, under: [68] });
+      j[2] = S(68, null, eC.x - 0.064, eC.y - 0.1625, { w: 0.128, h: 0.325, tillstand: 'okand' });
+      avstamBord(j, false); renderGrid(true); await vanta(700);
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      const aR = A ? matRect(A) : null, eR = E() ? rekt(ofrPos.get(E().id)) : null;
+      const ovAE = omlott(aR, eR), ovAEbild = A && E() ? omlott(kamR(A), rekt(kamM(E().kam))) : -1;
+      const kpA = A && kamPlats(A, sk, gravRuta(matVy())), dA = A ? { x: Math.round(A.x - kpA.x), y: Math.round(A.y - kpA.y) } : null;
+      const dE = E() ? { x: Math.round(ofrPos.get(E().id).x - kamM(E().kam).x), y: Math.round(ofrPos.get(E().id).y - kamM(E().kam).y) } : null;
+      ok('H38: en befintlig hög (kort + NOT IDENTIFIED) flyttas i ett bord bredvid handflyttat I — högen hel, ingen över I',
+        iHand && !!A && !!E() && Math.abs(ovAE - ovAEbild) < 0.06 && omlott(aR, matRect(I)) < 0.05 && omlott(eR, matRect(I)) < 0.05,
+        `före ${JSON.stringify(fore)}; I ${JSON.stringify(i1)} hand ${iHand}; A förskjutet ${JSON.stringify(dA)} kamGrann ${A && A.kamGrann || '–'}, E förskjutet ${JSON.stringify(dE)} kamGrann ${E() && E().kamGrann || '–'}; omlott A–E mattan ${r2(ovAE)} bilden ${r2(ovAEbild)}; A på I ${r2(omlott(aR, matRect(I)))}, E på I ${r2(omlott(eR, matRect(I)))}`);
+    } catch (e) { ok('H38: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
+
+    /* H39: X4 och namngivning. NOT IDENTIFIED på Island; ⌃-drag tar Island ur högen (NOT IDENTIFIED står kvar där kameran
+       har det, H29); sedan namnges NOT IDENTIFIED: står kortet där NOT IDENTIFIED stod? */
+    try {
+      const jN = await scen(69, null);
+      const IN = kort(33), oN = () => ofrLista().find(q => q.spar === 69);
+      draEl(elK(IN), 0, 300 * matVy().z, { ctrlKey: true }); handToastStang();
+      avstamBord(jN, false); renderGrid(true); await vanta(300);
+      const e1 = ofrXY(oN()), pend = oN().pend;
+      ofrNamnge(pend, 'Serra Angel', null, false);
+      renderGrid(true); await vanta(200);
+      avstamBord(jN, false); renderGrid(true); await vanta(300);
+      const k = mig.cards.find(c => c.spar === 69);
+      ok('H39: NOT IDENTIFIED som ⌃-draget skilts från Island namnges — kortet står där NOT IDENTIFIED stod, inte på Island',
+        !!IN.hand && !!k && nara(xy(k), e1, 2) && omlott(matRect(k), matRect(IN)) < 0.05,
+        `NOT IDENTIFIED ${JSON.stringify(e1)} → kortet ${k ? JSON.stringify(xy(k)) + ' hand ' + !!k.hand + ' kamGrann ' + (k.kamGrann || '–') : '–'}; Island ${JSON.stringify(xy(IN))} hand ${!!IN.hand}; omlott ${k ? r2(omlott(matRect(k), matRect(IN))) : '–'}`);
+    } catch (e) { ok('H39: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
+    /* H40 (den tredje granskningen): Serra Angel ligger på Island, ⌃-drag tar Island ur högen, Serra Angel går till
+       graveyard och läggs sedan på det riktiga Island igen med ett nytt spår (urGraven: som ett nytt kort, kamNy). Det
+       läggs på Island på mattan, som H20 — kortets förra läge från före graveyard räknas inte. */
+    try {
+      const j = await scen(80, 'Serra Angel');
+      const I = kort(33), S0 = mig.cards.find(k => k.name === 'Serra Angel');
+      draEl(elK(I), 0, 300 * matVy().z, { ctrlKey: true }); handToastStang();
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      S0.zon = ZON_GRAV; delete S0.spar; delete S0.borta;
+      j.length = 1; j[0] = S(33, 'Island', 0.272, 0.567, { w: 0.128, h: 0.325 });
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      j[0] = S(33, 'Island', 0.269, 0.567, { w: 0.128, h: 0.31, under: [81] });
+      j[1] = S(81, 'Serra Angel', 0.324, 0.645, { w: 0.131, h: 0.32 });
+      avstamBord(j, false); renderGrid(true); await vanta(700);
+      avstamBord(j, false); renderGrid(true); await vanta(300);
+      const S2 = mig.cards.find(k => k.name === 'Serra Angel' && paMattan(k));
+      const pa = S2 ? omlott(matRect(S2), matRect(I)) : -1;
+      const bild = S2 ? omlott(rekt(kamPlats(S2, speglaKamPos.skala, gravRuta(matVy()))), rekt(kamPlats(I, speglaKamPos.skala, gravRuta(matVy())))) : -1;
+      ok('H40: ett kort som kommer tillbaka ur graveyard och läggs på ett handflyttat kort ligger på det på mattan, som i bilden',
+        !!S2 && !!I.hand && pa > 0.1 && Math.abs(pa - bild) < 0.06,
+        `Serra Angel ${S2 ? JSON.stringify(xy(S2)) : '–'}, Island ${JSON.stringify(xy(I))} hand ${!!I.hand}; omlott mattan ${r2(pa)} bilden ${r2(bild)}`);
+    } catch (e) { ok('H40: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
+    aterstall();
   } catch (e) { ok('högen för hand: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
+  aterstall();
   return rad;
 };
 
