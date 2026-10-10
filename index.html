@@ -4112,6 +4112,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <button class="btn sm" id="kamRedo" data-mode="redo" title="Go through deck, phone and the untapped card again">Redo setup</button>
           <button class="btn sm" id="pbHelbildDev" title="The phone sends the whole picture to Claude and puts out the cards it sees">✦ Whole table to Claude</button>
           <button class="btn sm ghost dbg" id="pbDiagnos" title="Saves what the phone sees as a file, for troubleshooting">Save diagnostics</button>
+          <button class="btn sm ghost dbg" id="pbBordLogg" title="Saves every table the phone sent since the camera was turned on, as a file that can be replayed with dev/dubbletter.cjs --logg">Save table log</button>
         </div>
         <!-- Bildläget (MES-229, MES-244): 4K · 15 är förvalet; 1080p · 30 analyserar
              varje ruta; 1080p · 15 har samma takt som förvalet, så bara upplösningen
@@ -35044,6 +35045,7 @@ $('#pbHelbild') && ($('#pbHelbild').onclick = () => { Moln.sandKam('helbild'); t
 $('#pbHelbildDev') && ($('#pbHelbildDev').onclick = () => $('#pbHelbild').onclick());   // samma fråga ur utvecklarlådan (MES-358)
 /* Debug sitter kvar i webbläsaren tills ?debug=0 (se DEBUG). Knappen ligger i lådans rubrik: klicket ska
    inte fälla ihop lådan. */
+$('#pbBordLogg') && ($('#pbBordLogg').onclick = sparaBordLogg);   // bordsloggen ur utvecklarlådan (knappen i sammanfattningen togs bort i MES-194)
 $('#kamDebugAv') && ($('#kamDebugAv').onclick = ev => { ev.preventDefault(); const u = new URL(location.href); u.searchParams.set('debug', '0'); location.href = u.toString(); });
 /* Bilden byter storlek när Avancerat fälls ut; lagret mäts om direkt. */
 $('#pbAvancerat') && $('#pbAvancerat').addEventListener('toggle', () => requestAnimationFrame(ritaPbLager));
