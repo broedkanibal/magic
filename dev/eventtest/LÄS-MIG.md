@@ -75,7 +75,8 @@ node dev/eventtest/kor.cjs --pass 2026-09-21-mes-238-parti-4k15-20min --video ka
 ```
 
 Graveyard-rutan är Mesas egen gula ruta i bilden, library-rutan den gröna
-leken (`ZONER` i `kor.cjs`). Kedjan hittar korten och deras läge, men sätter
+leken (`ZONER` i `kor.cjs`). Bara graveyard-rutan ges till telefonen;
+library-rutan är facit för lekvaktens val (MES-360). Kedjan hittar korten och deras läge, men sätter
 nästan inga namn utan Claude — se `dev/mattest/LÄS-MIG.md`.
 
 ## Fällor

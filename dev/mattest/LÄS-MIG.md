@@ -216,8 +216,8 @@ Hela fallet går i ett svep, så inget som tar väggklocka kommer emellan. **Tv�
 körningar på samma `index.html` ger samma tal** — också hela loggen, byte för
 byte (provat 2026-10-07).
 
-Varje bord i loggen tas emot som `kamTogsEmot` gör (grundläget och
-library-rutan, sedan `avstamBord`). Telefonens hjärtslag härmas: senaste
+Varje bord i loggen tas emot som `kamTogsEmot` gör (grundläget, sedan
+`avstamBord`). Telefonens hjärtslag härmas: senaste
 bordet igen var tredje sekund från första rapporten, som i
 `dev/dubbletter.cjs` och `dev/eventtest/jamfor.cjs`. Mätpunkterna går en
 gång per videoruta (1/15 s), och dessutom före och efter varje steg.
