@@ -545,7 +545,7 @@ prov('R2 ett spår som prövas väntar på Claude: på väg, gissningen som namn
   const m = app.remsa();
   assert.equal(app.pending.length, 0); assert.equal(m.granska, 0);
   assert.deepEqual(paVag(m), ['vantar:1']); assert.equal(m.paVag[0].namn, 'Forest'); assert.equal(klocka.t - m.paVag[0].sedan, 5000);
-  assert.equal(m.text, 'Camera · 1 on the way'); assert.equal(m.not, 'The card you put down (Forest?) — asking Claude …'); assert.equal(m.puls, true);
+  assert.equal(m.text, 'Camera · 1 on the way'); assert.equal(m.not, 'The card you put down (Forest?): asking Claude …'); assert.equal(m.puls, true);
 });
 prov('R3 okänt med post i kön: granskningen räknar det, inget "på väg", notisen säger vart det tog vägen', () => {
   stam([{ id: 1, tillstand: 'okand', cands: [{ name: 'Forest', sid: 's', score: 0.5 }], sen: 10, ...PORT }]);
@@ -649,15 +649,15 @@ prov('K1 två spår: notisen gäller det som dök upp senast, och pulserar medan
   assert.equal(app.remsa().not, 'The card you put down is being read …');
   /* Spår 2 går till Claude medan 1 fortfarande läses: notisen följer 2. */
   klocka.t += 500; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }, { id: 2, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...LANGT }]);
-  m = app.remsa(); assert.equal(m.not, 'The card you put down (Forest?) — asking Claude …'); assert.equal(m.puls, true);
+  m = app.remsa(); assert.equal(m.not, 'The card you put down (Forest?): asking Claude …'); assert.equal(m.puls, true);
   assert.equal(app.lage.get(1).andrad, klocka.t - 2000); assert.equal(app.lage.get(2).andrad, klocka.t - 500);
 });
 prov('K2 ett spår som flyttat sig mer än 15 % av sin bredd är det senaste igen; darr räknas inte', () => {
   stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }]);
   klocka.t += 1000; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }, { id: 2, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...LANGT }]);
-  assert.equal(app.remsa().not, 'The card you put down (Forest?) — asking Claude …');
+  assert.equal(app.remsa().not, 'The card you put down (Forest?): asking Claude …');
   klocka.t += 1000; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...flytt(PORT, 0.005) }, { id: 2, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...LANGT }]);
-  assert.equal(app.remsa().not, 'The card you put down (Forest?) — asking Claude …', 'darr på 8 % av bredden');
+  assert.equal(app.remsa().not, 'The card you put down (Forest?): asking Claude …', 'darr på 8 % av bredden');
   klocka.t += 1000; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...flytt(PORT, 0.035) }, { id: 2, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...LANGT }]);
   assert.equal(app.remsa().not, 'The card you put down is being read …', 'flyttat en halv kortbredd');
   assert.equal(app.lage.get(1).andrad, klocka.t); assert.equal(app.lage.get(1).x, PORT.x + 0.035);
@@ -671,7 +671,7 @@ prov('K3 hamnade i granskningen: fyra sekunder, sedan ingen notis — kön står
   m = app.remsa(); assert.equal(m.not, null); assert.equal(m.granska, 1);
   /* Väntade det på Claude först räknas de fyra sekunderna från svaret. */
   klocka.t += 1000; stam([{ id: 2, tillstand: 'okand', provas: true, sen: 10, ...LANGT }]);
-  assert.equal(app.remsa().not, 'The card you put down — asking Claude …');
+  assert.equal(app.remsa().not, 'The card you put down: asking Claude …');
   klocka.t += 3000; stam([{ id: 2, tillstand: 'okand', cands: [{ name: 'Forest', sid: 's', score: 0.4 }], sen: 10, ...LANGT }]);
   assert.equal(app.remsa().not, 'The card you put down went to the review'); assert.equal(app.lage.get(2).klar, klocka.t);
 });
@@ -692,15 +692,15 @@ prov('K4 telefonens råd hör till kortet som läses, aldrig till bordet', () =>
   assert.equal(app.remsa({ rad: BLANK }).not, null, 'inget nytt kort: inget råd');
   klocka.t += 1000; stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), { id: 2, tillstand: 'stilla', sen: 10, ...LANGT }]);
   const m = app.remsa({ rad: BLANK });
-  assert.equal(m.not, 'The card you put down is hard to read — there is glare on it'); assert.equal(m.puls, true);
-  assert.equal(app.remsa({ rad: 'The table pattern makes the camera unsure. A plain cloth or a large sheet of paper under the cards helps.' }).not, 'The card you put down is hard to read — the table pattern interferes');
-  assert.equal(app.remsa({ rad: 'The cards are small in the picture. Move the phone closer to the table.' }).not, 'The card you put down is hard to read — it is small in the picture');
-  assert.equal(app.remsa({ rad: 'The cards are small in the picture. The phone gives 1280×720 but can do 3840×2160.' }).not, 'The card you put down is hard to read — it is small in the picture');
-  assert.equal(app.remsa({ rad: 'The table is almost as light as the cards. A darker cloth under the cards makes the camera more certain.' }).not, 'The card you put down is hard to read — the table is almost as light as the card');
-  assert.equal(app.remsa({ rad: 'Something entirely new. Second sentence.' }).not, 'The card you put down is hard to read — something entirely new');
+  assert.equal(m.not, 'The card you put down is hard to read: there is glare on it'); assert.equal(m.puls, true);
+  assert.equal(app.remsa({ rad: 'The table pattern makes the camera unsure. A plain cloth or a large sheet of paper under the cards helps.' }).not, 'The card you put down is hard to read: the table pattern interferes');
+  assert.equal(app.remsa({ rad: 'The cards are small in the picture. Move the phone closer to the table.' }).not, 'The card you put down is hard to read: it is small in the picture');
+  assert.equal(app.remsa({ rad: 'The cards are small in the picture. The phone gives 1280×720 but can do 3840×2160.' }).not, 'The card you put down is hard to read: it is small in the picture');
+  assert.equal(app.remsa({ rad: 'The table is almost as light as the cards. A darker cloth under the cards makes the camera more certain.' }).not, 'The card you put down is hard to read: the table is almost as light as the card');
+  assert.equal(app.remsa({ rad: 'Something entirely new. Second sentence.' }).not, 'The card you put down is hard to read: something entirely new');
   /* Väntar kortet på Claude säger notisen det — rådet står i kameravyn. */
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), { id: 2, tillstand: 'okand', provas: true, sen: 10, ...LANGT }]);
-  assert.equal(app.remsa({ rad: BLANK }).not, 'The card you put down — asking Claude …');
+  assert.equal(app.remsa({ rad: BLANK }).not, 'The card you put down: asking Claude …');
   /* Rörelsen går före allt: den går över av sig själv. */
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), { id: 3, tillstand: 'ny', sen: 10, ...LANGT }]);
   klocka.t += 3500; stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), { id: 3, tillstand: 'ny', sen: 10, ...LANGT }]);
