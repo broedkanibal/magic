@@ -13045,7 +13045,7 @@ function renderKamPop() {
      (D3): Turn on camera, och koden. */
   const felHtml = fel === 'tappad'
       ? (kamAvSjalv ? '<p class="poptxt">You disconnected the phone. The cards stay as they were.</p>' : '')
-    : fel === 'letar' ? '<p class="poptxt">The connection to your phone dropped. Mesa is reconnecting, which usually takes a few seconds. Leave the phone where it is. Your cards will show up again as soon as it's back.</p>'
+    : fel === 'letar' ? '<p class="poptxt">The connection to your phone dropped. Mesa is reconnecting, which usually takes a few seconds. Leave the phone where it is. Your cards will show up again as soon as it’s back.</p>'
     : fel === 'av' ? '<p class="poptxt">The camera is off. You place and move cards yourself until you turn it on again.</p>'
         + '<div class="kamfelknappar"><button type="button" class="btn prim bred" data-mode="auto">Turn on camera</button></div>'
     : fel === 'gammal'
