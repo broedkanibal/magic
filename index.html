@@ -8674,10 +8674,13 @@ function malIndex(i) {
 }
 
 /* De oframkallade korten just nu (MES-344, ofrSteg i avstämningen): bara på mitt eget bord, medan auto
-   är på och telefonen är med. Någon annans bord får dem ur bordsraden (ofrDelat), som en liten suddig bild. */
+   är på och telefonen är med — eller har varit med och är tappad (kamHarVarit, MES-355): mattan står då
+   "Frozen as it looked …", och korten står kvar med "Name this card". Förut försvann de från mattan när
+   kameran tappades och dök upp i raden "N cards to fill in" i stället (Jesper 2026-10-10).
+   Någon annans bord får dem ur bordsraden (ofrDelat), som en liten suddig bild. */
 function ofrPaMattan() {
   const mig = minSpelare();
-  return !!mig && player() === mig && kamAnsluten && prefs.autoLage !== false && !oppstartPagar();
+  return !!mig && player() === mig && (kamAnsluten || kamHarVarit) && prefs.autoLage !== false && !oppstartPagar();
 }
 function ofrNu() {
   if (!ofrPaMattan()) return [];

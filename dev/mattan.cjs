@@ -989,6 +989,11 @@ const PROV = async () => {
       `etikett ${Math.round(er0.top - ur0.top)} px ned, knapp ${Math.round(mr0.top - ur0.top)}–${Math.round(mr0.bottom - ur0.top)} av ${Math.round(ur0.height)}`);
     ok('ingen platshållare och ingen laddtext på mattan', !gridEl.querySelector('.plats') && !/Reading|Asking Claude|Moving…/.test(gridEl.textContent), '');
     ok('raden "N cards to fill in" står inte där: kortet namnges på mattan (designytan Mesa Name This Card)', mig.pending.length === 1 && $('#pendBar').hidden, `${mig.pending.length} i granskningen, raden ${$('#pendBar').hidden ? 'dold' : 'synlig'}`);
+    /* Kameran tappas (MES-355, "Frozen as it looked …"): kortet står kvar på mattan, raden kommer inte fram. */
+    const ansl0 = kamAnsluten, varit0 = kamHarVarit;
+    kamAnsluten = false; kamHarVarit = true; renderAll(true); renderPending();
+    ok('… också när kameran tappats: kortet står kvar på den frusna mattan, raden är dold', !!ofrEl(43) && $('#pendBar').hidden, `${ofrEl(43) ? 'på mattan' : 'borta från mattan'}, raden ${$('#pendBar').hidden ? 'dold' : 'synlig'}`);
+    kamAnsluten = ansl0; kamHarVarit = varit0; renderAll(true); renderPending();
     /* Motståndarna: bordsraden bär det oframkallade kortet som en post utan namn, med en liten suddig bild. */
     for (let i = 0; i < 20 && !(ofrLista()[0] || {}).liten; i++) await vanta(25);
     const delat = hogDelat(mig).filter(h => h.hog === 'ofr');
