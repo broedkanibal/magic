@@ -69,8 +69,9 @@ function gravIgnoreAktivt() { return gravSpeglar; }
    handen och högarna. delaHand ger index per zon, som appens. */
 const ZON_EXIL = 'exil';
 const paMattan = e => { const z = zonAv(e); return z !== ZON_GRAV && z !== ZON_EXIL; };
-const Moln = { sandKam() {} };
+const Moln = { sandKam() {}, inloggad: () => false };
 const addEventListener = () => {};   // spelupplevelsens pagehide (khSkicka) ligger i utdraget
+const mittLage = () => 'bord';   // spelupplevelsens korthändelser (khLogga); Moln.inloggad ovan säger utloggad, så inget loggas
 const hand = () => state.players[0].cards, angraPunkt = () => {}, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 /* Omritningens släpp av bifogade kort (losBifogade) och bannerns svar
    (förut svaraLyftAlla, borta med nedtoningen i MES-343): paMattanKort som appens, en bifogad plats en bit

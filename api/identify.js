@@ -255,7 +255,7 @@ export default async function handler(req, res) {
   if (!vem.ok) {
     if (vem.tillfalligt) {
       console.error('identify: inloggningen gick inte att pröva:', vem.varfor);
-      return res.status(503).json({ error: 'AI help is unavailable right now — the sign-in could not be checked.', kod: 'inloggning-nere' });
+      return res.status(503).json({ error: 'AI help is unavailable right now. The sign-in could not be checked.', kod: 'inloggning-nere' });
     }
     if (req.headers.authorization) console.warn('identify: token avvisad:', vem.varfor);
     return res.status(401).json({ error: 'Sign in to use AI help.', kod: 'inloggning' });
@@ -264,7 +264,7 @@ export default async function handler(req, res) {
   const gate = allow(vem.anvandare);
   if (!gate.ok) {
     res.setHeader('Retry-After', String(gate.retry));
-    return res.status(429).json({ error: 'Too many requests — try again in a moment', kod: 'takt' });
+    return res.status(429).json({ error: 'Too many requests. Try again in a moment', kod: 'takt' });
   }
 
   const fel = grundfel(req.body);
@@ -277,7 +277,7 @@ export default async function handler(req, res) {
   try { plats = await Vakt.reservera({ anvandare: vem.anvandare, mode: lage, spel: spelkod }); }
   catch (e) {
     console.error('identify: räknaren:', e && e.message);
-    return res.status(503).json({ error: 'AI help is unavailable right now — the question could not be counted.', kod: 'raknare' });
+    return res.status(503).json({ error: 'AI help is unavailable right now. The question could not be counted.', kod: 'raknare' });
   }
   /* Partiets tak (Jespers beslut 2026-10-09): 429 med en egen kod, så att
      klienten pausar AI-hjälpen för partiet och inte till månadsskiftet. */
@@ -335,7 +335,7 @@ export async function identifiera(req, res) {
   const gate = allow(ip);
   if (!gate.ok) {
     res.setHeader('Retry-After', String(gate.retry));
-    return res.status(429).json({ error: 'Too many requests — try again in a moment' });
+    return res.status(429).json({ error: 'Too many requests. Try again in a moment' });
   }
   return fraga(req, res);
 }
@@ -792,7 +792,7 @@ async function fraga(req, res) {
       const s = e && e.status;
       console.error('identify/lek:', s || '', (e && e.message) || e);
       if (s === 401) return res.status(503).json({ error: 'Serverns nyckel avvisades' });
-      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu — vänta en stund' });
+      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu. Vänta en stund' });
       if (s === 400) return res.status(400).json({ error: 'Bilden kunde inte behandlas' });
       return res.status(502).json({ error: 'Bildtjänsten gick inte att nå', promptv: PANE_PROMPT_V });
     }
@@ -947,7 +947,7 @@ async function fraga(req, res) {
       const s = e && e.status;
       console.error('identify/kamera:', s || '', (e && e.message) || e);
       if (s === 401) return res.status(503).json({ error: 'Serverns nyckel avvisades' });
-      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu — vänta en stund' });
+      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu. Vänta en stund' });
       if (s === 400) return res.status(400).json({ error: 'Bilden kunde inte behandlas' });
       return res.status(502).json({ error: 'Bildtjänsten gick inte att nå', promptv: PANE_PROMPT_V });
     }

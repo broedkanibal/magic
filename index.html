@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mesa — physical cards, shared board</title>
+<title>Mesa: physical cards, shared board</title>
 <meta name="description" content="Your deck and your hand stay yours. What you play on the table shows up for everyone in the game.">
 <!-- Märket: två plan sett snett uppifrån. Det undre, ifyllda, är bordet du
      faktiskt sitter vid; det övre, bara en kontur, är samma yta digitalt.
@@ -3660,7 +3660,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
          där man letar efter en appmeny — och namnet plus chevronen säger att
          det finns något under. Id:t står kvar: R, tomrutan och menyns egen
          positionering hänger på #menuBtn. -->
-    <button class="brand brandmeny" id="menuBtn" aria-haspopup="menu" aria-expanded="false" title="Menu — player, game, table mode, deck">
+    <button class="brand brandmeny" id="menuBtn" aria-haspopup="menu" aria-expanded="false" title="Menu: player, game, table mode, deck">
       <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg>
       <span>Mesa</span>
       <svg class="cv" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
@@ -3734,7 +3734,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
       <div class="handbar">
         <div class="searchwrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
-          <input id="search" type="text" autocomplete="off" spellcheck="false" placeholder="Add a card — type a card name…">
+          <input id="search" type="text" autocomplete="off" spellcheck="false" placeholder="Add a card. Type a card name…">
           <kbd class="slash">/</kbd>
           <ul id="suggest"></ul>
         </div>
@@ -3747,7 +3747,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
         <span id="lasbandTxt">You are looking at another board</span>
       </span>
       <div class="handmeta">
-          <button class="btn sm" id="clearHand" title="Reset the board — removes every card and all players but one"><span id="clearHandTxt">Clear board</span></button>
+          <button class="btn sm" id="clearHand" title="Reset the board. Removes every card and all players but one"><span id="clearHandTxt">Clear board</span></button>
         </div>
       </div>
       <div class="brade">
@@ -3762,7 +3762,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
            fyller min matta #bord som förut. -->
       <div class="bord" id="bord">
         <div class="omattor" id="oppMattor"></div>
-        <div class="kant3" id="kant" hidden title="Drag the edge up or down — or pick a player"></div>
+        <div class="kant3" id="kant" hidden title="Drag the edge up or down. Or pick a player"></div>
       <section class="matta" id="zonPerm">
         <div class="mattavp" id="gridWrap">
           <div class="mattabrade" id="grid"></div>
@@ -3771,7 +3771,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
         <!-- Telefonen är borta (MES-355, D1): hur länge mattan stått frusen. Och
              medan datorn letar efter telefonen efter en omladdning (D2). -->
         <div class="kamfrusen" id="kamFrusen" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19"/></svg><span id="kamFrusenTxt"></span></div>
-        <div class="kamletarmatt" id="kamLetarMatt" role="status" hidden><svg class="kamsnurr" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f0a52a" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg><span>Finding your phone — it’s still on your table.</span><span>Your cards are back from where you left off.</span></div>
+        <div class="kamletarmatt" id="kamLetarMatt" role="status" hidden><svg class="kamsnurr" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f0a52a" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg><span>Reconnecting to your phone.</span><span>This usually takes a few seconds. Leave the phone where it is.</span></div>
         <!-- Solfjädern (MES-145): korten ur en hög i handen. Ritas av hfLage(). -->
         <div class="handfan" id="handFan" hidden></div>
         <!-- Uppstartens steg 1 (MES-170, G1/G1Edit/G2): den valda leken som
@@ -3852,7 +3852,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
                 <div class="vtit"><span>Connect your phone</span><span class="grow"></span><span class="vsum">Phone connected</span><span class="vchg" title="Change"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></span></div>
                 <div class="vc oppcont">
                   <div class="qrrad"><div class="oppqr" id="oppQr"></div><div class="qv"><span class="oppwait" id="oppWait"><i></i><span>Waiting for your phone…</span></span><button type="button" class="btn ghost sm" data-opp="kopiera"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V5.8A1.8 1.8 0 0 0 13.7 4H5.8A1.8 1.8 0 0 0 4 5.8v7.9a1.8 1.8 0 0 0 1.8 1.8h2.7"/></svg><span>Copy link</span></button></div></div>
-                  <p class="opptxt">Scan the code with your phone's camera — nothing to install. Then put the phone in its holder, straight above your cards.</p>
+                  <p class="opptxt">Scan the code with your phone's camera: nothing to install. Then put the phone in its holder, straight above your cards.</p>
                 </div></div></li>
             </ol>
           </section>
@@ -3882,7 +3882,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
          och ingen annanstans, utan ett tecken på att något var fel. -->
     <div class="sparfel" id="sparfel" hidden>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v5"/><path d="M12 16.5v.01"/><circle cx="12" cy="12" r="9.2"/></svg>
-      <span>The others can't see your latest change — trying again…</span>
+      <span>The others can't see your latest change. Trying again…</span>
     </div>
   </footer>
 </div>
@@ -3920,7 +3920,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
       Read again
     </button>
-    <button class="btn sm" id="swFile" title="Paste or pick a new screenshot — the whole board is re-read and your hand replaced">New image…</button>
+    <button class="btn sm" id="swFile" title="Paste or pick a new screenshot. The whole board is re-read and your hand replaced">New image…</button>
     <input type="file" id="swInput" accept="image/*" multiple hidden>
     <div class="zoomctl">
       <button id="swZoomOut" title="Zoom out">−</button>
@@ -7407,7 +7407,7 @@ function renderTabs() {
     const fardknapp = p.id === state.active && (!spelLage || mitt);
     const kryss = !spelLage && state.players.length > 1;
     return `
-    <button class="ptab${p.id === state.active ? ' on' : ''}${mitt ? ' jag' : ''}${spelLage && !mitt && p.id === state.active ? ' andras' : ''}" data-pid="${esc(p.id)}" title="${mitt ? 'Your own board' : esc(p.name) + '\'s board'} — press ${i + 1}${(p.pending || []).length ? ` · ${p.pending.length} cards need filling in` : ''}">
+    <button class="ptab${p.id === state.active ? ' on' : ''}${mitt ? ' jag' : ''}${spelLage && !mitt && p.id === state.active ? ' andras' : ''}" data-pid="${esc(p.id)}" title="${mitt ? 'Your own board' : esc(p.name) + '\'s board'}: press ${i + 1}${(p.pending || []).length ? ` · ${p.pending.length} cards need filling in` : ''}">
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
@@ -7434,7 +7434,7 @@ function lekChipHtml(p, mitt) {
   else { if (p.id !== state.active) return ''; lek = lekAktiv; egen = true; }
   if (!lek) return egen ? `<span class="lekchip tom" data-lekvalj="${esc(p.id)}" role="button" title="Choose the deck the camera recognises">Pick a deck</span>` : '';
   const n = lek.antal || 0;
-  return `<span class="lekchip${egen ? ' egen' : ''}"${egen ? ` data-lekvalj="${esc(p.id)}" role="button"` : ''} title="${esc(lek.namn || 'Deck')} · ${n} ${n === 1 ? 'card' : 'cards'}${egen ? ' — click to switch' : ''}">` +
+  return `<span class="lekchip${egen ? ' egen' : ''}"${egen ? ` data-lekvalj="${esc(p.id)}" role="button"` : ''} title="${esc(lek.namn || 'Deck')} · ${n} ${n === 1 ? 'card' : 'cards'}${egen ? ': click to switch' : ''}">` +
     `<span class="pips">${pipsHtml(lek.farger)}</span><span class="lant">${n}</span></span>`;
 }
 /* Library-högen: med vald lek tar den upp korten i handen (solfjädern,
@@ -7965,14 +7965,14 @@ function oppHogarHtml(p) {
   const lager = []; for (let k = Math.min(n - 1, 4); k >= 1; k--) lager.push(`<i class="glager" style="--k:${k}"></i>`);
   /* Ligger hens graveyard bland korten (MES-334 steg 5) står den inte här också. */
   const bredvid = hogarBredvid(p);
-  return (p.gravHog || bredvid.grav || gravUtanFastPlats(p, n) ? '' : `<div class="ohog"><div class="grav${n ? '' : ' tom'}" title="${n ? `${n} ${n === 1 ? 'card' : 'cards'} in ${esc(p.name)}'s graveyard — click to look through them` : `${esc(p.name)}'s graveyard`}">${lager.join('')}`
+  return (p.gravHog || bredvid.grav || gravUtanFastPlats(p, n) ? '' : `<div class="ohog"><div class="grav${n ? '' : ' tom'}" title="${n ? `${n} ${n === 1 ? 'card' : 'cards'} in ${esc(p.name)}'s graveyard: click to look through them` : `${esc(p.name)}'s graveyard`}">${lager.join('')}`
     + (n ? `<img${src ? ` src="${esc(src)}"` : ''} alt="" draggable="false">` : '') + `<span class="gravsten">${GRAVSTEN}</span></div>`
     + `<span class="hograd"><i></i>Graveyard${n ? `<b>${n}</b>` : ''}</span></div>`)
     /* Ligger hens lek bland korten (MES-334 steg 3) står den inte här också, och i Mirror my table har
        leken ingen fast plats (speglatBord): hen ser den när kameran ser den. */
-    + (p.bibHog || speglatBord(p) ? '' : `<div class="ohog"><div class="bib" title="${esc(p.name)}'s library${bib == null ? '' : ` — ${bib} ${bib === 1 ? 'card' : 'cards'} not played yet (hand and library together)`}"><span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span></div>`
+    + (p.bibHog || speglatBord(p) ? '' : `<div class="ohog"><div class="bib" title="${esc(p.name)}'s library${bib == null ? '' : `: ${bib} ${bib === 1 ? 'card' : 'cards'} not played yet (hand and library together)`}"><span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span></div>`
     + `<span class="hograd bibrad"><i></i>Library${bib == null ? '' : `<b>${bib}</b>`}</span></div>`)
-    + (exil && !bredvid.exil ? `<div class="oexil" title="Cards in exile — click to look through them"><span class="zonlbl">Exile</span><b>${exil}</b></div>` : '');
+    + (exil && !bredvid.exil ? `<div class="oexil" title="Cards in exile. Click to look through them"><span class="zonlbl">Exile</span><b>${exil}</b></div>` : '');
 }
 /* Så långt mattan får flyttas: hela brädet ska gå att nå, plus lite luft. */
 function oppKlamp(g, v) {
@@ -8543,7 +8543,7 @@ function ofrLager(foto, motstandare, skarp) {
 function ofrHtml(p) {
   const namnge = !!p.pend && !p.overTak, over = !!p.pend && !!p.overTak;
   const pos = ofrPos.get(p.id) || { x: 44, y: 82 };
-  const titel = namnge ? 'The camera couldn’t identify this card. Click to enter its name.' : over ? `Your deck has only ${p.tak} × ${p.namn || 'this card'} — click to decide` : '';
+  const titel = namnge ? 'The camera couldn’t identify this card. Click to enter its name.' : over ? `Your deck has only ${p.tak} × ${p.namn || 'this card'}. Click to decide` : '';
   return `<div class="ofr${ofrTappad(p) ? ' tappad' : ''}${p.foto ? '' : ' utanfoto'}${namnge || over ? ' fraga' : ''}${ark && p.pend && ark.pend === p.pend ? ' aktuell' : ''}" data-ofr="${esc(p.id)}"${p.pend ? ` data-pend="${esc(p.pend)}"` : ''} aria-label="A card the camera has not named yet"${titel ? ` title="${esc(titel)}"` : ''} style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:600"><i class="lyftskugga" aria-hidden="true"></i>${ofrLager(p.foto, false, !!p.pend)}</div>`;
 }
 /* "Enter name" (eller antalets fråga) för ett oframkallat kort i granskningen, som en egen post i brädet
@@ -9362,8 +9362,8 @@ function renderGrid(force) {
   }
   $('#clearHandTxt').textContent = spelLage ? 'Clear my board' : 'Clear board';
   $('#clearHand').title = spelLage
-    ? 'Removes every card from your own board — the other players keep theirs'
-    : 'Reset the board — removes every card and all players but one';
+    ? 'Removes every card from your own board. The other players keep theirs'
+    : 'Reset the board. Removes every card and all players but one';
   $('#clearHand').hidden = spelLage
     ? !(minSpelare() && (minSpelare().cards.length || (minSpelare().pending || []).length))
     : state.players.every(q => !q.cards.length && !(q.pending || []).length);
@@ -10245,12 +10245,12 @@ function renderBibHog() {
   if (spelLage && arMitt(player()) && !(minSpelare() && (minSpelare().bibHog || lekBordAktivt()))) {
     const mig = minSpelare(), lek = mig && mig.lekId && mig.lek ? mig.lek : null;
     if (lek && lekUtanFastPlats()) { /* speglat bord: ingen fast hög, också med kameran tappad (speglatBord) */ }
-    else if (!lek) html = `<button type="button" class="bib tom" data-lekvalj="lek" title="Choose the deck you play with — the camera only looks for its cards"><span class="bibord">Pick a deck</span></button><span class="hograd"><i></i>Library</span>`;
+    else if (!lek) html = `<button type="button" class="bib tom" data-lekvalj="lek" title="Choose the deck you play with. The camera only looks for its cards"><span class="bibord">Pick a deck</span></button><span class="hograd"><i></i>Library</span>`;
     else {
       const k = lekAktiv && lekAktiv.id === lek.id ? lekKvar() : null, kvar = k ? k.kvar : (lek.antal || 0);
       const antal = `${kvar} ${kvar === 1 ? 'card' : 'cards'} not played yet (hand and library together)`;
       const inne = `<span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span><span class="utetxt"><b>In your hands</b><em>click outside or Esc to put down</em></span><span class="hchip bla">${IKON_HAND}<span>Pick up</span><b>${kvar}</b></span>`;
-      const titel = `${esc(lek.namn || 'Deck')} — ${antal}. Click to pick them up, or drop a card here to put it back`;
+      const titel = `${esc(lek.namn || 'Deck')}: ${antal}. Click to pick them up, or drop a card here to put it back`;
       html = `<button type="button" class="bib" data-lekvalj="lek" title="${titel}">${inne}</button><span class="hograd"><i></i>Library<b>${kvar}</b></span>`;
     }
   }
@@ -10817,7 +10817,7 @@ function gravSlappRuta(c) {
   let el = manaRow.querySelector('.gravslapp');
   if (!c) { if (el) el.remove(); return; }
   if (!el) { el = document.createElement('div'); el.className = 'gravslapp'; manaRow.appendChild(el); }
-  el.innerHTML = `<i></i><span>Let go — ${esc(namnAv(c))} lands face up on top</span>`;
+  el.innerHTML = `<i></i><span>Let go. ${esc(namnAv(c))} lands face up on top</span>`;
 }
 /* Exile-platsen (MES-145): medan ett kort ur graveyard dras står en plats
    bredvid högarna, och ett släpp där lägger kortet i exile. */
@@ -10857,7 +10857,7 @@ function renderGravHog(cards, d, bland) {
      speglat bord står den inte heller här före Yes (sida 5, tavla 1–3: ingen graveyard förrän man svarat). */
   const bredvid = hogarBredvid(player());
   const html = (bland || bredvid.grav || gravUtanFastPlats(player(), d.grav.length) ? '' : gravHtml(cards, d.grav))
-    + (ex && !bredvid.exil ? `<button type="button" class="exilhog" data-exil-open title="${ex} ${ex === 1 ? 'card' : 'cards'} in exile — click to pick them up"><span class="zonlbl">Exile</span><b>${ex}</b></button>` : '');
+    + (ex && !bredvid.exil ? `<button type="button" class="exilhog" data-exil-open title="${ex} ${ex === 1 ? 'card' : 'cards'} in exile. Click to pick them up"><span class="zonlbl">Exile</span><b>${ex}</b></button>` : '');
   const pid = player().id, n = d.grav.length;
   const vaxte = !!gravForra && gravForra.pid === pid && n > gravForra.n;
   gravForra = { pid, n };
@@ -11382,8 +11382,8 @@ function renderChrome(v) {
      fönstret — det säger inget för spelaren här. Med egen zoom procenten, och andra bord som förut. */
   const pct = v.steg && !v.manuell ? 'fit' : Math.round(v.z * 100) + '%' + (v.manuell ? '' : ' fit');
   const html = `<div class="zoomchip">`
-    + `<button type="button" class="zlage${matVerktyg === 'valj' ? ' on' : ''}" data-mat="valj" aria-label="Select"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 2l9 5.2-4 1.1-2.2 3.9z" fill="currentColor"/></svg><span class="knapptip">Select — click and drag cards (S)</span></button>`
-    + `<button type="button" class="zlage${matVerktyg === 'pan' ? ' on' : ''}" data-mat="pan" aria-label="Pan"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v13M1.5 8h13M6 3.5l2-2 2 2M6 12.5l2 2 2-2M3.5 6l-2 2 2 2M12.5 6l2 2-2 2"/></svg><span class="knapptip">Pan — click and drag anywhere to move the mat (S)</span></button></div>`
+    + `<button type="button" class="zlage${matVerktyg === 'valj' ? ' on' : ''}" data-mat="valj" aria-label="Select"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 2l9 5.2-4 1.1-2.2 3.9z" fill="currentColor"/></svg><span class="knapptip">Select: click and drag cards (S)</span></button>`
+    + `<button type="button" class="zlage${matVerktyg === 'pan' ? ' on' : ''}" data-mat="pan" aria-label="Pan"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v13M1.5 8h13M6 3.5l2-2 2 2M6 12.5l2 2 2-2M3.5 6l-2 2 2 2M12.5 6l2 2-2 2"/></svg><span class="knapptip">Pan: click and drag anywhere to move the mat (S)</span></button></div>`
     + `<div class="zoomchip">`
     + `<button type="button" class="zsteg" data-mat="ut" title="Zoom out (−)">−</button>`
     + `<input type="text" class="ztxt${v.manuell ? ' manuell' : ''}" id="matZoomTal" value="${pct}" inputmode="numeric" maxlength="3" autocomplete="off" spellcheck="false" aria-label="Zoom level" title="Type a zoom level, 1–100%">`
@@ -11852,7 +11852,7 @@ function renderInspektor() {
   const tecken = n => (n >= 0 ? '+' : '') + n;
   body.innerHTML = `
     <div class="insimg">${slv ? `<img class="slvb" src="${slv.src}" style="${slv.stil}" alt="${esc(namn)}" draggable="false" title="Click to enlarge (F)">` : src ? `<img src="${esc(src)}" alt="${esc(namn)}" draggable="false" title="Click to enlarge (F)">`
-      : `<div class="instom">${esc(namn)}<br><span style="color:#4d5a6d">${c ? '' : fel ? 'Could not be fetched — ' + esc(fel) : 'Fetching…'}</span></div>`}</div>
+      : `<div class="instom">${esc(namn)}<br><span style="color:#4d5a6d">${c ? '' : fel ? 'Could not be fetched. ' + esc(fel) : 'Fetching…'}</span></div>`}</div>
     <div class="insnamn"><b>${esc(namn)}</b><span>${esc(typ)}</span></div>
     ${kw.length ? `<div class="kwrad">${kw.map(k => `<span class="kwtile">${esc(k)}</span>`).join('')}</div>` : ''}
     ${(sum.p || sum.t) ? `<div class="ctbox"><div class="ctrub"><span>Counters</span><b>${tecken(sum.p)}/${tecken(sum.t)} in total</b></div>
@@ -11930,8 +11930,8 @@ function renderPill() {
   /* En manahög flyttas hel (MES-206); ur en tokenhög drar man fortfarande ut
      ett kort. Tap står kvar i knappen bredvid och rör bara det här kortet. */
   const hint = nStack > 1
-    ? (manaHog(c) ? `${nStack} stacked — drag moves all, <kbd>⌃</kbd>+drag moves one`
-      : `${nStack} stacked — drag moves one out`)
+    ? (manaHog(c) ? `${nStack} stacked: drag moves all, <kbd>⌃</kbd>+drag moves one`
+      : `${nStack} stacked: drag moves one out`)
     : esc(c.tapped ? 'Swing it back up' : 'Swing it sideways');
   const html = `<span class="hint">${hint}</span>`
     + `<button type="button" class="prim" data-pakt="tap">${c.tapped ? 'Untap' : 'Tap'}<kbd>T</kbd></button>`
@@ -11979,7 +11979,7 @@ function openKortMeny(cid, cx, cy) {
   const losbar = manaHog(c) && hand().filter(k => k.grp === c.grp).length > 1;
   matMenyEl.dataset.cid = cid;
   matMenyEl.innerHTML = `<div class="hd">${esc(namnAv(c))}</div>
-    <button type="button" data-ma="tap"><i style="background:var(--acc)"></i>${c.tapped ? 'Untap — stand it back up' : 'Tap — turn it sideways'}<kbd>T</kbd></button>
+    <button type="button" data-ma="tap"><i style="background:var(--acc)"></i>${c.tapped ? 'Untap: stand it back up' : 'Tap: turn it sideways'}<kbd>T</kbd></button>
     <button type="button" data-ma="flip"><i style="background:var(--blue)"></i>${c.flipped ? 'Turn face up' : (dfc ? 'Transform' : 'Turn face down')}<kbd>Space</kbd></button>
     <button type="button" data-ma="ctr"><i style="background:#57c785"></i>Counters…<kbd>C</kbd></button>
     ${losbar ? `<button type="button" data-ma="losa"><i style="background:#e0b44c"></i>Take it out of the stack<kbd>⌃ drag</kbd></button>` : ''}
@@ -12157,16 +12157,16 @@ function arkRita() {
     r = { x: pos.x, y: pos.y, w: MATTA.CW, h: MATTA.CH };
     const cands = (q.cands || []).slice(0, 3);
     html = q.overTak
-      ? `<div class="arkrub"><b>Another ${esc(cands[0] ? cands[0].name : 'card')}?</b><span>Your deck has only ${q.tak} — a clone, an extra land, or a token?</span></div>
+      ? `<div class="arkrub"><b>Another ${esc(cands[0] ? cands[0].name : 'card')}?</b><span>Your deck has only ${q.tak}: a clone, an extra land, or a token?</span></div>
       <button type="button" class="arkval prim" data-ark="gissa" data-n="0"><b>Add anyway</b><span>It is a real ${esc(cands[0] ? cands[0].name : 'card')} · Enter</span></button>
       <button type="button" class="arkval" data-ark="token"><b>Not a card / it's a token</b><span>The camera stops asking about it</span></button>
       <button type="button" class="arkval" data-ark="crop"><b>Show me the crop</b><span>See what the camera saw</span></button>
       <div class="arkfot"><button type="button" data-ark="senare">Decide later · Esc</button></div>`
       : `<div class="arkrub"><b>Which card is this?</b><span>The camera's best guesses from your deck</span></div>
-      ${arkBild(q) ? `<div class="arkbild"><img src="${arkBild(q)}" alt="What the camera saw"><p>What the camera saw. It's in your deck — pick it and the camera learns it.</p></div>` : ''}
+      ${arkBild(q) ? `<div class="arkbild"><img src="${arkBild(q)}" alt="What the camera saw"><p>What the camera saw. It's in your deck. Pick it and the camera learns it.</p></div>` : ''}
       ${cands.map((c, n) => { const kd = cardFor(c.name), typ = kd && kd.faces && kd.faces[0] ? kd.faces[0].type : ''; return `<button type="button" class="arkval medkbd${n === 0 ? ' prim' : ''}" data-ark="gissa" data-n="${n}"><b>${esc(c.name)}</b>${typ ? `<span>${esc(typ)}</span>` : ''}<kbd>${n + 1}</kbd></button>`; }).join('')}
       <button type="button" class="arksok" data-ark="sok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>Search your deck</button>
-      ${DEBUG ? '<button type="button" class="arkval" data-ark="crop"><b>Show me the crop</b><span>The review view — for the builder</span></button>' : ''}
+      ${DEBUG ? '<button type="button" class="arkval" data-ark="crop"><b>Show me the crop</b><span>The review view. For the builder</span></button>' : ''}
       <div class="arkfot"><button type="button" data-ark="token">It's not a card</button><button type="button" data-ark="senare">Decide later</button></div>`;
   }
   arkEl.innerHTML = html;
@@ -12240,7 +12240,7 @@ function gravHtml(cards, idx) {
   const src = card ? imgOf(card, 0, 'normal') || imgOf(card, 0, 'small') : '';
   const lager = [];
   for (let k = Math.min(n - 1, 4); k >= 1; k--) lager.push(`<i class="glager" style="--k:${k}"></i>`);
-  const titel = n ? `${n} ${n === 1 ? 'card' : 'cards'} in the graveyard — click to pick them up` : 'Cards that have been played end up here';
+  const titel = n ? `${n} ${n === 1 ? 'card' : 'cards'} in the graveyard. Click to pick them up` : 'Cards that have been played end up here';
   return `<button type="button" class="grav${n ? '' : ' tom'}" data-grav-open title="${titel}">${lager.join('')}`
     + (n ? `<img${src ? ` src="${esc(src)}"` : ''} alt="" draggable="false">` : '')
     + `<span class="gravsten">${GRAVSTEN}</span><span class="utetxt"><b>In your hands</b><em>click outside or Esc to put down</em></span>`
@@ -12684,7 +12684,7 @@ const M_LAGE_UTAN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none"
 /* Motståndarens läge vid namnet (game_players.lage), i spelarlistan och på mattans platta. */
 function lageMarkHtml(p) {
   const bord = p.lage === 'bord';
-  return `<span class="lagemark" title="${esc(p.name)} · ${bord ? 'Mirror my table' : 'Digital table'} — ${bord ? 'everything they do with their cards shows up there' : 'they put their cards on the mat themselves'}">${bord ? M_LAGE_BORD : M_LAGE_UTAN}</span>`;
+  return `<span class="lagemark" title="${esc(p.name)} · ${bord ? 'Mirror my table' : 'Digital table'}: ${bord ? 'everything they do with their cards shows up there' : 'they put their cards on the mat themselves'}">${bord ? M_LAGE_BORD : M_LAGE_UTAN}</span>`;
 }
 const M_CV = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const M_KUGGE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v3M12 18.4v3M21.4 12h-3M5.6 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4"/></svg>';
@@ -12730,7 +12730,7 @@ function renderMode() {
        kamerapanelen. Tidigare stod samma sak i lägeschippet, statusfältet
        och tomrutan. Står kameran av startar ett klick den. */
     const m = kamPillModell();
-    chip = `<button type="button" class="campill ${m.klass}${kamOppen ? ' open' : ''}" data-mode="pill" aria-expanded="${kamOppen}" title="${LAGE_NAMN[m.lage]} — how the camera works and its status"><span class="led"></span><span class="ikon">${m.lage === 'bord' ? M_LAGE_BORD : M_LAGE_UTAN}</span><span class="lbl">${esc(m.text)}</span><span class="cv">${M_CV}</span></button>`;
+    chip = `<button type="button" class="campill ${m.klass}${kamOppen ? ' open' : ''}" data-mode="pill" aria-expanded="${kamOppen}" title="${LAGE_NAMN[m.lage]}: how the camera works and its status"><span class="led"></span><span class="ikon">${m.lage === 'bord' ? M_LAGE_BORD : M_LAGE_UTAN}</span><span class="lbl">${esc(m.text)}</span><span class="cv">${M_CV}</span></button>`;
     /* Mattan säger hur länge bordet stått fruset (ritaKamMatt). */
     if (m.fel === 'tappad') modeT = setTimeout(renderMode, 10000);
   }
@@ -12748,7 +12748,7 @@ function renderMode() {
 }
 
 /* Mattan medan telefonen är borta (MES-355): "Frozen as it looked 2 min ago"
-   i hörnet när kameran är tappad (D1), och "Finding your phone" nertill
+   i hörnet när kameran är tappad (D1), och "Reconnecting to your phone" nertill
    medan datorn letar efter en omladdning (D2). Mattan tonas inte ned. */
 function ritaKamMatt() {
   const fr = $('#kamFrusen'), le = $('#kamLetarMatt'); if (!fr || !le) return;
@@ -12768,7 +12768,7 @@ function kamPillModell() {
   const lage = mittLage();
   if (prefs.autoLage !== true) return { klass: 'av', text: 'Camera off', lage, fel: 'av' };
   if (!kamAnsluten) return !kamHarVarit ? { klass: 'vantar', text: 'Waiting for phone', lage }
-    : kamLetar() ? { klass: 'vantar', text: 'Camera · finding your phone', lage, fel: 'letar' }
+    : kamLetar() ? { klass: 'vantar', text: 'Camera · reconnecting', lage, fel: 'letar' }
     : { klass: 'tappad', text: 'Camera lost', lage, fel: 'tappad' };
   if (kamFas === 'ingen') return { klass: 'vantar', text: 'Reload the phone', lage, fel: 'gammal' };
   if (kamFas === 'ljus' || kamFas === 'lar') return { klass: 'vantar', text: 'Camera · learning the light', lage };
@@ -12834,7 +12834,7 @@ function renderKamPop() {
   kameraLage();
   rensaOppstartsRutor();
   const m = kamPillModell(), bord = m.lage === 'bord', fel = m.fel || '';
-  const rubTxt = fel === 'tappad' ? 'Your phone stopped sending' : fel === 'letar' ? 'Finding your phone' : fel === 'gammal' ? 'Reload Mesa on your phone'
+  const rubTxt = fel === 'tappad' ? 'Your phone stopped sending' : fel === 'letar' ? 'Reconnecting to your phone' : fel === 'gammal' ? 'Reload Mesa on your phone'
     : fel === 'hittar' ? "The camera can't find your cards" : kamAnsluten || fel === 'av' ? 'Camera' : 'Connect your phone';
   const rub = $('#kamOvRubrik'); if (rub.textContent !== rubTxt) rub.textContent = rubTxt;
   $('#kamOvSt').hidden = !kamAnsluten || !!fel;
@@ -12846,11 +12846,11 @@ function renderKamPop() {
      (D3): Turn on camera, och koden. */
   const felHtml = fel === 'tappad'
       ? (kamAvSjalv ? '<p class="poptxt">You disconnected the phone. The cards stay as they were.</p>' : '')
-    : fel === 'letar' ? '<p class="poptxt">It’s still on your table, and it usually turns up in a few seconds. The cards stay as they are in the meantime.</p>'
+    : fel === 'letar' ? '<p class="poptxt">The connection to your phone dropped. Mesa is reconnecting, which usually takes a few seconds. Leave the phone where it is. Your cards will show up again as soon as it's back.</p>'
     : fel === 'av' ? '<p class="poptxt">The camera is off. You place and move cards yourself until you turn it on again.</p>'
         + '<div class="kamfelknappar"><button type="button" class="btn prim bred" data-mode="auto">Turn on camera</button></div>'
     : fel === 'gammal'
-      ? '<p class="poptxt">Your phone runs an older version of Mesa. Reload the page on the phone — the camera carries on where it stopped.</p>'
+      ? '<p class="poptxt">Your phone runs an older version of Mesa. Reload the page on the phone and the camera carries on where it stopped.</p>'
         + (kamQrTvinga ? '' : '<div class="kamfelknappar"><button type="button" class="btn" data-mode="visaqr">Show the QR code</button></div>')
     : fel === 'hittar' ? `<p class="poptxt">${esc(kamHittarRad())}</p>` : '';
   const fe = $('#kamFel'); if (fe.dataset.h !== felHtml) { fe.dataset.h = felHtml; fe.innerHTML = felHtml; }
@@ -12862,7 +12862,7 @@ function renderKamPop() {
   if (qrIgen) {
     const qrRub = fel === 'av' ? 'Scan with the phone' : 'Scan to reconnect';
     const qrFin = fel === 'av' ? 'Scanning opens Mesa straight into the camera, and turns it on here too.'
-      : 'With the phone’s camera. It opens Mesa straight into the camera — no setup.';
+      : 'With the phone’s camera. It opens Mesa straight into the camera. No setup.';
     if ($('#kamQrRub').textContent !== qrRub) $('#kamQrRub').textContent = qrRub;
     if ($('#kamQrFin').textContent !== qrFin) $('#kamQrFin').textContent = qrFin;
   }
@@ -12880,7 +12880,7 @@ function renderKamPop() {
     const mo = autoRemsaModell(senasteSpar, minSpelare(), { nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad });
     r1 = mo.text.replace(/^Camera · /, '');
     r1 = r1 ? r1[0].toUpperCase() + r1.slice(1) : '';
-    if (mo.not) r1 += ' — ' + mo.not;
+    if (mo.not) r1 += ': ' + mo.not;
     else if (kamSer && kamSer === kamLast && !mo.paVag.length) r1 += ' · all recognised';
   }
   const re = $('#kamRad1'); if (re.textContent !== r1) re.textContent = r1;
@@ -13188,7 +13188,7 @@ function renderOppstart() {
         fot = { txt: `Use ${esc(i.namn)} (${antal})`, a: 'lekklar', av: !oppLsKlar || !i.antal, hint: 'What you change is saved in Your decks too.' };
       }
       else if (!oppLekar) h = '<p class="opptxt">Fetching your decks…</p>';
-      else if (!oppLekar.length) h = '<p class="opptxt">Only cards from the deck you pick will be recognized. You have no decks yet — add your cards first.</p>' + nylek;
+      else if (!oppLekar.length) h = '<p class="opptxt">Only cards from the deck you pick will be recognized. You have no decks yet. Add your cards first.</p>' + nylek;
       else {
         if (!oppLekVal || !oppLekar.some(l => l.id === oppLekVal)) {
           const finns = id => id && oppLekar.some(l => l.id === id);
@@ -13212,7 +13212,7 @@ function renderOppstart() {
       if (prefs.autoLage !== true) { prefs.autoLage = true; savePrefs(); autoSumStarta(); setTimeout(renderMode, 0); }
       if (!oppQrVisas) { oppQrVisas = true; ritaQr(oppLank(), $('#oppQr')); }
       /* Öppnat igen med telefonen ansluten: koden står kvar för en annan telefon. */
-      const w = $('#oppWait'), t = kamAnsluten ? 'Phone connected — scan again to switch phones' : 'Waiting for your phone…';
+      const w = $('#oppWait'), t = kamAnsluten ? 'Phone connected: scan again to switch phones' : 'Waiting for your phone…';
       w.classList.toggle('ok', kamAnsluten);
       if (w.lastElementChild.textContent !== t) w.lastElementChild.textContent = t;
       fot = { txt: 'Continue', a: 'stang', av: !kamAnsluten };
@@ -13339,7 +13339,7 @@ async function bytLage(v) {
   renderAll(true);
   const ok = await Moln.sattLage(spelLage.id, v).catch(() => false);
   lageByte = false;
-  if (!ok) { mig.lage = fore; renderAll(true); toast('The mode could not be saved — try again', 'err'); return; }
+  if (!ok) { mig.lage = fore; renderAll(true); toast('The mode could not be saved. Try again', 'err'); return; }
   if (v === 'bord' && kamAnsluten && prefs.autoLage === true && senasteSpar.length) avstamBord(senasteSpar);
 }
 /* Kameran på är Mirror my table (sedan Use camera to add cards togs bort 2026-10-10). Står min rad på
@@ -13457,7 +13457,7 @@ function renderTomText(el) {
   /* I ett spel säger pillret hur kameran mår (MES-98); mattan säger bara
      var korten kommer att synas — en rad, ingen knapp. */
   const TYST = {
-    av: 'Drag a card from your deck (L) onto the mat — or turn on the camera with the camera button above.',
+    av: 'Drag a card from your deck (L) onto the mat. Or turn on the camera with the camera button above.',
     vantar: 'Your cards show up here once the camera is set up.',
     tappad: 'Your cards show up here once the camera is back.',
     startar: 'Your cards show up here in a moment.',
@@ -13477,7 +13477,7 @@ function renderTomText(el) {
     /* Kamerans övriga tillstånd säger pillret (MES-98); tomrutan har en rad
        för dem (TYST ovan) och ritar dem aldrig här. */
     redo: { ikon: IKON.kort, h: 'Play your first card',
-      p: bord ? 'Put a card down under the camera. It shows up here in a few seconds — and so does every tap.'
+      p: bord ? 'Put a card down under the camera. It shows up here in a few seconds. And so does every tap.'
               : 'Put a card down under the camera. It shows up here in a few seconds.',
       knappar: '', fin: '' }
   }[l];
@@ -13589,7 +13589,7 @@ async function resolveVarv() {
     renderAll();
     if (offline) {
       statusErr('No connection to Scryfall');
-      toast('Cannot reach Scryfall — the cards come back when the network does.', 'err');
+      toast('Cannot reach Scryfall. The cards come back when the network does.', 'err');
       break;
     }
   }
@@ -14202,7 +14202,7 @@ function ofrSokRita() {
   const hl = n => { const i = q ? n.toLowerCase().indexOf(q.toLowerCase()) : -1; return i < 0 ? `<span>${esc(n)}</span>` : `<span>${esc(n.slice(0, i))}</span><b>${esc(n.slice(i, i + q.length))}</b><span>${esc(n.slice(i + q.length))}</span>`; };
   const rader = s.traffar.map((t, i) => `<button type="button" class="sok-t${i === s.idx ? ' on' : ''}" data-soki="${i}">${hl(t.namn)}</button>`).join('');
   s.res.innerHTML = s.alla
-    ? `<span class="sok-tom">Nothing in your deck — searching all cards</span>${rader ? `<span class="sok-grp">${ofrSokLekId() ? 'All cards · adds to your deck' : 'All cards'}</span><div class="sok-lista">${rader}</div>` : ''}`
+    ? `<span class="sok-tom">Nothing in your deck. Searching all cards</span>${rader ? `<span class="sok-grp">${ofrSokLekId() ? 'All cards · adds to your deck' : 'All cards'}</span><div class="sok-lista">${rader}</div>` : ''}`
     : `<span class="sok-grp">From your deck</span><div class="sok-lista">${rader || '<span class="sok-tom">Type a card name</span>'}</div>`;
 }
 /* Lekens namn nära frågan, med stavfel: frågan mot början av varje ord i namnet (den som skrivit "bolt" eller
@@ -14790,15 +14790,15 @@ addEventListener('pointermove', ev => {
     matChip(mal ? c : null, chipText());
   }
   if (mal) matChip(c, chipText());
-  if (overE) matChip(c, 'Let go — ' + namnAv(c) + ' goes to exile');
-  else if (overB) matChip(c, 'Let go — back to your hand or library');
+  if (overE) matChip(c, 'Let go: ' + namnAv(c) + ' goes to exile');
+  else if (overB) matChip(c, 'Let go: back to your hand or library');
   else if (dnd.fraFan && !over && hfOverBand(ev)) matChip(c, 'Let go to put it back');
   else if ((dnd.fraLek || dnd.fraFan) && !mal && !over) matChip(c, 'Let go to put ' + namnAv(c) + ' on the table');
   if (dnd.hand) handChip(ev, !over && !overB && !overE && !mal);   // "Moving by hand" (MES-352), när inget annat chip talar
   function chipText() {
-    if (!vard) return 'Let go — the mana stacks here';
+    if (!vard) return 'Let go: the mana stacks here';
     const b = bifogTyp(c), v = hand().find(k => k.cid === vard);
-    return 'Let go — ' + (b.etikett === 'Equip' ? 'equip ' : b.etikett === 'Fortify' ? 'fortify ' : 'attach to ') + namnAv(v);
+    return 'Let go: ' + (b.etikett === 'Equip' ? 'equip ' : b.etikett === 'Fortify' ? 'fortify ' : 'attach to ') + namnAv(v);
   }
 });
 /* Chippet ovanför ett kort under drag. Ett enda element i brädlagret,
@@ -15024,7 +15024,7 @@ async function oppnaLekVal(fran) {
   const valdId = spelLage ? (mig && mig.lekId) : (lekAktiv && lekAktiv.id);
   const ute = lekISpel();
   lekValEl.innerHTML = (lista === null ? '<div class="lekvalrub">Your decks could not be fetched.</div>'
-    : !lista.length ? '<div class="lekvalrub">No decks yet — add your cards first.</div>'
+    : !lista.length ? '<div class="lekvalrub">No decks yet. Add your cards first.</div>'
     : `<div class="lekvalrub">Which deck are you playing?</div>` + (ute ? `<div class="lekvalnot">${esc(lekSparrTxt(ute))}</div>` : '') + lista.map(l =>
         `<button type="button" class="lekvaljrad${l.id === valdId ? ' on' : ''}" data-valj="${esc(l.id)}"${ute && l.id !== valdId ? ' disabled' : ''}><span class="pips">${pipsHtml(l.farger)}</span><span class="nm">${esc(l.namn)}</span><span class="antal">${l.antal || 0} cards</span></button>`).join(''))
     + `<hr><button type="button" class="lekvaljrad akt" data-hantera="${esc(valdId || '')}">Manage decks…</button>`;
@@ -15133,7 +15133,7 @@ function startRename(id) {
           namnByte = true;
           Moln.dopOm(spelLage.id, v).then(ok => {
             namnByte = false;
-            if (!ok) toast('The name could not be saved — the others still see the old one', 'err');
+            if (!ok) toast('The name could not be saved. The others still see the old one', 'err');
           });
         }
       }
@@ -19601,9 +19601,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const kvar = (q.koll || []).filter(x => { const kk = v.kort.find(c => nyckel(c.name, c.sb) === x); return kk && kk.koll; }).length;
     k.innerHTML = `<div class="lsklar"><span class="ic">${lsIk('check', 16, 2.6)}</span><div><b>${tot} ${tot === 1 ? 'card' : 'cards'} added from your list</b>`
       + `<span>${q.main} in the deck${q.sb ? ` and ${q.sb} in the sideboard` : ''}.</span></div></div>`
-      + (kvar ? `<button type="button" class="lstillkoll" data-ls="tillkoll"><span class="tcd"></span><span class="grow">${kvar === 1 ? '1 name wasn’t an exact match — check it' : `${kvar} names weren’t an exact match — check them`}</span><span class="ic">${lsIk('chev', 15, 2.2)}</span></button>` : '')
+      + (kvar ? `<button type="button" class="lstillkoll" data-ls="tillkoll"><span class="tcd"></span><span class="grow">${kvar === 1 ? '1 name wasn’t an exact match. Check it' : `${kvar} names weren’t an exact match. Check them`}</span><span class="ic">${lsIk('chev', 15, 2.2)}</span></button>` : '')
       + q.rader.map(t => `<p class="lshopp"><span class="ic">${lsIk('minus', 14, 2.2)}</span><span>${t}</span></p>`).join('')
-      + `<div class="lsrad"><button type="button" class="btn" data-ls-angra="${q.nr}">${lsIk('undo', 13)}Undo — remove all ${tot}</button></div>`
+      + `<div class="lsrad"><button type="button" class="btn" data-ls-angra="${q.nr}">${lsIk('undo', 13)}Undo: remove all ${tot}</button></div>`
       + '<p class="lslead">Or change and remove single cards on the right.</p>';
   }
   /* Just added och kvittot följer leken (lekNyssKvar): tas korten bort här,
@@ -19764,8 +19764,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     };
     const oka = l.filter(k => k.koll && k.okand).length, dubb = l.filter(k => k.koll && k.koll.dubbel && k.koll.sakert).length, nara = kvar - oka - dubb;
     const delar = [];
-    if (nara) delar.push(`${nara === 1 ? 'This name' : 'These names'} didn’t match a card exactly. Mesa picked the closest card — ${nara === 1 ? 'it’s' : 'they’re'} in the deck until you say otherwise.`);
-    if (oka) delar.push(`${oka === 1 ? 'One card' : `${oka} cards`} from the photos couldn’t be named — read ${oka === 1 ? 'its' : 'their'} title line and pick the card.`);
+    if (nara) delar.push(`${nara === 1 ? 'This name' : 'These names'} didn’t match a card exactly. Mesa picked the closest card, and ${nara === 1 ? 'it’s' : 'they’re'} in the deck until you say otherwise.`);
+    if (oka) delar.push(`${oka === 1 ? 'One card' : `${oka} cards`} from the photos couldn’t be named. Read ${oka === 1 ? 'its' : 'their'} title line and pick the card.`);
     if (dubb) delar.push(`${dubb === 1 ? 'One card' : `${dubb} cards`} may have been photographed twice. Say if it is one card or two.`);
     const sub = delar.length ? delar.join(' ') : 'All checked.';
     return `<div class="lstc"><div class="lstchd"><span class="tcd"></span><b>To check</b><span class="tn">${kvar}</span>`
@@ -20051,7 +20051,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const kl = 'lspw' + (valt ? ' valt' : '') + (p.koll ? ' chk' : bekr ? ' bekr' : ny ? ' ny' : '');
     return `<div class="${kl}" data-ls-kort="${esc(p.name)}" data-sb="${p.sb ? 1 : 0}"><div class="lspile" tabindex="0" aria-pressed="${valt}" aria-label="${esc(p.name)}, ${p.n} ${p.n === 1 ? 'copy' : 'copies'}">${lager}${bild}<span class="cnt">${p.n}</span>${merke}`
       + `<div class="lstool"><button type="button" data-lk="minus" title="One fewer">${lsIk('minus', 13, 2.4)}</button><b>${p.n}</b><button type="button" data-lk="plus" title="One more">${lsIk('plus', 13, 2.4)}</button>`
-      + `<i class="sep"></i><button type="button" data-lk="byt" title="Change it to another card — if Mesa read it wrong">${lsIk('swap', 13)}Change card…</button>`
+      + `<i class="sep"></i><button type="button" data-lk="byt" title="Change it to another card. If Mesa read it wrong">${lsIk('swap', 13)}Change card…</button>`
       + `<button type="button" data-lk="sb">${p.sb ? 'Move to main deck' : 'Move to sideboard'}</button>`
       + `<i class="sep"></i><button type="button" class="fara" data-lk="bort" title="Remove from the deck">${lsIk('x', 13, 2.4)}</button></div>`
       + `</div><span class="plab" title="${esc(p.name)}">${esc(p.name)}</span></div>`;
@@ -20422,7 +20422,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const topp = k.okand
       ? (k.koll && k.koll.remsa ? `<span class="plbl">In the photo</span><img class="lsstrip" src="${esc(k.koll.remsa)}" alt="">` : '')
         + `<div class="prow top">${popTumme(k)}<div class="pcol"><h4>Which card is this?</h4><span class="psub">${okandSkrev(k)}. ${kopiorText(k.n)}${k.sb ? ' in the sideboard' : ''}. Type the name on the title line and pick the card.</span></div></div>`
-      : `<div class="prow top">${popTumme(k)}<div class="pcol"><h4>${esc(k.name)}</h4><span class="psub">${k.koll ? `${kollSkrev(k)}. ` : ''}${kopiorText(k.n)}${k.sb ? ' in the sideboard' : ''}. Pick the card it should be — ${k.n === 1 ? 'it changes' : 'they all change'} with it.</span></div></div>`;
+      : `<div class="prow top">${popTumme(k)}<div class="pcol"><h4>${esc(k.name)}</h4><span class="psub">${k.koll ? `${kollSkrev(k)}. ` : ''}${kopiorText(k.n)}${k.sb ? ' in the sideboard' : ''}. Pick the card it should be and ${k.n === 1 ? 'it changes' : 'they all change'} with it.</span></div></div>`;
     /* Nästa kort i ett svep säger vad som hände med det förra, så att det
        syns att valet gick igenom när rutan byter innehåll. */
     visaPop(`<span class="ptag">${k.okand ? 'Pick the card' : 'Change card'}${p.av > 1 ? ` · ${p.nr} of ${p.av}` : ''}</span>`
@@ -20460,7 +20460,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       p.soker = false;
       if (y.pop !== p || !fel) return;
       fel.classList.remove('dim');
-      fel.textContent = e && e.tillfallig ? 'The lookup did not get through — try again.' : `No card is called “${lsKort(namn)}” — check the spelling.`;
+      fel.textContent = e && e.tillfallig ? 'The lookup did not get through. Try again.' : `No card is called “${lsKort(namn)}”. Check the spelling.`;
       return;
     }
     if (s !== y.session || y.pop !== p) return;
@@ -20515,7 +20515,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     let c = cardFor(namn);
     if (!c) {
       try { c = await lookup(namn); }
-      catch (e) { toast(`Could not look up ${namn} — try again when you have network`, 'err'); return false; }
+      catch (e) { toast(`Could not look up ${namn}. Try again when you have network`, 'err'); return false; }
     }
     if (s !== y.session) return false;
     andra({ typ: 'antal', name: c.name, sb: false, d, kort: { name: c.name, sid: c.id, small: imgOf(c, 0, 'small'), ci: c.ci || [] } });
@@ -20534,7 +20534,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!lekKanVaraNamn(namn, true)) { toast("That doesn't look like a card name. Type it as it's printed on the card.", 'err'); return; }
     let k;
     try { k = await lookup(namn); }
-    catch (e) { toast(e && e.tillfallig ? 'The lookup did not get through — try again' : `No card is called “${lsKort(namn)}” — check the spelling`, 'err'); return; }
+    catch (e) { toast(e && e.tillfallig ? 'The lookup did not get through. Try again' : `No card is called “${lsKort(namn)}”. Check the spelling`, 'err'); return; }
     if (s !== y.session) return;
     const small = imgOf(k, 0, 'small');
     if (kalla && !kalla.src) kalla.src = small;
@@ -20603,10 +20603,10 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
        en leklista, och det enda nyttiga svaret är hur en sådan ser ut. */
     if (!ops.length && !saknas.length && !natfel.length) { y.kvitto = LS_LISTFORMAT; ritaKvitto(); return; }
     const delar = [];
-    if (saknas.length) delar.push(`${saknas.length === 1 ? 'No card is' : 'No cards are'} called ${lsUpprakna(saknas.map(lsCitat))} — check the spelling, or find ${saknas.length === 1 ? 'it' : 'them'} under Type.`);
-    if (natfel.length) delar.push(`${lsUpprakna(natfel.map(lsCitat))} could not be looked up — the connection dropped. Paste ${natfel.length === 1 ? 'that line' : 'those lines'} again in a moment.`);
+    if (saknas.length) delar.push(`${saknas.length === 1 ? 'No card is' : 'No cards are'} called ${lsUpprakna(saknas.map(lsCitat))}. Check the spelling, or find ${saknas.length === 1 ? 'it' : 'them'} under Type.`);
+    if (natfel.length) delar.push(`${lsUpprakna(natfel.map(lsCitat))} could not be looked up. The connection dropped. Paste ${natfel.length === 1 ? 'that line' : 'those lines'} again in a moment.`);
     if (hoppade) delar.push(`${hoppade} ${hoppade === 1 ? "line wasn't a card and was" : "lines weren't cards and were"} skipped.`);
-    if (kapade) delar.push(`Only the first ${LS_LIST_TAK} cards were read — paste the rest separately.`);
+    if (kapade) delar.push(`Only the first ${LS_LIST_TAK} cards were read. Paste the rest separately.`);
     if (!ops.length) {
       y.kvitto = [saknas.length ? '<b>None of the names matched a card.</b>' : '<b>The cards could not be looked up.</b>', ...delar].join(' ');
       ritaKvitto(); return;
@@ -21514,7 +21514,7 @@ async function pasteOrPick() {
       const t = it.types.find(x => x.startsWith('image/'));
       if (t) { await addShot(await it.getType(t)); return; }
     }
-    toast('No image in the clipboard — take a screenshot first (⇧⌘4 on Mac)', 'err');
+    toast('No image in the clipboard. Take a screenshot first (⇧⌘4 on Mac)', 'err');
   } catch (e) {
     $('#swInput').click();
   }
@@ -23057,11 +23057,11 @@ async function analyzeShot(shotId) {
 
     const lekPool = await ensureLekPool(p => {
       anEl.title.textContent = 'Learning your deck';
-      anEl.note.textContent = 'Done once per deck — then stored in the browser';
+      anEl.note.textContent = 'Done once per deck. Then stored in the browser';
       if (p.phase === 'list') anStep(`Fetching the deck's artwork from Scryfall… ${p.done} cards`);
       else { anBar(p.done / p.total); anStep(`Building image signatures… ${p.done} of ${p.total}`); }
     });
-    if (!lekPool) { anToast('Pick a deck first — the cards are recognised against it (the Mesa menu, top left → My decks)', 'err'); return 0; }
+    if (!lekPool) { anToast('Pick a deck first. The cards are recognised against it (the Mesa menu, top left → My decks)', 'err'); return 0; }
     anEl.title.textContent = spelLage ? 'Reading your board…' : 'Reading the screenshot…';
     anEl.note.textContent = '';
     anBar(0);
@@ -23177,7 +23177,7 @@ async function analyzeShot(shotId) {
        fungerande avläsning ut som att ingenting hittades. */
     if (aiEnabled() && prefs.aiAuto) {
       try { await claudePaneSweep(img, panes, shotId, out, namnLoftet); }
-      catch (e) { anToast('Could not read the whole image — showing what was found anyway', 'err'); }
+      catch (e) { anToast('Could not read the whole image. Showing what was found anyway', 'err'); }
     }
     if (cancelAnalyze) return 0;      // avbrutet: inget resultat, inget besked
     return applyAnalysis(shotId, out, img);
@@ -23205,7 +23205,7 @@ async function analyzeExtra(shotId, tyst) {
     /* En människa som klistrat in en bild och sett rutan stängas har ingen
        aning om att den inte lästes. Med auto på kan kameran hålla avläsningen
        upptagen (taEmotScan). */
-    if (!tyst) { toast('Another image is still being read — paste it again in a moment', 'err'); return 0; }
+    if (!tyst) { toast('Another image is still being read. Paste it again in a moment', 'err'); return 0; }
     return new Promise(res => kamKo.push({ shotId, res }));
   }
   analyzing = true; nyAvbrytning();
@@ -23224,11 +23224,11 @@ async function analyzeExtra(shotId, tyst) {
 
     const lekPool = await ensureLekPool(p => {
       anEl.title.textContent = 'Learning your deck';
-      anEl.note.textContent = 'Done once per deck — then stored in the browser';
+      anEl.note.textContent = 'Done once per deck. Then stored in the browser';
       if (p.phase === 'list') anStep(`Fetching the deck's artwork from Scryfall… ${p.done} cards`);
       else { anBar(p.done / p.total); anStep(`Building image signatures… ${p.done} of ${p.total}`); }
     });
-    if (!lekPool) { anToast('Pick a deck first — the cards are recognised against it (the Mesa menu, top left → My decks)', 'err'); return 0; }
+    if (!lekPool) { anToast('Pick a deck first. The cards are recognised against it (the Mesa menu, top left → My decks)', 'err'); return 0; }
     anEl.title.textContent = 'Reading the image…';
     anEl.note.textContent = ''; anBar(0);
     if (cancelAnalyze) return 0;
@@ -23275,7 +23275,7 @@ async function analyzeExtra(shotId, tyst) {
       if (!props.length) {
         const w = Math.min(iw, ih * Matcher.ASPECT);
         props = [{ cx: iw / 2, cy: ih / 2, w, h: w / Matcher.ASPECT, deg: 0, score: 0 }];
-        anEl.note.textContent = 'No card edge found — reading the whole image as one card';
+        anEl.note.textContent = 'No card edge found. Reading the whole image as one card';
       } else {
         anEl.note.textContent = props.length === 1 ? '1 card found' : `${props.length} cards found`;
       }
@@ -23602,7 +23602,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
   await Promise.all(panes.map((_, i) => (async () => {
     if (cancelAnalyze) return;
     anStep(!spelLage && panes.length > 1
-      ? `Looking once more for cards that were missed — ${panes.length} players at once`
+      ? `Looking once more for cards that were missed (${panes.length} players at once)`
       : 'Looking once more for cards that were missed…');
     /* Härifrån och tills anropet svarar finns ingenting att mäta — det är ett
        enda anrop som tar en kvarts minut. Stapeln står obestämd i stället för
@@ -23773,7 +23773,7 @@ async function claudePass(out, img) {
       }
       done++;
       anBar(done / todo.length);
-      anStep(`Trying again on ${todo.length} uncertain cards — ${done} of ${todo.length}`);
+      anStep(`Trying again on ${todo.length} uncertain cards (${done} of ${todo.length})`);
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONC, todo.length) }, worker));
@@ -23877,7 +23877,7 @@ function applyAnalysis(shotId, out, img) {
   /* Hittas inget alls syns det inte i vyn — det behöver en notis. Hittas
      kort framgår det redan av korten som dyker upp. */
   if (!nc && !np) toast('No cards found on the tables in this image', 'err');
-  else if (!nc) toast(`${nc + np} cards found, none could be identified — fill them in yourself`, 'err');
+  else if (!nc) toast(`${nc + np} cards found, none could be identified. Fill them in yourself`, 'err');
   return nc + np;
 }
 
@@ -23955,9 +23955,9 @@ function appendAnalysis(shotId, out, img, ersatt, franHand) {
 
   const n = nya.length, v = nyaVantar.length;
   if (!n && !v) anToast(ersatt && p.cards.length
-    ? 'No cards found in the image — your board is untouched'
+    ? 'No cards found in the image. Your board is untouched'
     : 'No cards found in the image', 'err');
-  else if (!n) anToast(`${v} cards found, none could be identified — fill them in yourself`, 'err');
+  else if (!n) anToast(`${v} cards found, none could be identified. Fill them in yourself`, 'err');
   return n + v;
 }
 
@@ -24126,7 +24126,7 @@ async function scanAt(box, hint) {
   $('#pickImg').src = makeCrop(swImg, box, hint || 0, 260) || '';
   $('#pickSearch').value = '';
   candList.innerHTML = '';
-  scanNoteEl.innerHTML = Pool.idx ? '<span class="spin"></span> Searching…' : 'No deck to match against — type the name instead.';
+  scanNoteEl.innerHTML = Pool.idx ? '<span class="spin"></span> Searching…' : 'No deck to match against. Type the name instead.';
   $('#scanSkip').hidden = true;
   $('#scanAI').hidden = !aiEnabled();
   $('#scanTitle').textContent = 'Which card is this?';
@@ -24193,14 +24193,14 @@ function renderCands() {
      gå på — ett "Pc Sword" är en bättre ledtråd än ingen alls. */
   const nl = granskar && SW.namnLast;
   const nlText = nl && nl.namn
-    ? `The title was read as “${esc(nl.text || '')}” — closest in your deck: <b>${esc(nl.namn)}</b> (${nl.poang}). `
+    ? `The title was read as “${esc(nl.text || '')}”: closest in your deck: <b>${esc(nl.namn)}</b> (${nl.poang}). `
     : nl && nl.hoppad ? 'The card was too small to read the title. ' : nl && nl.text === '' ? 'The title could not be read. ' : '';
   scanNoteEl.innerHTML = granskar
     ? (nlText + (gissning ? 'If that is wrong, type the right name in the box above.'
                 : nl && nl.namn ? 'If that is right, type it in the box above.'
                 : 'Neither the image match nor the model could read this card. Type the name above.'))
     : list.length ? 'Pick a suggestion, press <kbd>1</kbd>–<kbd>5</kbd>, or type the name.'
-                  : 'No suggestions — type the name in the box above.';
+                  : 'No suggestions: type the name in the box above.';
   $('#scanSkip').hidden = !granskar;
   $('#scanAI').hidden = granskar || !aiEnabled() || !list.length;
 }
@@ -24475,7 +24475,7 @@ function openAI() {
   $('#aiStatus').innerHTML = server && aiPausad()
     ? `<div class="nm"><b>Paused</b> <span>${esc(AI_PAUS.text)}</span></div>`
     : server
-    ? `<div class="nm"><b style="color:var(--green)">On</b><span>Handled by the app's server${AI.model ? ' · ' + esc(AI.model) : ''}${AI.promptv != null ? ' · instructions v' + esc(String(AI.promptv)) : ''} — you need no key of your own.</span></div>`
+    ? `<div class="nm"><b style="color:var(--green)">On</b><span>Handled by the app's server${AI.model ? ' · ' + esc(AI.model) : ''}${AI.promptv != null ? ' · instructions v' + esc(String(AI.promptv)) : ''}. You need no key of your own.</span></div>`
     : aiKey()
     ? `<div class="nm"><b>Own key saved</b><span>The app runs without a server, so the key lives in this browser.</span></div>`
     : `<div class="nm"><b>Off</b><span>No server was found and no key is set.</span></div>`;
@@ -24597,10 +24597,10 @@ function claudeError(e) {
   const s = (e && e.message) || '';
   const st = e && e.status;
   if (st === 503) return { fatal: true, msg: s || 'AI help is not available right now.' };
-  if (st === 429) return { fatal: true, msg: s || 'Too many requests — wait a moment.' };
+  if (st === 429) return { fatal: true, msg: s || 'Too many requests. Wait a moment.' };
   if (st === 403) return { fatal: true, msg: 'The server refused the call.' };
   if (/401|authentication|invalid x-api-key/i.test(s)) return { fatal: true, msg: 'The key was rejected.' };
-  if (/429|rate.?limit/i.test(s)) return { fatal: true, msg: 'Too many requests — wait a moment.' };
+  if (/429|rate.?limit/i.test(s)) return { fatal: true, msg: 'Too many requests. Wait a moment.' };
   if (/credit|billing|quota/i.test(s)) return { fatal: true, msg: 'The account is out of credits.' };
   if (/Failed to fetch|NetworkError|CORS/i.test(s)) return { fatal: true, msg: 'Could not reach the Anthropic API.' };
   return { fatal: false, msg: s || 'unknown error' };
@@ -29104,7 +29104,7 @@ const Kamera = (() => {
       const d0 = detektera(g, null, AW, AH, undefined, undefined, det);
       matcha(spar, d0.fynd, d0.mask, nu, dt, upp, true);
       senasteG0 = g0; senasteG = g; senasteMask = d0.mask;
-      säg('ljus', 'Learning the light — hold the phone still', 'Takes a couple of seconds. The cards can stay.');
+      säg('ljus', 'Learning the light. Hold the phone still', 'Takes a couple of seconds. The cards can stay.');
       dia.ms = Math.round(nuRiktig() - tSteg);
       if (refN < R(REF_RUTOR)) { if (tillstandsSignatur() !== sandSignatur) rapportera(); return; }
       ref = refSum; for (let i = 0; i < n; i++) ref[i] /= refN;
@@ -29121,7 +29121,7 @@ const Kamera = (() => {
       const riktiga0 = spar.filter(t => t.tillstand !== 'skrap');
       /* Fasen först, bordet sedan: datorn lyssnar inte på ett bord som kommer
          med fasen "lär sig ljuset". */
-      säg(riktiga0.length ? 'kort' : 'tom', riktiga0.length ? antalText(riktiga0.length, riktiga0.filter(t => t.skymd).length) : 'Ready — put cards on the table', yta.dom === 'lugn'
+      säg(riktiga0.length ? 'kort' : 'tom', riktiga0.length ? antalText(riktiga0.length, riktiga0.filter(t => t.skymd).length) : 'Ready: put cards on the table', yta.dom === 'lugn'
         ? 'Leave some space between the cards. The computer shows what you put out.'
         : yta.rad);
       rapportera();
@@ -29173,7 +29173,7 @@ const Kamera = (() => {
       if (++felRader >= R(10)) {
         omtag++; felRader = 0; glomReferens(); omtagRensa = true;
         senasteG0 = g0; senasteG = g; senasteMask = mask; senasteGNar = performance.now();
-        säg('ljus', 'Learning the light — hold the phone still', 'The picture has moved. Retaking the reference; the cards can stay.');
+        säg('ljus', 'Learning the light. Hold the phone still', 'The picture has moved. Retaking the reference; the cards can stay.');
         dia.ms = Math.round(nuRiktig() - tSteg);   // rutans tid också här: loopen lägger detektorns tid ovanpå (MES-329)
         return;
       }
@@ -29245,7 +29245,7 @@ const Kamera = (() => {
     const skymda = riktiga.filter(t => t.skymd).length;
     dia.ms = Math.round(nuRiktig() - tSteg);
     if (latens) stegHist[Math.min(100, Math.floor(dia.ms / STEG_FACK))]++;
-    säg(riktiga.length ? 'kort' : 'tom', riktiga.length ? antalText(riktiga.length, skymda) : 'Ready — put cards on the table', radAvstand() || undefined);
+    säg(riktiga.length ? 'kort' : 'tom', riktiga.length ? antalText(riktiga.length, skymda) : 'Ready: put cards on the table', radAvstand() || undefined);
   }
 
   /* Medelavvikelse mellan rutan och referensen över fri yta, var tredje
@@ -31122,7 +31122,7 @@ function ritaKamFin() {
 function kamUpplosningRad(u) {
   if (!u || !u.w) return '';
   const under = u.max && Math.max(u.w, u.h) < Math.max(u.max.w, u.max.h);
-  return `The picture is ${u.w}×${u.h}` + (under ? ` — the phone can do ${u.max.w}×${u.max.h}` : '');
+  return `The picture is ${u.w}×${u.h}` + (under ? ` (the phone can do ${u.max.w}×${u.max.h})` : '');
 }
 function satKamFin(del, txt) { kamFinDel[del] = txt || ''; ritaKamFin(); }
 const kamSag = (l, txt, fin) => {
@@ -31169,7 +31169,7 @@ async function oppnaKamera(gameId) {
     datorer: d => kamDatorNarvaro(d),
     /* Den privata kamerakanalen nekades (MES-305): bilderna når ingen dator.
        Sägs i statusraden i stället för att kameran tyst filmar i ett svart hål. */
-    kamfel: () => kamSag('fel', 'The camera channel was refused — this phone cannot reach the computer')
+    kamfel: () => kamSag('fel', 'The camera channel was refused. This phone cannot reach the computer')
   });
 
   try {
@@ -31360,7 +31360,7 @@ async function byggKamPool() {
     sattKamLekAntal(lek && lek.kort);
     if (!lek) {
       kamPoolNyckel = null;
-      satKamFin('pool', 'No deck yet — open the Mesa menu (top left) → My decks on the computer and add your cards. Until then I see the cards but cannot tell which they are.');
+      satKamFin('pool', 'No deck yet. Open the Mesa menu (top left) → My decks on the computer and add your cards. Until then I see the cards but cannot tell which they are.');
       return;
     }
     const nyckel = (lek.id || 'konto') + ':' + (lek.ts || 0);
@@ -31390,7 +31390,7 @@ async function byggKamPool() {
         const nu = Date.now(); if (nu - sistM < 400) return; sistM = nu;
         satKamFin('modell', `Learning the artwork… ${Math.round(100 * p.done / Math.max(1, p.total))} %`);
       }).then(idx => {
-        if (Pool.idx === poolen) satKamFin('modell', idx ? '' : (KamEmbed.fel ? 'Image model unavailable — recognising the slower way.' : ''));
+        if (Pool.idx === poolen) satKamFin('modell', idx ? '' : (KamEmbed.fel ? 'Image model unavailable. Recognising the slower way.' : ''));
         /* Remsleken (MES-330) efter kortleken, tyst i bakgrunden: ~4 körningar per bild första gången, sedan ur IndexedDB. */
         if (idx && Pool.idx === poolen) KamEmbed.byggRemsor(poolen).catch(() => {});
       });
@@ -31949,13 +31949,13 @@ function kamAiPoster(kort, sparId, prior) {
    foto; Sonnet 5 3,6 s och 1 cent (ANTHROPIC_MODEL_KAMERA). */
 const HELBILD_B64_TAK = 880_000;
 async function kamHelbild(canvas, o) {
-  if (AI.mode !== 'server' || !prefs.aiAuto) { satKamFin('ai', 'AI help is off — turn it on in the menu on the computer.'); return null; }
+  if (AI.mode !== 'server' || !prefs.aiAuto) { satKamFin('ai', 'AI help is off. Turn it on in the menu on the computer.'); return null; }
   if (aiPausad()) { satKamFin('ai', AI_PAUS.text); return null; }
   if (!Pool.idx) { satKamFin('ai', 'The deck is not ready yet.'); return null; }
   if (!canvas) return null;
   const nu = Date.now();
   while (kamAiTider.length && nu - kamAiTider[0] > 60000) kamAiTider.shift();
-  if (kamAiTider.length >= KAM_AI_TAK_PER_MIN) { satKamFin('ai', 'Too many questions to Claude this minute — wait a little.'); return null; }
+  if (kamAiTider.length >= KAM_AI_TAK_PER_MIN) { satKamFin('ai', 'Too many questions to Claude this minute. Wait a little.'); return null; }
   kamAiTider.push(nu); kamAiVantar++;
   satKamFin('ai', 'Asking Claude about the whole table…');
   const t0 = performance.now();
@@ -32141,10 +32141,10 @@ function kamKortSedan(ts) {
 function ritaKamRuta() {
   const el = $('#kamRuta'); if (!el) return;
   let r = null;
-  if (kamLage && kamNere) r = ['Reconnecting…', 'The connection dropped. The camera keeps watching your table — the computer catches up as soon as it’s back.',
+  if (kamLage && kamNere) r = ['Reconnecting…', 'The connection dropped. The camera keeps watching your table. The computer catches up as soon as it’s back.',
     `Trying again · ${Math.max(0, Math.round((Date.now() - kamNere) / 1000))} s`];
-  else if (kamLage && kamAterstart) r = ['Starting the camera again…', `This page reloaded. It’s still the camera for ${kamLage.kod} — no need to scan anything.`, 'Back in a moment'];
-  else if (kamLage && !kamDatorSvararNu()) r = ['The computer isn’t responding', 'Your computer reloaded or closed Mesa. The camera keeps watching — the table catches up when it’s back. Nothing to do here.',
+  else if (kamLage && kamAterstart) r = ['Starting the camera again…', `This page reloaded. It’s still the camera for ${kamLage.kod}: no need to scan anything.`, 'Back in a moment'];
+  else if (kamLage && !kamDatorSvararNu()) r = ['The computer isn’t responding', 'Your computer reloaded or closed Mesa. The camera keeps watching. The table catches up when it’s back. Nothing to do here.',
     kamSenastSvar ? 'Last heard from ' + kamKortSedan(kamSenastSvar) : ''];
   if (kamLage) $('#kamPrick').classList.toggle('pa', !kamNere && kamDatorSvararNu());
   if (el.hidden !== !r) el.hidden = !r;
@@ -32918,8 +32918,8 @@ function autoRemsaModell(spar, mig, extra) {
      telefonen), sist det nedtonade (bordet visar det redan). */
   if (rorligt) m.not = 'Something is moving on the table';
   else if (senast && autoAvgjort(senast)) m.not = `${vem} went to the review`;
-  else if (senast && senast.tillstand === 'okand') { m.not = `${vem} — asking Claude …`; m.puls = true; }
-  else if (senast && e.rad) { m.not = `${vem} is hard to read — ${autoRadSkal(e.rad)}`; m.puls = true; }
+  else if (senast && senast.tillstand === 'okand') { m.not = `${vem}: asking Claude …`; m.puls = true; }
+  else if (senast && e.rad) { m.not = `${vem} is hard to read. ${autoRadSkal(e.rad)}`; m.puls = true; }
   else if (senast) { m.not = `${vem} is being read …`; m.puls = true; }
   else if (e.sma > 0) m.not = e.sma === 1 ? 'One card is too small to read' : `${autoAntal(e.sma)} cards are too small to read`;
   return m;
@@ -34686,7 +34686,7 @@ function flygFranHandTill(h, hog) {
    längre: ett foto är ett foto och rör inte kameran (MES-25). */
 async function stangAvAuto(fraga) {
   if (fraga && kamAnsluten && !await ask(
-      'The phone stops watching the table. Cards you move there no longer show up here — you move them yourself or upload a photo. The camera can be turned on again from the menu.',
+      'The phone stops watching the table. Cards you move there no longer show up here. You move them yourself or upload a photo. The camera can be turned on again from the menu.',
       { title: 'Turn off the camera?', ok: 'Turn off', nej: 'Keep the camera', danger: true })) return false;
   /* Passet sammanfattas FÖRE nollställningen: senaste bordet och mitt bord
      är underlaget för "ännu utan namn", och glomSpar tar bindningarna.
@@ -34729,8 +34729,8 @@ function bokforDatorAi(modell, usage, fel) {
 function uppdateraPbStatus() {
   const el = $('#pbStatus'); if (!el || !kamSkruvOppen) return;
   let h;
-  if (kamFas === 'ingen') h = 'The phone is running an older version of the page — reload it on the phone.';
-  else if (kamFas === 'ljus' || kamFas === 'lar') h = 'Learning the light — hold the phone still for a second. The cards can stay.';
+  if (kamFas === 'ingen') h = 'The phone is running an older version of the page. Reload it on the phone.';
+  else if (kamFas === 'ljus' || kamFas === 'lar') h = 'Learning the light. Hold the phone still for a second. The cards can stay.';
   else if (!kamSer) h = '<b>The table is empty.</b> Put out a card and it gets a frame here.';
   else {
     /* Bara det som faktiskt står i kön lovas granskning: ett rött spår man
@@ -34740,7 +34740,7 @@ function uppdateraPbStatus() {
     const okanda = kamTot - kamLast, kvar = okanda - iKo, laser = kamSer - kamTot;
     h = `Sees <b>${kamSer}</b> cards and recognises <b>${kamLast}</b>.`
       + (iKo ? ` ${iKo === 1 ? 'The red card goes' : 'The red ones go'} to the review.` : '')
-      + (kvar > 0 ? ` ${kvar === 1 ? 'One red card is' : kvar + ' red cards are'} still without a name — lift the card and it asks again.` : '')
+      + (kvar > 0 ? ` ${kvar === 1 ? 'One red card is' : kvar + ' red cards are'} still without a name. Lift the card and it asks again.` : '')
       + (laser > 0 ? ` ${laser === 1 ? 'One is' : laser + ' are'} still being read.` : '');
   }
   const rad = kamRad || (kamYta && kamYta.dom !== 'lugn' ? kamYta.rad : '');
@@ -35287,18 +35287,18 @@ const LatensDator = (() => {
       if (h.ua === undefined) rad('varn', 'The phone runs an older Mesa: the report will miss release times, the shadow and the phone model. Reload Mesa on the phone.');
       if (h.dold) rad('fel', 'Mesa is in the background on the phone. Bring it to the front.');
       const mod = { webgpu: ['ok', 'Image model ready on WebGPU (fast path).'],
-                    wasm: ['varn', 'Image model on WASM (slower path; WebGPU needs iOS 26). The test still works — note it.'],
+                    wasm: ['varn', 'Image model on WASM (slower path; WebGPU needs iOS 26). The test still works. Note it.'],
                     klar: ['ok', 'Image model ready.'],
                     laddar: ['vant', 'Image model loading on the phone. Wait until this turns green before you play.'],
                     vantar: ['vant', 'Image model waiting for the deck. Pick your deck and let the phone finish learning it.'],
-                    fel: ['fel', `Image model unavailable (${h.modellFel || 'unknown error'}). The phone recognises the slower way — the test does not measure the model.`],
+                    fel: ['fel', `Image model unavailable (${h.modellFel || 'unknown error'}). The phone recognises the slower way. The test does not measure the model.`],
                     av: ['varn', 'Image model switched off on the phone.'] }[h.modell];
       if (mod) rad(mod[0], mod[1]);
       /* Den tränade detektorn (MES-329). */
       if (h.detektor === undefined) rad('varn', 'The phone runs an older Mesa without the trained detector. Reload Mesa on the phone.');
       else if (/^yolox-/.test(h.detektor)) rad(/webgpu$/.test(h.detektor) ? 'ok' : 'varn', `Trained detector ready: ${h.detektor.replace('yolox-', 'YOLOX ').replace('-', ' on ')}${/wasm$/.test(h.detektor) ? ' (slower path; note it)' : ''}.`);
       else if (h.detektor === 'laddar') rad('vant', 'Trained detector loading on the phone. Wait until this turns green before you play.');
-      else if (h.detektor === 'fel') rad('fel', `Trained detector unavailable (${h.detektorFel || 'unknown error'}). The phone finds cards the old way — the test does not measure the detector.`);
+      else if (h.detektor === 'fel') rad('fel', `Trained detector unavailable (${h.detektorFel || 'unknown error'}). The phone finds cards the old way. The test does not measure the detector.`);
       else if (h.detektor === 'av') rad('varn', 'Trained detector switched off on the phone (Picture mode → Detector).');
       else rad('vant', 'Trained detector not started yet on the phone.');
       if (h.mork) rad('varn', 'Dark screen is on: a screen recording will be black. Tap “Keep the picture on” on the phone before you record. Timing is fine either way.');
@@ -35324,7 +35324,7 @@ const LatensDator = (() => {
     const el = $('#pbLatensHalsa'); if (!el) return;
     const r = halsaRader(), fel = r.find(x => x.niva === 'fel'), vant = r.find(x => x.niva === 'vant'), varn = r.find(x => x.niva === 'varn');
     const rub = fel ? { niva: 'fel', txt: 'Fix this before you play:' } : vant ? { niva: 'vant', txt: 'Almost ready…' }
-              : varn ? { niva: 'varn', txt: 'Ready to play — read the notes marked !' } : { niva: 'ok', txt: 'All good — you can play.' };
+              : varn ? { niva: 'varn', txt: 'Ready to play. Read the notes marked !' } : { niva: 'ok', txt: 'All good: you can play.' };
     const ikon = { ok: '✓', varn: '!', fel: '✗', vant: '…' };
     const esc = t => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
     el.innerHTML = `<li class="rubrik ${rub.niva}"><i>${ikon[rub.niva]}</i>${rub.txt}</li>` + r.map(x => `<li class="${x.niva}"><i>${ikon[x.niva]}</i><span>${esc(x.txt)}</span></li>`).join('');
@@ -35389,12 +35389,12 @@ const InspDator = (() => {
     if (!D) return;
     const def = INSP_PASS[D.typ], r = D.tick[D.tick.length - 1], b = bastaPing(), d = [];
     d.push(D.klar ? `${D.typ} · done` : D.stoppad ? `${D.typ} · stopping, uploading the rest…` : `${D.typ} · ${tid((Date.now() - D.startMs) / 1000)} / ${tid(def.max_s)}`);
-    if (!D.startad && !D.stoppad) d.push(Date.now() - D.startMs > 6000 ? 'no answer from the phone — open Mesa with ?debug on the phone and connect it again' : 'waiting for the phone…');
+    if (!D.startad && !D.stoppad) d.push(Date.now() - D.startMs > 6000 ? 'no answer from the phone. Open Mesa with ?debug on the phone and connect it again' : 'waiting for the phone…');
     /* Mätraderna kommer var 5:e sekund. Uteblir de mäter telefonen inte:
        sidan har laddats om, eller skärmen har somnat. Förut syntes det bara
        som att klockan stod ensam i raden, och passet var förlorat ändå. */
-    else if (!D.tick.length && Date.now() - D.startMs > 15000) d.push('THE PHONE IS NOT MEASURING — check the phone: is the page still showing the camera? Stop and start the pass again.');
-    if (D.omstart) d.push(`the phone restarted ${D.omstart} time(s) during the pass — the pass is not usable`);
+    else if (!D.tick.length && Date.now() - D.startMs > 15000) d.push('THE PHONE IS NOT MEASURING. Check the phone: is the page still showing the camera? Stop and start the pass again.');
+    if (D.omstart) d.push(`the phone restarted ${D.omstart} time(s) during the pass. The pass is not usable`);
     const fel = [].concat((D.startad && D.startad.fel) || [], (D.klar && D.klar.fel) || [], D.fel || []);
     if (fel.length) d.push('error: ' + [...new Set(fel.map(f => f.fel))].join(', '));
     if (r) {
@@ -35448,7 +35448,7 @@ const InspDator = (() => {
     setTimeout(() => {
       if (pass.klar || pass.sparad) return;
       pass.tyst = true; sparaDator(pass); clearInterval(visT);
-      if (D === pass) { status(`${pass.typ} · no answer from the phone when stopping — the phone log is missing. Start a new pass.`); }
+      if (D === pass) { status(`${pass.typ} · no answer from the phone when stopping. The phone log is missing. Start a new pass.`); }
     }, 60000);
     visa();
   }
@@ -35473,7 +35473,7 @@ const InspDator = (() => {
       if (!D.stoppad) { D.stoppad = Date.now(); D.orsak = 'telefonen'; clearInterval(pingT); clearTimeout(stoppT); }
       clearInterval(visT);
       sparaDator(D).then(() => lista(D.id));
-      toast(`Pass ${D.typ} is done — ${m.delar} parts uploaded`);
+      toast(`Pass ${D.typ} is done. ${m.delar} parts uploaded`);
     }
     visa();
   }
@@ -35539,7 +35539,7 @@ const PB_STD = { auto: 1, autoUts: 1, troskel: 26, utseende: 25, spridning: 15, 
                  anaBredd: 360,     // analysbildens bredd (MES-244): förvalet 360 px
                  detektor: 1, detRemsa: 0 };   // den tränade detektorn (MES-329): 1 fp32, 2 fp16, 0 dagens; detRemsa 1: remsor utan låda blir kort (prov)
 const PB_REG = [
-  ['utseende', 'Deviation',    8,   60,  1,   'How much a pixel must differ from the table model — what the table looks like in the same frame. This is what finds the cards'],
+  ['utseende', 'Deviation',    8,   60,  1,   'How much a pixel must differ from the table model. What the table looks like in the same frame. This is what finds the cards'],
   ['spridning','Structure',    0,   40,  1,   'Minimum spread in grey levels within a region for it to count as a card. A card is at 28–47, a wood chip under 10'],
   ['troskel',  'Threshold',    6,   80,  1,   'How much a pixel must differ from the reference where the table has its own print or pattern. Computed from the table noise until you drag the slider'],
   ['blank',    'Glare',        180, 255, 1,   'Brighter than this is glare: never counted in the reference, and a region with a saturated core and no dark edge is glare that has moved. Lower it if a light table gets glare verdicts with no lamp in the picture'],
@@ -35848,7 +35848,7 @@ let kamKanalVarnat = null;
 function kamKanalFel() {
   if (!spelLage || kamKanalVarnat === spelLage.id) return;
   kamKanalVarnat = spelLage.id;
-  toast('The camera channel could not be opened — the phone cannot reach this computer', 'err');
+  toast('The camera channel could not be opened. The phone cannot reach this computer', 'err');
 }
 /* Närvarolistan från kanalen. Kommer och går telefonen byter dialogen läge av
    sig själv — ingen knapp att trycka på någonstans. */
@@ -36058,7 +36058,7 @@ async function ritaQr(text, mal) {
       if (qr.isDark(r, col)) x.fillRect((col + marg) * px, (r + marg) * px, px, px);
     box.innerHTML = ''; box.appendChild(c);
   } catch (e) {
-    box.innerHTML = '<span class="vantar">The code could not be drawn — use the link below.</span>';
+    box.innerHTML = '<span class="vantar">The code could not be drawn. Use the link below.</span>';
   }
 }
 
@@ -36085,7 +36085,7 @@ function visaKamGrund() {
 /* Datorn ber telefonen ta grundläget ur ett spår. Svaret (tagEmotGrundSvar)
    säger om spåret fanns — kortet kan ha lyfts sedan steget visades. */
 function begarGrund(spar, tappat) {
-  if (spar == null || !kamAnsluten) { toast('The camera sees no card to take the angle from — put a card on the table', 'err'); return; }
+  if (spar == null || !kamAnsluten) { toast('The camera sees no card to take the angle from. Put a card on the table', 'err'); return; }
   Moln.sandKam('grund', tappat ? { spar, tappat: true } : { spar });
 }
 /* ── Telefonens grundläge till spelets rad (MES-334, granskningen av sida 5: V3) ─────────────────
@@ -36128,7 +36128,7 @@ function sparaGrundFranSenaste() {
 async function tagEmotGrundSvar(m) {
   /* Uppstartens fråga om provkortets riktning (Card direction i Mirror my table) är borttagen med steg 4
      (MES-334 steg 6): svaret kommer bara från knappen Save i kameravyn. */
-  if (!m.ok || m.grund == null) { renderMode(); toast('The untapped angle could not be saved — the camera has no measurement of the card angle right now. Try again with a card it found by itself.', 'err'); return; }
+  if (!m.ok || m.grund == null) { renderMode(); toast('The untapped angle could not be saved. The camera has no measurement of the card angle right now. Try again with a card it found by itself.', 'err'); return; }
   kamGrund = m.grund; visaKamGrund();
   if (!spelLage) return;
   oppSatt({ grundOm: false });
@@ -36136,7 +36136,7 @@ async function tagEmotGrundSvar(m) {
   const id = spelLage.id;
   const ok = await Moln.sparaKalibrering(id, kamRutaRad({ grund: m.grund }), null, kamBildW || 0, kamBildH || 0);
   if (spelLage && spelLage.id === id && ok) kamGrundRad = m.grund;
-  if (!ok) toast('The untapped angle could not be saved to the game — it applies until the phone reloads', 'err');
+  if (!ok) toast('The untapped angle could not be saved to the game. It applies until the phone reloads', 'err');
 }
 $('#kamGrundSpara') && ($('#kamGrundSpara').onclick = sparaGrundFranSenaste);
 /* Graveyard-rutan: raden bär den (grav), telefonen får den med realtid och föder inga spår där. I Mirror my
@@ -36314,7 +36314,7 @@ async function kollaVantandeScans() {
    alls — ingen analyserad bild än, en fråga redan på väg — står det också. */
 $('#kamHelbild').onclick = async () => {
   const b = $('#kamHelbild'); b.disabled = true; satKamFin('ai', '');
-  try { if (!(await Kamera.helbild()) && !kamFinDel.ai) satKamFin('ai', Kamera.helbildPagar ? 'Claude is already looking.' : 'The camera is not ready yet — wait a few seconds and try again.'); }
+  try { if (!(await Kamera.helbild()) && !kamFinDel.ai) satKamFin('ai', Kamera.helbildPagar ? 'Claude is already looking.' : 'The camera is not ready yet. Wait a few seconds and try again.'); }
   finally { b.disabled = false; }
 };
 /* Ren kameravy: ett tryck på skärmen visar texten och knapparna i åtta
@@ -36334,7 +36334,7 @@ function kamSatMork(mork) {
   $('#kamMork').textContent = mork ? 'Keep the picture on' : 'Dark screen';
   /* ?debug (MES-240): en skärminspelning av den mörka skärmen blir svart —
      det ska synas på telefonen innan man spelar in, inte efteråt. */
-  if (DEBUG) $('.kammork').textContent = mork ? 'The camera is on · Debug: a screen recording is black now — tap “Keep the picture on” before you record' : 'The camera is on · tap to see the picture';
+  if (DEBUG) $('.kammork').textContent = mork ? 'The camera is on · Debug: a screen recording is black now. Tap “Keep the picture on” before you record' : 'The camera is on · tap to see the picture';
 }
 kamSatMork(!LS.get(K.kamBild, false));
 $('#kamMork').onclick = () => {
@@ -36530,7 +36530,7 @@ function ritaHem(d) {
     + '<div class="hbskala"><span>Poorly</span><span>Great</span></div></div>';
   const lekar = d.lekarFel ? '<p class="hemtom">Your decks could not be fetched. <button type="button" class="btn" data-hem="lekarigen">Try again</button></p>'
     : d.lekar == null ? '<p class="hemtom">Fetching your decks…</p>'
-    : !d.lekar.length ? '<p class="hemtom">No decks yet. Make one with <b>New deck</b> — the camera recognises your cards against the deck you play with.</p>'
+    : !d.lekar.length ? '<p class="hemtom">No decks yet. Make one with <b>New deck</b>: the camera recognises your cards against the deck you play with.</p>'
     : `<div class="lrs">${d.lekar.map(l => lekRadHtml(l, { meny: true })).join('')}</div>`;
   return `<h1>Hi ${esc(d.namn || 'there')}</h1><div class="hcols">`
     + '<section class="hsec"><div class="hsh"><h2>Your games</h2></div>'
@@ -36774,12 +36774,12 @@ function visaValet(spel, spelare, farsk) {
   const kameraTxt = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/></svg>';
   $('#valetKod').textContent = spel.kod;
   $('#valetTxt').textContent = pek
-    ? 'Use this phone as the camera again. Put it back in its holder — the table on your computer catches up by itself.'
-    : 'This device hasn’t been set up for the game, but you have — on another device. Open the table here, or make this device the camera.';
+    ? 'Use this phone as the camera again. Put it back in its holder. The table on your computer catches up by itself.'
+    : 'This device hasn’t been set up for the game, but you have, on another device. Open the table here, or make this device the camera.';
   $('#valetHuvud').innerHTML = pek ? kameraTxt + 'Reconnect camera' : 'Open the table';
   $('#valetAndra').textContent = pek ? 'Show the table here' : 'Use this device as the camera';
   $('#valetFin').textContent = pek ? 'Opens the game on this phone as a second screen. The camera stays off.'
-    : 'Your setup carries over — no need to do it again.';
+    : 'Your setup carries over. No need to do it again.';
   const sp = spelare || [];
   $('#valetDots').innerHTML = sp.map(p => `<i class="bdot" style="--pc:${esc(p.color || 'var(--blue)')}"></i>`).join('');
   $('#valetNamn').textContent = sp.map(p => p.name || 'Player').join(', ');
@@ -36940,7 +36940,7 @@ function uppdateraLage() {
     const kod = $('#spelKod'); if (kod) kod.textContent = spelLage.kod;
     if (las) {
       const p = player();
-      $('#lasbandTxt').textContent = (p.name || 'This player') + '\'s board — you can look, not change';
+      $('#lasbandTxt').textContent = (p.name || 'This player') + '\'s board: you can look, not change';
       document.body.style.setProperty('--vy', p.color || 'var(--blue)');
     }
   }
