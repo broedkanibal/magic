@@ -20,8 +20,8 @@
 
    Kameran antas otappad = lodrätt, ingen vridning eller spegling av vyn
    (kamVand 0), och ingen graveyard-ruta att klämma mot (den ritas av DOM:en).
-   Den frysta skalan behöver provkortets kortsida S (bildbredder, uppstartens
-   steg 4); utan --S tas medianen av de namngivna otappade spårens lådbredd i
+   Den frysta skalan (bara i en index.html från före 2026-10-10, då uppstartens
+   steg 4 togs bort) behöver provkortets kortsida S (bildbredder); utan --S tas medianen av de namngivna otappade spårens lådbredd i
    loggen, en ställföreträdare — provkortet finns inte i passets video.
 
    Ett MÅTT, inget prov: slutkod 0. .cjs eftersom package.json säger "type": "module". */
@@ -38,7 +38,7 @@ const SLUT = 'let senasteSpar = [];';
 const a = src.indexOf('/* ── samma kort, två spår'), b = src.indexOf(SLUT, a);
 if (a < 0 || b < 0) throw new Error('hittar inte avstämningen i ' + HTML);
 const kod = src.slice(a, b + SLUT.length);
-const r0 = src.indexOf(src.includes('function kamSkalaFryst()') ? 'function kamSkalaFryst()' : 'function kamSkala(p)');
+const r0 = src.indexOf(src.includes('function kamSkalaFryst()') ? 'function kamSkalaFryst()' : src.includes('function kamKortsida(') ? 'function kamKortsida(' : 'function kamSkala(p)');
 const r1 = src.indexOf('/* Library-högen (MES-93', r0);
 const c0 = src.indexOf('function clampKort(e, board, gravRuta)'), c1 = src.indexOf('/* Hur stor del av rm som täcks av ro. */', c0);
 if (r0 < 0 || r1 < 0 || c0 < 0 || c1 < 0) throw new Error('hittar inte ritningen (kamSkala … speglaKamPos, clampKort) i ' + HTML);

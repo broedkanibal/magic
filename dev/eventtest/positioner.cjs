@@ -57,9 +57,9 @@ const src = fs.readFileSync(HTML, 'utf8');
 const NAD_MS = +((src.match(/const BORTA_NAD = (\d+);/) || [0, 3000])[1]);
 const SLUT = 'let senasteSpar = [];';
 const a = src.indexOf('/* ── samma kort, två spår'), b = src.indexOf(SLUT, a);
-const r0 = src.indexOf('function kamSkalaFryst()'), r1 = src.indexOf('/* Library-högen (MES-93', r0);
+const r0 = src.indexOf(src.includes('function kamSkalaFryst()') ? 'function kamSkalaFryst()' : 'function kamKortsida('), r1 = src.indexOf('/* Library-högen (MES-93', r0);
 const c0 = src.indexOf('function clampKort(e, board, gravRuta)'), c1 = src.indexOf('/* Hur stor del av rm som täcks av ro. */', c0);
-if (a < 0 || b < 0 || r0 < 0 || r1 < 0 || c0 < 0 || c1 < 0) throw new Error('hittar inte avstämningen eller ritningen (kamSkalaFryst … speglaKamPos, clampKort) i ' + HTML);
+if (a < 0 || b < 0 || r0 < 0 || r1 < 0 || c0 < 0 || c1 < 0) throw new Error('hittar inte avstämningen eller ritningen (kamKortsida … speglaKamPos, clampKort) i ' + HTML);
 const kod = src.slice(a, b + SLUT.length);
 const ritkod = src.slice(r0, r1) + '\n' + src.slice(c0, c1);
 

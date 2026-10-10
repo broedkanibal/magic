@@ -184,7 +184,7 @@ stället för att klistra in en lista.
 - En lek inlagd i Mesa. Appen: "Only cards from the deck you pick will be
   recognized."
 - En dator med webbläsare, för bordet
-- För kameralägena: en telefon med webbläsare och ett stativ rakt ovanför
+- För Mirror my table: en telefon med webbläsare och ett stativ rakt ovanför
   spelytan. Ingen app ("nothing to install").
 - Ett separat videosamtal för att prata
 
@@ -230,26 +230,23 @@ Tre vägar:
 ### Steg 4 — Get ready for the game
 
 Panelen har två delar, **Invite your friends** och **Get ready yourself**.
-Den senare har fyra steg:
+Den senare har tre steg:
 
 1. **Pick your deck.**
-2. **Choose game mode.** Tre lägen:
+2. **Choose game mode.** Två lägen:
 
    | Läge | Appens beskrivning (ordagrant) |
    |---|---|
    | **Mirror my table** (Recommended, under "Hybrid modes") | Everything you do with your cards shows up here: play, tap, move, remove. |
-   | **Use camera to add cards** (under "Hybrid modes") | You tap, move and remove cards digitally. |
    | **Digital table** (under "Digital mode") | No phone and no camera. You put your cards on the mat yourself. |
 
-3. **Connect your phone.** Appen: "Scan the code with your phone's camera —
-   nothing to install. Then put the phone in its holder, straight above your
-   cards."
-4. **Set up your table.**
-   - Ett provkort läggs ut så som otappade kort ligger (Untapped/Tapped).
-   - Kortets storlek sparas.
-   - Graveyard-platsen bekräftas.
-   - Leken läggs med baksidan upp på sin plats (library).
-   - Sedan: "Your table is set up" → **Start playing**.
+3. **Connect your phone** (bara i Mirror my table). Appen: "Scan the code with
+   your phone's camera — nothing to install. Then put the phone in its holder,
+   straight above your cards."
+
+Leken, grundläget (hur otappade kort ligger) och graveyard hittar kameran i
+partiet. Läget **Use camera to add cards** och uppstartens steg 4 (provkortet,
+graveyard- och library-platsen) togs bort 2026-10-10.
 
 Ljuset har inget eget steg. Appen ger råd när ett problem syns: reflexer, en
 för ljus duk, ett mönstrat bord.
@@ -259,7 +256,7 @@ för ljus duk, ett mönstrat bord.
 - **Mattan:** en fri yta med zoom och panorering. Korten visas som
   Scryfall-bilder.
 - **Placering:** i Mirror my table följer kortens platser det fysiska bordet.
-  I de andra lägena placeras nya kort automatiskt och dras sedan fritt.
+  I Digital table placeras nya kort automatiskt och dras sedan fritt.
 - **Kamerapillret** visar kamerans status på ett ställe, till exempel "Camera ·
   ready", "Camera · N cards" eller "Camera · can't find your cards".
 - **Kortets meny:** tap, vänd, räknare (bara power/toughness), skapa token,
@@ -314,8 +311,8 @@ för ljus duk, ett mönstrat bord.
 
 | Automatiskt | För hand |
 |---|---|
-| **Båda kameralägena:** ser ett nytt kort och känner igen det mot leken — lokalt, annars via Claude, annars med frågan "Which card is this?". En platshållare syns nästan direkt | Allt i Digital table |
-| **Båda kameralägena:** en instant eller sorcery som lyfts strax efter att den spelats går till graveyard | I Use camera to add cards: tap, flytt och borttagning |
+| **Mirror my table:** ser ett nytt kort och känner igen det mot leken — lokalt, annars via Claude, annars med frågan "Which card is this?". En platshållare syns nästan direkt | Allt i Digital table |
+| **Mirror my table:** en instant eller sorcery som lyfts strax efter att den spelats går till graveyard | |
 | **Mirror my table:** tap och untap, ur kortets vinkel mot det sparade otappade läget | Räknare, fästa kort, vända kort, exile, tillbaka till handen, dubblera, untap all |
 | **Mirror my table:** kortens platser på mattan | Tokens utöver "när X kommer in, skapa N" (via kortets meny) |
 | **Mirror my table:** ett försvunnet kort väntar ~5 s. Växer graveyard-högen hamnar det där; annars tonas det ned och appen frågar | Svaret på vart ett försvunnet kort tog vägen |
@@ -619,7 +616,6 @@ kommersiell användning av Magic, samt Scryfalls API-villkor.
 | Basländer (basic lands) | De vanligaste landkorten; en lek har många likadana |
 | Plastficka (sleeve) | Skyddsficka runt kortet; ger reflexer i kameran |
 | Mirror my table (spegelläget) | Läget där det digitala bordet följer det fysiska. Hette tidigare "Follow the table" och "Table leads" |
-| Use camera to add cards | Kameran lägger bara till nya kort; resten görs digitalt |
 | Digital table | Utan telefon och kamera |
 | Mattan | Den digitala spelytan i appen |
 | Spår | Ett kort som kameran följer mellan bildrutor |

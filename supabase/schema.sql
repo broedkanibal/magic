@@ -33,8 +33,9 @@ create table if not exists public.game_players (
   farg        text not null,
   plats       int  not null,
   gick_med    timestamptz not null default now(),
-  -- spelläget per spelare (lagen.sql): 'skarm' = Screen leads (förval), 'bord' = Table leads
-  lage        text not null default 'skarm' check (lage in ('skarm', 'bord')),
+  -- spelläget per spelare (lagen.sql, migrations/20261010100000): 'bord' = Mirror my table,
+  -- 'utan' = Digital table (förval)
+  lage        text not null default 'utan' check (lage in ('bord', 'utan')),
   -- var spelaren är i uppstarten (status.sql, MES-170); null = okänt
   status      text check (status in ('lek', 'uppstart', 'redo', 'spelar')),
   -- senaste hjärtslaget från en enhet med spelet öppet, var 30:e s (hem.sql, MES-236)

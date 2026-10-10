@@ -54,11 +54,11 @@ alter table public.game_players
   add column if not exists lek_id uuid references public.decks(id) on delete set null,
   add column if not exists lek_info jsonb;
 alter table public.game_players
-  add column if not exists lage text not null default 'skarm';
+  add column if not exists lage text not null default 'utan';
 do $$ begin
   if not exists (select 1 from pg_constraint where conname = 'game_players_lage_check') then
     alter table public.game_players
-      add constraint game_players_lage_check check (lage in ('skarm', 'bord'));
+      add constraint game_players_lage_check check (lage in ('bord', 'utan'));
   end if;
 end $$;
 

@@ -382,9 +382,9 @@ body.oppstart .hints{display:none}
 .oppsteg::before{content:'';position:absolute;left:11px;top:30px;bottom:6px;width:1.5px;background:#28313f}
 .oppsteg.sist::before{display:none}
 .oppsteg.done::before{background:#2f6b47}
-#opp3,#opp4{animation:vsIn .5s ease-out both}
+#opp3{animation:vsIn .5s ease-out both}
 @keyframes vsIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion: reduce){#opp3,#opp4{animation:none}}
+@media (prefers-reduced-motion: reduce){#opp3{animation:none}}
 .vn{position:relative;z-index:1;width:24px;height:24px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 11.5px/1 var(--mono);border:1px solid #39445a;color:var(--dim2);background:#121821}
 .oppsteg.done .vn{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
 .oppsteg.act .vn{background:var(--acc);border-color:var(--acc);color:#20160a}
@@ -412,14 +412,10 @@ body.oppstart .hints{display:none}
 .nydeck .btn{flex:1;justify-content:center;height:36px}
 .qrrad{display:flex;gap:16px;align-items:center}
 .qrrad .qv{display:flex;flex-direction:column;gap:10px;align-items:flex-start;min-width:0}
-.klar4{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:10px;background:#0f2016;border:1px solid #2f6b47}
-.klar4 .ck{width:26px;height:26px;border-radius:50%;background:#3fb97a;color:#08140d;display:grid;place-items:center;flex:none}
-.klar4 b{display:block;font:650 14px var(--sans);color:#d8f5e4}
-.klar4 span{font:12.5px/1.5 var(--sans);color:#9fcfb3}
 .oppstart .oppopt{padding:10px 12px}
 .oppstart .oppopt .oppbody span{font-size:12px}
 .oppstart .oppgrupp.skild{margin-top:0;padding-top:12px}
-/* Steg 2: kamerans två lägen under Hybrid modes, Digital table för sig nedanför. */
+/* Steg 2: Mirror my table under Hybrid modes, Digital table för sig nedanför. */
 .oppgrupp{font:600 10px/1 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:var(--dim2);margin-bottom:-4px}
 .oppgrupp.skild{margin-top:4px;padding-top:12px;border-top:1px solid #1c2330}
 .opptxt{margin:0;font-size:12.5px;color:var(--dim);line-height:1.55}
@@ -444,53 +440,12 @@ body.oppstart .hints{display:none}
 .oppqr{align-self:flex-start;padding:10px;border-radius:10px;background:#fff;line-height:0}
 .oppqr canvas{width:132px;height:132px;image-rendering:pixelated}
 .oppqr .vantar{display:block;max-width:132px;line-height:1.4;color:#333;font-size:12px}
-.oppbild{position:relative}
-.oppbild .kalbild{height:auto;aspect-ratio:16/10;max-height:240px;border:1px solid var(--line)}
-.oppbild .kalbild img{width:100%;height:100%;object-fit:contain}
-.oppchip{position:absolute;left:10px;bottom:10px;z-index:3;height:22px;display:flex;align-items:center;padding:0 9px;border-radius:7px;background:#0f141cf2;border:1px solid #3a4658;color:#cfd9e8;font:650 10.5px/1 var(--sans);box-shadow:0 6px 16px -4px #000e}
-.oppchip[hidden]{display:none}
-.oppval{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid #1c2330;font-size:12.5px;color:var(--dim)}
-.oppval[hidden]{display:none}
-.oppval .grow{flex:1}
-.oppvaltxt{color:var(--dim2);font-size:11px;margin-left:4px}
-/* Steg 4 i tre delar (MES-122) — designen "Mesa Table Setup Step", sidan
-   Step 4 — final flow: provkortet, graveyard-platsen, leken. */
-.delar{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:9px;background:#10161f;overflow:hidden}
-.delar:empty{display:none}
-.del{display:flex;flex-direction:column;gap:10px;padding:10px 12px;border-top:1px solid #1c2330}
-.del:first-child{border-top:0}
-.del.active{background:#18202c;padding:12px 12px 13px}
-.delhd{display:flex;align-items:center;gap:9px;min-height:20px;font-size:12.5px;font-weight:600;color:var(--txt)}
-.delhd .grow{flex:1}
-.del.todo .delhd{color:var(--dim);font-weight:550}
-.delnr{width:18px;height:18px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 10px/1 var(--mono);border:1px solid #39445a;color:var(--dim2)}
-.del.done .delnr{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
-.del.active .delnr{background:var(--acc);border-color:var(--acc);color:#20160a}
-.delsum{font-size:11.5px;color:var(--dim);font-weight:500}
-.dellank{font-size:11.5px;color:var(--dim2);font-weight:500;text-decoration:underline;text-decoration-color:#39445a;text-underline-offset:3px;background:none;border:0;padding:0;cursor:pointer}
-.dellank:hover{color:var(--txt)}
-.delbody{display:flex;flex-direction:column;gap:10px;padding-left:27px}
-.opptxt.liten{font-size:11.5px;color:var(--dim2)}
-.hogval{display:grid;gap:6px}
-.hogval .btn{justify-content:center}
-.gor{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
-.gor li{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:18px;color:var(--txt)}
-.gor .gnr{margin-top:1px;width:16px;height:16px;border-radius:50%;border:1px solid #39445a;display:grid;place-items:center;font:700 9.5px/1 var(--mono);color:var(--dim2);flex:none}
-.oppefter{display:flex;flex-direction:column;gap:12px}
-.oppefter:empty{display:none}
-/* Bildytan på mattan hela uppstarten (MES-123): i steg 1–3 och utan telefon
-   står en ram där bilden kommer och säger vad steget handlar om; i steg 4
-   med telefonen är den kamerans bild. Mattans eget innehåll viker undan. */
+/* Bildytan på mattan hela uppstarten (MES-123): i steg 1 och 3 står en ram
+   som säger vad steget handlar om. Mattans eget innehåll viker undan. */
 .oppmatt{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px}
 .oppmatt[hidden]{display:none}
-.oppmattrub,.oppmattbild{width:min(960px,100%)}
-.oppmattrub{display:flex;align-items:center;gap:4px;height:26px;flex:none}
-.oppmattrub .grow{flex:1}
-.oppmattlive{display:inline-flex;align-items:center;gap:7px}
-.oppmattlive i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px #57c78522}
-.oppmattbild .kalbild{width:100%;height:auto;aspect-ratio:16/10;max-height:calc(100vh - 230px);border:1px solid var(--line);margin:0 auto}
-.oppmattbild .kalbild img{width:100%;height:100%;object-fit:contain}
-/* Steg 4 utan telefon: bildytan står kvar och säger var bilden kommer. */
+.oppmattbild{width:min(960px,100%)}
+/* Ramen säger vad steget handlar om (OPP_MATT). */
 .oppmattvant{width:100%;aspect-ratio:16/10;max-height:calc(100vh - 230px);border:1px dashed var(--panelram2);border-radius:10px;background:#0b1017;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;color:var(--dim)}
 .oppmattvant[hidden]{display:none}
 .oppmattvant svg{color:var(--dim2)}
@@ -500,101 +455,7 @@ body.oppstart .hints{display:none}
 .oppmattvant span{font-size:12.5px;max-width:44ch;line-height:1.55}
 @keyframes oppIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){.oppmattvant > *{animation:none}}
-/* Utan telefonens bild finns inget "What your phone sees" att säga, och inget
-   att vända eller spegla. Raden behåller sin höjd, så ramen står still när
-   bilden kommer. */
-.oppmatt.utanbild .oppmattrub{visibility:hidden}
 body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbild #manaRow,body.oppbild #handRad,body.oppbild #emptyHand{visibility:hidden}
-/* I spelarens vy ritar canvasen själva bilden, vriden och speglad. */
-#pbBild.vy #pbImg{visibility:hidden}
-.opplager{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden;container-type:size}
-.opplager .ochip{position:absolute;height:22px;display:flex;align-items:center;gap:6px;padding:0 8px;border-radius:7px;background:#0f141cf2;border:1px solid #3a4658;color:#cfd9e8;font:650 10.5px/1 var(--sans);box-shadow:0 6px 16px -4px #000e;white-space:nowrap;transform:translateY(calc(-100% - 6px));z-index:3}
-.opplager .ochip i{width:7px;height:7px;border-radius:2px;flex:none}
-.opplager .ovant{position:absolute;left:12px;bottom:12px;display:flex;align-items:center;gap:9px;padding:7px 11px;border-radius:8px;background:#0f141cf2;border:1px solid #3a4658;color:#e8c98a;font:12px var(--sans)}
-.opplager .ovant i{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 3px #f0a52a26;animation:kampuls 1.2s ease-in-out infinite}
-.opplager .otips{position:absolute;left:50%;top:12px;transform:translateX(-50%);padding:7px 12px;border-radius:8px;background:#1a1710f2;border:1px solid #e8b33a66;color:#f0dcb0;font:12px var(--sans);white-space:nowrap;z-index:3}
-.opplager .olag{position:absolute;inset:0}
-/* Provkortet hittat: ramen landar runt kortet och en ring går ut en gång. */
-.opplager .okram{position:absolute;border:2px solid #5fbf7f;border-radius:7px;box-shadow:0 0 0 1px #0009,0 0 14px 2px #5fbf7f55;z-index:2}
-.opplager .okram.spela{animation:okramIn .5s cubic-bezier(.2,.9,.3,1.2) both}
-.opplager .okram.spela::after{content:'';position:absolute;inset:-2px;border-radius:7px;animation:okramRing .9s ease-out .35s both}
-@keyframes okramIn{from{opacity:0;transform:scale(1.3)}to{opacity:1;transform:none}}
-@keyframes okramRing{from{box-shadow:0 0 0 0 #5fbf7fcc}to{box-shadow:0 0 0 18px #5fbf7f00}}
-@media (prefers-reduced-motion: reduce){.opplager .okram.spela,.opplager .okram.spela::after{animation:none}}
-.gplats2{position:absolute;border:1.5px dashed #e8b33a99;background:#0b0f1573;color:#e8b33a;border-radius:6px;display:grid;place-items:center}
-.gplats2 svg{width:36%;max-width:34px;height:auto;opacity:.85}
-.gplats2.glod{box-shadow:0 0 0 6px #e8b33a24,0 0 28px 6px #e8b33a33}
-.gplats2.flytt{border-style:solid;border-color:#e8b33a}
-.bplats{position:absolute;border:1.5px dashed #ffffff5c;border-radius:6px}
-.bplats.lagd{border-style:solid;border-color:#6b8cff}
-/* ── Library-platsens lägen och klart-kortet (MES-139, "Mesa Library Drop") ── */
-/* 2 · något täcker platsen: hörnen fäster direkt */
-.opplager .ofatt{position:absolute;z-index:2;animation:ofattIn .45s cubic-bezier(.2,.9,.3,1.25) both}
-.opplager .ofatt.stilla{animation:none}
-.opplager .ofatt i{position:absolute;width:14px;height:14px;border:0 solid #fff;filter:drop-shadow(0 0 6px #ffffff88)}
-.opplager .ofatt i:nth-child(1){left:0;top:0;border-top-width:2px;border-left-width:2px;border-top-left-radius:4px}
-.opplager .ofatt i:nth-child(2){right:0;top:0;border-top-width:2px;border-right-width:2px;border-top-right-radius:4px}
-.opplager .ofatt i:nth-child(3){left:0;bottom:0;border-bottom-width:2px;border-left-width:2px;border-bottom-left-radius:4px}
-.opplager .ofatt i:nth-child(4){right:0;bottom:0;border-bottom-width:2px;border-right-width:2px;border-bottom-right-radius:4px}
-@keyframes ofattIn{from{opacity:0;transform:scale(1.28)}to{opacity:1;transform:none}}
-/* 3 · handen har släppt: ramen ritas runt på den tid leken ska ligga still */
-.opplager .ospar{position:absolute;overflow:visible;z-index:2}
-.opplager .ospar rect{fill:none;stroke:#6b8cff;stroke-width:2.5;stroke-dasharray:100;stroke-dashoffset:100;animation:osparRunt .8s cubic-bezier(.4,0,.2,1) forwards;filter:drop-shadow(0 0 5px #6b8cffaa)}
-@keyframes osparRunt{to{stroke-dashoffset:0}}
-.opplager .ochip i.opuls{border-radius:50%;animation:kampuls 1.2s ease-in-out infinite}
-/* 4 · pling: provkortets gröna ram och ring, och en bock */
-.opplager .opling{position:absolute;z-index:2;border:2px solid #5fbf7f;border-radius:7px;box-shadow:0 0 0 1px #0009,0 0 14px 2px #5fbf7f55;animation:okramIn .5s cubic-bezier(.2,.9,.3,1.2) both}
-.opplager .opling::after{content:'';position:absolute;inset:-2px;border-radius:7px;animation:okramRing .9s ease-out .35s both}
-.opplager .obock{position:absolute;z-index:3;width:24px;height:24px;border-radius:50%;background:#3fb97a;color:#08140d;display:grid;place-items:center;box-shadow:0 0 0 3px #0d1015,0 4px 10px #000a;animation:obockIn .5s cubic-bezier(.2,.9,.3,1.4) .1s both}
-@keyframes obockIn{from{opacity:0;transform:scale(0)}60%{opacity:1;transform:scale(1.22)}to{opacity:1;transform:none}}
-.del.nyklar .delnr{animation:obockPop .5s cubic-bezier(.2,.9,.3,1.4) both}
-@keyframes obockPop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:none}}
-/* 1b · reserven i bilden efter tio sekunder */
-.opplager .oreserv{position:absolute;z-index:3;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 11px;border-radius:9px;background:#0f141cf2;border:1px solid #3a4658;color:#cfd9e8;font:12px var(--sans);box-shadow:0 8px 22px -8px #000c;white-space:nowrap;pointer-events:auto;animation:oppIn .24s ease-out both}
-/* B · klart-kortet: bilden tonas ner, högarna syns i ett hål */
-.opplager .ohal{position:absolute;z-index:3;border-radius:12px;box-shadow:0 0 0 4000px #070a0ec4;animation:ohalIn .4s ease-out both}
-@keyframes ohalIn{from{opacity:0}to{opacity:1}}
-.opplager .oklarkort{position:absolute;z-index:4;left:50%;top:50%;transform:translate(-50%,-50%);width:380px;max-width:calc(100% - 32px);max-height:calc(100% - 16px);overflow-y:auto;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:28px 28px 22px;border-radius:14px;background:#121821;border:1px solid var(--line);box-shadow:0 30px 70px -20px #000,0 0 0 1px #0006;pointer-events:auto;animation:oklarIn .5s cubic-bezier(.2,.9,.3,1.1) .15s both}
-@keyframes oklarIn{from{opacity:0;transform:translate(-50%,calc(-50% + 16px)) scale(.97)}to{opacity:1;transform:translate(-50%,-50%)}}
-/* Låg bild (liggande telefon i smal panel): kortet måste få plats i bilden,
-   annars klipps Start playing bort. Märket går, luften krymper. */
-@container (max-height: 380px){
-  .opplager .oklarkort{gap:8px;padding:16px 20px 12px}
-  .opplager .oklarkort .ostormark{display:none}
-  .opplager .oklarkort h3{margin:0}
-  .opplager .oklarkort .btn.prim{margin-top:2px}
-}
-.opplager .ostormark{width:56px;height:56px;border-radius:50%;background:#0f2016;border:1.5px solid #2f6b47;display:grid;place-items:center;color:#8fe0b0;box-shadow:0 0 0 8px #3fb97a12}
-.opplager .ostormark path{stroke-dasharray:24;stroke-dashoffset:24;animation:oRita .45s ease-out .55s forwards}
-@keyframes oRita{to{stroke-dashoffset:0}}
-.opplager .oklarkort h3{margin:4px 0 0;font-size:18px;font-weight:650;letter-spacing:-.2px;color:var(--txt)}
-.opplager .oklarkort p{margin:0;font-size:13px;line-height:1.55;color:var(--dim);max-width:30ch}
-.opplager .oklarkort .btn.prim{width:100%;justify-content:center;height:40px;font-size:14px;margin-top:6px;border-radius:9px;animation:oKnappGlod 2.4s ease-out 1.1s infinite}
-@keyframes oKnappGlod{0%{box-shadow:0 0 0 0 #f0a52a55}60%,100%{box-shadow:0 0 0 12px #f0a52a00}}
-/* Panelen säger samma sak som platsen */
-.oppwait.vit{color:#e7ecf4}
-.oppwait.vit i{background:#fff;box-shadow:0 0 0 3px #ffffff26}
-.oppwait.bla{color:#c9d4ff}
-.oppwait.bla i{background:#6b8cff;box-shadow:0 0 0 3px #6b8cff33;animation:kampuls 1.2s ease-in-out infinite}
-@media (prefers-reduced-motion: reduce){
-  .opplager .ofatt,.opplager .ospar rect,.opplager .opling,.opplager .opling::after,.opplager .obock,.opplager .oreserv,.opplager .ohal,.opplager .oklarkort,.opplager .ostormark path,.opplager .oklarkort .btn.prim,.opplager .ochip i.opuls,.del.nyklar .delnr,.oppwait.bla i{animation:none}
-  .opplager .ospar rect,.opplager .ostormark path{stroke-dashoffset:0}
-}
-/* Leken som sänks ner på library-platsen: kameran tittar ovanifrån, så
-   något i luften ser större ut — leken krymper ner på platsen medan skuggan
-   skärps, landar med en ring, vilar, tonar ut och börjar om. */
-.lekrot{position:absolute}
-.lek,.lekskugga,.landring{position:absolute;inset:0}
-.lek{animation:lekLagg 3.6s cubic-bezier(.25,.8,.3,1) infinite}
-.lek img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:5px;box-shadow:0 3px 8px #0008}
-.lek img:nth-child(1){transform:translate(4px,-4px);filter:brightness(.55)}
-.lek img:nth-child(2){transform:translate(2px,-2px);filter:brightness(.75)}
-.lekskugga{border-radius:6px;background:#000;filter:blur(7px);animation:lekSkugga 3.6s cubic-bezier(.25,.8,.3,1) infinite}
-.landring{border-radius:6px;animation:lekRing 3.6s ease-out infinite}
-@keyframes lekLagg{0%{opacity:0;transform:translate(26px,-34px) scale(1.34) rotate(-6deg)}12%{opacity:1}42%{opacity:1;transform:none}46%{transform:scale(.985)}50%{transform:none}80%{opacity:1;transform:none}94%,100%{opacity:0;transform:none}}
-@keyframes lekSkugga{0%{opacity:0;transform:translate(34px,26px) scale(1.25)}42%{opacity:.55;transform:translate(3px,4px) scale(1)}80%{opacity:.55;transform:translate(3px,4px) scale(1)}94%,100%{opacity:0}}
-@keyframes lekRing{0%,40%{opacity:0;box-shadow:0 0 0 0 #ffffffb3}44%{opacity:1;box-shadow:0 0 0 0 #ffffffb3}66%,100%{opacity:1;box-shadow:0 0 0 16px #ffffff00}}
-@media (prefers-reduced-motion: reduce){.lek,.lekskugga,.landring{animation:none}.landring{display:none}}
 @media (max-width:620px){
   .oppstart{position:fixed;inset:44px 0 0 0;z-index:185;border-radius:0}
   body.oppstart .brade{grid-template-columns:minmax(0,1fr);grid-template-areas:"perm"}
@@ -814,7 +675,7 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .zoomchip button:hover{background:var(--bg4);color:var(--txt)}
 /* Graveyard- och library-högen i spel ("Mesa Table Piles", A1): två lika
    stora platser nere till vänster — graveyard till vänster, library till
-   höger, som i uppstartens steg 4. En plats är kortet (92×128) och 8 px luft
+   höger. En plats är kortet (92×128) och 8 px luft
    runt om; raden under säger namn och antal, ingen rubrik ovanför.
    Överkanten räknas från mattans nederkant, så att högarna och
    instruktionsrutan under dem står lika i alla fönster. */
@@ -822,11 +683,9 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .hograd{display:flex;align-items:center;gap:6px;height:12px;flex:none;font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:var(--dim);white-space:nowrap;transition:color .16s}
 .hograd > i{width:6px;height:6px;border-radius:2px;flex:none;background:#e8b33a}
 .hograd b{font:600 11px/1 var(--mono);color:var(--txt);letter-spacing:0;text-transform:none}
-/* Library-högen (MES-93, MES-95): leken på platsen som markerades i
-   uppstarten, med den blå ramen synlig runt om. Lyfter man leken (telefonens
-   ligger, se bibLyft) står ramen tom, andas och säger var leken ska
-   tillbaka. Talet är lekKvar (hand och bibliotek ihop); ett kort som släpps
-   här går tillbaka. */
+/* Library-högen (MES-93, MES-95): leken på sin fasta plats, med den blå
+   ramen synlig runt om. Talet är lekKvar (hand och bibliotek ihop); ett kort
+   som släpps här går tillbaka. */
 .bibhog{position:absolute;left:152px;top:calc(100% - 236px);z-index:22;display:flex;flex-direction:column;align-items:flex-start;gap:9px}
 .bibhog[hidden]{display:none}
 .bibhog .hograd > i{background:#6b8cff}
@@ -835,19 +694,16 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
   padding:0;border-radius:6px;border:1.5px solid #6b8cff;background:#0b0f1540;color:#c9d4ff;cursor:pointer;font:inherit;
   transition:border-color .16s,box-shadow .16s,background .16s;
 }
-/* Leken: tre baksidor som i steg 4 (.lek img), inne i ramen. */
-.bib .biblek,.bib .bibspok{position:absolute;left:6.5px;top:6.5px;width:92px;height:128px}
+/* Leken: tre baksidor inne i ramen. */
+.bib .biblek{position:absolute;left:6.5px;top:6.5px;width:92px;height:128px}
 .bib .biblek img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:5px;box-shadow:0 3px 8px #0008}
 .bib .biblek img:nth-child(1){transform:translate(4px,-4px);filter:brightness(.55)}
 .bib .biblek img:nth-child(2){transform:translate(2px,-2px);filter:brightness(.75)}
-.bib .bibspok{border-radius:5px;object-fit:cover;opacity:.1;filter:grayscale(1)}
 .bib .bibord{position:relative;padding:0 10px;font:600 11px/1.35 var(--sans);text-align:center;color:#c9d4ff}
 .bib:hover,.bib.over{border-color:#8fa8ff;box-shadow:0 0 0 6px #6b8cff26,0 0 28px 6px #6b8cff33}
-.bib.lyft,.bib.tom{border-style:dashed}
-.bib.lyft{background:#6b8cff0d;animation:bibAndas 2.4s ease-in-out infinite}
+.bib.tom{border-style:dashed}
 .bib.tom{border-color:#6b8cff99}
 @keyframes bibAndas{0%,100%{box-shadow:0 0 0 0 #6b8cff00}50%{box-shadow:0 0 0 7px #6b8cff26,0 0 26px 4px #6b8cff2e}}
-@media (prefers-reduced-motion:reduce){.bib.lyft{animation:none}}
 /* Ett kort in i leken (MES-149): kopian vänds under flygningen, och högen
    tar emot det — leken studsar, talet studsar, en blå ring slår ut. */
 .bibflyg{position:fixed;z-index:960;pointer-events:none;transform-style:preserve-3d;transform-origin:50% 50%}
@@ -1418,7 +1274,7 @@ body.lasvy #emptyLas:not(.hide){display:grid}
   position:absolute;z-index:2;left:6.5px;top:6.5px;width:92px;height:128px;object-fit:cover;display:block;border-radius:5px;
   background:#11161e;box-shadow:0 4px 14px -3px #000d;filter:grayscale(.6) brightness(.55) contrast(1.05);
 }
-/* Gravstenen står bara i en tom plats, gul som i uppstarten (.gplats2). */
+/* Gravstenen står bara i en tom plats, gul. */
 .gravsten{
   position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;
   color:#e8b33a;opacity:.85;pointer-events:none;transition:opacity .18s;
@@ -1426,8 +1282,7 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .grav:not(.tom) .gravsten{opacity:0}
 .gravsten svg{width:100%;height:100%;display:block}
 /* Ett kort dras mot högen (§2, gravOver): platsen står still, men ramen
-   blir hel och lyser som den föreslagna platsen i steg 4 (.gplats2.glod),
-   och lagren glider isär lite. Toppkortet ljusnar. Allt bärs av
+   blir hel och lyser, och lagren glider isär lite. Toppkortet ljusnar. Allt bärs av
    transitionerna som redan sitter på elementen. */
 .gravhog.over .grav{
   --gs:3;--gr:2.5;border-style:solid;border-color:#e8b33a;
@@ -1530,7 +1385,7 @@ body.lasvy .hkort{cursor:default}
 .hchip b{font:600 11px var(--mono);color:#fff}
 .hchip.bla{border-color:#6b8cff99;color:#c9d4ff}
 .hchip.gul{border-color:#e8b33a88;color:#f0dcb0}
-.grav:not(.tom):not(.hfute):hover .hchip,.bib:not(.tom):not(.hfute):not(.lyft):hover .hchip{opacity:1;translate:-50% 0}
+.grav:not(.tom):not(.hfute):hover .hchip,.bib:not(.tom):not(.hfute):hover .hchip{opacity:1;translate:-50% 0}
 body.lasvy .hchip{display:none}
 @keyframes andasG{0%,100%{box-shadow:0 0 0 0 #e8b33a00}50%{box-shadow:0 0 0 7px #e8b33a22,0 0 26px 4px #e8b33a2a}}
 @media (prefers-reduced-motion:reduce){
@@ -1540,12 +1395,11 @@ body.lasvy .hchip{display:none}
 /* D1 på de fasta platserna (MES-334 steg 5, Byggunderlaget: spelare utan kamera och exile står på fast
    plats som i dag, men i D1:s utseende): inga ramar och inga streckade kanter — högarna ser ut som högar,
    och namn och antal står i en bricka på underkanten. Ramen kommer tillbaka bara när den betyder något:
-   ett kort dras mot graveyard (.over), korten är ute i handen (.hfute), leken är lyft från sin ruta
-   (.bib.lyft, uppstartens flöde). */
-.grav,.bib:not(.lyft):not(.hfute){border-color:transparent;background:transparent}
+   ett kort dras mot graveyard (.over), korten är ute i handen (.hfute). */
+.grav,.bib:not(.hfute){border-color:transparent;background:transparent}
 .grav.tom{background:#0b0f1540}
 .gravhog.over .grav,.grav.hfute{border-color:#e8b33a}
-.bib:not(.lyft):not(.hfute):hover,.bib.over{border-color:transparent}
+.bib:not(.hfute):hover,.bib.over{border-color:transparent}
 .gravhog > .hograd,.bibhog > .hograd,.ohog > .hograd{position:relative;z-index:6;align-self:center;margin-top:-24px;height:22px;padding:0 9px 0 8px;border-radius:11px;
   background:#141a24f5;box-shadow:0 6px 14px -4px #000e;color:#aab6c8;pointer-events:none}
 .exilhog,.oexil{border-color:transparent;border-radius:11px;background:#141a24f5;box-shadow:0 6px 14px -4px #000e}
@@ -1671,10 +1525,6 @@ body.utanins .hints:not(.sok){display:none}
 .poplbl{font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:#5c6b82}
 .poptxt{margin:0;font-size:12.5px;color:var(--dim);line-height:1.55}
 .poptxt b{color:var(--txt);font-weight:600}
-.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;padding:3px;border-radius:9px;background:#0b1017;border:1px solid var(--line)}
-.seg button{display:flex;align-items:center;justify-content:center;gap:6px;height:30px;padding:0 6px;border:0;border-radius:6px;background:none;font:600 12.5px var(--sans);color:var(--dim);cursor:pointer;white-space:nowrap}
-.seg button:hover{color:var(--txt)}
-.seg button.on{background:#232c3c;box-shadow:0 0 0 1px #4a5a72;color:var(--txt)}
 .popline{margin:0;font-size:12px;color:var(--dim);line-height:1.45}
 .popline b{color:var(--txt);font-weight:600}
 .kamverktyg{display:flex;flex-direction:column;gap:8px}
@@ -3930,14 +3780,11 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <div class="opplekvy" id="oppLekVy" hidden></div>
           <div class="oppls" id="oppLs" hidden><div class="lshuvud opplshuvud" id="oppLsHuvud"></div><section class="lsyta" id="oppLsYta"></section></div>
         </div>
-        <!-- Uppstartens steg 4 (MES-122): kamerans bild i stort på mattan medan
-             bordet ställs i ordning — provkortet, graveyard-platsen, leken.
-             #pbBild flyttas hit (flyttaPbBild) och visas i spelarens vy. -->
+        <!-- Uppstartens ram på mattan (MES-123): vad steget handlar om. -->
         <div class="oppmatt" id="oppMatt" hidden>
-          <div class="oppmattrub"><span class="zonlbl oppmattlive"><i></i>What your phone sees</span><span class="grow"></span><button type="button" class="btn ghost sm" data-oppm="vand" title="Turn the picture a quarter turn, so it looks the way you sit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Rotate</button><button type="button" class="btn ghost sm" data-oppm="spegel" title="Mirror the picture"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M8 7 3 17h5z"/><path d="m16 7 5 10h-5z"/></svg>Mirror</button></div>
           <div class="oppmattbild" id="oppMattBild">
-            <!-- Utan bild: vad steget handlar om (renderOppstart, OPP_MATT). -->
-            <div class="oppmattvant" id="oppMattVant" hidden></div>
+            <!-- Vad steget handlar om (renderOppstart, OPP_MATT). -->
+            <div class="oppmattvant" id="oppMattVant"></div>
           </div>
         </div>
         <!-- Library-högen (MES-93, MES-95): leken bredvid graveyard — bordets två
@@ -3984,8 +3831,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
            man gör sig redo — rubriken, 1 Invite your friends (länken och
            spelarna med status) och 2 Get ready yourself som vertikal stepper,
            med stegets handling i foten. Ritas av renderOppstart(); stegen byggs
-           aldrig om i sin helhet, så QR-koden och kamerans bild (#pbBild
-           flyttas hit i steg 4 på en smal skärm) står kvar. -->
+           aldrig om i sin helhet, så QR-koden står kvar. -->
       <aside class="oppstart" id="oppstart" hidden aria-label="Get ready for the game">
         <div class="gphd"><span class="wel" id="oppWel" hidden></span><div class="gpt"><h1>Get ready for the game</h1><span class="hostchip" id="oppHost" hidden><i class="bdot"></i>You’re the host</span></div></div>
         <div class="gpmid">
@@ -4007,14 +3853,6 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
                 <div class="vc oppcont">
                   <div class="qrrad"><div class="oppqr" id="oppQr"></div><div class="qv"><span class="oppwait" id="oppWait"><i></i><span>Waiting for your phone…</span></span><button type="button" class="btn ghost sm" data-opp="kopiera"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V5.8A1.8 1.8 0 0 0 13.7 4H5.8A1.8 1.8 0 0 0 4 5.8v7.9a1.8 1.8 0 0 0 1.8 1.8h2.7"/></svg><span>Copy link</span></button></div></div>
                   <p class="opptxt">Scan the code with your phone's camera — nothing to install. Then put the phone in its holder, straight above your cards.</p>
-                </div></div></li>
-              <li class="oppsteg" id="opp4" hidden><span class="vn">4</span><div class="vb">
-                <div class="vtit"><span>Set up your table</span><span class="grow"></span><span class="vsum">Graveyard and library set</span></div>
-                <div class="vc oppcont">
-                  <p class="opptxt" id="opp4Intro" hidden></p>
-                  <div class="oppbild" id="oppBild"></div>
-                  <div class="delar" id="oppDelar"></div>
-                  <div class="oppefter" id="oppEfter"></div>
                 </div></div></li>
             </ol>
           </section>
@@ -4182,10 +4020,6 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
     <div class="body">
       <div class="popsec" id="kamLageSec">
         <span class="poplbl">How the camera works</span>
-        <div class="seg" id="kamSeg">
-          <button type="button" data-lage="skarm"><span class="ikon" data-ikon="skarm"></span>Use camera to add cards</button>
-          <button type="button" data-lage="bord"><span class="ikon" data-ikon="bord"></span>Mirror my table</button>
-        </div>
         <p class="poptxt" id="kamLageTxt"></p>
       </div>
       <div class="popsec" id="kamFel" hidden></div>
@@ -4212,7 +4046,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <span class="meta dbg" id="kamSkruvMeta"></span>
         </div>
         <div class="kalbild stor" id="pbBild">
-          <img id="pbImg" alt="The phone's picture"><canvas id="pbLager"></canvas><div class="opplager" id="oppLager"></div>
+          <img id="pbImg" alt="The phone's picture"><canvas id="pbLager"></canvas>
           <div class="kalvantar" id="pbVantar">Waiting for a picture from the phone…</div>
           <span class="kamskruv-rakn dbg" id="kamSkruvRakn"></span>
           <span class="pbfarger dbg"><i style="background:#5fbf7f"></i>recognised <i style="background:#e2606a"></i>unknown <i style="background:#e8b33a"></i>reading <i style="background:#6b7280"></i>not a card</span>
@@ -6456,10 +6290,10 @@ const Moln = (() => {
          omläsning ger samma ordning. */
       spelare: (sp.data || []).map(p => ({
         user_id: p.user_id, name: p.namn, color: p.farg, plats: p.plats,
-        /* Spelläget och leken följer med raden (dev/plan/lagen.md): 'skarm'
-           är förvalet, lek_info är kopian motståndarna får se. Kolumnerna
-           finns först efter lekarnas migrering; saknas de blir det förvalen. */
-        lage: p.lage === 'bord' ? 'bord' : 'skarm',
+        /* Spelläget och leken följer med raden (dev/plan/lagen.md): 'utan'
+           (Digital table) är förvalet, lek_info är kopian motståndarna får se.
+           Kolumnerna finns först efter lekarnas migrering; saknas de blir det förvalen. */
+        lage: p.lage === 'bord' ? 'bord' : 'utan',
         lekId: p.lek_id || null, lek: p.lek_info || null,
         status: p.status || null,          // MES-170: null före status.sql
         /* Leken bland korten (MES-334 steg 3) ligger som en post i raden: den lyfts ut här, så att inget som räknar kort ser den. */
@@ -6718,13 +6552,13 @@ const Moln = (() => {
     if (error) { console.warn('Namnet kunde inte sparas', error.message); return false; }
     return true;
   }
-  /* Spelläget (Table leads 'bord' / Screen leads 'skarm') på min egen rad —
+  /* Spelläget (Mirror my table 'bord' / Digital table 'utan') på min egen rad —
      samma policy (gp_andra_sitt) som namnet. Alla i spelet ser det genom
      realtime på game_players. */
   async function sattLage(gameId, lage) {
     const s = await klient(); if (!s || !inloggad()) return false;
     const { error } = await s.from('game_players')
-      .update({ lage: lage === 'bord' ? 'bord' : 'skarm' }).eq('game_id', gameId).eq('user_id', minId());
+      .update({ lage: lage === 'bord' ? 'bord' : 'utan' }).eq('game_id', gameId).eq('user_id', minId());
     if (error) { console.warn('Läget kunde inte sparas', error.message); return false; }
     return true;
   }
@@ -7264,11 +7098,11 @@ function normalisera(p, i) {
   p.shots = Array.isArray(p.shots) ? p.shots : [];
   p.pending = Array.isArray(p.pending) ? p.pending : [];
   p.shotIdx = p.shotIdx || 0;
-  /* Spelläget (Table leads/Screen leads) och vald lek kommer ur
-     game_players. Utan spel har spelaren inget läge här — mattan läser
-     prefs.lage då (mittLage) — och avstämningen läser ett saknat läge som
-     Table leads, vilket är vad harnessarnas stubbspelare ska vara. */
-  if (p.lage !== 'bord' && p.lage !== 'skarm') delete p.lage;
+  /* Spelläget (Mirror my table/Digital table) och vald lek kommer ur
+     game_players. Utan spel har spelaren inget läge här, och mittLage läser
+     ett saknat läge som Mirror my table, vilket är vad harnessarnas
+     stubbspelare ska vara. */
+  if (p.lage !== 'bord' && p.lage !== 'utan') delete p.lage;
   /* Status i uppstarten (MES-170): bara i ett spel, ur game_players. */
   if (!['lek', 'uppstart', 'redo', 'spelar'].includes(p.status)) delete p.status;
   p.lekId = p.lekId || null;
@@ -7332,27 +7166,27 @@ let kamVand = 0, kamSpegel = false;
 /* Graveyard-rutan i bildandelar (K9-lite), ritad i kamerapanelen och sparad
    i camera_setups.ruta.grav; telefonen föder inga spår där. */
 let kamGravRad = null;
-/* Library-rutan (MES-122) i bildandelar, sparad i camera_setups.ruta.bib:
-   där spelaren lägger sin lek i uppstarten. Telefonen föder inga spår där
-   och säger när en lek ligger i den (Kamera.bib). */
-let kamBibRad = null;
+/* Library-rutan (camera_setups.ruta.bib) fanns bara i uppstartens steg 4, som togs bort med Use camera
+   to add cards 2026-10-10. En rad som bär den är en rest: graveyard-rutan bredvid den kom ur samma steg,
+   och båda rensas (rensaOppstartsRutor). */
+let kamRutaRest = false;
 /* Leken utan uppstart (MES-334 steg 3): telefonens lek ur varje bord —
-   undefined = en telefon utan fältet (eller ingen än), null = uppstartens
-   library-ruta gäller (eller ingen tränad detektor), annars { lage
+   undefined = en telefon utan fältet (eller ingen än), null = ingen tränad
+   detektor, annars { lage
    'ingen'|'nere'|'upp', id, ruta, farg, ute, grund }. Står här uppe av samma
    skäl som flaggorna ovan: renderAll läser den i appens första rendering. */
 let kamLek;
 let lekLokalt = null;         // { typ 'inte'|'ja', id, kam, nar }: ett klick på leken som telefonen inte hunnit svara på — rapporter från före klicket gäller inte i LEK_LOKALT_MS
 const LEK_LOKALT_MS = 4000;
 const kamOriNyckel = () => kamVand + (kamSpegel ? 'm' : '');
-function lasKamOri(r) { kamVand = r && [0, 90, 180, 270].includes(r.vand) ? r.vand : 0; kamSpegel = !!(r && r.spegel); kamGravRad = r && r.grav && r.grav.w > 0 ? r.grav : null; kamBibRad = r && r.bib && r.bib.w > 0 ? r.bib : null; }
+function lasKamOri(r) { kamVand = r && [0, 90, 180, 270].includes(r.vand) ? r.vand : 0; kamSpegel = !!(r && r.spegel); kamRutaRest = !!(r && r.bib && r.bib.w > 0); kamGravRad = !kamRutaRest && r && r.grav && r.grav.w > 0 ? r.grav : null; }
 /* Raden i camera_setups byggs på ett ställe. Varje skrivning skickar hela
    ruta, och en nyckel som inte stod med i alla fyra skrivarna försvann nästa
    gång någon sparade orienteringen eller grundläget. over ersätter fält. */
 /* grund: telefonens rapporterade grundläge när det finns (MES-334 steg 3, granskningen runda 1, fynd 2) —
    leken eller första kortet gav det på telefonen, och raden ska inte skriva över det med det gamla värdet
    (null) när man vrider bilden eller ritar graveyard-rutan. Telefonen tar inte ekot som ett byte (inom 1°). */
-function kamRutaRad(over) { return Object.assign({ x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: typeof kamGrund === 'number' ? kamGrund : kamGrundRad, vand: kamVand, spegel: kamSpegel, grav: kamGravRad, bib: kamBibRad }, over || {}); }
+function kamRutaRad(over) { return Object.assign({ x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: typeof kamGrund === 'number' ? kamGrund : kamGrundRad, vand: kamVand, spegel: kamSpegel, grav: kamGravRad }, over || {}); }
 /* Grundläget (kamerans kal.grund) som telefonen rapporterar i varje bord,
    hela grader: undefined = ingen telefon har sagt något än (eller äldre kod
    utan fältet), null = inte sparat, tal = sparat. Vid null spelas korten
@@ -7390,15 +7224,14 @@ let fjarrLas = false;
 const arMitt = p => !spelLage || (p && p.id === spelLage.mig);
 const redigerbar = () => arMitt(player());
 const minSpelare = () => spelLage ? state.players.find(p => p.id === spelLage.mig) : player();
-/* Mitt spelläge: i ett spel min rad i game_players, lokalt det jag valt
-   senast (prefs.lage). Läses av mattan och lägeschippet; avstämningen läser
-   spelarens eget fält (spelPolicy). Follow the table ('bord') rekommenderas
-   sedan Mesa Camera Play (MES-97) — databasens förval är fortfarande 'skarm',
-   så uppstarten skriver valet uttryckligen; utan rad faller vi tillbaka på
-   'bord' som spelPolicy. */
+/* Mitt spelläge: i ett spel min rad i game_players — 'bord' (Mirror my
+   table) eller 'utan' (Digital table). Läses av mattan och kamerapillret.
+   Databasens förval är 'utan', så uppstarten skriver valet uttryckligen, och
+   en kamera som slås på gör det till 'bord' (kameraLage); utan rad faller vi
+   tillbaka på 'bord'. Utanför ett spel finns ingen kamera: 'utan'. */
 function mittLage() {
-  if (spelLage) { const mig = minSpelare(); return mig && mig.lage === 'skarm' ? 'skarm' : 'bord'; }
-  return prefs.lage === 'bord' ? 'bord' : 'skarm';
+  if (spelLage) { const mig = minSpelare(); return mig && mig.lage === 'utan' ? 'utan' : 'bord'; }
+  return 'utan';
 }
 /* Vem en avläsning ska skriva till. I ett spel ALLTID mitt eget bord, oavsett
    vilken flik jag råkar titta på — annars hamnar ett kort jag just spelat ut
@@ -7486,7 +7319,7 @@ function slimKort(cards) {
     cts: c.cts && c.cts.length ? c.cts : undefined,
     tok: c.tok ? 1 : undefined,
     /* Bara lokalt: kamerans senast antagna läge för kortet (bildandelar) och
-       "ligger kvar fysiskt fast det lämnat mattan digitalt" (Screen leads).
+       "ligger kvar fysiskt fast det lämnat mattan digitalt".
        De andra har inget att göra med dem. */
     /* En flytt utan namn som inget namn bekräftat (flyttFran, MES-341) sparas som platsen FÖRE flytten:
        bindningen överlever ingen omladdning, och då ska kortet ligga där det låg, inte på gissningen. */
@@ -7578,7 +7411,7 @@ function renderTabs() {
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
-      ${spelLage && !mitt ? `<span class="lagemark" title="${esc(p.name)} · ${p.lage === 'bord' ? 'Mirror my table' : 'Use camera to add cards'} — ${p.lage === 'bord' ? 'everything they do with their cards shows up there' : 'the camera adds cards as they play them'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>` : ''}
+      ${spelLage && !mitt ? lageMarkHtml(p) : ''}
       ${lekChipHtml(p, mitt)}
       ${mitt ? '<span class="jagmark">you</span>' : ''}
       ${(p.pending || []).length ? `<span class="vantar" title="${p.pending.length} cards need filling in">${p.pending.length}</span>` : ''}
@@ -7868,7 +7701,7 @@ function ritaOppDelar(p, m, i) {
   const kbd = i < 8 ? String(i + 2) : '', pips = p.lek && p.lek.farger ? pipsHtml(p.lek.farger) : '';
   const paBord = p.cards.filter(paMattan).length, grav = p.cards.filter(c => zonAv(c) === ZON_GRAV).length, bib = oppBibKvar(p);
   const stor = `${p.name}'s table big` + (kbd ? ` (${kbd})` : '');
-  const lage = `<span class="lagemark" title="${esc(p.name)} · ${p.lage === 'bord' ? 'Mirror my table' : 'Use camera to add cards'} — ${p.lage === 'bord' ? 'everything they do with their cards shows up there' : 'the camera adds cards as they play them'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>`;
+  const lage = lageMarkHtml(p);
   satHtml(m.plate, `<button type="button" class="plnamn" title="${esc(stor)}"><i class="bdot"></i><b>${esc(p.name)}</b>`
     + `${pips ? `<span class="pips">${pips}</span>` : ''}<span class="sep"></span><span class="sub">${paBord} on the table</span></button>${lage}`
     + `<span class="sep"></span><button type="button" class="turnbtn" data-oppvand title="Turn their cards">${IKON_VAND}<span class="tt">${VAND_TXT[oppVand]}</span></button>`);
@@ -9805,7 +9638,7 @@ function matRutaNy(a, vp, tomt, medIns) {
   const n = matRutaStampel(vp);
   return !a || a.fon !== n.fon || a.bm !== n.bm || (!!medIns && a.ins !== n.ins) || (!!tomt && (Math.abs(n.w / a.w - 1) > 0.01 || Math.abs(n.h / a.h - 1) > 0.01));
 }
-/* Fit-zoomen på bord utan utgångsläge (Digital table, Use camera to add cards, utanför ett spel). Förut följde den
+/* Fit-zoomen på bord utan utgångsläge (Digital table, utanför ett spel). Förut följde den
    brädet, som växer när ett kort läggs ut utanför det — då zoomade mattan ut av sig själv. Nu räknas den en gång
    och hålls tills rutan får ett nytt mått (matRutaNy) eller spelaren själv ber om det (Tidy up och 0, luftigVy
    släpper den). Medan mattan är dold (inga mått) räknas den på designens viewport, utan att hållas. */
@@ -9816,8 +9649,8 @@ function matFitLas(v, vp) {
 }
 /* ═══ Spegelmattans utgångsläge (MES-338, Jesper 2026-10-08) — tillståndet ═══
    Gäller mitt eget bord i Mirror my table (speglatBord) när mattan har
-   riktiga mått. Andra bord (Use camera to add cards, utan spel, en annans
-   bord) och en dold matta (kor.html, lobbyn) följer brädets storlek som
+   riktiga mått. Andra bord (Digital table, utan spel, en annans bord) och
+   en dold matta (kor.html, lobbyn) följer brädets storlek som
    förut (fitZoom). Geometrin: ZSTEG vid fitZoom.
    Mattan sätts i ett utgångsläge när ett parti börjar, och sedan styr
    spelaren zoom och panorering helt: ingenting zoomar eller flyttar mattan
@@ -9841,7 +9674,7 @@ function zstegBord(p) { return !!p && arMitt(p) && speglatBord(p); }
    egen vy, och inte förbi zoomen som står nu (nu) — krymper kamerabilden medan spelaren står utzoomad vid gränsen
    stiger gränsen, men zoomen står kvar; den går bara inte längre ut. (Ur bilden som den varit i hela partiet blev
    gränsen för vid: lekens första skala är ofta större än kortens.) Utan kamerabild (Digital table, Mirror innan
-   skalan är mätt, Use camera to add cards, utanför ett spel): MATTA.ZOOM_MIN som förut. s: matVy:s steg. */
+   skalan är mätt, utanför ett spel): MATTA.ZOOM_MIN som förut. s: matVy:s steg. */
 function zstegMinZoom(p, s, vp, nu) {
   const g = s && s.omr && kamYtaRam(p) ? Math.min(s.z, zstegGolv(s.omr, vp) * ZSTEG.UT) : MATTA.ZOOM_MIN;
   return nu > 0 ? Math.min(g, nu) : g;
@@ -9974,7 +9807,7 @@ function tomFastPlats(R, hinder, w, h) {
 }
 /* Bordets 100 % i rutan: 1, eller i bordsvyn rutan mot mitt bord när det är stort. */
 function zstegBas(vp) { const ref = bordRef || vp; return Math.min(1, vp.w / ref.w, vp.h / ref.h); }
-/* Kamerabilden i brädkoordinater, eller null innan skalan är känd. Skalan läses — provkortets eller den låsta
+/* Kamerabilden i brädkoordinater, eller null innan skalan är känd. Skalan läses — den låsta
    (kamSkala.las) — utan att kamSkala anropas: den låser om sig själv, och ett anrop här mitt i en avstämning
    hade kunnat byta skalan för korten. Låset är { v, kalla, kand } sedan MES-342; en skala som bara är en
    gissning (inga kort, ingen lek) ger ingen kamerabild — mattan följer korten tills skalan är mätt.
@@ -9984,7 +9817,7 @@ function zstegBas(vp) { const ref = bordRef || vp; return Math.min(1, vp.w / ref
    (matStegBeslut, s.hopp), och då ligger bilden på samma plats på skärmen vilken skala den än räknas i. */
 function matKamRam(p) {
   const l = kamSkala.las && kamSkala.las.get(p.id);
-  const sk = kamSkalaFryst() || (l && typeof l === 'object' ? (l.kalla === 'gissning' ? null : l.v) : l)
+  const sk = (l && typeof l === 'object' ? (l.kalla === 'gissning' ? null : l.v) : l)
     || (kamSpeglar(p) && kamUpplosning && kamUpplosning.w > 0 && kamUpplosning.h > 0 ? MATTA.CW / 0.12 : null);   // kamSkalas gissning
   if (!(sk > 0)) return null;
   let r = null;
@@ -10132,11 +9965,11 @@ function hogSkarm() {
    inga kort med kamerans läge på mattan, ingen lek i bild och inget mätt lås (kamSkala.las, MES-342) — tar
    det första kortet över låset med sin egen kortsida när det kommer; då hade det framkallats på ett annat
    ställe än det oframkallade låg. Här räknas den skalan som kamSkala sedan räknar den (kamKortsida). Finns
-   ett mätt värde (kort, lek, provkort) gäller kamSkala som den är: det första kortet byter det inte förrän
+   ett mätt värde (kort, lek) gäller kamSkala som den är: det första kortet byter det inte förrän
    en ny median stått sig i 3 s. */
 function ofrSkala(p, q) {
   const l = kamSkala.las && kamSkala.las.get(p.id), matt = !!l && (typeof l !== 'object' || l.kalla !== 'gissning');
-  if (kamSkalaFryst() || matt || p.cards.some(c => c.kam && c.kam.w && paMattan(c)) || (p.bibHog && p.bibHog.kam && p.bibHog.kam.w)) return kamSkala(p);
+  if (matt || p.cards.some(c => c.kam && c.kam.w && paMattan(c)) || (p.bibHog && p.bibHog.kam && p.bibHog.kam.w)) return kamSkala(p);
   const asp = kamUpplosning && kamUpplosning.w && kamUpplosning.h ? kamUpplosning.h / kamUpplosning.w : 4 / 3;
   return MATTA.CW / Math.max(0.03, kamKortsida(q.kam, asp));
 }
@@ -10205,22 +10038,6 @@ function matPlacera(p, ofr, v) {
    Ritas bara när kamerans stämpel (kam.nar) eller orienteringen bytt —
    annars flyttar hjärtslaget om korten var tredje sekund. Klämmer bara
    mot graveyard-rutan: brädet växer i stället (grown i matVy). */
-/* Skalan är FRYST när uppstarten är klar (MES-293, Jespers beslut 5
-   2026-09-24): provkortet i steg 4 är redan mätt, och dess kortsida
-   (provKort.S, i bildbredder) är CW på brädet. Förut räknades skalan om ur
-   medianen av de bundna kortens bredd i bilden — den ändras varje gång ett
-   kort kommer, går, tappas (lådan blir bred) eller skyms i en hög — medan
-   speglaKamPos bara ritar om kort vars egen stämpel ändrats: bordet blandade
-   lägen räknade med olika skalor, och korten gled isär. Kortsidan och inte
-   lådans bredd: i en vy som vridits ett kvarts varv (kamVand) är lådans
-   bredd kortets långsida. null utan mätt provkort (uppstarten avböjd, klar
-   på en annan dator, eller ett spel från före steg 4) — då gäller medianen
-   som förut. */
-function kamSkalaFryst() {
-  if (!spelLage) return null;
-  const o = oppFor(), k = o.provKort;
-  return o.klar && k && k.S > 0 ? MATTA.CW / Math.max(0.03, k.S) : null;
-}
 /* Ett korts kortsida i bildbredder ur spårets låda (k.w, k.h i bildandelar; asp = bildens höjd/bredd),
    oavsett hur kortet ligger vridet (MES-342). Lådan är rak i bilden: ett kort med kortsidan c och
    långsidan R·c (R = 88/63) vridet vinkeln θ ger lådan w = c(cos θ + R sin θ), h = c(sin θ + R cos θ),
@@ -10262,15 +10079,13 @@ function kamHel(c, asp) {
   if (!(nu > 0) || Math.abs(sida / nu - 1) > 0.15) return false;
   return !(t.rl && !t.rsynt && Math.max(t.rl.w, t.rl.h) > 1.15 * sida);
 }
-/* Skalan utan uppstartens provkort (Mirror my table sedan MES-334 steg 6) är medianen av kortens bredd i
-   bilden — men låst: den byts först när medianen gått mer än 8 % ifrån och stått sig där i 3 s, och den
-   ingår i nyckeln (speglaKamPos), så att alla kort, leken, graveyard och de nedvända korten då räknas om
-   med samma värde.
+/* Skalan är medianen av kortens bredd i bilden — men låst: den byts först när medianen gått mer än 8 % ifrån
+   och stått sig där i 3 s, och den ingår i nyckeln (speglaKamPos), så att alla kort, leken, graveyard och de
+   nedvända korten då räknas om med samma värde.
    Förut räknades ett kort med medianen när det lades och flyttades aldrig om, medan leken och graveyard
    räknades om vid varje ändring: högarna gled mot korten (granskningen av sida 5, 2026-10-05). */
 function kamSkala(p) {
-  const fryst = kamSkalaFryst(); if (fryst) return fryst;
-  /* Kortsidan i bildbreddens enhet (som provkortets S), ur lådan oavsett hur kortet ligger vridet (kamKortsida). */
+  /* Kortsidan i bildbreddens enhet, ur lådan oavsett hur kortet ligger vridet (kamKortsida). */
   const asp = kamUpplosning && kamUpplosning.w && kamUpplosning.h ? kamUpplosning.h / kamUpplosning.w : 4 / 3;
   const kortsida = k => kamKortsida(k, asp);
   /* Den låsta skalan per spelare ligger på funktionen: den anropas i appens första rendering, före raden där en const här hade stått. */
@@ -10375,14 +10190,13 @@ function speglaKamPos(p, v) {
     /* Kameran tappad på mitt speglade bord: korten står frysta, men en hög som fått en ny ruta (Yes medan
        kameran var borta) läggs ut där korten låg i stället för att hoppa till reserven. */
     if (!arMitt(p) || !speglatBord(p) || !kamGravRad) return false;
-    const fr = kamSkalaFryst(), sk = fr || kamSkala(p);
+    const sk = kamSkala(p);
     return gravPlacera(p, sk, gravRuta(v), kamOriNyckel() + '|' + sk.toFixed(3));
   }
-  /* Skalan hör till nyckeln, fryst eller låst: byts den (uppstarten blev klar,
-     telefonen på ett annat avstånd, kortens median gick mer än 8 %) ritas
-     alla kort om med den nya, så att inget kort står kvar räknat med den gamla. */
-  const fryst = kamSkalaFryst();
-  const skala = fryst || kamSkala(p), g = gravRuta(v), ori = kamOriNyckel() + '|' + skala.toFixed(3);   // den låsta skalan också (kamSkala)
+  /* Skalan hör till nyckeln, låst: byts den (telefonen på ett annat avstånd,
+     kortens median gick mer än 8 %) ritas alla kort om med den nya, så att
+     inget kort står kvar räknat med den gamla. */
+  const skala = kamSkala(p), g = gravRuta(v), ori = kamOriNyckel() + '|' + skala.toFixed(3);   // den låsta skalan också (kamSkala)
   speglaKamPos.skala = skala;   // kamerans ram under ett drag (handDragStart) räknas med samma skala
   let andrat = false;
   for (const c of p.cards) {
@@ -10422,32 +10236,22 @@ function gravPlacera(p, skala, g, ori) {
    släpps på den går tillbaka till hand eller bibliotek. Bara på mitt eget
    bord i ett spel. Strängdiffad. */
 const bibHogEl = $('#bibHog');
-/* Leken är lyft: telefonen ser library-rutan tom (kamBib.ligger, med
-   telefonens egen fördröjning i bibSag). Bara när det finns en ruta, en
-   ansluten telefon som skickar nyckeln och uppstarten är stängd — annars
-   ritas leken som liggande. */
-function bibLyft() {
-  if (!spelLage || !arMitt(player()) || oppOppen || !kamAnsluten || !kamBibRad || kamBibStod === false) return false;
-  return !!kamBib && kamBib.ligger === false;
-}
 function renderBibHog() {
   if (!bibHogEl) return false;
   let html = '';
   /* Leken utan uppstart (MES-334 steg 3, sida 5): leken ligger bland korten på mattan, eller ska läggas
      där ("Put your library on the table") — då står ingen fast hög här, inte heller medan kameran är
-     tappad (lekUtanFastPlats). Med uppstartens ruta och i Use camera to add cards: som förut. */
+     tappad (lekUtanFastPlats). I Digital table: den fasta högen. */
   if (spelLage && arMitt(player()) && !(minSpelare() && (minSpelare().bibHog || lekBordAktivt()))) {
     const mig = minSpelare(), lek = mig && mig.lekId && mig.lek ? mig.lek : null;
     if (lek && lekUtanFastPlats()) { /* speglat bord: ingen fast hög, också med kameran tappad (speglatBord) */ }
     else if (!lek) html = `<button type="button" class="bib tom" data-lekvalj="lek" title="Choose the deck you play with — the camera only looks for its cards"><span class="bibord">Pick a deck</span></button><span class="hograd"><i></i>Library</span>`;
     else {
       const k = lekAktiv && lekAktiv.id === lek.id ? lekKvar() : null, kvar = k ? k.kvar : (lek.antal || 0);
-      const lyft = bibLyft(), antal = `${kvar} ${kvar === 1 ? 'card' : 'cards'} not played yet (hand and library together)`;
-      const inne = lyft
-        ? `<img class="bibspok" src="${BAKSIDA}" alt="" draggable="false"><span class="bibord">Put your library back here</span>`
-        : `<span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span><span class="utetxt"><b>In your hands</b><em>click outside or Esc to put down</em></span><span class="hchip bla">${IKON_HAND}<span>Pick up</span><b>${kvar}</b></span>`;
-      const titel = lyft ? `Your library is off its spot — put it back inside the frame. ${antal}` : `${esc(lek.namn || 'Deck')} — ${antal}. Click to pick them up, or drop a card here to put it back`;
-      html = `<button type="button" class="bib${lyft ? ' lyft' : ''}" data-lekvalj="lek" title="${titel}">${inne}</button><span class="hograd"><i></i>Library<b>${kvar}</b></span>`;
+      const antal = `${kvar} ${kvar === 1 ? 'card' : 'cards'} not played yet (hand and library together)`;
+      const inne = `<span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span><span class="utetxt"><b>In your hands</b><em>click outside or Esc to put down</em></span><span class="hchip bla">${IKON_HAND}<span>Pick up</span><b>${kvar}</b></span>`;
+      const titel = `${esc(lek.namn || 'Deck')} — ${antal}. Click to pick them up, or drop a card here to put it back`;
+      html = `<button type="button" class="bib" data-lekvalj="lek" title="${titel}">${inne}</button><span class="hograd"><i></i>Library<b>${kvar}</b></span>`;
     }
   }
   if (bibHogEl.dataset.h !== html) { bibHogEl.dataset.h = html; bibHogEl.innerHTML = html; }
@@ -10466,19 +10270,17 @@ bibHogEl && bibHogEl.addEventListener('click', lekKlick);
    first card when you're ready" — bytet är kvittensen — och texten går när
    första kortet kommer. Klick på leken: Not my library. Upplockad: skuggan
    står kvar och brickan säger Library · Picked up, för alla.
-   Gäller i Follow the table på mitt eget bord när uppstartens steg 4 inte
-   satt någon library-ruta (kamBibRad). Med rutan står dagens hög (#bibHog,
-   bibSag) orörd, och telefonen skickar lek: null. */
+   Gäller i Mirror my table på mitt eget bord. */
 function lekBordAktivt() {
   const mig = minSpelare();
-  return !!spelLage && !!mig && kamSpeglar(mig) && !kamBibRad && !oppOppen && !!kamLek;
+  return !!spelLage && !!mig && kamSpeglar(mig) && !oppOppen && !!kamLek;
 }
 /* Ett bord som kameran speglar (Mirror my table) har inga fasta högar (sida 5): graveyard finns först efter
    Yes, bland korten, och leken bara där den ligger. Det gäller också medan kameran är tappad eller inte har
    anslutit än — bordet står fruset, och den fasta platsen hör inte till det bordet. Förut kom den fasta
    graveyard-högen och leken med "Pick up 40" tillbaka i hörnet så fort kameran tappades, och graveyard stod
-   där hela tiden före Yes (Jesper i produktionen 2026-10-05). Use camera to add cards ('skarm') behåller de
-   fasta platserna. Motståndarens läge står i hens rad (alltid 'bord' eller 'skarm'). */
+   där hela tiden före Yes (Jesper i produktionen 2026-10-05). Digital table ('utan') behåller de fasta
+   platserna. Motståndarens läge står i hens rad ('bord' eller 'utan'). */
 function speglatBord(p) {
   if (!spelLage || !p) return false;
   return arMitt(p) ? mittLage() === 'bord' : p.lage === 'bord';
@@ -10486,12 +10288,12 @@ function speglatBord(p) {
 /* Graveyard utan fast plats på ett speglat bord. Ligger det ändå kort i graveyard utan någon hög bland korten
    (flyttade dit i appen före Yes) står den fasta högen kvar som reserv — annars syntes de inte alls. */
 const gravUtanFastPlats = (p, n) => speglatBord(p) && !n;
-/* Min lek utan fast plats: speglat bord utan uppstartens library-ruta — oavsett vad telefonen rapporterar.
+/* Min lek utan fast plats: speglat bord — oavsett vad telefonen rapporterar.
    Telefonen skickar lek: null tills den tränade detektorn laddat och sett en bildruta, och för alltid om
    detektorn inte går att ladda; förut gav det dagens fasta hög med "Pick up 40" och ingen text. Nu säger
    mattan "Put your library on the table" (lekText), och syns leken aldrig ger första kortet grundläget
-   (reserven, princip 4). Bara uppstartens ruta (kamBibRad, ett spel där steg 4 kördes) ger dagens hög. */
-function lekUtanFastPlats() { return speglatBord(minSpelare()) && !kamBibRad; }
+   (reserven, princip 4). */
+function lekUtanFastPlats() { return speglatBord(minSpelare()); }
 const lekFarg = f => f && isFinite(f.r) && isFinite(f.g) && isFinite(f.b) ? { r: Math.round(f.r), g: Math.round(f.g), b: Math.round(f.b), magic: !!f.magic } : null;
 /* Telefonens lek in i mitt bord (kamTogsEmot, varje bord och hjärtslag). */
 function tagEmotLek(l) {
@@ -10507,9 +10309,9 @@ function tagEmotLek(l) {
     if (svarat || Date.now() - lekLokalt.nar > LEK_LOKALT_MS) lekLokalt = null;
   }
   if (!lekBordAktivt()) {
-    /* Uppstartens ruta sattes (steg 4 kördes ändå) eller Screen leads: dagens hög tar över. En tappad kamera fryser leken där den låg. */
-    if ((kamBibRad || mittLage() !== 'bord') && mig.bibHog) mig.bibHog = null;
-    if ((kamBibRad || mittLage() !== 'bord') && mig.nedHog) mig.nedHog = null;
+    /* Digital table: den fasta högen tar över. En tappad kamera fryser leken där den låg. */
+    if (mittLage() !== 'bord' && mig.bibHog) mig.bibHog = null;
+    if (mittLage() !== 'bord' && mig.nedHog) mig.nedHog = null;
   } else {
     /* Ensamma nedvända kort (MES-334 steg 5): telefonens lista, med kamerans läge. */
     mig.nedHog = ((l && l.ned) || []).filter(u => u && u.ruta).map(u => ({ id: u.id, kam: { x: u.ruta.x + u.ruta.w / 2, y: u.ruta.y + u.ruta.h / 2, w: u.ruta.w, h: u.ruta.h } }));
@@ -10541,7 +10343,7 @@ function tagEmotLek(l) {
 /* De högar som inte är leken (Not my library) på mitt bord, med kamerans läge: telefonens lista, och klicket tills den svarat. */
 function lekUteLista(p) {
   /* Också med kameran tappad: högen står fryst där den låg, som leken (speglatBord i stället för lekBordAktivt). */
-  if (!p || !arMitt(p) || !speglatBord(p) || kamBibRad || oppOppen || !kamLek) return [];
+  if (!p || !arMitt(p) || !speglatBord(p) || oppOppen || !kamLek) return [];
   const ute = ((kamLek && kamLek.ute) || []).filter(u => u && u.ruta).map(u => ({ id: u.id, kam: { x: u.ruta.x + u.ruta.w / 2, y: u.ruta.y + u.ruta.h / 2, w: u.ruta.w, h: u.ruta.h } }));
   if (lekLokalt && lekLokalt.typ === 'inte' && lekLokalt.kam && !ute.some(u => u.id === lekLokalt.id)) ute.push({ id: lekLokalt.id, kam: lekLokalt.kam });
   if (lekLokalt && lekLokalt.typ === 'ja') return ute.filter(u => u.id !== lekLokalt.id);
@@ -10619,7 +10421,7 @@ function lekText() {
   const mig = minSpelare();
   /* Samma villkor som lekBordAktivt utom telefonens rapport (kamLek): texten står också innan lekvakten
      startat, och när telefonen inte kan leta efter leken (lekUtanFastPlats). */
-  if (!mig || !kamSpeglar(mig) || kamBibRad || oppOppen || kamHaftKort) return null;
+  if (!mig || !kamSpeglar(mig) || oppOppen || kamHaftKort) return null;
   return mig.bibHog ? 'Play your first card when you\'re ready' : 'Put your library on the table';
 }
 /* Mattan väntar på leken: "Put your library on the table" står och inget kort från kameran ligger på bordet än
@@ -10893,14 +10695,14 @@ gridEl.addEventListener('keydown', ev => {
    bara på mitt eget bord, och läget delas inte. */
 function gravFlodeAktivt() {
   const mig = minSpelare();
-  return !!spelLage && !!mig && kamSpeglar(mig) && !kamGravRad && !oppOppen && spelPolicy(mig).saknas;
+  return !!spelLage && !!mig && kamSpeglar(mig) && !kamGravRad && !oppOppen;
 }
 /* Ignore this spot gäller så länge kameran speglar mitt bord i Mirror my table — också efter Yes på en
    annan hög (graveyard-rutan satt) och medan uppstarten står öppen (kontrollgranskningen N1). Med
    gravFlodeAktivt slocknade filtret vid Yes, och den ignorerade högens kort kom tillbaka som kort i spel. */
 function gravIgnoreAktivt() {
   const mig = minSpelare();
-  return !!spelLage && !!mig && kamSpeglar(mig) && spelPolicy(mig).saknas;
+  return !!spelLage && !!mig && kamSpeglar(mig);
 }
 let gravMenyOppen = false;   // No är tryckt: menyn M1 står i frågans ställe
 let gravSkapasNar = 0;       // Yes: när graveyard skapades — högen tonas fram (gravD1Html, .gravd1.skapas)
@@ -10909,7 +10711,7 @@ function gravFragaNu(p) {
   /* Frågan står kvar tills man svarar, också medan kameran är tappad (bordet står fruset) — förut försvann
      den med anslutningen (granskningen av sida 5, 2026-10-05). Nya frågor ställs bara med kameran (gravFlodeAktivt). */
   const mig = minSpelare();
-  if (!p || !arMitt(p) || !mig || !speglatBord(mig) || kamGravRad || oppOppen || !spelPolicy(mig).saknas) return null;
+  if (!p || !arMitt(p) || !mig || !speglatBord(mig) || kamGravRad || oppOppen) return null;
   const q = gravLageNu().fraga; if (!q) return null;
   const kort = q.cids.map(cid => p.cards.find(c => c.cid === cid)).filter(c => c && paMattan(c) && c.x != null && c.y != null);
   return kort.length ? { q, kort } : null;
@@ -10951,9 +10753,9 @@ function gravLaggPa(cards, e) {
 /* Högens ruta i bilden för telefonen (rad i camera_setups, satGrav): korten med lite luft, inom bilden. */
 /* Oberoende av riktningen (granskningen, V4): en kvadrat i bildens bildpunkter med sidan högens längsta
    sida × GRAV_RUTA_LUFT runt högens mitt — ett tappat första kort ger annars en ruta som är ett kort låg,
-   och nästa kort, stående på högen, föddes som ett kort i spel. Som uppstartens ruta (ZON_LUFT 1,15 ×
-   långsidan). Telefonens filter är mittbaserat (iGrav): ett grannkort som ligger intill — stående eller
-   liggande, med ett mellanrum — har sin mitt minst 0,72 längder bort, och kvadratens halva sida är 0,575
+   och nästa kort, stående på högen, föddes som ett kort i spel. Telefonens filter är mittbaserat (iGrav):
+   ett grannkort som ligger intill — stående eller liggande, med ett mellanrum — har sin mitt minst 0,72
+   längder bort, och kvadratens halva sida är 0,575
    (dev/hogarna.cjs provar det). asp = bildens höjd / bredd. */
 const GRAV_RUTA_LUFT = 1.15;
 function gravRutaUrKam(k, asp) {
@@ -12874,13 +12676,16 @@ function renderAll(forceGrid) {
    auto kräver ett spel att koppla telefonen till. */
 const M_TELEFON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></svg>';
 const M_FOTO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>';
-/* Spellägets ikon (MES-98): Use camera to add cards = ett kort som läggs
-   till, Mirror my table = bordet och mattan i takt. Samma i pillret och i panelens segment. */
-const M_LAGE_SKARM = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M12 9v6M9 12h6"/></svg>';
+/* Spellägets ikon (MES-98): Mirror my table = bordet och mattan i takt. Samma i pillret, menyn och vid
+   motståndarnas namn. */
 const M_LAGE_BORD = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="8" height="14" rx="1.8"/><rect x="13.5" y="5" width="8" height="14" rx="1.8"/><path d="M8 12h8M14 10l2 2-2 2"/></svg>';
-/* Digital table (MES-209-uppföljning): samma telefonrektangel som skärmläget,
-   men överstruken — ingen telefon, ingen kamera. */
+/* Digital table (MES-209-uppföljning): en telefon, överstruken — ingen telefon, ingen kamera. */
 const M_LAGE_UTAN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M4 4l16 16"/></svg>';
+/* Motståndarens läge vid namnet (game_players.lage), i spelarlistan och på mattans platta. */
+function lageMarkHtml(p) {
+  const bord = p.lage === 'bord';
+  return `<span class="lagemark" title="${esc(p.name)} · ${bord ? 'Mirror my table' : 'Digital table'} — ${bord ? 'everything they do with their cards shows up there' : 'they put their cards on the mat themselves'}">${bord ? M_LAGE_BORD : M_LAGE_UTAN}</span>`;
+}
 const M_CV = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const M_KUGGE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v3M12 18.4v3M21.4 12h-3M5.6 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4"/></svg>';
 
@@ -12925,7 +12730,7 @@ function renderMode() {
        kamerapanelen. Tidigare stod samma sak i lägeschippet, statusfältet
        och tomrutan. Står kameran av startar ett klick den. */
     const m = kamPillModell();
-    chip = `<button type="button" class="campill ${m.klass}${kamOppen ? ' open' : ''}" data-mode="pill" aria-expanded="${kamOppen}" title="${LAGE_NAMN[m.lage === 'bord' ? 'bord' : 'skarm']} — how the camera works, its status, and how to switch mode"><span class="led"></span><span class="ikon">${m.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span><span class="lbl">${esc(m.text)}</span><span class="cv">${M_CV}</span></button>`;
+    chip = `<button type="button" class="campill ${m.klass}${kamOppen ? ' open' : ''}" data-mode="pill" aria-expanded="${kamOppen}" title="${LAGE_NAMN[m.lage]} — how the camera works and its status"><span class="led"></span><span class="ikon">${m.lage === 'bord' ? M_LAGE_BORD : M_LAGE_UTAN}</span><span class="lbl">${esc(m.text)}</span><span class="cv">${M_CV}</span></button>`;
     /* Mattan säger hur länge bordet stått fruset (ritaKamMatt). */
     if (m.fel === 'tappad') modeT = setTimeout(renderMode, 10000);
   }
@@ -12968,7 +12773,7 @@ function kamPillModell() {
   if (kamFas === 'ingen') return { klass: 'vantar', text: 'Reload the phone', lage, fel: 'gammal' };
   if (kamFas === 'ljus' || kamFas === 'lar') return { klass: 'vantar', text: 'Camera · learning the light', lage };
   /* Uppstarten är öppen (MES-122): bordet ställs i ordning, och ett tomt
-     bord är då inget fel — "can't find your cards" larmade förut mitt i steg 4. */
+     bord är då inget fel — "can't find your cards" larmade förut mitt i uppstarten. */
   if (oppOppen) return { klass: 'vantar', text: 'Camera · setting up', lage };
   if (kamHittarInte()) return { klass: 'vantar', text: "Camera · can't find your cards", lage, fel: 'hittar' };
   const n = autoKortPaBordet(minSpelare());
@@ -13012,21 +12817,21 @@ function kamHittarRad() {
    hjärtslag, och en omritning hade rivit knappen man håller på att trycka
    på. Felvarianterna (5a–5c) ersätter läget och verktygen; bilden står kvar
    när det är den som förklarar felet. */
-/* Lägesnamnen (MES-170, "Mesa Deck Builder" sida 4): kamerans två lägen
-   heter Hybrid modes, utan telefon och kamera Digital mode. Nycklarna står
-   kvar — bord/skarm i game_players.lage, utan = avbojd i uppstarten. */
+/* Lägesnamnen (MES-170, "Mesa Deck Builder" sida 4): kamerans läge står
+   under Hybrid modes, utan telefon och kamera Digital mode. Nycklarna är
+   game_players.lage. Use camera to add cards togs bort 2026-10-10. */
 const LAGE_TXT = {
   bord: 'Everything you do with your cards shows up here: play, tap, move, remove.',
-  skarm: 'You tap, move and remove cards digitally.',
   utan: 'No phone and no camera. You put your cards on the mat yourself.'
 };
-const LAGE_NAMN = { bord: 'Mirror my table', skarm: 'Use camera to add cards', utan: 'Digital table' };
+const LAGE_NAMN = { bord: 'Mirror my table', utan: 'Digital table' };
 const LAGE_GRUPP = { kamera: 'Hybrid modes', utan: 'Digital mode' };
 let kamQrTvinga = false;   // Show the QR code (gammal telefon): koden fram fast telefonen varit med
 /* Mesa still open on the phone? (MES-355, D1 och D3): genvägen på telefonen. */
 const KAM_IGEN_RAD = '<p class="poptxt">Mesa still open on the phone? Tap <b>Reconnect camera</b> there instead.</p>';
 function renderKamPop() {
   const ov = $('#kamOv'); if (!ov || !spelLage) return;
+  kameraLage();
   rensaOppstartsRutor();
   const m = kamPillModell(), bord = m.lage === 'bord', fel = m.fel || '';
   const rubTxt = fel === 'tappad' ? 'Your phone stopped sending' : fel === 'letar' ? 'Finding your phone' : fel === 'gammal' ? 'Reload Mesa on your phone'
@@ -13034,10 +12839,6 @@ function renderKamPop() {
   const rub = $('#kamOvRubrik'); if (rub.textContent !== rubTxt) rub.textContent = rubTxt;
   $('#kamOvSt').hidden = !kamAnsluten || !!fel;
   $('#kamLageSec').hidden = !!fel;
-  for (const b of ov.querySelectorAll('#kamSeg [data-lage]')) {
-    b.classList.toggle('on', b.dataset.lage === m.lage);
-    const ik = b.querySelector('.ikon'); if (ik && !ik.innerHTML) ik.innerHTML = b.dataset.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM;
-  }
   const lt = $('#kamLageTxt'); if (lt.textContent !== LAGE_TXT[m.lage]) lt.textContent = LAGE_TXT[m.lage];
   /* Camera lost (MES-355, D1): QR-koden står framme direkt (kamStegSynk) —
      ingen knapp att klicka fram den med, och ingen väg till uppstarten.
@@ -13097,22 +12898,20 @@ function renderKamPop() {
 /* ── Uppstarten (MES-102, "Get ready for the game" MES-170) ──────────
    Designen "Mesa Deck Builder" sida 4 (G1–G6, L1–L6, J1–J2): panelen till
    vänster när man går in i ett spel utan fungerande kamera — lek, spelläge
-   (Mirror my table rekommenderas), telefon och bordet i bilden (bara med ett
-   kameraläge; i Use camera to add cards ger provkortet bara storleken,
-   MES-171). Stegets handling står i panelens fot.
+   (Mirror my table rekommenderas) och telefon (bara i Mirror my table).
+   Stegets handling står i panelens fot.
    Stegen läses ur samma tillstånd som resten av appen; bara lägesvalet och om
    uppstarten är klar eller avböjd minns per spel (K.oppstart), för att
-   databasens förval ('skarm') inte går att skilja från ett val. Pillret
+   databasens förval ('utan') inte går att skilja från ett val. Pillret
    öppnar den igen i lägena av och väntar; "Redo setup" i kamerapanelen gör
-   om den. Kamerans bild (#pbBild) flyttas in i steg 4 medan steget står
-   framme och panelen är stängd — strömningen följer (kamStegSynk).
+   om den.
    Vilket steg som helst öppnas med ett klick på raden (oppVisat) — ett
    klart för att byta lek, visa QR-koden på nytt eller byta läge, ett
    ofärdigt för att ta stegen i en annan ordning. Det står framme i stället
    för nästa ofärdiga steg tills valet bekräftats eller raden klickats igen;
    ett steg som öppnades ofärdigt släpps när det blir klart, så att
    uppstarten går vidare som vanligt. */
-let oppOppen = false, oppstartBild = false, oppLekar = null, oppLekarHamtar = false, oppLekVal = null, oppLageVal = null, oppQrVisas = false;
+let oppOppen = false, oppLekar = null, oppLekarHamtar = false, oppLekVal = null, oppLageVal = null, oppQrVisas = false;
 let oppVisat = null, oppVisatKlar = false, oppNasta = null;
 /* Min status (MES-170) som den senast skickades: { spel, status, fel }. */
 let oppStatusSkickad = null;
@@ -13120,29 +12919,14 @@ let oppStatusSkickad = null;
    en lek ändras), om den står framme, om leken är ny (G2), vilken lek den
    öppnades med och om den laddat klart — och Last used. */
 let oppLs = null, oppLsOppen = false, oppLsId = null, oppLsKlar = false, oppSenast = undefined;
-/* Steg 4 (MES-122): provkortets spår och om vinkeln går att spara nu
-   (oppProvMatt); svaret (tappat) medan telefonen räknar; graveyard-rutan
-   spelaren flyttar (Move it); och när library-rutan sparades — leken räknas
-   lagd tidigast en sekund efter, och knappen "My library is in place" kommer
-   efter tio (direkt med en telefon utan library-rutan). */
-/* oppProvLas: provkortets plats, låst när ett mätt spår hittats —
-   { id, box (bildandelar), n }. n räknas upp vid varje ny låsning, och
-   bekräftelseramen spelar sin animering en gång per n. */
-let oppProvId = null, oppProvLas = null, oppLasN = 0, oppFlytt = false, oppGravFlyttad = null, oppFlyttStart = null, oppBibNar = 0, oppBibT = 0;
-let kamBib, kamBibStod = null;   // Kamera.bib ur varje bord: { ligger, tackt, lek } | null (tackt/lek saknas hos en äldre telefon); kamBibStod false = telefon utan fältet
-/* Pling och klart-kortet (MES-139): oppBibSag = leken var klar vid förra
-   ritningen (null = inte sett än), oppPlingNar = när den blev klar här,
-   oppKlarDold = Change something har stängt klart-kortet. */
-let oppBibSag = null, oppPlingNar = 0, oppPlingT = 0, oppKlarDold = false;
-const OPP_PLING_MS = 1000;
-/* Telefonen efter spelläget: den behövs bara i kamerans två lägen, och
+/* Telefonen efter spelläget: den behövs bara i Mirror my table, och
    Digital table stänger uppstarten innan den kommer fram. */
-const OPP_ORDNING = ['lek', 'lage', 'tel', 'vinkel'];
+const OPP_ORDNING = ['lek', 'lage', 'tel'];
 const oppMinne = () => LS.get(K.oppstart, {}) || {};
 function oppFor() { const m = oppMinne(); return (spelLage && m[spelLage.id]) || {}; }
 /* Uppstarten pågår (MES-122): spelets uppstart är varken klar eller avböjd.
-   Medan man ställer i ordning bordet spelas inget ut — inte provkortet, inte
-   leken — så avstämningen och platshållarna läser det. Ur det sparade, inte
+   Medan man gör sig redo spelas inget ut, så avstämningen och platshållarna
+   läser det. Ur det sparade, inte
    ur oppOppen: den hänger på redigerbar() och släppte när man tittade på
    någon annans bord. */
 function oppstartPagar() { if (!spelLage) return false; const o = oppFor(); return !o.klar && !o.avbojd; }
@@ -13157,29 +12941,17 @@ function oppSattFor(id, falt) {
    Digital table? (MES-355: P1 visas annars, när min status är 'spelar'.) */
 function oppGjordPa(id) { const o = oppMinne()[id] || {}; return !!(o.klar || o.avbojd); }
 const oppLank = () => location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1' + (DEBUG ? '&debug' : '');   // ?debug följer med (MES-240)
-/* om = "Redo setup": läget väljs igen och steg 4 görs om. Utan om (pillret)
-   står det som var klart kvar (oppOppnasIgen). */
+/* om = "Redo setup": läget väljs igen. Utan om (pillret) står det som var
+   klart kvar (oppOppnasIgen). */
 function oppnaOppstart(om) {
   if (!spelLage) return;
-  oppSatt(oppOppnasIgen(oppFor(), om, mittLage()));
-  oppLageVal = null; oppVisat = null; oppProvId = null; oppProvLas = null; oppFlytt = false; oppGravFlyttad = null;
-  oppBibSag = null; oppKlarDold = false;
+  oppSatt(oppOppnasIgen(om));
+  oppLageVal = null; oppVisat = null;
   if (kamOppen) closeOv('kamOv');
   renderMode();
 }
-/* dit: 'matt' = i stort på mattan (steg 4), 'panel' = i uppstartens spalt
-   (smal skärm), falskt = tillbaka i kamerapanelen. I steg 4 visas bilden i
-   spelarens vy (klassen vy, se pbGeo). */
-function flyttaPbBild(dit) {
-  const b = $('#pbBild'), mal = dit === 'matt' ? $('#oppMattBild') : dit ? $('#oppBild') : $('#kamSkruv'); if (!b || !mal) return;
-  b.classList.toggle('vy', !!dit);
-  if (b.parentElement !== mal) { if (dit) mal.insertBefore(b, mal.firstChild); else mal.insertBefore(b, $('#kamRad1')); }
-  requestAnimationFrame(ritaPbLager);
-}
 const OPP_KLAR = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>';
 function oppDiff(el, html) { if (el && el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; } }
-/* ── steg 4: provkortet, graveyard-platsen och leken (MES-122) ──────── */
-const OPP_KLAR_S = OPP_KLAR.replace('width="12" height="12"', 'width="10" height="10"');
 /* Bildytans ram på mattan medan uppstarten står framme utan bild (MES-123):
    en rad om vad steget handlar om, samma ram i alla steg. */
 const oppIkon = inre => `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inre}</svg>`;
@@ -13189,143 +12961,24 @@ const OPP_MATT = {
   tel: { ikon: oppIkon('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'), h: 'Your phone’s picture shows up here',
     p: 'Scan the code on the left. When the phone is in its holder, you’ll see your table here.' },
   lage: { ikon: oppIkon('<path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/>'), h: 'Choose game mode',
-    p: 'Let the camera mirror your table, use it to add cards, or play on a digital table.' },
-  vinkel: { ikon: oppIkon('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'), h: "Your phone's picture shows up here",
-    p: 'Connect your phone, then lay out a card, your graveyard and your library in the picture.',
-    knapp: '<button type="button" class="btn prim sm" data-oppm="tel">Connect your phone</button>' }
+    p: 'Let the camera mirror your table, or play on a digital table.' }
 };
-/* Vilken del som står framme: provkortet, graveyard, leken — sedan Start playing. */
-function oppDelLage(o) {
-  const prov = !!o.provKlar, grav = !!o.gravKlar, bib = !!o.bibKlar;
-  return { prov, grav, bib, aktiv: !prov ? 'prov' : !grav ? 'grav' : !bib ? 'bib' : 'start' };
-}
-/* Bildens höjd/bredd: ur strömmens upplösning, annars ur förhandsbilden. */
-/* Förhandsbilden först: det är den platserna ritas på, och spårens andelar
-   gäller samma bild. Strömmens upplösning kan ha ett annat format, och då
-   blev graveyard-platsen smalare och högre än provkortet. */
+/* Bildens höjd/bredd: ur förhandsbilden, annars ur strömmens upplösning.
+   Förhandsbilden först: spårens andelar gäller den bilden, och strömmens
+   upplösning kan ha ett annat format (graveyard-rutan ur ett spår,
+   gravRutaUrKam). */
 function kamBildAsp() {
   const img = $('#pbImg'); if (img && img.naturalWidth) return img.naturalHeight / img.naturalWidth;
   if (pbMatt && pbMatt.aw && pbMatt.ah) return pbMatt.ah / pbMatt.aw;
   if (kamUpplosning && kamUpplosning.w && kamUpplosning.h) return kamUpplosning.h / kamUpplosning.w;
   return 0.75;
 }
-/* Förslaget till graveyard- och library-rutan, ur provkortets storlek och
-   grundläget, i spelarens nedre vänstra hörn (zonForslag). */
-function oppForslag(o) {
-  const k = o.provKort && o.provKort.S > 0 ? o.provKort : { S: 0.13, L: 0.13 * KORT_KVOT };
-  return zonForslag(k.S, k.L, kamBildAsp(), ((kamVand % 360) + 360) % 360, kamSpegel);
-}
-/* Library-platsens läge medan leken väntas in (MES-139): 'tom' — ingenting
-   där; 'tackt' — något täcker platsen, också med handen kvar: kvittensen
-   kommer direkt; 'kollar' — handen har släppt och leken ska ligga still i
-   stillaMs (också när telefonen redan sagt ligger, men provkortet ligger
-   kvar eller rutan sparades nyss). En äldre telefon skickar bara ligger. */
-function oppBibFas() {
-  const b = kamBib; if (!b) return 'tom';
-  return b.ligger || b.lek ? 'kollar' : b.tackt ? 'tackt' : 'tom';
-}
-/* Reserven "My library is in place" efter tio sekunder — direkt med en
-   telefon utan library-rutan. */
-const oppBibReserv = () => kamBibStod === false || Date.now() - oppBibNar >= 10000;
-function oppDel(nr, titel, st, sum, lank, body) {
-  const hd = `<div class="delhd"><span class="delnr">${st === 'done' ? OPP_KLAR_S : nr}</span><span>${titel}</span><span class="grow"></span>`
-    + (st === 'done' ? `<span class="delsum">${sum}</span>${lank ? `<button type="button" class="dellank" data-opp="${lank[0]}">${lank[1]}</button>` : ''}` : '') + '</div>';
-  return `<div class="del ${st}">${hd}${st === 'active' ? `<div class="delbody">${body}</div>` : ''}</div>`;
-}
-/* Steg 4 finns bara i Use camera to add cards sedan MES-334 steg 6: kortets storlek (provkortet),
-   graveyard- och library-rutan. Mirror my table hittar leken, grundläget och graveyard i partiet. */
-function oppSteg4(o) {
-  if (!o.b4) { oppSatt({ b4: true }); o = oppFor(); }
-  const zoner = [kamGravRad, kamBibRad].filter(Boolean);
-  const p = kamAnsluten ? provkortSpar(senasteSpar, zoner, sparSedd, oppProvId, !o.provKlar && oppProvLas ? oppProvLas.box : null) : null;
-  if (o.provKlar) { oppProvLas = null; if (!oppProvId && p) oppProvId = p.t.id; }
-  else {
-    /* Platsen låses när kortet ligger stilla inne i bilden och följer
-       kortet sedan; flyttas det låses den nya platsen, och försvinner det
-       släpps låset — utom medan handen täcker det eller telefonen räknar
-       svaret (provLasSteg, MES-166). */
-    const fore = oppProvLas, steg = provLasSteg(oppProvLas, p, false);
-    oppProvLas = steg.las;
-    if (steg.ny) oppProvLas.n = ++oppLasN;
-    if (oppProvLas && (!fore || fore.n !== oppProvLas.n || fore.box !== oppProvLas.box)) requestAnimationFrame(ritaPbLager);
-    oppProvId = oppProvLas ? oppProvLas.id : null;
-  }
-  /* Leken ligger i sin ruta: telefonen säger det, provkortet är upplockat,
-     och det har gått en sekund sedan rutan sparades. */
-  let d = oppDelLage(o);
-  if (d.aktiv === 'bib') {
-    const provBorta = !oppProvId || !senasteSpar.some(t => t.id === oppProvId);
-    if (kamBib && kamBib.ligger && provBorta && Date.now() - oppBibNar >= 1000) { oppSatt({ bibKlar: true }); o = oppFor(); d = oppDelLage(o); }
-  }
-  /* Pling (MES-139): när leken nyss blev klar — av kameran eller knappen —
-     spelas den gröna ramen en gång, och klart-kortet kommer en sekund efter.
-     Klar redan när steget ritades första gången: kortet direkt. */
-  if (d.bib && oppBibSag === false) {
-    oppPlingNar = Date.now(); oppKlarDold = false;
-    clearTimeout(oppPlingT); oppPlingT = setTimeout(() => { oppPlingT = 0; renderMode(); }, OPP_PLING_MS + 20);
-  }
-  oppBibSag = d.bib;
-  const letar = '<div class="opprad"><span class="oppwait"><i></i><span>Looking for a card…</span></span></div>'
-    + (p && p.kant ? `<p class="opptxt liten">Move the card in from the edge of the picture.</p>`
-      : p ? `<p class="opptxt liten">Takes a second. If nothing happens, nudge the card.</p>` : '');
-  /* Use camera to add cards (MES-171, G5Size): provkortet ger bara
-     storleken — ingen tap-fråga, och telefonen räknar ingen vinkel. Låst =
-     hittat; Continue mäter storleken ur låset (provKortStorlek). */
-  const prov = '<p class="opptxt">Put one card from your deck on the table. Mesa only needs its size, so the spots come out as big as your cards. It won’t be played.</p>'
-    + (oppProvLas ? '<div class="opprad"><span class="oppwait ok"><i></i><span>Found it — card size saved</span></span></div>' : letar);
-  const f = d.aktiv === 'grav' ? oppForslag(o) : null;
-  const grav = oppFlytt
-    ? `<p class="opptxt"><b>Drag the spot in the picture.</b> It stays the size of a card.</p><div class="opprad"><button type="button" class="btn ghost sm" data-opp="gravhorn">Back to the corner</button></div>`
-    : `<p class="opptxt"><b>This is your graveyard spot.</b> Leave the test card where it is. When you play, cards that go to the graveyard go here.</p>`
-      + (f && f.trangt ? `<p class="opptxt liten">The phone is close to the table, so the spots are smaller than a card. Raise the phone if you can.</p>` : '')
-      + `<div class="opprad"><button type="button" class="btn sm" data-opp="gravflytt">Move it</button></div>`;
-  let bib = '';
-  if (d.aktiv === 'bib') {
-    const vantat = Date.now() - oppBibNar, knapp = oppBibReserv(), fas = oppBibFas();
-    if (!knapp && !oppBibT) oppBibT = setTimeout(() => { oppBibT = 0; renderMode(); }, 10000 - vantat + 50);
-    const vant = fas === 'tackt' ? '<span class="oppwait vit"><i></i><span>Something is on the spot…</span></span>'
-      : fas === 'kollar' ? '<span class="oppwait bla"><i></i><span>Checking your library…</span></span>'
-      : '<span class="oppwait"><i></i><span>Waiting for your library…</span></span>';
-    bib = `<ol class="gor"><li><span class="gnr">1</span><span>Pick up the test card</span></li><li><span class="gnr">2</span><span>Shuffle it into your library</span></li><li><span class="gnr">3</span><span>Put your library face down on the spot</span></li></ol>`
-      + `<div class="opprad">${vant}</div>`
-      + (knapp ? `<div class="opprad"><button type="button" class="btn sm" data-opp="biblagd">My library is in place</button></div>` : '');
-  }
-  const st = k => d[k] ? 'done' : d.aktiv === k ? 'active' : 'todo';
-  oppDiff($('#oppDelar'),
-    oppDel(1, 'Card size', st('prov'), 'Saved', ['provom', 'Change'], prov)
-    + oppDel(2, 'Graveyard', st('grav'), 'Bottom-left corner', ['gravom', 'Move'], grav)
-    + oppDel(3, 'Library', st('bib'), 'In place', null, bib).replace('class="del done"', Date.now() - oppPlingNar < OPP_PLING_MS ? 'class="del done nyklar"' : 'class="del done"'));
-  oppDiff($('#oppEfter'), d.aktiv === 'start'
-    ? `<div class="klar4"><span class="ck">${OPP_KLAR.replace('width="12" height="12"', 'width="15" height="15"')}</span><div><b>Your table is set up</b><span>The camera knows where your graveyard and library are.</span></div></div>` : '');
-  /* Handlingen i panelens fot (G5, G5Size, G6, L1–L6). */
-  return d.aktiv === 'prov' ? { txt: 'Continue', a: 'storlek', av: !oppProvLas }
-    : d.aktiv === 'grav' ? (oppFlytt ? { txt: 'Done', a: 'gravklar', av: !oppGravFlyttad } : { txt: 'Looks good', a: 'gravok' })
-    : d.aktiv === 'bib' ? { txt: 'Start playing', av: true }
-    : { txt: 'Start playing<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>', a: 'starta' };
-}
-/* Graveyard (och library bredvid) sparas i en skrivning; leken väntas in. */
-async function oppSparaZoner(grav, bib) {
-  const r = z => ({ x: +z.x.toFixed(3), y: +z.y.toFixed(3), w: +z.w.toFixed(3), h: +z.h.toFixed(3) });
-  oppFlytt = false; oppGravFlyttad = null; oppBibNar = Date.now(); clearTimeout(oppBibT); oppBibT = 0;
-  oppSatt({ gravKlar: true, bibKlar: false });
-  const ok = await sparaZoner(r(grav), r(bib || bibBredvid(grav, ((kamVand % 360) + 360) % 360, kamSpegel)));
-  if (!ok) toast('The graveyard and library spots could not be saved to the game', 'err');
-  renderMode();
-}
-/* Start playing: provkortet (och spår som täcker det) spelas aldrig ut om
-   det ligger kvar; uppstarten stängs när de andra stegen är klara. */
-function oppStarta() {
-  for (const id of provkortUt(senasteSpar, oppProvId)) borttagna.add(id);
-  gravHandelser = [];
-  oppSatt({ startat: true }); oppProvId = null; oppProvLas = null;
-  renderMode();
-  if (!oppstartPagar()) avstamBord(senasteSpar);
-}
 /* Spelarlistan i Invite your friends (MES-170, G1/J1): alla i spelet i
    sittordning, med vem som är jag och värden, och var var och en är
-   (game_players.status): lek = steg 1, uppstart = steg 2–4, redo = allt är
-   klart men Start playing inte tryckt, spelar = i spelet. Ingen status — en
-   rad från före kolumnen — står utan. */
+   (game_players.status): lek = steg 1, uppstart = steg 2–3, spelar = i
+   spelet; redo (allt klart men Start playing inte tryckt) skrivs inte sedan
+   uppstartens steg 4 togs bort 2026-10-10. Ingen status — en rad från före
+   kolumnen — står utan. */
 const OPP_STATUS = { lek: ['Picking a deck', '#e8c98a'], uppstart: ['Setting up', '#e8c98a'], redo: ['Ready', '#8fe0b0'], spelar: ['Playing', 'var(--dim)'] };
 function oppFolkHtml() {
   const plats = p => p.plats == null ? 1e9 : p.plats;
@@ -13438,14 +13091,13 @@ function renderOppstart() {
   const el = $('#oppstart'); if (!el) return;
   if (!spelLage) {                  // utanför ett spel: bara DOM, inga tillstånd (renderMode ritas tidigt)
     if (!el.hidden) { el.hidden = true; document.body.classList.remove('oppstart'); matResize(); }
-    flyttaPbBild(false); oppstartBild = false;
     $('#oppMatt').hidden = true; $('#oppLek').hidden = true; document.body.classList.remove('oppbild');
     if (oppLsOppen) { oppLsOppen = oppLsKlar = false; oppLs.stang(); }
     oppSenast = undefined;          // Last used räknas om i nästa spel
     return;
   }
   let o = redigerbar() ? oppFor() : null;
-  const mig = minSpelare(), bord = mittLage() === 'bord';
+  const mig = minSpelare();
   /* Servern är sanningen (MES-355): står min rad som 'spelar' öppnas
      uppstarten aldrig av sig själv på den här enheten, och statusen skrivs
      inte om. Bara Redo setup (grundOm) gör om den. */
@@ -13454,18 +13106,11 @@ function renderOppstart() {
   const ordning = OPP_ORDNING;
   const steg = {};
   if (visa) {
-    const grund = kamGrund != null ? kamGrund : kamGrundRad;
     /* Leken räknas vald först när spelaren valt den här (MES-123): ett nytt
        spel landar i Pick your deck, också när kontots enda lek valts tyst. */
     steg.lek = !!(mig && mig.lekId) && !!(o.lekOk || o.lage);
     steg.tel = prefs.autoLage === true && kamAnsluten;
     steg.lage = !!o.lage;
-    /* Steg 4 är klart med Start playing — eller, på en dator som inte
-       börjat steget, när spelets rad redan bär båda rutorna, och i Mirror my
-       table vinkeln (oppSteg4Klar). Use camera to add cards har steget också
-       (MES-171), så game_players.lage 'skarm' i ett nytt spel gör det inte
-       klart innan läget valts (MES-192). */
-    steg.vinkel = oppSteg4Klar(o, bord, grund, !!kamGravRad && !!kamBibRad);
     oppNasta = ordning.find(k => !steg[k]) || null;
     if (!oppNasta) { oppSatt({ klar: true, grundOm: false }); visa = false; }
     else {
@@ -13478,9 +13123,9 @@ function renderOppstart() {
   const lsVisa = oppLsOppen && visa && aktiv === 'lek';
   if (oppLsOppen && !lsVisa) setTimeout(() => oppLekKlar(false), 0);
   /* Var jag är, för spelarlistan hos de andra och Home: Picking a deck i
-     steg 1, Setting up i steg 2–4, Ready när bordet är klart men Start
-     playing inte tryckt, Playing när uppstarten är klar eller avböjd. */
-  if (o) oppStatus(!visa ? 'spelar' : aktiv === 'lek' ? 'lek' : aktiv === 'vinkel' && oppDelLage(o).aktiv === 'start' ? 'redo' : 'uppstart');
+     steg 1, Setting up i steg 2–3, Playing när uppstarten är klar eller
+     avböjd. */
+  if (o) oppStatus(!visa ? 'spelar' : aktiv === 'lek' ? 'lek' : 'uppstart');
   const oppVar = oppOppen;
   oppOppen = visa;
   /* Motståndarnas mattor och kanten viker undan medan man gör sig redo
@@ -13497,12 +13142,11 @@ function renderOppstart() {
     $('#oppHost').hidden = !arVard;
     if (mig) $('#oppHost').style.setProperty('--pc', mig.color || 'var(--acc)');
     oppDiff($('#oppFolk'), oppFolkHtml());
-    /* Steg 3 och 4 står bara med ett av kamerans lägen — det valda i steg 2
-       medan det står framme (G3), annars det sparade. */
+    /* Steg 3 står bara i Mirror my table — det valda i steg 2 medan det
+       står framme (G3), annars det sparade. */
     if (aktiv === 'lage' && !oppLageVal) oppLageVal = o.lage ? mittLage() : 'bord';
-    const lageVal = aktiv === 'lage' ? oppLageVal : o.lage ? (bord ? 'bord' : 'skarm') : null;
-    const kamera = lageVal === 'bord' || lageVal === 'skarm';
-    const synlig = { lek: true, lage: true, tel: kamera, vinkel: lageVal === 'skarm' };   // steg 4 bara i Use camera to add cards (MES-334 steg 6)
+    const lageVal = aktiv === 'lage' ? oppLageVal : o.lage ? mittLage() : null;
+    const synlig = { lek: true, lage: true, tel: lageVal === 'bord' };
     const sist = ordning.filter(k => synlig[k]).pop();
     ordning.forEach((k, i) => {
       /* Klickbar är varje rad utom nästa steg när det står framme av sig
@@ -13520,12 +13164,8 @@ function renderOppstart() {
     const lek = mig && mig.lek;
     const s1 = lek ? `${lek.namn || 'Deck'} · ${lek.antal || 0} cards` : '';
     if ($('#opp1Sum').textContent !== s1) $('#opp1Sum').textContent = s1;
-    const s3 = LAGE_NAMN[bord ? 'bord' : 'skarm'];
+    const s3 = LAGE_NAMN[mittLage()];
     if ($('#opp2Sum').textContent !== s3) $('#opp2Sum').textContent = s3;
-    /* Steg 4 klart utan rutor: en uppstart i Use camera to add cards som var
-       klar innan steget fanns där (utan4, MES-171). */
-    const s4 = steg.vinkel && !(kamGravRad && kamBibRad) ? 'Skipped' : 'Graveyard and library set', s4el = $('#opp4 .vsum');
-    if (s4el.textContent !== s4) s4el.textContent = s4;
     /* 1: leken (G1). Listan och Last used hämtas en gång; står lekens sida
        öppen (pillret New deck) hämtas de på nytt när den stängts. Pennan
        monterar lekytan i steget (G1Edit). */
@@ -13577,30 +13217,21 @@ function renderOppstart() {
       if (w.lastElementChild.textContent !== t) w.lastElementChild.textContent = t;
       fot = { txt: 'Continue', a: 'stang', av: !kamAnsluten };
     } else oppQrVisas = false;
-    /* 2: spelläget (MES-123, namnen MES-170). Kamerans två lägen under Hybrid
-       modes — Mirror my table förvalt och rekommenderat — och Digital table
-       för sig under Digital mode. */
+    /* 2: spelläget (MES-123, namnen MES-170). Mirror my table under Hybrid
+       modes, förvalt och rekommenderat, och Digital table för sig under
+       Digital mode. */
     if (aktiv === 'lage') {
       const opt = (v, tag) => `<button type="button" class="oppopt${oppLageVal === v ? ' on' : ''}" data-opplage="${v}"><span class="radio"></span><span class="oppbody"><b>${LAGE_NAMN[v]}${tag ? `<span class="tag">${tag}</span>` : ''}</b><span>${LAGE_TXT[v]}</span></span></button>`;
-      oppDiff($('#opp2Cont'), `<div class="oppgrupp">${LAGE_GRUPP.kamera}</div>` + opt('bord', 'Recommended') + opt('skarm')
+      oppDiff($('#opp2Cont'), `<div class="oppgrupp">${LAGE_GRUPP.kamera}</div>` + opt('bord', 'Recommended')
         + `<div class="oppgrupp skild">${LAGE_GRUPP.utan}</div>` + opt('utan'));
       fot = { txt: 'Continue', a: 'lage' };
     }
-    /* 4: provkortet, graveyard-platsen och leken (MES-122). */
-    if (aktiv === 'vinkel') fot = oppSteg4(o);
-    else { oppDiff($('#oppDelar'), ''); oppDiff($('#oppEfter'), ''); }
     oppDiff($('#oppFot'), oppFotHtml(fot));
   }
-  /* Bilden: i steg 4 så länge kamerapanelen är stängd — i stort på mattan,
-     på en smal skärm i spalten (den ligger då över mattan). */
-  const steg4 = visa && aktiv === 'vinkel' && !kamOppen, smal = matchMedia('(max-width:620px)').matches;
-  const bild = steg4 && kamAnsluten;
-  const dit = bild ? (smal ? 'panel' : 'matt') : false;
-  if (dit !== oppstartBild) { oppstartBild = dit; flyttaPbBild(dit); kamStegSynk(); }
-  /* Mattan är kamerans bildyta hela uppstarten (MES-123): bordet viker
-     undan, och i steg 1, 3 och i steg 4 innan telefonen är med står ramen
-     där bilden kommer och säger vad steget handlar om. I steg 2 är mattan
+  /* Mattan är uppstartens yta (MES-123): bordet viker undan, och i steg 1
+     och 3 står ramen och säger vad steget handlar om. I steg 2 är mattan
      tom (G3). */
+  const smal = matchMedia('(max-width:620px)').matches;
   const tom = visa && !kamOppen && !smal;
   /* Steg 1: den valda leken som högar (G1), eller lekytan (G1Edit, G2). */
   const lekVy = tom && aktiv === 'lek' && (lsVisa || !!(oppLekar && oppLekar.length && !leksidaOppen()));
@@ -13608,22 +13239,14 @@ function renderOppstart() {
   $('#oppLs').hidden = !(lekVy && lsVisa);
   $('#oppLekVy').hidden = !(lekVy && !lsVisa);
   if (lekVy && !lsVisa) oppDiff($('#oppLekVy'), oppLekVyHtml(oppLekar.find(l => l.id === oppLekVal)));
-  const ram = tom && !lekVy && (bild || aktiv !== 'lage');
+  const ram = tom && !lekVy && aktiv !== 'lage';
   $('#oppMatt').hidden = !ram;
-  $('#oppMatt').classList.toggle('utanbild', !bild);
-  $('#oppMattVant').hidden = bild;
-  if (ram && !bild) {
+  if (ram) {
     const synliga = ordning.filter((k, i) => !$('#opp' + (i + 1)).hidden);
-    const m = OPP_MATT[aktiv] || OPP_MATT.vinkel;
+    const m = OPP_MATT[aktiv];
     oppDiff($('#oppMattVant'), `${m.ikon}<em>Step ${synliga.indexOf(aktiv) + 1} of ${synliga.length}</em><b>${m.h}</b><span>${m.p}</span>${m.knapp || ''}`);
   }
   document.body.classList.toggle('oppbild', tom);
-  /* Bilden i spalten (smal skärm) behöver en rad om vad den är; på mattan
-     har den sin egen rubrik. */
-  const intro = dit === 'panel' ? "Lay out your table the way you'll play. The picture is what your phone sees." : '', ie = $('#opp4Intro');
-  if (ie.textContent !== intro) ie.textContent = intro;
-  ie.hidden = !intro;
-  if (dit) requestAnimationFrame(ritaPbLager);
   const fore = document.body.classList.contains('oppstart');
   el.hidden = !visa;
   document.body.classList.toggle('oppstart', visa);
@@ -13662,45 +13285,18 @@ $('#oppstart').addEventListener('click', ev => {
     if (v === 'utan') oppUtan();
     else { oppSatt({ lage: true }); bytLage(v).then(() => renderMode()); }
   }
-  /* Use camera to add cards (G5Size): storleken ur låset, ingen vinkel. */
-  else if (a === 'storlek') {
-    if (!oppProvLas) return;
-    oppSatt({ provKlar: true, provKort: provKortStorlek(Object.assign({ id: oppProvLas.id }, oppProvLas.box), pbRa, pbMatt, kamBildAsp()) });
-    renderMode();
-  }
-  else if (a === 'grund') sparaGrundFranSenaste();
-  else if (a === 'provom') { oppSatt({ provKlar: false }); oppProvLas = null; renderMode(); }
-  else if (a === 'gravok') { const f = oppForslag(oppFor()); oppSparaZoner(f.grav, f.bib); }
-  else if (a === 'gravflytt') { oppFlytt = true; oppGravFlyttad = oppGravFlyttad || oppForslag(oppFor()).grav; renderOppstart(); ritaPbLager(); }
-  else if (a === 'gravklar') { if (oppGravFlyttad) oppSparaZoner(oppGravFlyttad, null); }
-  else if (a === 'gravhorn') { oppFlytt = false; oppGravFlyttad = null; renderOppstart(); ritaPbLager(); }
-  else if (a === 'gravom') { oppSatt({ gravKlar: false, bibKlar: false }); oppFlytt = true; oppGravFlyttad = kamGravRad || oppForslag(oppFor()).grav; renderMode(); ritaPbLager(); }
-  else if (a === 'biblagd') { oppSatt({ bibKlar: true }); renderMode(); }
-  else if (a === 'starta') oppStarta();
   else if (a === 'utan') oppUtan();
 });
-/* Digital table (steg 2): uppstarten stängs, och en kamera som bara väntade
-   på en telefon stängs av. Pillret öppnar uppstarten igen. */
+/* Digital table (steg 2): uppstarten stängs och kameran stängs av — också en
+   ansluten, utan att fråga: valet är att spela utan den, och en kamera som är
+   på speglar bordet (kameraLage). Raden får 'utan', så att mattan har sina
+   fasta högar. Pillret öppnar uppstarten igen. */
 function oppUtan() {
   oppSatt({ avbojd: true });
-  if (prefs.autoLage === true && !kamAnsluten) { prefs.autoLage = false; savePrefs(); }
+  if (prefs.autoLage === true) { if (kamAnsluten) stangAvAuto(false); else { prefs.autoLage = false; savePrefs(); } }
+  bytLage('utan');
   renderMode();
 }
-$('#oppMatt').addEventListener('click', ev => {
-  const b = ev.target.closest('[data-oppm]'); if (!b) return;
-  if (b.dataset.oppm === 'tel') { if (oppVisat !== 'tel' && oppNasta !== 'tel') oppVaxla($('#opp3')); return; }
-  if (b.dataset.oppm === 'vand') kamVand = (kamVand + 90) % 360; else kamSpegel = !kamSpegel;
-  oppGravFlyttad = null; sparaKamOrientering(); renderMode(); ritaPbLager();
-});
-/* Knapparna i bildlagret (MES-139): reserven när kameran inte ser leken,
-   och klart-kortets Start playing och Change something. */
-$('#oppLager') && $('#oppLager').addEventListener('click', ev => {
-  const b = ev.target.closest('[data-oppl]'); if (!b) return;
-  const a = b.dataset.oppl;
-  if (a === 'biblagd') { oppSatt({ bibKlar: true }); renderMode(); }
-  else if (a === 'starta') oppStarta();
-  else if (a === 'dolj') { oppKlarDold = true; ritaPbLager(); }
-});
 $('#oppstart').addEventListener('keydown', ev => {
   if ((ev.key !== 'Enter' && ev.key !== ' ') || !ev.target.matches) return;
   if (ev.target.matches('.vtit[role=button]')) { ev.preventDefault(); oppVaxla(ev.target.closest('.oppsteg')); }
@@ -13709,7 +13305,7 @@ $('#oppstart').addEventListener('keydown', ev => {
 $('#oppstart').addEventListener('pointermove', () => { kamRordes = Date.now(); if (!kamTittar) kamStrom(); }, { passive: true });
 /* Rullningslisten i panelen (MES-194). Appens list är 10 px och ligger i
    innehållets bredd, så när panelen rullade (tre spelare, eller en låg
-   skärm) kapades stegens summering: "Use camera to add car…". Listens
+   skärm) kapades stegens summering. Listens
    bredd mäts när panelen eller en del ändrar storlek och dras från den
    högra luften (--gplist). En överlagrad list (0 px) ändrar ingenting. */
 {
@@ -13722,19 +13318,19 @@ $('#oppstart').addEventListener('pointermove', () => { kamRordes = Date.now(); i
   ro.observe(mid); mid.querySelectorAll('.gpdel').forEach(d => ro.observe(d));
 }
 
-/* Byter läge: min rad i game_players (alla ser det), lokalt prefs. Till
-   Screen leads släpps nedtonade kort och nådatider — kameran tar inte bort
-   något där. Till Table leads spelas senaste bordet upp EN gång så att
-   mattan tar bordets läge, men bara när kameran faktiskt är ansluten —
-   annars spelades ett dött bord upp. Optimistiskt med rollback. */
+/* Byter läge: min rad i game_players (alla ser det). Till Digital table
+   släpps nedtonade kort och nådatider — ingen kamera tar bort något där. Till
+   Mirror my table spelas senaste bordet upp EN gång så att mattan tar
+   bordets läge, men bara när kameran faktiskt är ansluten — annars spelades
+   ett dött bord upp. Optimistiskt med rollback. */
 async function bytLage(v) {
-  v = v === 'bord' ? 'bord' : 'skarm';
+  v = v === 'bord' ? 'bord' : 'utan';
   if (mittLage() === v) { renderMode(); return; }
-  if (!spelLage) { prefs.lage = v; savePrefs(); renderMode(); return; }
+  if (!spelLage) { renderMode(); return; }
   const mig = minSpelare(); if (!mig) return;
   const fore = mig.lage;
   mig.lage = v; lageByte = true;
-  if (v === 'skarm') {
+  if (v === 'utan') {
     for (const c of mig.cards) delete c.borta;
     clearTimeout(lyftT); closeArk(); save();
   }
@@ -13744,12 +13340,21 @@ async function bytLage(v) {
   if (!ok) { mig.lage = fore; renderAll(true); toast('The mode could not be saved — try again', 'err'); return; }
   if (v === 'bord' && kamAnsluten && prefs.autoLage === true && senasteSpar.length) avstamBord(senasteSpar);
 }
+/* Kameran på är Mirror my table (sedan Use camera to add cards togs bort 2026-10-10). Står min rad på
+   Digital table när kameran är på — Turn on camera, Reconnect camera, en telefon som skannat koden, eller en
+   rad från innan läget togs bort — byts den till 'bord'. Valet av Digital table stänger av kameran först
+   (oppUtan, menyn), så de två drar aldrig åt olika håll. Går skrivningen inte igenom säger bytLage det, och
+   nästa försök kommer tidigast efter en minut (kameraLage.nar — på funktionen, för renderKamPop ritas tidigt). */
+function kameraLage() {
+  if (!spelLage || kameraEnhet || prefs.autoLage !== true || !minSpelare() || mittLage() === 'bord') return;
+  if (kameraLage.nar && Date.now() - kameraLage.nar < 60000) return;
+  kameraLage.nar = Date.now();
+  bytLage('bord');
+}
 /* Ett enda ställe tar emot klicken: pillret, panelen och statusfältet.
    Pillret ritas om vid varje rendering, så en bindning mot dess id hade
    tappats efter första omritningen. */
 function modeKlick(ev) {
-  const lb = ev.target.closest('[data-lage]');
-  if (lb) { ev.stopPropagation(); bytLage(lb.dataset.lage); return; }
   const b = ev.target.closest('[data-mode]'); if (!b) return;
   const a = b.dataset.mode;
   /* Pillret: står kameran av startar ett klick den (panelen visar QR-koden),
@@ -14636,10 +14241,10 @@ function ofrSokBekrafta() {
 }
 /* Leken som spelas i det här partiet: ett kort utanför den läggs till där (ofrLaggILek). */
 function ofrSokLekId() { const mig = spelLage && minSpelare(); return mig && mig.lekId ? mig.lekId : null; }
-/* Kortet fanns inte i leken: ett exemplar läggs till i huvudleken, som Use camera to add cards gör
-   (typ 'antal'), och sparas i lekens rad — så att kameran, antalen och nästa parti med leken har det.
-   lekEfterSpar bygger om leklådan, motståndarnas kopia och telefonens pool. Går sparningen inte igenom
-   försöker den igen i bakgrunden; kortet är namngivet på mattan ändå. */
+/* Kortet fanns inte i leken: ett exemplar läggs till i huvudleken (typ 'antal'), och sparas i lekens
+   rad — så att kameran, antalen och nästa parti med leken har det. lekEfterSpar bygger om leklådan,
+   motståndarnas kopia och telefonens pool. Går sparningen inte igenom försöker den igen i bakgrunden;
+   kortet är namngivet på mattan ändå. */
 async function ofrLaggILek(namn) {
   const id = ofrSokLekId(); if (!id) return;
   let k;
@@ -21509,8 +21114,8 @@ $('#menuBtn').onclick = ev => {
   const lg = mittLage(), kamPa = prefs.autoLage === true;
   const lagerad = (v, ikon) => `<button data-a="lage-${v}" class="val${kamPa && lg === v ? ' pa' : ''}" title="${esc(LAGE_TXT[v])}">`
     + `${ikon}${esc(LAGE_NAMN[v])}<span class="bock">✓</span></button>`;
-  /* Digital table hör hemma i samma grupp som Mirror/Use camera (MES-209-
-     uppföljning): tre sätt att spela, inte kameraläge plus en separat på/av-
+  /* Digital table hör hemma i samma grupp som Mirror my table (MES-209-
+     uppföljning): två sätt att spela, inte kameraläge plus en separat på/av-
      knapp nedanför. "Turn off camera" fanns förut som egen rad i Game-
      sektionen — samma sak sagd på två ställen, och det ena stod och väntade
      på att bli inaktuellt så fort man bytte läge. Bocken sitter nu på
@@ -21522,7 +21127,6 @@ $('#menuBtn').onclick = ev => {
     ${spelLage ? `<hr>
     <div class="hd">Table mode</div>
     ${lagerad('bord', M_LAGE_BORD)}
-    ${lagerad('skarm', M_LAGE_SKARM)}
     <button data-a="lage-utan" class="val${!kamPa ? ' pa' : ''}" title="${esc(LAGE_TXT.utan)}">${M_LAGE_UTAN}${esc(LAGE_NAMN.utan)}<span class="bock">✓</span></button>
     <hr>
     <div class="hd">Game ${esc(spelLage.kod)}</div>
@@ -21550,18 +21154,18 @@ menuEl.addEventListener('click', ev => {
   const a = b.dataset.a;
   if (a === 'clearhand') $('#clearHand').click();   // samma väg, med ångra
   if (a === 'bjudin') $('#spelKnapp').click();
-  /* Lägesbytet mitt i spelet (MES-209) — samma väg som kamerapanelens
-     segment, och den enda som finns när kameran är av. Var kameran av slår
-     valet av Mirror/Use camera på den igen (samma som gamla "Turn on
-     camera"), annars byts bara lage rakt av. */
-  if (a === 'lage-bord' || a === 'lage-skarm') {
+  /* Lägesbytet mitt i spelet (MES-209), och den enda väg som finns när
+     kameran är av. Var kameran av slår Mirror my table på den igen (samma
+     som gamla "Turn on camera"). */
+  if (a === 'lage-bord') {
     if (prefs.autoLage !== true) { prefs.autoLage = true; savePrefs(); autoSumStarta(); visaKamOv(); }
-    bytLage(a === 'lage-bord' ? 'bord' : 'skarm');
+    bytLage('bord');
   }
-  /* Digital table: samma som gamla "Turn off camera" — utan den här raden
-     fanns ingen väg tillbaka till manuellt läge när popovern inte går att
-     öppna (den kräver en ansluten telefon). */
-  if (a === 'lage-utan') stangAvAuto(true);
+  /* Digital table: kameran stängs av (samma som gamla "Turn off camera") och
+     raden får 'utan', så att mattan får sina fasta högar — utan den här
+     raden fanns ingen väg tillbaka till manuellt läge när popovern inte går
+     att öppna (den kräver en ansluten telefon). */
+  if (a === 'lage-utan') stangAvAuto(true).then(ok => { if (ok) bytLage('utan'); });
   if (a === 'ai') openAI();
   if (a === 'lamna') tillbakaTillHem();
   if (a === 'avsluta') avslutaSpelet();
@@ -29863,10 +29467,10 @@ const Kamera = (() => {
   /* :x,y = viloläget (K5), avrundat: en rapport när kortet lagt sig på en
      ny plats, ingen för darr. */
   /* :g när detektorn inte gett spåret en region på 2 s, och :s när det
-     legat stilla i stillaMs (fältet stilla): datorns provkortslås läser
-     båda (provkortSpar, MES-166). Förut stod `sen` kvar på 0 i varje
-     hjärtslag för ett spår som blivit kvar utan region (bänken RS2), och
-     låset hängde kvar där kortet legat. */
+     legat stilla i stillaMs (fältet stilla): datorn läser båda (MES-166).
+     Förut stod `sen` kvar på 0 i varje hjärtslag för ett spår som blivit
+     kvar utan region (bänken RS2), och uppstartens provkortslås (borttaget
+     med steg 4) hängde kvar där kortet legat. */
   const arStilla = t => t.regionNar != null && forra - t.stillaFran >= T.stillaMs;
   /* I vila på sitt läge (MES-214): två stilla rutor, läget satt där kortet ligger, och inte det tidiga namnets preliminära läge (spekTidig). */
   const arVila = t => (t.stillaN || 0) >= R(2) && !t.spekTidig && t.vilaX != null && Math.hypot(t.cx - t.vilaX, t.cy - t.vilaY) <= 3 * stillaPxNu();
@@ -30037,7 +29641,7 @@ const Kamera = (() => {
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
       sen: t.regionNar != null ? Math.max(0, Math.round(forra - t.regionNar)) : null,   // ms sedan detektorn gav spåret en region; null = aldrig (helbild, svarAI-del). forra, inte performance.now(): bänken och golden styr klockan själva
       alder: t.fodd != null ? Math.max(0, Math.round(forra - t.fodd)) : null,   // ms sedan spåret föddes (detektorn såg kortet först) — spelupplevelsens tid till namn (kort_handelser.ms). Inte sen: den är ~0 för varje kort i bild
-      stilla: arStilla(t),   // legat stilla i stillaMs (MES-166): datorns provkortslås låser bara ett stilla kort; och kamLage ankrar om ett läge som skrevs innan kortet vilat (MES-214)
+      stilla: arStilla(t),   // legat stilla i stillaMs (MES-166); kamLage ankrar om ett läge som skrevs innan kortet vilat (MES-214)
       kortlik: skuggklar(t),   // regionen har ETT KORTS MÅTT, eller har stått formstilla i två rutor: datorn ritar skuggan direkt, utan den halva sekund som skyddar mot en hand (MES-226)
       ned: arNedKort(t),   // spåret är ett ensamt nedvänt kort (lek.ned, Rättelse 2): datorn ritar det kortet, ingen platshållare
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand, namnLast: t.namnLast || null,
@@ -31399,8 +31003,8 @@ const Kamera = (() => {
     rapportera();
   }
 
-  /* Grundläget utifrån (datorn: raden i camera_setups, provkortet, Save i
-     kameravyn) är spelarens eget — lekvakten följer det inte längre och
+  /* Grundläget utifrån (datorn: raden i camera_setups, Save i kameravyn) är
+     spelarens eget — lekvakten följer det inte längre och
      skriver inte över det med första kortet. Ett värde inom en grad från det
      som gäller är inget byte: det är telefonens eget läge som datorn
      sparat i raden (hela grader) och som kommer tillbaka med realtid. */
@@ -32704,7 +32308,7 @@ const SAMMA_KORT_TACKNING = 0.3;
 const SPELL_MS = 20000;
 /* Den korta nåden (MES-291): ett kort vars spår dött och som INTE ska tonas
    ned — besvärjelsen (till graveyard), ett kort under sin värd eller sin
-   hög, Screen leads, ett kort som redan ligger i graveyard digitalt — avgörs
+   hög, ett kort som redan ligger i graveyard digitalt — avgörs
    efter så här lång tid, som när hela nåden var 600 ms. Bara nedtoningen
    väntar den långa väntan (BORTA_NAD). Inne i skivan, så att
    dev/avstamning.cjs och uppspelningarna har den utan en stubbe. */
@@ -32822,7 +32426,7 @@ function gravFoljer(spar, nu, mig) {
     spar = spar.filter(t => !gravFoljdaSpar.has(t.id));
   }
   if (typeof kamGravRad === 'undefined' || !kamGravRad || typeof sparaGravZon !== 'function' || !gravTomNar || nu - gravTomNar > GRAV_FOLJ_MS) return spar;
-  if (!(kamSpeglar(mig) && spelPolicy(mig).saknas)) return spar;   // bara Mirror my table: Use camera to add cards tar aldrig bort ett kort
+  if (!kamSpeglar(mig)) return spar;   // bara när kameran speglar mitt bord
   /* Spåret är högen bara om (granskningen av besluten, fynd 1):
      - graveyard har minst två kort — att ta kortet ur en graveyard med ett kort (unearth, återupplivning,
        MES-248) går inte att skilja från att flytta högen;
@@ -33139,214 +32743,18 @@ function senasteMattaKort(mig, spar) {
   const bundna = mig ? mig.cards.filter(c => c.spar != null && !c.borta && zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil' && matt(c)) : [];
   return bundna.find(c => c.spar === senasteKamSpar) || bundna.sort((a, b) => (b.ny || 0) - (a.ny || 0))[0] || null;
 }
-/* ── uppstartens rutor (MES-122) ──────────────────────────────────────
-   Rena funktioner, provade i dev/avstamning.cjs (ZN). Bilden är telefonens
-   bild i andelar (x, y); vyn (u, v) är samma bild som spelaren ser den —
-   vriden (r = kamVand) och speglad (s = kamSpegel) som kamTillMatta lägger
-   korten på mattan. Graveyard- och library-rutan föreslås nere till vänster
-   i vyn, lika stora som provkortet med luft runtom. */
-function kamBildTillVy(p, r, s) {
-  const x = s ? 1 - p.x : p.x, y = p.y;
-  return r === 90 ? { u: 1 - y, v: x } : r === 180 ? { u: 1 - x, v: 1 - y } : r === 270 ? { u: y, v: 1 - x } : { u: x, v: y };
+/* Fälten när uppstarten öppnas igen. om = Redo setup: läget väljs igen, och grundOm släpper spärren mot
+   en rad som redan står på 'spelar' (renderOppstart). Annars (pillret) står det som var klart kvar. */
+function oppOppnasIgen(om) {
+  return om ? { klar: false, avbojd: false, lage: false, grundOm: true } : { klar: false, avbojd: false };
 }
-function kamVyTillBild(q, r, s) {
-  const x = r === 90 ? q.v : r === 180 ? 1 - q.u : r === 270 ? 1 - q.v : q.u;
-  const y = r === 90 ? 1 - q.u : r === 180 ? 1 - q.v : r === 270 ? q.u : q.v;
-  return { x: s ? 1 - x : x, y };
-}
-const avr3 = v => Math.round(v * 1000) / 1000;
-function vyRutaTillBild(q, r, s) {
-  const a = kamVyTillBild({ u: q.u, v: q.v }, r, s), b = kamVyTillBild({ u: q.u + q.w, v: q.v + q.h }, r, s);
-  /* Hörnen avrundas, inte bredden: två rutor som delar en kant ska göra
-     det också efter avrundningen. */
-  const x0 = avr3(Math.min(a.x, b.x)), y0 = avr3(Math.min(a.y, b.y)), x1 = avr3(Math.max(a.x, b.x)), y1 = avr3(Math.max(a.y, b.y));
-  return { x: x0, y: y0, w: avr3(x1 - x0), h: avr3(y1 - y0) };
-}
-function bildRutaTillVy(z, r, s) {
-  const a = kamBildTillVy({ x: z.x, y: z.y }, r, s), b = kamBildTillVy({ x: z.x + z.w, y: z.y + z.h }, r, s);
-  return { u: Math.min(a.u, b.u), v: Math.min(a.v, b.v), w: Math.abs(a.u - b.u), h: Math.abs(a.v - b.v) };
-}
-const KORT_KVOT = 88 / 63;
-/* Provkortets sidor i bildbredder: S den korta, L den långa. Ur
-   provbordets mått när de finns (analyspixlarna är kvadratiska), annars ur
-   spårets låda: en vriden låda är större än kortet, och minsta kvadrat mot
-   kortets form (88:63) och vinkeln räknar tillbaka. A = bildens höjd/bredd,
-   g = grundläget i grader (otappat korts axel), tappat = provkortet låg
-   tappat. null = orimligt — då gäller ett vanligt kort. */
-function provKortUrRa(prov, ra, matt) {
-  const e = prov && ra && matt && matt.aw ? ra.find(x => x.id === prov.id) : null;
-  return e && e.kort > 0 && e.lang / e.kort >= 1.2 && e.lang / e.kort <= 1.65 ? { S: e.kort / matt.aw, L: e.lang / matt.aw } : null;
-}
-function provKortMatt(prov, ra, matt, A, g, tappat) {
-  const ur = provKortUrRa(prov, ra, matt); if (ur) return ur;
-  if (!prov || !(prov.w > 0) || !(prov.h > 0) || !(A > 0)) return null;
-  const th = ((g || 0) + (tappat ? 90 : 0)) * Math.PI / 180, c = Math.abs(Math.cos(th)), sn = Math.abs(Math.sin(th));
-  const a = KORT_KVOT * c + sn, b = KORT_KVOT * sn + c, Wb = prov.w, Hb = prov.h * A;
-  const S = (Wb * a + Hb * b) / (a * a + b * b);
-  if (!(S > 0) || Math.abs(Wb - S * a) > 0.25 * Wb || Math.abs(Hb - S * b) > 0.25 * Hb) return null;
-  return { S, L: KORT_KVOT * S };
-}
-/* Provkortets storlek utan vinkel (MES-171). I Use camera to add cards
-   frågas inte hur kortet ligger och telefonen räknar ingen vinkel, så
-   vinkeln är okänd. Lådan först, som i Mirror my table: den vinkel mellan
-   0° och 90° som bäst förklarar lådans form ger storleken (minsta kvadrat
-   per vinkel, som provKortMatt, och minsta relativa fel på någon led).
-   Ett kort som ligger stående, på tvären eller snett ger samma storlek.
-   Går lådan inte ihop med ett kort: provbordets mått av spåret. null =
-   orimligt — då gäller ett vanligt kort (oppForslag). */
-function provKortStorlek(prov, ra, matt, A) {
-  if (prov && prov.w > 0 && prov.h > 0 && A > 0) {
-    const Wb = prov.w, Hb = prov.h * A;
-    let bast = null;
-    for (let grad = 0; grad <= 90; grad++) {
-      const th = grad * Math.PI / 180, c = Math.cos(th), sn = Math.sin(th);
-      const a = KORT_KVOT * c + sn, b = KORT_KVOT * sn + c, S = (Wb * a + Hb * b) / (a * a + b * b);
-      const fel = Math.max(Math.abs(Wb - S * a) / Wb, Math.abs(Hb - S * b) / Hb);
-      if (!bast || fel < bast.fel) bast = { S, fel };
-    }
-    if (bast.S > 0 && bast.fel <= 0.25) return { S: bast.S, L: KORT_KVOT * bast.S };
-  }
-  return provKortUrRa(prov, ra, matt);
-}
-/* Förslaget: graveyard nere till vänster i vyn med 3 % luft (samma
-   fysiska luft åt båda hållen), library 0,2 rutbredd till höger. Platsen är
-   ett otappat kort som spelaren ser det — stående i vyn — lika stort som
-   provkortet med lite luft (ZON_LUFT). Provkortets vinkel spelar ingen roll:
-   ett snett lagt provkort gav förut en stor liggande ruta runt ett snett kort.
-   trangt = rutorna fick krympas för att rymmas: kameran är för nära. */
-const ZON_LUFT = 1.15;
-function zonForslag(S, L, A, r, s) {
-  /* Vyns bredd och höjd i bildbredder: vriden 90/270 är vyns bredd bildens höjd. */
-  const vrid = r === 90 || r === 270, Av = vrid ? 1 / A : A, vb = vrid ? A : 1, vh = vrid ? 1 : A;
-  let w = ZON_LUFT * S / vb, h = ZON_LUFT * L / vh, trangt = false;
-  const mu = 0.03 * Math.min(1, Av), mv = mu / Av;
-  if (h > 1 - 2 * mv) { const k = (1 - 2 * mv) / h; w *= k; h *= k; trangt = true; }
-  let gap = 0.2 * w;
-  if (mu + 2 * w + gap > 1 - mu) gap = 0;
-  if (mu + 2 * w > 1 - mu) { const k = (1 - 2 * mu) / (2 * w); w *= k; h *= k; trangt = true; }
-  const G = { u: mu, v: 1 - mv - h, w, h }, B = { u: mu + w + gap, v: G.v, w, h };
-  return { grav: vyRutaTillBild(G, r, s), bib: vyRutaTillBild(B, r, s), trangt };
-}
-/* Library bredvid en flyttad graveyard: samma storlek, 0,2 rutbredd till
-   höger i vyn — till vänster om den inte ryms där. */
-function bibBredvid(grav, r, s) {
-  const G = bildRutaTillVy(grav, r, s), gap = 0.2 * G.w;
-  let u = G.u + G.w + gap; if (u + G.w > 1) u = Math.max(0, G.u - gap - G.w);
-  return vyRutaTillBild({ u, v: G.v, w: G.w, h: G.h }, r, s);
-}
-/* Provkortet (MES-122): spåret steg 4 tar vinkeln ur. Inte skräp och inte
-   i högarnas rutor; samma kort som förra gången så länge det syns, annars
-   helst ett som detektorn mätt (sen ≠ null), inte skymt, och det som kom
-   senast. matt = vinkeln går att spara nu — annars läge 2b (kortet syns
-   men telefonen har ingen egen mätning av det, se grundFranSpar). */
-/* las = den låsta platsen (bildandelar): spåren som täcker den går före,
-   och vidLas säger att det valda gör det. Förra spåret behålls bara om det
-   går att mäta, eller om inget annat gör det — ett kort som fått två spår
-   (dubbletter, det ena skymt) fastnade förut på det skymda, och knapparna
-   kom aldrig. */
-/* lasbar (MES-166) = platsen får låsas på spåret: mätt, stilla på telefonen
-   och inte vid bildens kant. Förut låstes första mätta spåret, och det
-   föddes medan handen höll kortet: en ruta runt hand och kort, i bildens
-   hela höjd, med "Found it" innan kortet ens låg. En hand kommer alltid in
-   från kanten, ett provkort ligger inne i bilden. stilla saknas hos en
-   äldre telefon — då räcker det att spåret lämnat 'ny'. kant = spåret är
-   mätt och stilla men nuddar kanten: steget ber om att flytta in kortet. */
-const PROV_KANT = 0.01;
-const provVidKant = t => t.x <= PROV_KANT || t.y <= PROV_KANT || t.x + t.w >= 1 - PROV_KANT || t.y + t.h >= 1 - PROV_KANT;
-function provkortSpar(spar, zoner, sedd, forraId, las) {
-  const inne = (t, r) => r && t.w != null && t.x + t.w / 2 >= r.x && t.x + t.w / 2 <= r.x + r.w && t.y + t.h / 2 >= r.y && t.y + t.h / 2 <= r.y + r.h;
-  const kan = t => t.sen != null && t.sen < 2000 && !t.skymd && !(t.ai && t.ai.helbild);
-  const stilla = t => t.stilla !== undefined ? !!t.stilla : t.tillstand !== 'ny';
-  const lasbar = t => kan(t) && stilla(t) && !provVidKant(t);
-  let kand = (spar || []).filter(t => t.tillstand !== 'skrap' && t.w != null && !(zoner || []).some(r => inne(t, r)));
-  /* Spåren på den låsta platsen går före — utom när inget av dem går att
-     låsa och ett annat gör det: kortet har flyttats, och det som ligger
-     kvar över den gamla platsen är handen på väg bort. Bara ett spår som
-     detektorn ser nu, eller som är skymt, håller platsen: ett spår som
-     blivit kvar utan region (sen över 2 s) är inget bevis för att något
-     ligger där. */
-  const haller = t => t.skymd || (t.sen != null && t.sen < 2000);
-  const vid = las ? kand.filter(t => haller(t) && tackning(t, las) >= 0.3) : [];
-  if (vid.length && (vid.some(lasbar) || !kand.some(lasbar))) kand = vid;
-  const forra = kand.find(u => u.id === forraId);
-  const t = (forra && (lasbar(forra) || (!kand.some(lasbar) && (kan(forra) || !kand.some(kan)))) ? forra : null) || kand.slice().sort((a, b) =>
-    (lasbar(b) - lasbar(a)) || (kan(b) - kan(a)) || ((b.sen != null) - (a.sen != null)) || (!!a.skymd - !!b.skymd) || (((sedd && sedd.get(b.id)) || 0) - ((sedd && sedd.get(a.id)) || 0)) || (b.id - a.id))[0];
-  return t ? { t, matt: kan(t), lasbar: lasbar(t), kant: kan(t) && stilla(t) && provVidKant(t), vidLas: kand === vid && vid.includes(t) } : null;
-}
-/* Provkortets lås, ett steg per ritning (MES-166). las = { id, box, n } eller
-   null; p = provkortSpar; vantar = telefonen räknar svaret på
-   Untapped/Tapped. Svar: { las, ny } — ny = ett nytt lås, ramen spelar sin
-   animering (n räknas upp av den som anropar).
-   - Går spåret att låsa följer rutan det: samma plats (täcker hälften av
-     låset) = samma lås med kortets ruta; annars är kortet flyttat och den
-     nya platsen låses.
-   - Går det inte, men något täcker låset (handen över kortet), står låset
-     kvar med sitt id.
-   - Annars släpps det: kortet är borta eller flyttat och inte stilla än.
-   Medan svaret räknas rörs ingenting. Förut flyttade sig ramen aldrig:
-   ett spår som täckte 30 % av låset behöll den gamla rutan, och en ruta
-   runt handen täcktes av allt — den stod kvar där kortet legat. */
-function provLasSteg(las, p, vantar) {
-  if (vantar) return { las, ny: false };
-  if (p && p.lasbar) {
-    const box = { x: p.t.x, y: p.t.y, w: p.t.w, h: p.t.h };
-    if (las && tackning(box, las.box) >= 0.5) return { las: { id: p.t.id, box, n: las.n }, ny: false };
-    return { las: { id: p.t.id, box, n: null }, ny: true };
-  }
-  if (las && p && p.vidLas) return { las, ny: false };
-  return { las: null, ny: false };
-}
-/* Start playing: provkortets spår, och spår som täcker det (ett andra spår
-   på samma kort, som S8), läggs i borttagna — så spelas det inte ut om det
-   ligger kvar. Spärren släpper när spåret försvinner. */
-function provkortUt(spar, provId) {
-  const prov = (spar || []).find(t => t.id === provId);
-  return (spar || []).filter(t => t.id === provId || (prov && t.w != null && prov.w != null && tackning(t, prov) >= 0.3)).map(t => t.id);
-}
-/* Steg 4 klart (renderOppstart), ur uppstartens sparade fält o. Mirror my
-   table (bord) har inget steg 4 sedan MES-334 sida 5: leken, grundläget och
-   graveyard kommer ur partiet (lekvakten, lekens vinkel, graveyard-frågan),
-   så steget är alltid klart där. Use camera to add cards har steget kvar
-   (MES-171: kortets storlek, graveyard- och library-rutan) — klart med
-   Start playing, eller, på en dator som inte börjat steget, när spelets rad
-   redan bär båda rutorna. grundOm = Redo setup: raden räknas inte, steget
-   görs om. utan4 = uppstarten var klar i Use camera to add cards innan
-   steget fanns där (oppOppnasIgen). zoner = raden har graveyard- och
-   library-rutan. grund läses inte längre (vinkeln var Mirror my tables). */
-function oppSteg4Klar(o, bord, grund, zoner) {
-  if (bord || o.startat || o.utan4) return true;
-  return !o.b4 && !o.grundOm && !!zoner;
-}
-/* Fälten när uppstarten öppnas igen. om = Redo setup: läget väljs igen och
-   steg 4 görs om, i båda kameralägena. Annars (pillret) står det som var
-   klart kvar — och en uppstart som var klar i Use camera to add cards utan
-   Start playing gjordes innan steg 4 fanns där (MES-171): den ska inte
-   kräva steget nu (utan4). lage = mittLage(). */
-function oppOppnasIgen(o, om, lage) {
-  if (om) return { klar: false, avbojd: false, lage: false, grundOm: true, b4: false, provKlar: false, gravKlar: false, bibKlar: false, startat: false, utan4: false };
-  const f = { klar: false, avbojd: false };
-  if (o && o.klar && !o.startat && lage === 'skarm') f.utan4 = true;
-  return f;
-}
-/* Spärren under uppstarten (MES-122): medan uppstarten står öppen spelas inget ut, i båda kameralägena.
-   Mirror my table har inget steg 4 sedan MES-334 sida 5 — uppstarten stängs så fort leken, läget och
-   telefonen är klara — men den kan stå öppen med telefonen ansluten och auto på: pillret mitt i spelet,
-   eller en telefon som redan är ansluten när leken och läget väljs. Då speglade kameran bordet medan
-   panelen stod öppen, och kort på bordet blev spelade kort innan partiet börjat (granskningen av sida 5,
-   L4). Lekfotot i steg 1 skickar inga bord: det har en egen vy på telefonen (?lekfoto, telfotoOppna)
-   med egen ström och lekkanalen. */
+/* Spärren under uppstarten (MES-122): medan uppstarten står öppen spelas inget ut. Uppstarten stängs så fort
+   leken, läget och telefonen är klara — men den kan stå öppen med telefonen ansluten och auto på: pillret mitt
+   i spelet, eller en telefon som redan är ansluten när leken och läget väljs. Då speglade kameran bordet medan
+   panelen stod öppen, och kort på bordet blev spelade kort innan partiet börjat (granskningen av sida 5, L4).
+   Lekfotot i steg 1 skickar inga bord: det har en egen vy på telefonen (?lekfoto, telfotoOppna) med egen ström
+   och lekkanalen. */
 const oppstartSparr = () => typeof oppstartPagar === 'function' && oppstartPagar();
-/* Lägespolicyn (dev/plan/lagen.md §2): vad kameran får skriva på MITT bord.
-   Table leads ('bord', eller inget läge alls — harnessarnas stubbspelare)
-   speglar tap, flytt och saknade kort; Screen leads ('skarm') lägger bara
-   till. Att lägga till kort gäller alltid. avstamBord läser den (MODE-3);
-   högvakten (MES-85) och graveyard-frågan (MES-334 steg 4) följer pol.saknas.
-   grund: kameran dömer tap mot ett grundläge — i Mirror my table ur leken
-   (MES-334 sida 5); statusfältets fråga om grundläget är borttagen (steg 6). */
-function spelPolicy(mig) {
-  const bord = !mig || mig.lage !== 'skarm';
-  return { skapa: true, tap: bord, flytt: bord, saknas: bord, grund: bord };
-}
 
 /* ── Statusfältet: modellen ────────────────────────────────────────
    Chippet sa "ser 3 kort, känner igen 2" och inget mer: man lade ett kort
@@ -34074,7 +33482,7 @@ function gravKamOm(kams) {
 const gravArLand = c => zonAv(c) === ZON_MANA;
 /* Ett spår mitt i en plats där spelaren sa Ignore this spot: Mesa följer det inte. Så länge kameran
    speglar mitt bord i Mirror my table (gravIgnoreAktivt) — också efter Yes på en annan hög
-   (kontrollgranskningen N1); i Screen leads och utan telefon filtreras inget (granskningen, V1).
+   (kontrollgranskningen N1); utan telefon filtreras inget (granskningen, V1).
    Platserna är bildens koordinater och glöms när kameran nollställer sig eller tar en ny
    referensbild (gravGlomPlatser, gravFasByte) — då kan samma ställe i bilden vara en annan plats på bordet. */
 function gravIgnorerad(t) {
@@ -34238,10 +33646,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      omladdning): sammanfattningen ska finnas när auto stängs av, även om
      inget kort hann bindas. */
   autoSumSakra();
-  /* Uppstarten pågår (MES-122): bordet ställs i ordning — provkortet,
-     graveyard-platsen, leken — och inget av det spelas ut. Spåren följs
-     (senasteSpar, sparSedd) så att steg 4 ser provkortet, men mitt bord
-     rörs inte: inga nya kort, inga frågor, ingen tap, inget till graveyard. */
+  /* Uppstarten pågår (MES-122): inget spelas ut. Spåren följs
+     (senasteSpar, sparSedd), men mitt bord rörs inte: inga nya kort, inga
+     frågor, ingen tap, inget till graveyard. */
   if (oppstartSparr()) {
     gravHandelser = []; losaSpar = new Set(); losKort = new Map(); clearTimeout(lyftT);
     for (const t of spar) if (!sparSedd.has(t.id)) sparSedd.set(t.id, nu);
@@ -34317,22 +33724,21 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      tappningen gäller. undefined är en telefon utan läge alls — då dömer
      spåret som förut. Ett spår som syns är inte borta. */
   const tapSynk = kamGrund !== null;
-  const pol = spelPolicy(mig);
   /* Kantstyrd tap-synk (MODE-4): kameran skriver tapped bara när DESS EGEN
      dom (k.kamTap, kamerans senaste) ändras. En digital rättning står sig
      då tills kortet fysiskt vrids igen — nivåstyrt skrev hjärtslaget över
      den var tredje sekund. Den första domen för ett kort tas alltid: utan
-     dom finns ingen rättning att skydda, och i Table leads är bordet
-     sanningen. Domen följer det fysiska kortet, inte spåret: ett nytt spår
+     dom finns ingen rättning att skydda, och bordet är sanningen. Domen
+     följer det fysiska kortet, inte spåret: ett nytt spår
      på samma plats med en annan dom (kortet vreds, detektorn födde ett nytt
      spår) är en vridning och skriver; ett ledarbyte med samma dom skriver
-     inget. Screen leads följer domen men rör aldrig tapped. kamTap sparas
-     lokalt (slimKort) så att en rättning överlever en omladdning. */
+     inget. kamTap sparas lokalt (slimKort) så att en rättning överlever en
+     omladdning. */
   /* Kamerans läge för kortet (k.kam: spårets mitt och mått i bildandelar,
      MODE-3): skrivs när spåret ligger stilla eller är klart, inte ur
      helbilden, och bara när mitten flyttat mer än AUTO_FLYTT av bredden —
-     mindre är detektorns darr. nar bumpas bara då. Skrivs i båda lägena:
-     det är ett minne; mattan speglar det i Table leads (MODE-5). */
+     mindre är detektorns darr. nar bumpas bara då. Det är ett minne;
+     mattan speglar det (MODE-5). */
   const kamLage = (k, t) => {
     /* Ett kort som burits till spåret utan namn (flyttFran, steg 3b) följer spårets viloläge också
        medan spåret är nytt eller osäkert: läget är det enda beviset för att kortet ligger där. */
@@ -34358,7 +33764,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     const tapLas = !!k.flyttFran && t.tillstand !== 'klar';
     if (tapSynk && !tapLas && (k.kamTap == null || tap !== k.kamTap)) {
       k.kamTap = tap;
-      if (pol.tap && (k.tapped ? 1 : 0) !== tap) { k.tapped = tap; andrat = true; }
+      if ((k.tapped ? 1 : 0) !== tap) { k.tapped = tap; andrat = true; }
     }
     kamLage(k, t);
     if (k.borta) { delete k.borta; andrat = true; }
@@ -34383,7 +33789,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const aterstallFlytt = k => {
     const f = k.flyttFran; delete k.flyttFran;
     k.kam = f.kam; k.spar = f.spar; k.borta = f.borta; gravTid.set(k.cid, f.borta);
-    if (f.kamTap !== undefined) { k.kamTap = f.kamTap; if (pol.tap) k.tapped = f.tapped; } else delete k.kamTap;
+    if (f.kamTap !== undefined) { k.kamTap = f.kamTap; k.tapped = f.tapped; } else delete k.kamTap;
     andrat = true;
   };
   /* Namnen ett spår skulle visa i granskningen (steg 5, MES-294) — och som en flytt utan namn (steg
@@ -34424,7 +33830,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
       /* Flytten var gissad (steg 3b, utan namn) och namnet — också ett osäkert — säger att det är
          ett annat kort som ligger där: tillbaka (aterstallFlytt). Spåret får sitt eget kort i steg 4. */
       if (k.flyttFran) { aterstallFlytt(k); continue; }
-      delete k.spar; delete k.borta; delete k.fysisk; if (kanLyftas(k) && pol.saknas) { k.slappt = nu; gravTid.set(k.cid, nu); }
+      delete k.spar; delete k.borta; delete k.fysisk; if (kanLyftas(k)) { k.slappt = nu; gravTid.set(k.cid, nu); }
       andrat = true;
     }
   }
@@ -34490,73 +33896,71 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     k.kam = { x: cx, y: cy, w: t.w, h: t.h, nar: nu };
   };
   let ofrFlyttKan = null;   // framkallningen (MES-344): kan ett kort i väntan vara det som läggs ned på spåret?
-  if (pol.flytt) {
-    /* Bara spår telefonen bestämt sig för att läsa (stilla: legat still i stillaMs, läsningen kommer i
-       nästa rapport) eller redan läst utan säkert namn (okand — osäkert, eller hos Claude), och som
-       inte säger emot kortet. Ett spår som binds medan det är nytt (vilar efter två rutor) får sin
-       första läsning 0,6–3 s senare, och säger den ett annat namn tas bindningen tillbaka synligt —
-       platshållare, kort, platshållare (spår 28 och 34 i passet 2026-09-22; granskningen). Osäkert
-       betyder orört (princip 10): hellre bindningen ~0,8 s efter vilan än en som ångras. Bara okand
-       (efter läsningen) tappade Mirran Bardiches flyttar 113,6 och 119,0 s i spegelfacit (8 → 6/18)
-       utan att vinna något. Inte ett nedvänt kort (ned): en baksida får aldrig namn, så gissningen
-       kunde aldrig rättas (GRbak). */
-    const kand = spar.filter(t => t.w != null && t.h != null && !franHelbild(t) && (t.tillstand === 'stilla' || t.tillstand === 'okand') && !iFysiskt.has(t.id) && !bunden(t.id)
-      && !t.skymd && !t.ned && !!t.kortlik && !!(t.vilar != null ? t.vilar : t.stilla) && !hoppade.has(t.id) && !borttagna.has(t.id)
-      && !(sparLage.has(t.id) && nu - sparLage.get(t.id).andrad > FLYTT_VILA));
-    /* Kortet ska ha lämnat sin plats (princip 9): ett synligt klart eller kortlikt spår som täcker
-       platsen är kortet självt sett igen (en hög vars spår föds om när den tappas, passet 215 s; ett
-       täckt kort i en hög, GRf) — inte ett kort i väntan. Kandidaterna själva räknas inte: ett spår
-       som föds där kortet låg är kortet sett igen, och binds på plats. */
-    const kandId = new Set(kand.map(t => t.id));
-    const platsTackt = k => spar.some(u => u.w != null && !franHelbild(u) && !u.skymd && !kandId.has(u.id) && (u.tillstand === 'klar' || u.kortlik) && tackning(kamRekt(k.kam), u) >= SAMMA_KORT_TACKNING);
-    const vantar = mig.cards.filter(k => k.spar != null && !synliga.has(k.spar) && paBordet(k) && !k.fysisk && !!k.kam && !k.attachedTo
-      && !(k.borta && nu - k.borta > BORTA_NAD) && !platsTackt(k));
-    const sedd = t => sparSedd.has(t.id) ? sparSedd.get(t.id) : nu;
-    /* Fönstret: från sista fria sikten (k.sedd) — eller från lyftet (spårets död) när en hand legat
-       stilla över kortet i HAND_VILA: ett kort som lades ut medan handen vilade på A är inte A (GRa4). */
-    const fran = k => { const dod = k.borta || nu; return k.handFran != null && dod - k.handFran >= HAND_VILA ? dod : (k.sedd || 0); };
-    /* Platsen var tom (platsMinne): inget annat spår än kortets eget har legat där kandidaten vilar —
-       utom ett kort som ligger där SYNLIGT och känt just nu (klart, bundet, inte skymt): ett kort som
-       läggs delvis över ett annat (utrustning på en varelse, Mirran Bardiche på Ukud Cobra i passet
-       113,6 s) vilar på en plats som inte är tom men inte heller rörig. Det som spärrar är spår som
-       dött eller inte blivit kort: en landhög där regioner föds och dör. */
-    const kant = new Set(spar.filter(u => u.tillstand === 'klar' && !u.skymd && bunden(u.id)).map(u => u.id));
-    /* …och ett känt kort som kandidaten lagts OVANPÅ (MES-356): spåret är bundet till ett annat kort på mattan, och
-       telefonen har sett kandidaten ligga över det (ofrSkilda — telefonens under). Det kortet ligger kvar under, skymt
-       eller med sitt spår dött, och är ingen rörig plats. Jespers bord 2026-10-09 (2YBSJX): Island A flyttades och
-       lades över Island B; B:s spår blev skymt, platsen räknades som inte tom, A väntade kvar på sin gamla plats och
-       det nya spåret blev ett oframkallat kort — tre Islands på mattan för två på bordet. Bara när telefonens egen
-       läsning säger kortets namn (telefonensNamn, inte Claudes): ett kort som läggs på ett annat utan namn kan lika gärna
-       vara en aura eller ett nytt kort ur handen, och det får namnet avgöra som förut. Utan relationen (bara skymt)
-       gäller inte undantaget: ett osäkert spår på ett skymt kort kan vara samma kort sett två gånger. */
-    const overKant = (id, k, t) => { const c = bunden(id); return !!c && c !== k && paBordet(c) && ofrSkilda(id, t.id) && telefonensNamn(t).has(k.name); };
-    const tomPlats = (k, t) => { for (const [id, e] of platsMinne) if (id !== t.id && id !== k.spar && !kant.has(id) && !overKant(id, k, t) && tackning(e, t) >= SAMMA_KORT_TACKNING) return false; return true; };
-    const passar = (k, t) => { const n = postensNamn(t); return (!n.size || n.has(k.name)) && !annatKort(k, t) && sedd(t) >= fran(k) - FLYTT_FORE && tomPlats(k, t); };
-    /* Framkallningen (MES-344): ett spår som inte lästs än och som ett kort i väntan kan bäras till får
-       inget oframkallat kort — flytten avgörs när telefonen bestämt sig för att läsa det (stilla). */
-    /* …och inte heller medan telefonen läser det (stilla, MES-356): binder inte steg 3b redan där är det för att
-       flera kort väntar (tvekan), och namnet avgör när läsningen kommer. Förut fick vart och ett av tre kort som
-       flyttats samtidigt ett oframkallat kort bredvid korten i väntan — sex kort på mattan för tre på bordet —
-       tills läsningarna kom och korten bars dit. Säger läsningen ett annat namn, eller inget kort väntar längre
-       (BORTA_NAD), kommer det oframkallade kortet som förut. */
-    ofrFlyttKan = t => (t.tillstand === 'ny' || t.tillstand === 'stilla') && mig.cards.some(k => k.spar != null && !synliga.has(k.spar) && paBordet(k) && !k.fysisk && !!k.kam && !k.attachedTo
-      && !(k.borta && nu - k.borta > BORTA_NAD) && !platsTackt(k) && passar(k, t));
-    if (kand.length && vantar.length) {
-      const avst =(k, t) => Math.hypot((t.vx != null ? t.vx : t.x + t.w / 2) - k.kam.x, (t.vy != null ? t.vy : t.y + t.h / 2) - k.kam.y);
-      const par = [];
-      for (const k of vantar) for (const t of kand) if (passar(k, t)) par.push({ k, t, d: avst(k, t), namn: postensNamn(t).has(k.name) });
-      /* Spår som gissar kortets namn först, sedan de namnlösa — bara utan tvekan: ett spår, och ett
-         enda namn bland korten i väntan. */
-      par.sort((a, b) => (b.namn - a.namn) || (a.d - b.d));
-      const tagnaK = new Set(), tagnaT = new Set();
-      for (const p of par) {
-        if (tagnaK.has(p.k) || tagnaT.has(p.t)) continue;
-        if (!p.namn) {
-          const kvarK = vantar.filter(k => !tagnaK.has(k)), kvarT = kand.filter(t => !tagnaT.has(t) && kvarK.some(k => passar(k, t)));
-          if (new Set(kvarK.map(k => k.name)).size !== 1 || kvarT.length !== 1) break;
-        }
-        flyttBuren(p.k, p.t); tagnaK.add(p.k); tagnaT.add(p.t);
+  /* Bara spår telefonen bestämt sig för att läsa (stilla: legat still i stillaMs, läsningen kommer i
+     nästa rapport) eller redan läst utan säkert namn (okand — osäkert, eller hos Claude), och som
+     inte säger emot kortet. Ett spår som binds medan det är nytt (vilar efter två rutor) får sin
+     första läsning 0,6–3 s senare, och säger den ett annat namn tas bindningen tillbaka synligt —
+     platshållare, kort, platshållare (spår 28 och 34 i passet 2026-09-22; granskningen). Osäkert
+     betyder orört (princip 10): hellre bindningen ~0,8 s efter vilan än en som ångras. Bara okand
+     (efter läsningen) tappade Mirran Bardiches flyttar 113,6 och 119,0 s i spegelfacit (8 → 6/18)
+     utan att vinna något. Inte ett nedvänt kort (ned): en baksida får aldrig namn, så gissningen
+     kunde aldrig rättas (GRbak). */
+  const kand = spar.filter(t => t.w != null && t.h != null && !franHelbild(t) && (t.tillstand === 'stilla' || t.tillstand === 'okand') && !iFysiskt.has(t.id) && !bunden(t.id)
+    && !t.skymd && !t.ned && !!t.kortlik && !!(t.vilar != null ? t.vilar : t.stilla) && !hoppade.has(t.id) && !borttagna.has(t.id)
+    && !(sparLage.has(t.id) && nu - sparLage.get(t.id).andrad > FLYTT_VILA));
+  /* Kortet ska ha lämnat sin plats (princip 9): ett synligt klart eller kortlikt spår som täcker
+     platsen är kortet självt sett igen (en hög vars spår föds om när den tappas, passet 215 s; ett
+     täckt kort i en hög, GRf) — inte ett kort i väntan. Kandidaterna själva räknas inte: ett spår
+     som föds där kortet låg är kortet sett igen, och binds på plats. */
+  const kandId = new Set(kand.map(t => t.id));
+  const platsTackt = k => spar.some(u => u.w != null && !franHelbild(u) && !u.skymd && !kandId.has(u.id) && (u.tillstand === 'klar' || u.kortlik) && tackning(kamRekt(k.kam), u) >= SAMMA_KORT_TACKNING);
+  const vantar = mig.cards.filter(k => k.spar != null && !synliga.has(k.spar) && paBordet(k) && !k.fysisk && !!k.kam && !k.attachedTo
+    && !(k.borta && nu - k.borta > BORTA_NAD) && !platsTackt(k));
+  const sedd = t => sparSedd.has(t.id) ? sparSedd.get(t.id) : nu;
+  /* Fönstret: från sista fria sikten (k.sedd) — eller från lyftet (spårets död) när en hand legat
+     stilla över kortet i HAND_VILA: ett kort som lades ut medan handen vilade på A är inte A (GRa4). */
+  const fran = k => { const dod = k.borta || nu; return k.handFran != null && dod - k.handFran >= HAND_VILA ? dod : (k.sedd || 0); };
+  /* Platsen var tom (platsMinne): inget annat spår än kortets eget har legat där kandidaten vilar —
+     utom ett kort som ligger där SYNLIGT och känt just nu (klart, bundet, inte skymt): ett kort som
+     läggs delvis över ett annat (utrustning på en varelse, Mirran Bardiche på Ukud Cobra i passet
+     113,6 s) vilar på en plats som inte är tom men inte heller rörig. Det som spärrar är spår som
+     dött eller inte blivit kort: en landhög där regioner föds och dör. */
+  const kant = new Set(spar.filter(u => u.tillstand === 'klar' && !u.skymd && bunden(u.id)).map(u => u.id));
+  /* …och ett känt kort som kandidaten lagts OVANPÅ (MES-356): spåret är bundet till ett annat kort på mattan, och
+     telefonen har sett kandidaten ligga över det (ofrSkilda — telefonens under). Det kortet ligger kvar under, skymt
+     eller med sitt spår dött, och är ingen rörig plats. Jespers bord 2026-10-09 (2YBSJX): Island A flyttades och
+     lades över Island B; B:s spår blev skymt, platsen räknades som inte tom, A väntade kvar på sin gamla plats och
+     det nya spåret blev ett oframkallat kort — tre Islands på mattan för två på bordet. Bara när telefonens egen
+     läsning säger kortets namn (telefonensNamn, inte Claudes): ett kort som läggs på ett annat utan namn kan lika gärna
+     vara en aura eller ett nytt kort ur handen, och det får namnet avgöra som förut. Utan relationen (bara skymt)
+     gäller inte undantaget: ett osäkert spår på ett skymt kort kan vara samma kort sett två gånger. */
+  const overKant = (id, k, t) => { const c = bunden(id); return !!c && c !== k && paBordet(c) && ofrSkilda(id, t.id) && telefonensNamn(t).has(k.name); };
+  const tomPlats = (k, t) => { for (const [id, e] of platsMinne) if (id !== t.id && id !== k.spar && !kant.has(id) && !overKant(id, k, t) && tackning(e, t) >= SAMMA_KORT_TACKNING) return false; return true; };
+  const passar = (k, t) => { const n = postensNamn(t); return (!n.size || n.has(k.name)) && !annatKort(k, t) && sedd(t) >= fran(k) - FLYTT_FORE && tomPlats(k, t); };
+  /* Framkallningen (MES-344): ett spår som inte lästs än och som ett kort i väntan kan bäras till får
+     inget oframkallat kort — flytten avgörs när telefonen bestämt sig för att läsa det (stilla). */
+  /* …och inte heller medan telefonen läser det (stilla, MES-356): binder inte steg 3b redan där är det för att
+     flera kort väntar (tvekan), och namnet avgör när läsningen kommer. Förut fick vart och ett av tre kort som
+     flyttats samtidigt ett oframkallat kort bredvid korten i väntan — sex kort på mattan för tre på bordet —
+     tills läsningarna kom och korten bars dit. Säger läsningen ett annat namn, eller inget kort väntar längre
+     (BORTA_NAD), kommer det oframkallade kortet som förut. */
+  ofrFlyttKan = t => (t.tillstand === 'ny' || t.tillstand === 'stilla') && mig.cards.some(k => k.spar != null && !synliga.has(k.spar) && paBordet(k) && !k.fysisk && !!k.kam && !k.attachedTo
+    && !(k.borta && nu - k.borta > BORTA_NAD) && !platsTackt(k) && passar(k, t));
+  if (kand.length && vantar.length) {
+    const avst =(k, t) => Math.hypot((t.vx != null ? t.vx : t.x + t.w / 2) - k.kam.x, (t.vy != null ? t.vy : t.y + t.h / 2) - k.kam.y);
+    const par = [];
+    for (const k of vantar) for (const t of kand) if (passar(k, t)) par.push({ k, t, d: avst(k, t), namn: postensNamn(t).has(k.name) });
+    /* Spår som gissar kortets namn först, sedan de namnlösa — bara utan tvekan: ett spår, och ett
+       enda namn bland korten i väntan. */
+    par.sort((a, b) => (b.namn - a.namn) || (a.d - b.d));
+    const tagnaK = new Set(), tagnaT = new Set();
+    for (const p of par) {
+      if (tagnaK.has(p.k) || tagnaT.has(p.t)) continue;
+      if (!p.namn) {
+        const kvarK = vantar.filter(k => !tagnaK.has(k)), kvarT = kand.filter(t => !tagnaT.has(t) && kvarK.some(k => passar(k, t)));
+        if (new Set(kvarK.map(k => k.name)).size !== 1 || kvarT.length !== 1) break;
       }
+      flyttBuren(p.k, p.t); tagnaK.add(p.k); tagnaT.add(p.t);
     }
   }
   /* 4. Skapa sedan — bara om bordet har FÄRRE kort med namnet än mattan har
@@ -34583,7 +33987,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     /* …utom kortet som telefonen ser ligga UNDER det nya spåret (ofrSkilda, telefonens under): det är inte handen
        som skymmer det utan kortet som lagts ovanpå — ett land på ett land med samma namn. Förut väntade det nya
        kortet DUBBLETT_VANTA (3 s) varje gång (Island på Island, Jespers bord 2026-10-10). */
-    if (pol.flytt && mig.cards.some(c => c.name === g.namn && paBordet(c) && c.spar != null && synliga.has(c.spar) && !g.spar.some(q => q.id === c.spar) && !ofrSkilda(c.spar, t.id) && iHanderna(c))) {
+    if (mig.cards.some(c => c.name === g.namn && paBordet(c) && c.spar != null && synliga.has(c.spar) && !g.spar.some(q => q.id === c.spar) && !ofrSkilda(c.spar, t.id) && iHanderna(c))) {
       if (!flyttVantan.has(t.id)) flyttVantan.set(t.id, nu);
       if (nu - flyttVantan.get(t.id) < DUBBLETT_VANTA) { g.vantar = true; continue; }
     }
@@ -34594,13 +33998,13 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
        då beter sig avstämningen exakt som förut. Bara Table leads: i Screen
        leads rör kameran inga zoner, den lägger bara till. */
     const tak = lekAntal(g.namn);
-    const ur = pol.flytt && isFinite(tak) && paBord + iHog(g.namn) >= tak ? urGraven(g.namn) : null;
+    const ur = isFinite(tak) && paBord + iHog(g.namn) >= tak ? urGraven(g.namn) : null;
     if (ur) {
       const aldrigDar = ur.gravAuto != null && nu - ur.gravAuto < GRAV_ATER_MS;   // högvakten tog fel (GRAV_ATER_MS)
       delete ur.zon; delete ur.gravAuto; delete ur.spellAuto; delete ur.attachedTo;
       if (!aldrigDar) { ur.cts = []; ur.flipped = 0; }   // ett nytt objekt: counters och sida blev kvar på bordet (som nyttPaBordet)
       ur.x = ur.y = null;                       // kortet tar platshållarens plats, som ett nyskapat (matPlacera)
-      ur.tapped = tapSynk && pol.tap && t.tappad ? 1 : 0;
+      ur.tapped = tapSynk && t.tappad ? 1 : 0;
       ur.kamTap = tapSynk ? (t.tappad ? 1 : 0) : undefined;
       ur.ny = nu; ur.etb = 1;
       gravTaUr(nu);                             // högens ändring var kortet som lyftes ur den (MES-85)
@@ -34624,7 +34028,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
       if (!hoppade.has(t.id) && !mig.pending.some(q => q.spar === t.id)) {
         const id = uid();
         for (const w of [220, 260]) { const d = cropCache.get('spar-' + t.id + '@' + w); if (d) cropCache.set(id + '@' + w, d); }
-        mig.pending.push({ id, spar: t.id, box: null, rot: 0, tappad: tapSynk && pol.tap ? !!t.tappad : null, namnLast: null,
+        mig.pending.push({ id, spar: t.id, box: null, rot: 0, tappad: tapSynk ? !!t.tappad : null, namnLast: null,
           overTak: true, tak, cands: [{ name: t.namn, sid: t.sid || null, score: 1 }] });
         andrat = true;
       }
@@ -34633,7 +34037,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     }
     /* Utan sparat läge föds kortet otappat (se lagg). Telefonen tar läget ur
        leken eller ur första kortet (MES-334 sida 5). */
-    g.kort = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: tapSynk && pol.tap && t.tappad ? 1 : 0, kamTap: tapSynk ? (t.tappad ? 1 : 0) : undefined, spar: t.id, ny: nu, etb: 1 };
+    g.kort = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: tapSynk && t.tappad ? 1 : 0, kamTap: tapSynk ? (t.tappad ? 1 : 0) : undefined, spar: t.id, ny: nu, etb: 1 };
     kamLage(g.kort, t);
     mig.cards.push(g.kort); andrat = true;
     autoSumKort(g.kort.cid, t);
@@ -34685,7 +34089,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      kortet är det enda med namnet på bordet, platsen är inte täckt (då ligger det kvar under), och inget
      annat löst osäkert spår bär namnet. Före loopen: tacktAvKort är en const längre ned. */
   const vantarPaNamn = t => {
-    if (!pol.flytt || t.provas || t.w == null || t.h == null || franHelbild(t) || !t.kortlik || t.ned || t.skymd || hoppade.has(t.id)) return null;
+    if (t.provas || t.w == null || t.h == null || franHelbild(t) || !t.kortlik || t.ned || t.skymd || hoppade.has(t.id)) return null;
     const v = t.remsa && t.remsa.minne;
     if (!v || !v.vittne || !v.namn || v.namn !== t.namn || v.sparId == null) return null;
     const namn = v.namn, medNamn = mig.cards.filter(c => c.name === namn && paBordet(c));
@@ -34709,7 +34113,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      löst spår läses som samma namn. Kortet behåller sitt eget namn: inget nytt namn sätts, så det kan inte bli ett
      säkert fel namn, bara i värsta fall fel plats. Före nåden avgör steg 3b som förut. */
   const spoketsKort = t => {
-    if (!pol.flytt || t.provas || t.w == null || t.h == null || franHelbild(t) || !t.kortlik || t.ned || t.skymd || hoppade.has(t.id)) return null;
+    if (t.provas || t.w == null || t.h == null || franHelbild(t) || !t.kortlik || t.ned || t.skymd || hoppade.has(t.id)) return null;
     const n = telefonensVittnen(t);
     if (!n.size) return null;
     const medNamn = mig.cards.filter(c => n.has(c.name) && paBordet(c) && c.spar != null && !synliga.has(c.spar));
@@ -34756,7 +34160,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
          slår bara upp postens id — utan flytten stod miniatyren och
          panelen tomma för varje kamerakort (se tagEmotBeskarning). */
       for (const w of [220, 260]) { const d = cropCache.get('spar-' + t.id + '@' + w); if (d) cropCache.set(id + '@' + w, d); }
-      mig.pending.push({ id, spar: t.id, box: null, rot: 0, tappad: tapSynk && pol.tap ? !!t.tappad : null, namnLast: t.namnLast || null,   // tappad: kortet applyPick skapar föds så; null = ingen bedömning (inget sparat läge), så att svaret inte avtappar ett kort som tappats för hand
+      mig.pending.push({ id, spar: t.id, box: null, rot: 0, tappad: tapSynk ? !!t.tappad : null, namnLast: t.namnLast || null,   // tappad: kortet applyPick skapar föds så; null = ingen bedömning (inget sparat läge), så att svaret inte avtappar ett kort som tappats för hand
         cands: (t.cands || []).map(c => ({ name: c.name, sid: c.sid || null, score: c.score || 0.5 })) });
       khNamnlos(mig.pending[mig.pending.length - 1], t);   // spelupplevelsen: "Name this card"
       andrat = true;
@@ -34847,7 +34251,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      spåret vilar. Högen är det starkare beviset (MES-291: "högen som växer bevisar att kortet lämnat
      bordet"). Före väntans loop, så att ändringen ges det kort vars död den följde. Flutterfox i passet
      2026-09-22, 95 s: lyft till graveyard, och ett spår i landhögen vilade i samma stund. */
-  if (pol.saknas) for (const k of mig.cards) {
+  for (const k of mig.cards) {
     if (!k.flyttFran || k.spar == null || !synliga.has(k.spar) || !gravAutoKan(k, k.flyttFran.borta)) continue;
     const borta0 = k.flyttFran.borta; aterstallFlytt(k); delete k.spar; delete k.borta;
     gravAutoOm(k, borta0);
@@ -34870,13 +34274,13 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      ändras. Förut tonades det ned här och väntade på människans svar.
      Bara vägen till handen väntar. Allt annat avgörs efter den korta nåden
      (SLAPP_MS) som förut: besvärjelsen går till graveyard, ett täckt kort
-     och Screen leads släpps tyst. Besvärjelsen mäts från när den plockades
+     släpps tyst. Besvärjelsen mäts från när den plockades
      upp (borta0), inte från när nåden tog slut. */
   /* …men inte före Yes på ett speglat bord (Jesper 2026-10-06): då finns ingen graveyard, och ett instant som
      flyttas till platsen bredvid library ska ge frågan som vilket kort som helst — det väntar på att binda om. */
   const ingenGrav = typeof gravFlodeAktivt === 'function' && gravFlodeAktivt();
   const besvarjelse = (k, borta0) => !ingenGrav && !!k.ny && borta0 - k.ny < SPELL_MS && arBesvarjelse(k);
-  const tillHand = (k, borta0) => kanLyftas(k) && !k.fysisk && !besvarjelse(k, borta0) && pol.saknas && !tackt(k);
+  const tillHand = (k, borta0) => kanLyftas(k) && !k.fysisk && !besvarjelse(k, borta0) && !tackt(k);
   /* Kortet syns någon annanstans (princip 9: "kortet syns inte någon annanstans"): ett obundet spår med
      region bär namnet — säkert, osäkert eller som gissning. Då är det kortet som flyttats, och namnet avgör
      när det är läst (ledigt, eller svaret i granskningen tar det väntande kortet) — inte handen. */
@@ -34919,11 +34323,10 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
        det lämnat bordet också — flaggan släpps, inget mer att säga. */
     const varFysisk = !!k.fysisk; delete k.fysisk;
     if (varFysisk || !kanLyftas(k)) continue;
-    /* Besvärjelseregeln (båda lägena): ett instant eller sorcery som
+    /* Besvärjelseregeln: ett instant eller sorcery som
        kameran lade ut och som plockas upp inom SPELL_MS har spelats —
        det går till graveyard, med ångra i mattan (spellAuto). */
     if (besvarjelse(k, borta0)) { k.zon = ZON_GRAV; delete k.attachedTo; k.spellAuto = nu; gravTa(borta0); continue; }   // högens ändring var besvärjelsen (MES-85)
-    if (!pol.saknas) continue;                 // Screen leads: kameran tar aldrig bort — bindningen släpps tyst
     if (tackt(k)) continue;                    // ligger under sin värd eller sin hög
     if (gravAutoOm(k, borta0)) continue;       // högen i bild ändrades: det lades där (MES-85)
     if (dogSamtidigt(borta0)) { k.slappt = borta0; continue; }   // fall 8: telefonen knuffad — ingenting ändras
@@ -34933,7 +34336,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      hann gå till handen (raden står). Högens ändring i fönstret efter
      spårets död säger att det lades där: kortet går till graveyard i
      stället, och raden stängs. */
-  if (pol.saknas) for (const h of handRad.slice()) {
+  for (const h of handRad.slice()) {
     if (h.val || h.tok || !gravAutoKan(h.kort, h.borta0)) continue;
     handRad.splice(handRad.indexOf(h), 1);
     mig.cards.push(h.kort);
@@ -34943,7 +34346,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      fall 8): växer högen i fönstret efter att kortet lämnade platsen gick det dit. Sedan glöms släppet. */
   for (const k of mig.cards) {
     if (k.slappt == null) continue;
-    if (pol.saknas && k.spar == null && paBordet(k) && gravAutoOm(k, k.slappt)) { delete k.slappt; continue; }
+    if (k.spar == null && paBordet(k) && gravAutoOm(k, k.slappt)) { delete k.slappt; continue; }
     if (nu - k.slappt > GRAV_EFTER) delete k.slappt;
   }
   /* Kort utan spår (LOS_MS): efter efterskottet, så att högen hinner ta ett släppt kort först. Väntar
@@ -34951,19 +34354,17 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      nära — och så länge något kortformat i bild inte är färdigläst, när det föddes spelar ingen roll: efter
      en omladdning är alla spår nya. Ett kort spelaren sagt ligger kvar (Still on the table, kvarSagt) och
      ett kort kameran aldrig lagt ut (inget kam: lagt för hand) rörs inte. */
-  if (pol.saknas) {
-    const olastNagot = spar.some(t => t.w != null && !franHelbild(t) && !bunden(t.id) && !t.ned && !!t.kortlik && t.tillstand !== 'klar'
-      && !hoppade.has(t.id) && !borttagna.has(t.id) && !sammaSomKlart.has(t.id));
-    for (const k of mig.cards.slice().sort((a, b) => (a.attachedTo ? 1 : 0) - (b.attachedTo ? 1 : 0))) {
-      if (k.spar != null || !paBordet(k) || !k.kam || k.fysisk || k.kvarSagt || k.slappt != null || k.attachedTo || tackt(k)) { losKort.delete(k.cid); continue; }
-      if (!losKort.has(k.cid)) { losKort.set(k.cid, nu); continue; }
-      if (nu - losKort.get(k.cid) < LOS_MS || olastNagot || namnAnnanstans(k) || tacktAvKort(k) || handNara(k, sparRa)) continue;
-      losKort.delete(k.cid);
-      /* borta0 null: högvakten parar ingen ändring av graveyard med det här kortet — det lyftes inte nu. */
-      if (tillHanden(mig, k, null, nu)) andrat = true;
-    }
-    for (const cid of [...losKort.keys()]) if (!mig.cards.some(c => c.cid === cid)) losKort.delete(cid);
+  const olastNagot = spar.some(t => t.w != null && !franHelbild(t) && !bunden(t.id) && !t.ned && !!t.kortlik && t.tillstand !== 'klar'
+    && !hoppade.has(t.id) && !borttagna.has(t.id) && !sammaSomKlart.has(t.id));
+  for (const k of mig.cards.slice().sort((a, b) => (a.attachedTo ? 1 : 0) - (b.attachedTo ? 1 : 0))) {
+    if (k.spar != null || !paBordet(k) || !k.kam || k.fysisk || k.kvarSagt || k.slappt != null || k.attachedTo || tackt(k)) { losKort.delete(k.cid); continue; }
+    if (!losKort.has(k.cid)) { losKort.set(k.cid, nu); continue; }
+    if (nu - losKort.get(k.cid) < LOS_MS || olastNagot || namnAnnanstans(k) || tacktAvKort(k) || handNara(k, sparRa)) continue;
+    losKort.delete(k.cid);
+    /* borta0 null: högvakten parar ingen ändring av graveyard med det här kortet — det lyftes inte nu. */
+    if (tillHanden(mig, k, null, nu)) andrat = true;
   }
+  for (const cid of [...losKort.keys()]) if (!mig.cards.some(c => c.cid === cid)) losKort.delete(cid);
   /* En token som gick till graveyard ovan — själv (gravAutoOm, besvärjelsen)
      eller som aura på sin värd — upphör att finnas (MES-105), som i
      flyttaTill. Förut låg den kvar i högen. Här och inte i gravAutoOm:
@@ -36280,45 +35681,29 @@ function kamSkruvTal() {
   if (r) r.textContent = pbRa.length ? `${pbRa.length} tracks found` : '';
 }
 
-/* Bildens geometri på skärmen: brevlådan, och i uppstartens steg 4 (klassen
-   vy) spelarens vy — bilden vriden och speglad som kamTillMatta lägger
-   korten på mattan, så att "nere till vänster" är det spelaren ser nere till
-   vänster. Utanför steg 4 visas bilden som telefonen tar den. */
+/* Bildens geometri på skärmen: brevlådan. Bilden visas som telefonen tar den. */
 function pbGeo() {
   const c = $('#pbLager'), img = $('#pbImg'); if (!c || !img || !img.naturalWidth) return null;
-  const vy = !!oppstartBild, r = vy ? ((kamVand % 360) + 360) % 360 : 0, s = vy && kamSpegel;
-  const R = c.getBoundingClientRect(), ligg = r === 90 || r === 270;
-  const vw = ligg ? img.naturalHeight : img.naturalWidth, vh = ligg ? img.naturalWidth : img.naturalHeight;
+  const R = c.getBoundingClientRect(), vw = img.naturalWidth, vh = img.naturalHeight;
   const sk = Math.min(R.width / vw, R.height / vh), bw = vw * sk, bh = vh * sk;
-  return { c, img, R, r, s, vy, sk, bw, bh, mx: (R.width - bw) / 2, my: (R.height - bh) / 2 };
+  return { c, img, R, sk, bw, bh, mx: (R.width - bw) / 2, my: (R.height - bh) / 2 };
 }
-function pbPx(G, p) { const q = kamBildTillVy(p, G.r, G.s); return { x: G.mx + q.u * G.bw, y: G.my + q.v * G.bh }; }
-function pbRutaPx(G, z) { const q = bildRutaTillVy(z, G.r, G.s); return { x: G.mx + q.u * G.bw, y: G.my + q.v * G.bh, w: q.w * G.bw, h: q.h * G.bh }; }
+function pbPx(G, p) { return { x: G.mx + p.x * G.bw, y: G.my + p.y * G.bh }; }
+function pbRutaPx(G, z) { return { x: G.mx + z.x * G.bw, y: G.my + z.y * G.bh, w: z.w * G.bw, h: z.h * G.bh }; }
 function ritaPbLager() {
   const c = $('#pbLager'), G = pbGeo();
-  if (!G) { ritaOppLager(null); return; }
+  if (!G) return;
   if (c.width !== Math.round(G.R.width) || c.height !== Math.round(G.R.height)) { c.width = Math.round(G.R.width); c.height = Math.round(G.R.height); }
   const x = c.getContext('2d');
   x.clearRect(0, 0, c.width, c.height);
-  if (G.vy) {
-    x.save(); x.translate(G.mx + G.bw / 2, G.my + G.bh / 2); x.rotate(G.r * Math.PI / 180); if (G.s) x.scale(-1, 1);
-    const iw = G.img.naturalWidth * G.sk, ih = G.img.naturalHeight * G.sk;
-    x.drawImage(G.img, -iw / 2, -ih / 2, iw, ih); x.restore();
-  }
-  ritaOppLager(G);
-  /* Uppstartens steg 4 ritar inga spår: spelaren lägger ut provkortet och
-     flyttar det till högarna, och varje spår under handen blev en ruta.
-     Provkortet får en egen ram när det hittats (ritaOppLager). */
-  if (G.vy && !DEBUG) return;
   if (!pbMatt.aw || !pbMatt.ah) return;
   /* Spåren räknas i analysbildens pixlar, och analysbilden är telefonens
      HELA bild — samma bild som förhandsbilden. */
-  const sx = G.bw / (G.r === 90 || G.r === 270 ? pbMatt.ah : pbMatt.aw);
+  const sx = G.bw / pbMatt.aw;
   x.font = '600 11px ui-monospace, monospace'; x.textBaseline = 'bottom';
-  /* Graveyard-rutan (streckad, amber): den som Yes på graveyard-frågan sparade.
-     I steg 4 ritar lagret ovanpå platsen (ritaOppLager). */
+  /* Graveyard-rutan (streckad, amber): den som Yes på graveyard-frågan sparade. */
   const gr = kamGravRad;
-  if (!G.vy && gr && gr.w > 0 && gr.h > 0) {
+  if (gr && gr.w > 0 && gr.h > 0) {
     const q = pbRutaPx(G, gr);
     x.save(); x.strokeStyle = '#e8b33a'; x.lineWidth = 2; x.setLineDash([6, 4]);
     x.fillStyle = '#e8b33a22';
@@ -36329,7 +35714,7 @@ function ritaPbLager() {
   }
   for (const t of pbRa) {
     const p = pbPx(G, { x: t.cx / pbMatt.aw, y: t.cy / pbMatt.ah });
-    const w = t.lang * sx, h = t.kort * sx, vinkel = (G.s ? Math.PI - t.vinkel : t.vinkel) + G.r * Math.PI / 180;
+    const w = t.lang * sx, h = t.kort * sx, vinkel = t.vinkel;
     x.save();
     x.translate(p.x, p.y); x.rotate(vinkel);
     /* Grönt = igenkänt, rött = okänt, grått = skräp, gult = läses. Grönt
@@ -36355,93 +35740,6 @@ function ritaPbLager() {
       x.fillStyle = f; x.fillText(txt, bx + 4, by + 14);
     }
   }
-}
-/* Lagret ovanpå bilden i steg 4 (MES-122): provkortets etikett, graveyard-
-   platsen (föreslagen, flyttbar eller sparad) och library-platsen med leken
-   som sänks ner. Platserna ritas i spelarens vy; leken är den riktiga
-   kortbaksidan (BAKSIDA), lagd som ett kort i rutan. */
-function ritaOppLager(G) {
-  const el = $('#oppLager'); if (!el) return;
-  /* Två delar: lagret som ritas om (oppDiff) och bekräftelseramen, som
-     står kvar mellan ritningarna så att dess animering spelas en gång. */
-  const lag = el.querySelector('.olag') || el.appendChild(Object.assign(document.createElement('div'), { className: 'olag' }));
-  const ram = el.querySelector('.okram') || el.appendChild(Object.assign(document.createElement('div'), { className: 'okram', hidden: true }));
-  if (!G || !G.vy || !oppOppen) { oppDiff(lag, ''); ram.hidden = true; return; }
-  const o = oppFor(), d = oppDelLage(o), px = v => Math.round(v);
-  const chip = (q, farg, txt) => `<div class="ochip" style="left:${px(q.x)}px;top:${px(q.y)}px"><i style="background:${farg}"></i>${txt}</div>`;
-  const box = q => `left:${px(q.x)}px;top:${px(q.y)}px;width:${px(q.w)}px;height:${px(q.h)}px`;
-  let h = '';
-  const las = d.aktiv === 'prov' ? oppProvLas : null;
-  const t = oppProvId != null ? senasteSpar.find(u => u.id === oppProvId) : null;
-  if (las) h += chip(pbRutaPx(G, las.box), '#5fbf7f', 'Test card');
-  else if (t && t.w != null && d.prov && !d.bib) h += chip(pbRutaPx(G, t), '#6b7280', d.aktiv === 'bib' ? 'Pick up the test card' : 'Test card · leave it here');
-  if (d.aktiv === 'prov' && !las) h += `<div class="ovant"><i></i>Looking for a card…</div>`;
-  const grav = d.aktiv === 'grav' ? (oppGravFlyttad || oppForslag(o).grav) : d.grav ? kamGravRad : null;
-  let gq = null;
-  /* Platserna ritas lika stora som provkortet: rutan som sparas är kortet
-     × ZON_LUFT, luften är till för en slarvig hög, inte för ögat. */
-  const kortstor = q => ({ x: q.x + q.w * (1 - 1 / ZON_LUFT) / 2, y: q.y + q.h * (1 - 1 / ZON_LUFT) / 2, w: q.w / ZON_LUFT, h: q.h / ZON_LUFT });
-  if (grav) {
-    const q = gq = kortstor(pbRutaPx(G, grav));
-    h += `<div class="gplats2${d.aktiv === 'grav' && !oppFlytt ? ' glod' : ''}${oppFlytt ? ' flytt' : ''}" style="${box(q)}">${GRAVSTEN}</div>` + chip(q, '#e8b33a', d.aktiv === 'grav' ? 'Graveyard spot' : 'Graveyard');
-  }
-  if (oppFlytt) h += `<div class="otips">Drag the spot where your graveyard will go</div>`;
-  /* Library-platsen (MES-139, designen "Mesa Library Drop"): 1 tom — leken
-     sänks ner, och efter tio sekunder står reserven bredvid; 2 något täcker
-     den — hörnen fäster direkt, också med handen kvar; 3 handen har släppt —
-     ramen ritas runt på stillaMs; 4 pling — samma gröna ram och ring som när
-     provkortet hittas, och en bock; sedan klart-kortet över bilden med
-     högarna i ett hål. Animeringarna spelas en gång: lagret skrivs bara om
-     när innehållet ändras (oppDiff). */
-  if ((d.aktiv === 'bib' || d.bib) && kamBibRad) {
-    const q = kortstor(pbRutaPx(G, kamBibRad)), m = 4;
-    const f = { x: q.x - m, y: q.y - m, w: q.w + 2 * m, h: q.h + 2 * m };
-    const horn = stilla => `<div class="ofatt${stilla ? ' stilla' : ''}" style="${box(f)}"><i></i><i></i><i></i><i></i></div>`;
-    if (d.aktiv === 'bib') {
-      const fas = oppBibFas();
-      if (fas === 'tackt') h += horn(false) + chip(f, '#fff', 'Got it — let go of the deck');
-      else if (fas === 'kollar') h += horn(true)
-        + `<svg class="ospar" style="${box(f)}" viewBox="0 0 ${px(f.w)} ${px(f.h)}" aria-hidden="true"><rect x="1" y="1" width="${px(f.w) - 2}" height="${px(f.h) - 2}" rx="6" pathLength="100"/></svg>`
-        + `<div class="ochip" style="left:${px(f.x)}px;top:${px(f.y)}px"><i class="opuls" style="background:#6b8cff"></i>Checking — keep it still</div>`;
-      else {
-        /* Leken: ett kort i platsen, stående i vyn — ligger platsen på tvären
-           vrids den. */
-        const ligg = q.w > q.h, lw = ligg ? q.h : q.w, lh = ligg ? q.w : q.h;
-        const lek = `<div class="lekrot" style="left:${px((q.w - lw) / 2)}px;top:${px((q.h - lh) / 2)}px;width:${px(lw)}px;height:${px(lh)}px${ligg ? ';transform:rotate(90deg)' : ''}"><div class="landring"></div><div class="lekskugga"></div><div class="lek"><img src="${BAKSIDA}" alt=""><img src="${BAKSIDA}" alt=""><img src="${BAKSIDA}" alt=""></div></div>`;
-        h += `<div class="bplats" style="${box(q)}">${lek}</div>` + chip(q, '#6b8cff', 'Put your library here');
-        /* Reserven i bilden, där blicken är: till höger om platsen, eller till
-           vänster när den inte får plats. */
-        if (oppBibReserv()) {
-          const hoger = q.x + q.w + 16 + 240 <= el.clientWidth;
-          h += `<div class="oreserv" style="${hoger ? `left:${px(q.x + q.w + 16)}px` : `right:${px(el.clientWidth - q.x + 16)}px`};top:${px(q.y + q.h - 34)}px">Can't see your library?<button type="button" class="btn sm" data-oppl="biblagd">It's in place</button></div>`;
-        }
-      }
-    } else if (Date.now() - oppPlingNar < OPP_PLING_MS) {
-      h += `<div class="opling" style="${box(f)}"></div><div class="obock" style="left:${px(f.x + f.w - 12)}px;top:${px(f.y + f.h - 12)}px">${OPP_KLAR.replace('width="12" height="12"', 'width="14" height="14"')}</div>`
-        + chip(f, '#5fbf7f', 'Library in place');
-    } else {
-      h += `<div class="bplats lagd" style="${box(q)}"></div>` + chip(q, '#6b8cff', 'Library');
-      if (d.aktiv === 'start' && !oppKlarDold) {
-        /* Klart-kortet (variant B): bilden tonas ner, högarna syns i ett hål
-           (med sina etiketter), och Start playing står mitt i blicken. */
-        const u = [gq, q].filter(Boolean);
-        const x0 = Math.min(...u.map(r => r.x)) - 10, y0 = Math.min(...u.map(r => r.y)) - 38;
-        const x1 = Math.max(...u.map(r => r.x + r.w)) + 10, y1 = Math.max(...u.map(r => r.y + r.h)) + 10;
-        h += `<div class="ohal" style="left:${px(x0)}px;top:${px(y0)}px;width:${px(x1 - x0)}px;height:${px(y1 - y0)}px"></div>`
-          + `<div class="oklarkort" role="dialog" aria-label="Your table is set up"><span class="ostormark">${OPP_KLAR.replace('width="12" height="12"', 'width="26" height="26"').replace('stroke-width="3"', 'stroke-width="2.6"')}</span>`
-          + `<h3>Your table is set up</h3><p>The camera knows where your graveyard and library are.</p>`
-          + `<button type="button" class="btn prim" data-oppl="starta">Start playing <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>`
-          + `<button type="button" class="btn ghost sm" data-oppl="dolj">Change something</button></div>`;
-      }
-    }
-  }
-  oppDiff(lag, h);
-  if (las) {
-    const q = pbRutaPx(G, las.box), m = 4;
-    ram.style.cssText = `left:${px(q.x - m)}px;top:${px(q.y - m)}px;width:${px(q.w + 2 * m)}px;height:${px(q.h + 2 * m)}px`;
-    if (ram.dataset.n !== String(las.n)) { ram.dataset.n = las.n; ram.classList.remove('spela'); void ram.offsetWidth; ram.classList.add('spela'); }
-    ram.hidden = false;
-  } else ram.hidden = true;
 }
 
 /* ── datorns kameradialog ────────────────────────────────────────────
@@ -36506,7 +35804,6 @@ function ritaKamLank() {
 async function visaKamOv() {
   if (!spelLage) return;
   kamOppen = true;
-  if (oppstartBild) { oppstartBild = false; flyttaPbBild(false); }   // bilden stod i uppstartens steg 4
   openOv('kamOv');
   kamStegSynk();
   renderMode();             // pillret får sin öppna ring, panelen sin plats under det
@@ -36604,10 +35901,9 @@ function kamNarvaro(kameror) {
    Graveyard och exile står kvar: kameran kan inte läsa vad som ligger i
    högen, och en tömd hög hade varit fel på riktigt. Grundläget,
    graveyard-platsen och leken står också kvar — telefonen har dem i
-   camera_setups. Use camera to add cards rörs inte: där leder skärmen, och
-   kameran tar aldrig bort något (spelPolicy). Ångra lägger tillbaka mattan. */
+   camera_setups. Ångra lägger tillbaka mattan. */
 function frasktBord() {
-  const mig = minSpelare(); if (!mig || !spelPolicy(mig).saknas) return;
+  const mig = minSpelare(); if (!mig) return;
   angraPunkt(mig);
   const bort = new Set(mig.cards.filter(paMattan).map(c => c.cid));
   for (let j = mig.cards.length - 1; j >= 0; j--) if (bort.has(mig.cards[j].cid)) mig.cards.splice(j, 1);
@@ -36649,13 +35945,6 @@ function kamTogsEmot(m) {
     if (m.upplosning !== undefined) kamUpplosning = m.upplosning || null;
     if (m.bildlage !== undefined) { kamBildlage = m.bildlage || null; ritaPbSnabb(); }
     kamHalsaSenast = { t: Date.now(), halsa: m.halsa };   // hälsokollen (MES-240)
-    /* Library-rutan (MES-122): { ligger } i varje bord från en telefon med
-       rutan; en telefon med äldre kod skickar inte nyckeln alls (nollställningen
-       bär den aldrig). */
-    const foreLyft = bibLyft();
-    if (!m.nollstall) kamBibStod = m.bib !== undefined;
-    if (m.bib !== undefined) kamBib = m.bib;
-    if (bibLyft() !== foreLyft) renderBibHog();     // leken lyftes eller lades tillbaka
     /* Telefonen startade om (se kamStromIgen): förhandsbilden begärs igen. */
     if (m.nollstall) { kamStromIgen(); kamKedja.clear(); if (DEBUG) InspDator.omstart(); }   // telefonen startade om (MES-190: passet blir oanvändbart)
     /* Kostnadsboken följer med varje bord, fasbytet och hjärtslaget också.
@@ -36840,12 +36129,7 @@ async function tagEmotGrundSvar(m) {
 $('#kamGrundSpara') && ($('#kamGrundSpara').onclick = sparaGrundFranSenaste);
 /* Graveyard-rutan: raden bär den (grav), telefonen får den med realtid och föder inga spår där. I Mirror my
    table sätts den bara av Yes på graveyard-frågan (gravSvar) och flyttas med högen (gravFoljer) — ingen ritas
-   för hand. Use camera to add cards sätter den i uppstartens steg 4 (sparaZoner). */
-function pbBildTillAndel(ev) {
-  const G = pbGeo(); if (!G) return null;
-  const u = Math.max(0, Math.min(1, (ev.clientX - G.R.left - G.mx) / G.bw)), v = Math.max(0, Math.min(1, (ev.clientY - G.R.top - G.my) / G.bh));
-  return kamVyTillBild({ u, v }, G.r, G.s);
-}
+   för hand. */
 async function sparaGravZon(r) {
   kamGravRad = r && r.w > 0.01 && r.h > 0.01 ? r : null;
   ritaPbLager(); renderMode();
@@ -36854,46 +36138,20 @@ async function sparaGravZon(r) {
   const ok = await Moln.sparaKalibrering(id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
   if (!ok) toast('The graveyard zone could not be saved', 'err');
 }
-/* Uppstartens steg 4 (MES-122): graveyard- och library-rutan i en
-   skrivning — library ligger alltid bredvid graveyard. */
-async function sparaZoner(grav, bib) {
-  kamGravRad = grav || null; kamBibRad = bib || null;
-  ritaPbLager(); renderMode();
-  if (!spelLage) return false;
-  return Moln.sparaKalibrering(spelLage.id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
-}
-/* Rutorna från uppstartens steg 4 är rester i Mirror my table (MES-334 steg 6: steget finns bara kvar i Use camera
-   to add cards). Ett spel som körde steget — eller bytte från Use camera till Mirror my table — bär dem kvar på
-   raden: graveyard-rutan ritades över library-högen, och library-rutan (kamBibRad) gav dagens fasta hög i
-   stället för leken bland korten. Här rensas båda, också på raden, så att telefonen slutar filtrera där.
-   Yes-rutan rörs inte: den har ingen library-ruta bredvid sig. */
+/* Rester från uppstartens steg 4 (kamRutaRest): ett spel som körde steget bär graveyard- och library-rutan
+   på raden. Graveyard-rutan ritades över library-högen, och library-rutan gav en fast hög i stället för
+   leken bland korten. Här rensas båda, också på raden, så att telefonen slutar filtrera där. Yes-rutan rörs
+   inte: den har ingen library-ruta bredvid sig. */
 let rensarRutor = false;
 async function rensaOppstartsRutor() {
-  if (rensarRutor || !spelLage || !kamBibRad || !redigerbar()) return;
-  const mig = minSpelare(); if (!mig || mig.lage === 'skarm') return;
+  if (rensarRutor || !spelLage || !kamRutaRest || !redigerbar()) return;
   rensarRutor = true;
   try {
-    kamGravRad = null; kamBibRad = null;
+    kamRutaRest = false; kamGravRad = null;
     ritaPbLager(); renderMode();
     await Moln.sparaKalibrering(spelLage.id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
   } finally { rensarRutor = false; }
 }
-/* Move it (MES-122): graveyard-platsen dras i bilden och behåller kortets
-   storlek. Dragningen gäller var man än tar i bilden — platsen följer med. */
-$('#pbBild') && $('#pbBild').addEventListener('pointerdown', ev => {
-  if (!oppFlytt || !oppGravFlyttad) return;
-  const a = pbBildTillAndel(ev); if (!a) return;
-  ev.preventDefault(); oppFlyttStart = { a, g: Object.assign({}, oppGravFlyttad) };
-  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
-});
-$('#pbBild') && $('#pbBild').addEventListener('pointermove', ev => {
-  if (!oppFlytt || !oppFlyttStart) return;
-  const a = pbBildTillAndel(ev); if (!a) return;
-  const g = oppFlyttStart.g, k = (v, hi) => Math.max(0, Math.min(hi, v));
-  oppGravFlyttad = { x: k(g.x + a.x - oppFlyttStart.a.x, 1 - g.w), y: k(g.y + a.y - oppFlyttStart.a.y, 1 - g.h), w: g.w, h: g.h };
-  ritaPbLager();
-});
-$('#pbBild') && $('#pbBild').addEventListener('pointerup', () => { oppFlyttStart = null; });
 /* Vrid/spegla kameravyn (lägespanelen): raden får orienteringen, mattan
    lägger om alla kamerabundna kort direkt. */
 async function sparaKamOrientering() {
@@ -36947,7 +36205,7 @@ function kamStegSynk() {
   /* Camera lost och Camera off har koden framme direkt (MES-355, D1 och D3);
      medan datorn letar efter telefonen står den inte där. */
   const fel = kamPillModell().fel;
-  const skruv = (kamOppen || oppstartBild) && kamAnsluten,
+  const skruv = kamOppen && kamAnsluten,
     visaQr = kamOppen && (kamQrTvinga || (!kamAnsluten && (!kamHarVarit || fel === 'tappad' || fel === 'av')));
   const qr = $('#kamStegQr'), sk = $('#kamSkruv');
   if (qr) qr.hidden = !visaQr;
@@ -37707,7 +36965,7 @@ async function lamnaSpelet() {
   matVyLamna();   // zoom och pan står kvar till nästa gång man går in i det här spelet
   spelLage = null;
   kameraEnhet = false;
-  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; kamVand = 0; kamSpegel = false; kamGravRad = null; kamBibRad = null; kamBib = undefined; kamBibStod = null; kamLek = undefined; if (kamSkala.las) kamSkala.las.clear(); lekLokalt = null; stangLekMeny(); oppProvId = null; oppProvLas = null; oppFlytt = false; oppGravFlyttad = null;
+  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; kamVand = 0; kamSpegel = false; kamGravRad = null; kamRutaRest = false; kamLek = undefined; if (kamSkala.las) kamSkala.las.clear(); lekLokalt = null; stangLekMeny();
   autoSum = null;                           // passet hör till spelet man lämnar; det sparade ligger kvar under spelets nyckel
   kamAnsluten = false; kamOppen = false;
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man

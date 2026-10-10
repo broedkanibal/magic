@@ -62,7 +62,7 @@ function oppstartPagar() { return oppPagar; }
 let gravFlode = false, kamVand = 0, kamSpegel = false;
 function gravFlodeAktivt() { return gravFlode; }
 /* Ignore this spot gäller så länge kameran speglar mitt bord i Mirror my table (gravIgnoreAktivt, kontrollgranskningen
-   N1) — också efter Yes, när flödet är av. På i GY-proven; av i Screen leads och utan telefon. */
+   N1) — också efter Yes, när flödet är av. På i GY-proven; av utan telefon. */
 let gravSpeglar = false;
 function gravIgnoreAktivt() { return gravSpeglar; }
 /* Det svaren utanför utdraget läser (se svarKod nedan): mattan, molnet,
@@ -113,8 +113,7 @@ const tid = t => {
 const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + svarKod + `
 return {
   avstamBord, tackning, sammaPlats, lekPrior,
-  kamBildTillVy, kamVyTillBild, provKortMatt, provKortStorlek, zonForslag, bibBredvid, provkortSpar, provkortUt, provLasSteg,
-  oppSteg4Klar, oppOppnasIgen,
+  oppOppnasIgen,
   set gravFlode(v) { gravFlode = !!v; },
   set gravSpeglar(v) { gravSpeglar = !!v; },
   get grav() { return gravLageNu(); },
@@ -128,8 +127,9 @@ return {
   get borttagna() { return borttagna; },
   get hoppade() { return hoppade; },
   set grund(v) { kamGrund = v; },
-  /* Lekens antal per namn, och spelläget ('skarm' | 'bord' | null = som
-     stubbspelaren: inget läge, vilket avstämningen läser som Table leads). */
+  /* Lekens antal per namn, och spelläget ('bord' | 'utan' | null = som
+     stubbspelaren: inget läge). Avstämningen läser inte läget: den körs bara
+     när kameran speglar bordet. */
   set lek(m) { lekTal = m; },
   set spelsatt(v) { if (v) state.players[0].lage = v; else delete state.players[0].lage; },
   set typ(m) { typRad = m; },
@@ -1015,7 +1015,6 @@ prov('O14 (kontrollen, G2) ett ANNAT kort läggs där ett kort i väntan ligger 
   assert.deepEqual(ofrSlag(), ['2#'], 'ett annat kort som aldrig fick namn ska ha "Name this card" på mattan');
 });
 prov('O15 läsningen gissar kortet i väntans namn: det är kortet sett igen, inget oframkallat kort', () => {
-  app.spelsatt = 'skarm';                                     // Screen leads: ingen flytt binder, så bara regeln avgör
   stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
   klocka.t += 150; stam([]);
   klocka.t += 300; stam([ovila(2)]);
@@ -1135,16 +1134,6 @@ prov('E2 efter rättningen följer kortet nästa fysiska vridning igen', () => {
   stam([klar(1, 'Ukud Cobra', { tappad: false, sen: 20, ...PORT })]);
   assert.equal(app.kort[0].tapped, 0);
 });
-prov('E3 Screen leads: domen följs men tapped skrivs aldrig', () => {
-  app.spelsatt = 'skarm';
-  stam([klar(1, 'Ukud Cobra', { tappad: false, sen: 20, ...PORT })]);
-  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].tapped, 0);
-  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
-  assert.equal(app.kort[0].tapped, 0, 'skarm skrev tapped'); assert.equal(app.kort[0].kamTap, 1);
-  app.kort[0].tapped = 1;                                   // tappad på skärmen
-  stam([klar(1, 'Ukud Cobra', { tappad: false, sen: 20, ...PORT })]);
-  assert.equal(app.kort[0].tapped, 1, 'skarm avtappade');
-});
 prov('E4 ombindning till ett nytt spår med samma dom skriver inte; nästa vridning gör det', () => {
   stam([klar(1, 'Ukud Cobra', { tappad: false, sen: 20, ...PORT })]);
   app.kort[0].tapped = 1;                                   // tappad på skärmen
@@ -1263,13 +1252,6 @@ prov('Q4 leken har 4 Forest: fyra kort, det femte en fråga', () => {
 });
 
 /* MODE-3: policymatrisen. P = policy. */
-prov('P1 Screen leads: spåret dör → bindningen släpps tyst, ingen nedtoning', () => {
-  app.spelsatt = 'skarm';
-  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
-  assert.equal(app.kort.length, 1);
-  stam([]); klocka.t += 3100; stam([]);
-  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, undefined); assert.equal(app.kort[0].lyft, undefined); assert.equal(app.kort[0].borta, undefined);
-});
 prov('P2 Table leads: samma sak skickar kortet till handen', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
   const k = app.kort[0];
@@ -1290,7 +1272,7 @@ prov('P3 fysisk: kortet flyttat till graveyard digitalt medan spåret lever — 
   stam([klar(9, 'Ukud Cobra', { sen: 10, ...PORT })]);
   assert.equal(app.kort.length, 2);
 });
-prov('P5 besvärjelseregeln: ett instant som plockas upp inom 20 s går till graveyard i båda lägena; efter 20 s som vanligt', () => {
+prov('P5 besvärjelseregeln: ett instant som plockas upp inom 20 s går till graveyard; efter 20 s som vanligt', () => {
   app.typ = new Map([['Lightning Bolt', 'Instant'], ['Ukud Cobra', 'Creature — Snake']]);
   stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT }), klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })]);
   klocka.t += 4000;
@@ -1306,11 +1288,6 @@ prov('P5 besvärjelseregeln: ett instant som plockas upp inom 20 s går till gra
   klocka.t += 25000; stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
   stam([]); klocka.t += 3100; stam([]);
   assert.equal(app.kort.length, 0); assert.ok(iHandenNamn('Lightning Bolt')); assert.equal(app.handRad[0].kort.zon, undefined);
-  // Screen leads: samma regel, men en permanent släpps tyst
-  app.nollstall(); klocka.t = 1e6; app.spelsatt = 'skarm'; app.typ = new Map([['Lightning Bolt', 'Instant']]);
-  stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
-  stam([]); klocka.t += 3100; stam([]);
-  assert.equal(app.kort[0].zon, 'grav');
 });
 prov('P6 täckt: ett bifogat kort vars värd syns är inte borta när dess spår dör; värden som försvinner går till handen och utrustningen blir kvar', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Bonesplitter', { sen: 20, ...LANGT })]);
@@ -1368,14 +1345,6 @@ prov('GR1 Table leads: kortet försvinner och högen ändras en sekund senare �
   klocka.t += 2100; stamG([], hog(1));            // nådatiden ute
   const k = app.kort[0];
   assert.equal(k.zon, 'grav'); assert.ok(k.gravAuto); assert.equal(k.lyft, undefined); assert.equal(k.spar, undefined);
-});
-prov('GR2 Screen leads: samma sak — ingenting, kortet ligger kvar', () => {
-  app.spelsatt = 'skarm';
-  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
-  klocka.t += 150; stamG([], hog(0));
-  klocka.t += 1000; stamG([], hog(1));
-  klocka.t += 2100; stamG([], hog(1));
-  assert.equal(app.kort[0].zon, undefined); assert.equal(app.kort[0].gravAuto, undefined); assert.equal(app.kort[0].lyft, undefined);
 });
 prov('GR3 högen ändras inte: kortet går till handen', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
@@ -1533,8 +1502,7 @@ prov('GR10 utan ruta (grav null) eller en telefon utan vakten: som förut — ti
    går till handen först sedan (MES-343; förut tonades det ned); läggs det
    ner på en ny plats under väntan flyttar det dit; växer graveyard-högen
    slutar väntan direkt. Det som inte ska gå till handen — besvärjelsen, ett
-   täckt kort, Screen leads — avgörs efter den korta nåden (SLAPP_MS, 600 ms)
-   som förut. */
+   täckt kort — avgörs efter den korta nåden (SLAPP_MS, 600 ms) som förut. */
 const mitt = b => b.x + b.w / 2;
 prov('VN0 appens väntan är 5 s och den korta nåden 600 ms (Jespers beslut 3, mätt i passet 2026-09-22)', () => {
   assert.equal(+((src.match(/const BORTA_NAD = (\d+);/) || [])[1]), 5000, 'BORTA_NAD i index.html');
@@ -1605,17 +1573,12 @@ prov('VN6 armen över högen före och strax efter att spåret dog kortar inte v
   klocka.t += 2000; stamG([], hog(2));
   assert.equal(k.zon, undefined); assert.ok(iHanden(k), 'till handen efter väntan');
 });
-prov('VN7 det som inte tonas ned väntar inte: besvärjelsen går till graveyard och Screen leads släpper efter den korta nåden', () => {
+prov('VN7 det som inte tonas ned väntar inte: besvärjelsen går till graveyard efter den korta nåden', () => {
   app.typ = new Map([['Lightning Bolt', 'Instant']]);
   stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
   klocka.t += 150; stam([]);
   klocka.t += 700; stam([]);
   assert.equal(app.kort[0].zon, 'grav'); assert.ok(app.kort[0].spellAuto);
-  app.nollstall(); klocka.t = 1e6; app.spelsatt = 'skarm';
-  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
-  klocka.t += 150; stam([]);
-  klocka.t += 700; stam([]);
-  assert.equal(app.kort[0].spar, undefined, 'bindningen släppt'); assert.equal(app.kort[0].borta, undefined); assert.equal(app.kort[0].lyft, undefined);
 });
 /* Svar och handflyttar under väntan (granskningen av MES-291). Förut var
    ett kort i väntan redan nedtonat efter 0,6 s, och svaren tog det som
@@ -1816,12 +1779,6 @@ prov('GU3 utan lek: som förut — ett nytt kort, högen orörd', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
   assert.equal(app.kort.length, 2); assert.equal(iGrav('Ukud Cobra'), 1);
 });
-prov('GU4 Screen leads: kameran rör inte högen — ett nytt kort, som förut', () => {
-  app.spelsatt = 'skarm'; app.lek = new Map([['Ukud Cobra', 1]]);
-  app.kort.push({ cid: 'g', name: 'Ukud Cobra', flipped: 0, zon: 'grav' });
-  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
-  assert.equal(iGrav('Ukud Cobra'), 1, 'kortet lyftes ur högen i Screen leads');
-});
 prov('GU5 kortet ligger kvar fysiskt (fysisk): bindningen är tyst i zonen, det lyfts inte ur högen', () => {
   app.lek = new Map([['Ukud Cobra', 1]]);
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
@@ -1859,88 +1816,15 @@ prov('Q5 lekPrior: utan lek eller okänt namn står ett säkert svar; med lekens
   assert.equal(app.lekPrior(false, 4, 0), false);
 });
 
-/* MES-122: uppstartens rutor. Raden i camera_setups byggs på ett ställe
-   (RR1), och graveyard/library föreslås i spelarens nedre vänstra hörn (ZN). */
+/* Raden i camera_setups byggs på ett ställe (RR1). */
 prov('RR1 varje skrivning av camera_setups-raden går genom kamRutaRad', () => {
   const rader = src.split('\n').filter(l => l.includes('Moln.sparaKalibrering('));
   assert.ok(rader.length >= 5, 'för få skrivare: ' + rader.length);
   for (const l of rader) assert.ok(l.includes('kamRutaRad('), 'utan kamRutaRad: ' + l.trim().slice(0, 90));
 });
-const naraZ = (a, b, tol = 0.006) => Math.abs(a - b) <= tol;
-const inomZ = z => z.x >= -1e-9 && z.y >= -1e-9 && z.x + z.w <= 1 + 1e-9 && z.y + z.h <= 1 + 1e-9;
-const KS = 0.1, KL = 0.1 * 88 / 63, A43 = 0.75;
-prov('ZN1 vid 0°: graveyard nere till vänster, library till höger om den', () => {
-  const f = app.zonForslag(KS, KL, A43, 0, false);
-  assert.ok(naraZ(f.grav.x, 0.0225), 'x ' + f.grav.x); assert.ok(naraZ(f.grav.y + f.grav.h, 0.97), 'nederkant ' + (f.grav.y + f.grav.h));
-  assert.ok(f.bib.x > f.grav.x + f.grav.w, 'library till höger'); assert.ok(naraZ(f.bib.y, f.grav.y));
-  assert.ok(naraZ(f.grav.w, 1.15 * KS, 0.002), 'kortbredd ' + f.grav.w); assert.ok(naraZ(f.grav.h, 1.15 * KL / A43, 0.002), 'korthöjd ' + f.grav.h);
-  assert.ok(!f.trangt && inomZ(f.grav) && inomZ(f.bib));
-});
-prov('ZN2 vid 180°: rutorna uppe till höger i bilden, library till vänster om graveyard', () => {
-  const f = app.zonForslag(KS, KL, A43, 180, false);
-  assert.ok(naraZ(f.grav.x + f.grav.w, 1 - 0.0225), 'högerkant ' + (f.grav.x + f.grav.w)); assert.ok(naraZ(f.grav.y, 0.03), 'överkant ' + f.grav.y);
-  assert.ok(f.bib.x + f.bib.w < f.grav.x, 'library till vänster i bilden');
-});
-prov('ZN3 bild → vy → bild i alla vridningar, med och utan spegling; platsen står upprätt i vyn', () => {
-  for (const r of [0, 90, 180, 270]) for (const sp of [false, true]) {
-    const p = { x: 0.2, y: 0.7 }, q = app.kamVyTillBild(app.kamBildTillVy(p, r, sp), r, sp);
-    assert.ok(naraZ(q.x, p.x, 1e-9) && naraZ(q.y, p.y, 1e-9), `r ${r} s ${sp}`);
-    const f = app.zonForslag(KS, KL, A43, r, sp);
-    assert.ok(inomZ(f.grav) && inomZ(f.bib), `inom bilden r ${r} s ${sp}`);
-    /* Platsen är ett stående kort som spelaren ser det: vid 90/270 ligger
-       den därför på tvären i telefonens bild. */
-    const ligg = r === 90 || r === 270, bw = ligg ? 1.15 * KL : 1.15 * KS, bh = ligg ? 1.15 * KS / A43 : 1.15 * KL / A43;
-    assert.ok(!f.trangt && naraZ(f.grav.w, bw, 0.002) && naraZ(f.grav.h, bh, 0.002), `form r ${r} s ${sp}: ${JSON.stringify(f.grav)}`);
-  }
-});
-prov('ZN4 spegling: vid 0° hamnar graveyard nere till höger i bilden', () => {
-  const f = app.zonForslag(KS, KL, A43, 0, true);
-  assert.ok(naraZ(f.grav.x + f.grav.w, 1 - 0.0225)); assert.ok(f.bib.x + f.bib.w < f.grav.x);
-});
-prov('ZN5 kortets storlek ur lådan: snett, stående och tappat; och ur provbordet', () => {
-  const lada = th => { const r = th * Math.PI / 180, c = Math.abs(Math.cos(r)), sn = Math.abs(Math.sin(r)); return { w: KL * c + KS * sn, h: (KL * sn + KS * c) / A43 }; };
-  for (const [g, tappat, th] of [[90, false, 90], [30, false, 30], [90, true, 180], [120, false, 120]]) {
-    const m = app.provKortMatt(lada(th), null, null, A43, g, tappat);
-    assert.ok(m && Math.abs(m.S - KS) / KS < 0.02, `g ${g} tappat ${tappat}: S ${m && m.S}`);
-  }
-  const ur = app.provKortMatt({ id: 5, w: 0.5, h: 0.5 }, [{ id: 5, kort: 24, lang: 33.5 }], { aw: 240 }, A43, 90, false);
-  assert.ok(naraZ(ur.S, 0.1, 1e-9) && naraZ(ur.L, 33.5 / 240, 1e-9), 'provbordet ' + JSON.stringify(ur));
-  assert.equal(app.provKortMatt({ id: 1, w: 0.4, h: 0.02 }, null, null, A43, 90, false), null, 'orimlig låda');
-});
-prov('ZN6 ett för stort kort: rutorna krymps, ryms och överlappar inte; library följer en flyttad graveyard', () => {
-  const f = app.zonForslag(0.45, 0.45 * 88 / 63, A43, 0, false);
-  assert.ok(f.trangt && inomZ(f.grav) && inomZ(f.bib) && f.bib.x >= f.grav.x + f.grav.w - 1e-9);
-  const g = { x: 0.3, y: 0.4, w: 0.13, h: 0.24 }, b = app.bibBredvid(g, 0, false);
-  assert.ok(naraZ(b.x, 0.3 + 0.13 * 1.2) && naraZ(b.y, 0.4) && naraZ(b.w, 0.13) && naraZ(b.h, 0.24), JSON.stringify(b));
-  const kant = app.bibBredvid({ x: 0.85, y: 0.4, w: 0.13, h: 0.24 }, 0, false);
-  assert.ok(kant.x + kant.w <= 0.85, 'till vänster vid kanten');
-});
-prov('ZN7 kortets storlek utan vinkel (Use camera to add cards): stående, på tvären, snett och brusigt; provbordet när lådan inte är ett kort', () => {
-  const lada = th => { const r = th * Math.PI / 180, c = Math.abs(Math.cos(r)), sn = Math.abs(Math.sin(r)); return { w: KL * c + KS * sn, h: (KL * sn + KS * c) / A43 }; };
-  for (const th of [0, 90, 180, 270, 15, 30, 45, 60, 80, 120]) {
-    const m = app.provKortStorlek({ id: 1, ...lada(th) }, null, null, A43);
-    assert.ok(m && Math.abs(m.S - KS) / KS < 0.02 && naraZ(m.L, m.S * 88 / 63, 1e-9), `${th}°: ${JSON.stringify(m)}`);
-  }
-  /* Detektorns låda är inte exakt: ett stående kort med fem procent för hög låda. */
-  const brus = app.provKortStorlek({ id: 1, w: KS, h: 1.05 * KL / A43 }, null, null, A43);
-  assert.ok(brus && Math.abs(brus.S - KS) / KS < 0.05, 'brus ' + JSON.stringify(brus));
-  /* Ingen vinkel och inget grundläge behövs: samma svar i en bild med annat format. */
-  const bred = app.provKortStorlek({ id: 1, w: KS, h: KL / 0.5625 }, null, null, 0.5625);
-  assert.ok(bred && Math.abs(bred.S - KS) / KS < 0.02, '16:9 ' + JSON.stringify(bred));
-  /* En avlång remsa är inget kort: provbordets mått, och utan dem null. */
-  const ur = app.provKortStorlek({ id: 5, w: 0.4, h: 0.02 }, [{ id: 5, kort: 24, lang: 33.5 }], { aw: 240 }, A43);
-  assert.ok(ur && naraZ(ur.S, 0.1, 1e-9) && naraZ(ur.L, 33.5 / 240, 1e-9), 'provbordet ' + JSON.stringify(ur));
-  assert.equal(app.provKortStorlek({ id: 5, w: 0.4, h: 0.02 }, null, null, A43), null, 'orimlig låda');
-  assert.equal(app.provKortStorlek(null, null, null, A43), null);
-  /* Platserna blir kortstora: ett snett provkort ger samma graveyard som ett rakt. */
-  const snett = app.provKortStorlek({ id: 1, ...lada(35) }, null, null, A43), f = app.zonForslag(snett.S, snett.L, A43, 0, false);
-  assert.ok(naraZ(f.grav.w, 1.15 * KS, 0.004) && naraZ(f.grav.h, 1.15 * KL / A43, 0.006) && !f.trangt, 'platsen ' + JSON.stringify(f.grav));
-});
-
-/* MES-122: medan uppstarten pågår spelas inget ut. UP = uppstarten. Gäller båda kameralägena: Mirror my
-   table har inget steg 4 sedan MES-334 sida 5, men uppstarten kan stå öppen med telefonen ansluten (pillret
-   mitt i spelet, eller en telefon som redan är ansluten när leken och läget väljs) — spärren återinförd efter
-   granskningen av sida 5 (L4). */
+/* MES-122: medan uppstarten pågår spelas inget ut. UP = uppstarten. Uppstarten kan stå öppen med telefonen
+   ansluten (pillret mitt i spelet, eller en telefon som redan är ansluten när leken och läget väljs) —
+   spärren återinförd efter granskningen av sida 5 (L4). */
 prov('UP1 uppstarten pågår: ett känt spår blir inget kort och ingen fråga, men följs', () => {
   app.oppstart = true;
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
@@ -1962,29 +1846,6 @@ prov('UP3 uppstarten öppnas mitt i spelet: ett kort tappas inte och tonas inte 
   klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
   assert.ok(!app.kort[0].borta); assert.equal(app.kort[0].lyft, undefined);
 });
-prov('UP4 Start playing: provkortet och ett andra spår ovanpå spärras', () => {
-  app.oppstart = true;
-  const spar = [klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Ukud Cobra', { sen: 20, ...LAND_ }), klar(3, 'Swamp', { sen: 20, ...LANGT })];
-  stam(spar);
-  const ut = app.provkortUt(app.spar, 1);
-  assert.deepEqual(ut.sort(), [1, 2]);
-  for (const id of ut) app.borttagna.add(id);
-  app.oppstart = false;
-  stam(spar);
-  assert.deepEqual(app.kort.map(k => k.name), ['Swamp']);
-});
-prov('UP5 provkortet lyfts: spärren släpper, och ett nytt kort med samma namn spelas', () => {
-  app.oppstart = true;
-  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
-  for (const id of app.provkortUt(app.spar, 1)) app.borttagna.add(id);
-  app.oppstart = false;
-  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
-  assert.equal(app.kort.length, 0);
-  klocka.t += 150; stam([]);
-  assert.ok(!app.borttagna.has(1));
-  klocka.t += 150; stam([klar(4, 'Ukud Cobra', { sen: 20, ...LANGT })]);
-  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, 4);
-});
 prov('UP6 högen ändras under uppstarten: ett kort som försvinner efteråt går inte till graveyard av det', () => {
   app.oppstart = true;
   stamG([], hog(0)); klocka.t += 1000; stamG([], hog(1));
@@ -1994,146 +1855,22 @@ prov('UP6 högen ändras under uppstarten: ett kort som försvinner efteråt gå
   klocka.t += 150; stamG([], hog(1)); klocka.t += 3100; stamG([], hog(1));
   assert.equal(k.zon, undefined); assert.ok(iHanden(k));
 });
-prov('UP7 provkortSpar: ett mätt spår före ett ur helbilden, inte skräp, inte i rutorna, samma kort som förra gången', () => {
-  const hel = { id: 1, tillstand: 'klar', namn: 'Swamp', sen: null, ai: { helbild: true }, ...PORT };
-  const matt = { id: 2, tillstand: 'ny', namn: null, sen: 30, ...LANGT };
-  let r = app.provkortSpar([hel, matt], [], null, null);
-  assert.equal(r.t.id, 2); assert.equal(r.matt, true);
-  r = app.provkortSpar([hel], [], null, null);
-  assert.equal(r.t.id, 1); assert.equal(r.matt, false);
-  assert.equal(app.provkortSpar([{ id: 3, tillstand: 'skrap', sen: 10, ...PORT }], [], null, null), null);
-  assert.equal(app.provkortSpar([matt], [{ x: 0.78, y: 0.08, w: 0.1, h: 0.14 }], null, null), null);
-  r = app.provkortSpar([{ ...hel, sen: 40, ai: null }, matt], [], null, 1);
-  assert.equal(r.t.id, 1);
-});
-prov('UP9 provkortSpar: förra spåret släpps när det är skymt och en dubblett går att mäta; den låsta platsen går före', () => {
-  const skymd = { id: 1, tillstand: 'klar', namn: 'Plains', sen: 30, skymd: true, ...PORT };
-  const dubb = { id: 2, tillstand: 'klar', namn: 'Plains', sen: 20, ...PORT };
-  let r = app.provkortSpar([skymd, dubb], [], null, 1);
-  assert.equal(r.t.id, 2); assert.equal(r.matt, true);
-  r = app.provkortSpar([skymd], [], null, 1);
-  assert.equal(r.t.id, 1); assert.equal(r.matt, false);
-  const annat = { id: 5, tillstand: 'ny', namn: null, sen: 10, ...LANGT };
-  r = app.provkortSpar([dubb, annat], [], null, null, PORT);
-  assert.equal(r.t.id, 2); assert.equal(r.vidLas, true);
-  r = app.provkortSpar([annat], [], null, null, PORT);
-  assert.equal(r.t.id, 5); assert.equal(r.vidLas, false);
-});
-prov('UP10 provkortets lås: inte på ett spår som rör sig eller nuddar bildens kant, bara på ett stilla kort inne i bilden (MES-166)', () => {
-  const las = spar => app.provLasSteg(null, app.provkortSpar(spar, [], null, null, null), false);
-  /* Ett nyfött spår utan stilla-fältet (äldre telefon): 'ny' rör sig. */
-  let p = app.provkortSpar([{ id: 1, tillstand: 'ny', sen: 20, ...PORT }], [], null, null);
-  assert.equal(p.matt, true); assert.equal(p.lasbar, false); assert.equal(las([{ id: 1, tillstand: 'ny', sen: 20, ...PORT }]).las, null);
-  /* Handen och kortet: stilla en stund, men lådan når nederkanten. */
-  const hand = { id: 2, tillstand: 'stilla', stilla: true, sen: 20, ...box(0.3, 0.4, 0.3, 0.6) };
-  p = app.provkortSpar([hand], [], null, null);
-  assert.equal(p.lasbar, false); assert.equal(p.kant, true); assert.equal(las([hand]).las, null);
-  /* Telefonen säger att ett läst kort rör sig: inget lås fast det inte är 'ny'. */
-  assert.equal(las([{ id: 3, tillstand: 'klar', namn: 'Plains', stilla: false, sen: 20, ...PORT }]).las, null);
-  /* Stilla inne i bilden: låst, med kortets egen ruta. */
-  const r = las([{ id: 4, tillstand: 'stilla', stilla: true, sen: 20, ...PORT }]);
-  assert.equal(r.ny, true); assert.equal(r.las.id, 4); assert.deepEqual(r.las.box, PORT);
-  /* Ett stilla kort går före handen som fortfarande är i bild. */
-  p = app.provkortSpar([{ id: 5, tillstand: 'ny', sen: 10, ...box(0.3, 0.3, 0.4, 0.7) }, { id: 4, tillstand: 'stilla', stilla: true, sen: 20, ...LANGT }], [], null, null);
-  assert.equal(p.t.id, 4); assert.equal(p.lasbar, true);
-});
-prov('UP11 provkortets lås: rutan följer kortet, och handen över kortet släpper det inte', () => {
-  const steg = (las, spar) => app.provLasSteg(las, app.provkortSpar(spar, [], null, las ? las.id : null, las ? las.box : null), false);
-  const las = { id: 1, box: PORT, n: 7 };
-  /* Samma kort, lite förskjutet: samma lås (ingen ny animering), ny ruta. */
-  const flytt = box(PORT.x + 0.01, PORT.y + 0.005, PORT.w, PORT.h);
-  let r = steg(las, [{ id: 1, tillstand: 'klar', namn: 'Plains', stilla: true, sen: 20, ...flytt }]);
-  assert.equal(r.ny, false); assert.equal(r.las.n, 7); assert.deepEqual(r.las.box, flytt);
-  /* Handen täcker kortet: kortets spår skymt, handens klump rör sig. Låset står. */
-  r = steg(las, [{ id: 1, tillstand: 'klar', namn: 'Plains', stilla: true, skymd: true, sen: 900, ...PORT }, { id: 6, tillstand: 'ny', stilla: false, sen: 10, ...box(0.35, 0.35, 0.3, 0.65) }]);
-  assert.equal(r.las, las);
-  /* Medan telefonen räknar svaret rörs låset inte, vad bordet än säger. */
-  assert.equal(app.provLasSteg(las, null, true).las, las);
-});
-prov('UP12 provkortets lås: ett flyttat kort låses på den nya platsen, och ett kort i rörelse släpper det gamla', () => {
-  const steg = (las, spar) => app.provLasSteg(las, app.provkortSpar(spar, [], null, las ? las.id : null, las ? las.box : null), false);
-  const las = { id: 1, box: PORT, n: 7 };
-  /* Kortet är på väg: rör sig, och inget ligger över den gamla platsen. */
-  assert.equal(steg(las, [{ id: 1, tillstand: 'klar', namn: 'Plains', stilla: false, sen: 10, ...LANGT }]).las, null);
-  /* Kortet ligger stilla på den nya platsen medan handen fortfarande är över den gamla. */
-  const r = steg(las, [{ id: 8, tillstand: 'ny', stilla: false, sen: 10, ...box(0.38, 0.38, 0.12, 0.62) }, { id: 1, tillstand: 'klar', namn: 'Plains', stilla: true, sen: 20, ...LANGT }]);
-  assert.equal(r.ny, true); assert.equal(r.las.id, 1); assert.deepEqual(r.las.box, LANGT);
-});
-prov('UP13 provkortets lås: ett spår som blivit kvar utan region håller inte platsen, ett skymt gör det', () => {
-  const steg = (las, spar) => app.provLasSteg(las, app.provkortSpar(spar, [], null, las ? las.id : null, las ? las.box : null), false);
-  const las = { id: 1, box: PORT, n: 7 };
-  assert.equal(steg(las, [{ id: 1, tillstand: 'klar', namn: 'Plains', stilla: true, sen: 2500, ...PORT }]).las, null);
-  assert.equal(steg(las, [{ id: 1, tillstand: 'klar', namn: 'Plains', stilla: true, skymd: true, sen: 2500, ...PORT }]).las, las);
-  assert.equal(steg(las, []).las, null);
-});
-/* MES-171: steg 4 i Use camera to add cards ('skarm'). Spärren läser bara
-   att uppstarten pågår, inte läget — här provat i det läget. */
-prov('UP14 Use camera to add cards, steg 4 pågår: inget nytt kort, ingen granskning, men spåren följs', () => {
-  app.spelsatt = 'skarm'; app.oppstart = true;
-  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
-  const okand = { id: 2, tillstand: 'okand', namn: null, sen: 20, ...LANGT };
-  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), okand]);
-  klocka.t += 5000; stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), okand]);
-  assert.equal(app.kort.length, 0); assert.equal(app.pending.length, 0);
-  assert.deepEqual(app.spar.map(t => t.id), [1, 2]);
-  /* Samma bord när uppstarten är klar: läget lägger till kort. */
-  app.oppstart = false;
-  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
-  assert.deepEqual(app.kort.map(k => k.name), ['Ukud Cobra']);
-});
-prov('UP15 Use camera to add cards, Start playing: provkortet och ett andra spår ovanpå spelas inte ut, ett annat kort gör det', () => {
-  app.spelsatt = 'skarm'; app.oppstart = true;
-  const spar = [klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Ukud Cobra', { sen: 20, ...LAND_ }), klar(3, 'Swamp', { sen: 20, ...LANGT })];
-  stam(spar);
-  for (const id of app.provkortUt(app.spar, 1)) app.borttagna.add(id);
-  app.oppstart = false;
-  stam(spar); klocka.t += 5000; stam(spar);
-  assert.deepEqual(app.kort.map(k => k.name), ['Swamp']); assert.equal(app.pending.length, 0);
-  /* Provkortet lyfts och blandas in: spärren släpper, och samma namn spelas senare som ett nytt kort. */
-  klocka.t += 150; stam([klar(3, 'Swamp', { sen: 20, ...LANGT })]);
-  assert.ok(!app.borttagna.has(1) && !app.borttagna.has(2));
-  klocka.t += 150; stam([klar(3, 'Swamp', { sen: 20, ...LANGT }), klar(4, 'Ukud Cobra', { sen: 20, ...box(0.1, 0.1, 0.063, 0.088) })]);
-  assert.deepEqual(app.kort.map(k => k.name).sort(), ['Swamp', 'Ukud Cobra']);
-});
-prov('UP16 steg 4 klart: Start playing, eller rutorna på raden från en annan dator — och alltid i Mirror my table', () => {
-  const k = app.oppSteg4Klar;
-  /* Use camera to add cards: ett nytt spel (lage 'skarm' innan läget valts, MES-192) och ett valt läge utan rutor. */
-  assert.equal(k({}, false, null, false), false);
-  assert.equal(k({ lage: true, lekOk: true }, false, null, false), false);
-  assert.equal(k({ lage: true, b4: true, provKlar: true, gravKlar: true, bibKlar: true }, false, null, true), false, 'allt klart men Start playing inte tryckt');
-  assert.equal(k({ lage: true, b4: true, startat: true }, false, null, true), true);
-  /* Raden har rutorna från en annan dator: klart utan vinkel — men inte om steget börjats här eller görs om. */
-  assert.equal(k({}, false, null, true), true);
-  assert.equal(k({ b4: true }, false, 20, true), false);
-  assert.equal(k({ grundOm: true }, false, 20, true), false);
-  /* Mirror my table har inget steg 4 (MES-334 steg 6): alltid klart, med eller utan vinkel och rutor. */
-  assert.equal(k({}, true, null, false), true);
-  assert.equal(k({ b4: true, grundOm: true }, true, null, false), true);
-  assert.equal(k({ utan4: true }, false, null, false), true);
-});
-prov('UP17 uppstarten öppnas igen: klar i Use camera to add cards före steg 4 kräver inte steget; Redo setup gör om det', () => {
-  const igen = (o, om, lage) => Object.assign({}, o, app.oppOppnasIgen(o, om, lage));
+prov('UP17 uppstarten öppnas igen: pillret behåller det som var klart, Redo setup gör om läget', () => {
+  const igen = (o, om) => Object.assign({}, o, app.oppOppnasIgen(om));
   const fore = { lekOk: true, lage: true, klar: true };
-  let o = igen(fore, false, 'skarm');
-  assert.equal(o.klar, false); assert.equal(o.utan4, true); assert.equal(app.oppSteg4Klar(o, false, null, false), true);
-  /* Redo setup: steg 4 görs om, också när raden har rutorna. */
-  o = igen(o, true, 'skarm');
-  assert.equal(o.utan4, false); assert.equal(o.lage, false); assert.equal(app.oppSteg4Klar(o, false, null, true), false);
-  assert.equal(app.oppSteg4Klar(igen(fore, true, 'bord'), true, null, false), true, 'Redo setup i Mirror my table: inget steg 4 att göra om');
-  /* Klar med Start playing, i Mirror my table, eller inte klar: ingen vakt. */
-  assert.equal(igen({ ...fore, startat: true }, false, 'skarm').utan4, undefined);
-  assert.equal(igen(fore, false, 'bord').utan4, undefined);
-  assert.equal(igen({ lekOk: true, lage: true, b4: true }, false, 'skarm').utan4, undefined);
-  assert.equal(igen({ lekOk: true, avbojd: true }, false, 'skarm').utan4, undefined);
+  let o = igen(fore, false);
+  assert.equal(o.klar, false); assert.equal(o.avbojd, false); assert.equal(o.lage, true, 'läget står kvar'); assert.equal(o.grundOm, undefined);
+  /* Redo setup: läget väljs igen, och raden som står på 'spelar' håller inte uppstarten stängd. */
+  o = igen(o, true);
+  assert.equal(o.klar, false); assert.equal(o.lage, false); assert.equal(o.grundOm, true);
 });
 prov('UP8 lägesbytet spelar upp bordet medan uppstarten pågår: inget kort', () => {
   app.oppstart = true;
   app.avstamBord([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
   assert.equal(app.kort.length, 0);
 });
-prov('UP18 Mirror my table utan steg 4 (MES-334 steg 6): uppstarten klar så fort leken, läget och telefonen är klara — då spelas kort ut', () => {
+prov('UP18 Mirror my table: när uppstarten är klar spelas kort ut', () => {
   app.spelsatt = 'bord';
-  assert.equal(app.oppSteg4Klar({ lekOk: true, lage: true }, true, null, false), true, 'steg 4 klart utan provkort och rutor');
   app.oppstart = false;
   stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
   assert.deepEqual(app.kort.map(k => k.name), ['Ukud Cobra']);
@@ -2425,7 +2162,7 @@ prov('GY5b Ignore this spot glöms när kameran nollställer sig (ny referensbil
   app.gravFlode = false;                                  // Yes på en annan hög: flödet av, kameran speglar fortfarande
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
   assert.deepEqual(app.kort.map(c => c.name), [], 'efter Yes: platsen filtrerar fortfarande');
-  app.gravSpeglar = false;                                // Screen leads, ingen telefon
+  app.gravSpeglar = false;                                // ingen telefon
   klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
   assert.deepEqual(app.kort.map(c => c.name), ['Ukud Cobra'], 'kameran speglar inte: platsen filtrerar inte');
   app.nollstall(); gyStart(); app.bib = null;
@@ -2464,7 +2201,7 @@ prov('GY5c (kontrollgranskningen N6) Ignore this spot glöms när telefonen knuf
   klocka.t += 150; stam([klar(1, 'Pacifism', { sen: 10, ...kortVid(0.6, 0.3) }), klar(2, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
   assert.ok(app.kort.some(c => c.name === 'Ukud Cobra'), 'ett kort på den gamla platsen syns inte efter omtagningen');
 });
-prov('GY6 flödet av (uppstartens ruta, Screen leads, ingen telefon): ingen fråga', () => {
+prov('GY6 flödet av (ingen telefon): ingen fråga', () => {
   app.bib = LEK;
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
   klocka.t += 3000;
@@ -2875,12 +2612,6 @@ prov('TH11 raden: Still on the table lägger tillbaka kortet på sin plats i lis
   klocka.t += 3100; stam([klar(1, 'Forest', { sen: 0, ...PORT }), klar(3, 'Swamp', { sen: 0, ...MITT })]);
   assert.ok(app.kort.includes(k), 'kortet tillbaka utan spår ligger kvar: inget dött spår att vänta på');
 });
-prov('TH12 Screen leads: inget till handen, ingen rad', () => {
-  app.spelsatt = 'skarm';
-  stam([klar(1, 'Wood Elves', { sen: 0, ...PORT })]);
-  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
-  assert.equal(app.kort.length, 1); assert.equal(app.handRad.length, 0);
-});
 prov('TH13 efterskottet räknar kortet i raden som en granne: två kort borta och en ändring — ingen får högen', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT })], hog(0));
   klocka.t += 150; stamG([], hog(0));
@@ -3101,12 +2832,6 @@ prov('LS5 Still on the table: står kvar efter LOS_MS, tills kameran bundit det'
 prov('LS6 kort utan kamerans läge (lagt för hand) rörs inte', () => {
   app.kort.push({ cid: 'm', name: 'Forest', flipped: 0 });
   stam([]); tick(LOS * 2);
-  assert.equal(app.kort.length, 1);
-});
-prov('LS7 Use camera to add cards: kameran tar aldrig bort', () => {
-  app.spelsatt = 'skarm';
-  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
-  losgor(); stam([]); tick(LOS * 2);
   assert.equal(app.kort.length, 1);
 });
 prov('LS8 fall 8 och korten kommer aldrig tillbaka: till handen efter efterskottet och LOS_MS', () => {

@@ -408,10 +408,9 @@
     bildruta();
     storlekarNu();
   }
-  /* En rad ur bordsloggen, som kamTogsEmot tar emot den: grundläget och
-     library-rutan före avstämningen, sedan avstamBord. */
+  /* En rad ur bordsloggen, som kamTogsEmot tar emot den: grundläget före
+     avstämningen, sedan avstamBord. */
   function tillampa(r) {
-    if (r.bib !== undefined) { kamBibStod = true; kamBib = r.bib; }
     if (r.grund !== undefined && r.grund !== kamGrund) { kamGrund = r.grund; try { visaKamGrund(); } catch (e) {} }
     avstamBord(r.spar || [], r.nollstall, r.fas, undefined, undefined, r.grav);
   }

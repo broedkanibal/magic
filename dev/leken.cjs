@@ -7,8 +7,7 @@
 
    Appen själv i en huvudlös Chrome, utan telefon och utan inloggning (minnet
    "kamerans datorsida provas utan telefon"), som dev/mattan.cjs: ett spel i
-   Mirror my table med kameran ansluten och uppstarten klar UTAN library-ruta
-   (uppstartens steg 4 satte ingen). Telefonens lek matas in genom
+   Mirror my table med kameran ansluten och uppstarten klar. Telefonens lek matas in genom
    tagEmotLek, som kamTogsEmot gör med fältet lek i varje bord, och
    telefonens kort genom avstamBord. Provet går designytans sida 5 ("Mesa
    Piles From Play") steg för steg:
@@ -109,7 +108,7 @@ const PROV = async steg => {
     p.lage = 'bord'; p.cards = []; p.pending = []; p.plats = 1; p.lekId = 'lek1'; p.lek = { id: 'lek1', namn: 'Elves', antal: 40 };
     state.players = [p]; state.active = p.id;
     oppSatt({ klar: true });
-    kamAnsluten = true; kamFas = ''; kamGrund = 0; prefs.autoLage = true; kamBibRad = null; kamGravRad = null;
+    kamAnsluten = true; kamFas = ''; kamGrund = 0; prefs.autoLage = true; kamGravRad = null;
     W.__sant = []; W.__sparat = [];
     Moln.sandKam = (typ, data) => { W.__sant.push(Object.assign({ typ }, data)); return true; };
     Moln.sparaBord = (id, kort, dolt) => { W.__sparat.push({ kort, dolt }); return Promise.resolve(true); };
@@ -269,8 +268,8 @@ const PROV = async steg => {
     ok('motståndarens lek har ingen meny', !$('#zonPerm .lekmeny'));
     fjarrBord({ game_id: spelLage.id, user_id: opp.id, version: 3, kort: [{ cid: 'o1', name: 'Delver of Secrets', x: 40, y: 60, z: 1, tapped: 0 }] });
     ok('motståndaren i Mirror my table utan lek i raden: ingen hög alls (hen ser leken när kameran ser den)', !document.querySelector('#oppMattor .obrade .lekhog') && !document.querySelector('#oppMattor .ohogar .bib'));
-    opp.lage = 'skarm'; renderAll(true);
-    ok('motståndaren i Use camera to add cards utan lek: dagens fasta hög', !document.querySelector('#oppMattor .obrade .lekhog') && !!document.querySelector('#oppMattor .ohogar .bib'));
+    opp.lage = 'utan'; renderAll(true);
+    ok('motståndaren i Digital table utan lek: dagens fasta hög', !document.querySelector('#oppMattor .obrade .lekhog') && !!document.querySelector('#oppMattor .ohogar .bib'));
     opp.lage = 'bord'; renderAll(true);
     /* Min lek står kvar på min matta i bordsvyn, och brädet rymmer den (i en låg ruta kan den ligga
        under kanten vid minsta zoomen, som ett kort längst ner i bilden — mattan går att dra dit). */
@@ -279,16 +278,6 @@ const PROV = async steg => {
     fjarrBord({ game_id: spelLage.id, user_id: opp.id, version: 4, kort: [
       { cid: 'o1', name: 'Delver of Secrets', x: 40, y: 60, z: 1, tapped: 0 },
       { cid: 'hog:bib', hog: 'bib', x: 420, y: 300, f: '30,60,160' }] });   // tillbaka på bordet, för skärmbilden
-  }
-  if (steg === 9) {
-    state.players = [mig()]; bord.valt = null; renderAll(true);
-    /* Uppstartens steg 4 satte en library-ruta: dagens flöde, orört. */
-    kamBibRad = { x: 0.1, y: 0.6, w: 0.15, h: 0.3 };
-    tagEmotLek(null);
-    ok('med uppstartens ruta: ingen hög på mattan, dagens fasta hög står', !lekEl() && !mig().bibHog && !$('#bibHog').hidden);
-    mig().cards = []; renderAll(true);
-    ok('med uppstartens ruta: tomrutan som förut (ingen lek-text)', !/library/i.test(text() || ''), text());
-    kamBibRad = null;
   }
   return rad;
 };
@@ -312,7 +301,7 @@ const PROV = async steg => {
     }
     await vanta(300);
     if (BILD) fs.mkdirSync(BILD, { recursive: true });
-    const NAMN = ['1-ingen-lek', '2-leken-ligger', '2-menyn', '2-not-my-library', '2-its-my-library', '7-upplockad', '7-ny-plats', '3-forsta-kortet', 'motstandaren', 'uppstartens-ruta'];
+    const NAMN = ['1-ingen-lek', '2-leken-ligger', '2-menyn', '2-not-my-library', '2-its-my-library', '7-upplockad', '7-ny-plats', '3-forsta-kortet', 'motstandaren'];
     for (let s = 0; s < NAMN.length; s++) {
       const r = await c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')(' + s + ')', awaitPromise: true, returnByValue: true });
       if (r.exceptionDetails) throw new Error(`steg ${s}: ` + ((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text));

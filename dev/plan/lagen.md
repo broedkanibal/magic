@@ -1,5 +1,10 @@
 # Mesa: fria mattan, flera lekar, två spellägen
 
+> **2026-10-10:** skärmens läge (Screen leads, senare *Use camera to add
+> cards*, `'skarm'`) är borttaget, med uppstartens steg 4. Spellägena är
+> Mirror my table (`'bord'`) och Digital table (`'utan'`, radens förval).
+> Planen nedan beskriver lägena som de byggdes 2026-09-12.
+
 Plan 2026-09-12. Byggs av Fable 5.1 i den här sessionen, deluppgift för
 deluppgift med commit + push, Linear synkad. En kopia av planen läggs i repot
 som `dev/plan/lagen.md` i förberedelsecommiten så att Opus-sessioner kan ta

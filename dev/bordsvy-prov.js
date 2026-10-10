@@ -42,7 +42,7 @@
     state.players = [mig].concat(Array.from({ length: Math.max(0, Math.min(8, n)) }, (_, i) => {
       const lek = LEKAR[i % LEKAR.length];
       return normalisera({
-        id: 'prov-' + i, name: NAMN[i], color: FARG[i], plats: i + 2, lage: i % 2 ? 'bord' : 'skarm',
+        id: 'prov-' + i, name: NAMN[i], color: FARG[i], plats: i + 2, lage: i % 2 ? 'bord' : 'utan',
         lekId: 'lek-' + i, lek: { namn: lek.namn, farger: lek.farger, antal: 60 },
         cards: kortFor(lek), shots: [], shotIdx: 0, pending: [], pane: null, namnkalla: 'anvandare', version: 1
       }, i + 1);

@@ -537,7 +537,7 @@ const PROV = async () => {
     { const hb = helaBilden(); ok('tillbaka i spelet: Fit camera view ger hela kamerabilden, utan egen zoom', hb.ok && !matVy(mig).manuell && knapp(), hb.txt); }
     spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, skLek); matVyPerSpel.clear(); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }
 
-  /* Bord utan utgångsläge (Digital table, Use camera to add cards, utanför ett spel): brädets fit hålls kvar. Förut
+  /* Bord utan utgångsläge (Digital table, utanför ett spel): brädets fit hålls kvar. Förut
      följde den brädet, som växer när ett kort läggs utanför det, och mattan zoomade ut av sig själv. */
   { const sp0 = spelLage, kort0 = mig.cards;
     spelLage = null; matVyer.delete(mig.id);
@@ -845,7 +845,7 @@ const PROV = async () => {
     const c = tal();
     fitView(); await vanta(450); gridEl.classList.remove('glider');
     ok('zoomtalet: med egen zoom procenten, och "fit" igen efter Fit camera view', /^\d+%$/.test(c) && tal() === 'fit', `${c} → ${tal()}`);
-    mig.lage = 'skarm'; renderAll(true); await vanta(300);
+    mig.lage = 'utan'; renderAll(true); await vanta(300);
     ok('zoomtalet: andra bord (Digital table) som förut, med procenten', /^\d+% fit$/.test(tal()), tal());
     mig.lage = lage0; mig.bibHog = null; kamLek = null; ofrGlom();
     spelLage = sp0; mig.cards = kort0; kamSkala.las.set(mig.id, las0); renderAll(true); await vanta(450); gridEl.classList.remove('glider'); }

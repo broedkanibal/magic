@@ -109,7 +109,7 @@ const PROV = async steg => {
     p.lage = 'bord'; p.cards = []; p.pending = []; p.plats = 1; p.lekId = 'lek1'; p.lek = { id: 'lek1', namn: 'Elves', antal: 40 };
     state.players = [p]; state.active = p.id;
     oppSatt({ klar: true });
-    kamAnsluten = true; kamFas = ''; kamGrund = 90; prefs.autoLage = true; kamBibRad = null; kamGravRad = null;
+    kamAnsluten = true; kamFas = ''; kamGrund = 90; prefs.autoLage = true; kamGravRad = null;
     W.__sant = []; W.__sparat = []; W.__kal = [];
     Moln.sandKam = (typ, data) => { W.__sant.push(Object.assign({ typ }, data)); return true; };
     Moln.sparaBord = (id, kort, dolt) => { W.__sparat.push({ kort, dolt }); return Promise.resolve(true); };
@@ -325,8 +325,8 @@ const PROV = async steg => {
     renderAll(true);
     ok('motståndaren i Mirror my table före Yes och utan lek: ingen fast graveyard och ingen fast library (som på hens egen matta)',
        !document.querySelector('#oppMattor .ohogar .grav') && !document.querySelector('#oppMattor .ohogar .bib'), (document.querySelector('#oppMattor .ohogar') || {}).innerHTML || 'inga högar');
-    opp.lage = 'skarm'; renderAll(true);
-    ok('motståndaren i Use camera to add cards: graveyard och library på fast plats som förut',
+    opp.lage = 'utan'; renderAll(true);
+    ok('motståndaren i Digital table: graveyard och library på fast plats som förut',
        !!document.querySelector('#oppMattor .ohogar .grav') && !!document.querySelector('#oppMattor .ohogar .bib'));
     opp.lage = 'bord'; renderAll(true);
     fjarrBord({ game_id: spelLage.id, user_id: opp.id, version: 2, kort: [
@@ -341,18 +341,15 @@ const PROV = async steg => {
     state.players = [jag]; bord.valt = null; renderAll(true);
   }
   if (steg === 8) {
-    /* Uppstartens steg 4 är borta i Mirror my table (MES-334 steg 6): med leken vald, läget valt och telefonen
-       ansluten är uppstarten klar — inget provkort, ingen graveyard-plats, ingen library-ruta, och
-       statusfältet ber inte om grundläget. I Use camera to add cards står steg 4 kvar (kortets storlek). */
+    /* Uppstarten har inget steg 4 (MES-334 steg 6, och läget Use camera to add cards är borttaget): med leken
+       vald, läget valt och telefonen ansluten är uppstarten klar — inget provkort, ingen graveyard-plats, ingen
+       library-ruta, och statusfältet ber inte om grundläget. */
     kamAnsluten = true; prefs.autoLage = true; kamGrund = null;
-    const p = mig(); p.lage = 'bord'; oppSatt({ klar: false, avbojd: false, lekOk: true, lage: true, b4: false, startat: false, grundOm: true });
+    const p = mig(); p.lage = 'bord'; oppSatt({ klar: false, avbojd: false, lekOk: true, lage: true, grundOm: true });
     renderMode();
-    ok('Mirror my table: uppstarten klar utan steg 4', oppFor().klar === true && !oppOppen && $('#opp4').hidden, JSON.stringify({ klar: oppFor().klar, oppen: oppOppen, opp4: $('#opp4').hidden }));
+    ok('Mirror my table: uppstarten klar utan steg 4', oppFor().klar === true && !oppOppen && !$('#opp4'), JSON.stringify({ klar: oppFor().klar, oppen: oppOppen, opp4: !!$('#opp4') }));
     ok('Mirror my table: statusfältet ber inte om grundläget (inget "Save as untapped angle")', !/untapped/i.test($('#autoBar').textContent || ''), ($('#autoBar').textContent || '').trim().slice(0, 80));
-    p.lage = 'skarm'; oppSatt({ klar: false, avbojd: false, lekOk: true, lage: true, b4: false, startat: false, grundOm: true });
-    renderMode();
-    ok('Use camera to add cards: steg 4 står kvar (Card size)', oppFor().klar !== true && oppOppen && !$('#opp4').hidden && /Card size/.test($('#oppDelar').textContent), $('#oppDelar').textContent.slice(0, 60));
-    oppSatt({ klar: true }); p.lage = 'bord'; renderMode();
+    oppSatt({ klar: true }); renderMode();
   }
   if (steg === 9) {
     /* Granskningen av sida 5, V4: telefonens graveyard-ruta efter Yes ur korten som de ligger nu, oberoende av
@@ -419,20 +416,18 @@ const PROV = async steg => {
   }
   if (steg === 11) {
     /* Rester från uppstartens steg 4 (Jesper 2026-10-08, kamerabilden med en bred graveyard-ruta över library-högen): steget
-       finns bara kvar i Use camera to add cards, så i Mirror my table rensas rutorna som ett äldre spel bär på raden —
-       lokalt och på raden — men aldrig en ruta som Yes sparat (ingen library-ruta bredvid) och aldrig i Use camera. */
+       är borttaget, så rutorna som ett äldre spel bär på raden rensas — lokalt och på raden — men aldrig en ruta som Yes
+       sparat (ingen library-ruta bredvid). Raden läses som telefonen läser den (lasKamOri). */
     kamAnsluten = true; prefs.autoLage = true; kamGrund = 90; kamFas = ''; oppSatt({ klar: true }); mig().lage = 'bord';
     mig().cards = []; mig().pending = []; nollGrav();
     const GR = { x: 0.03, y: 0.6, w: 0.3, h: 0.12 }, BR = { x: 0.4, y: 0.6, w: 0.1, h: 0.2 };
     W.__kal.length = 0;
-    kamGravRad = GR; kamBibRad = BR; rensaOppstartsRutor(); await vanta(40);
-    ok('Mirror my table, rutorna från steg 4 på raden: båda borta lokalt', !kamGravRad && !kamBibRad, JSON.stringify([kamGravRad, kamBibRad]));
+    lasKamOri({ grav: GR, bib: BR }); rensaOppstartsRutor(); await vanta(40);
+    ok('rutorna från steg 4 på raden: graveyard-rutan borta lokalt', !kamGravRad && !kamRutaRest, JSON.stringify([kamGravRad, kamRutaRest]));
     ok('… och raden skrevs om utan dem (telefonen slutar filtrera där)', W.__kal.length === 1 && !W.__kal[0].grav && !W.__kal[0].bib, JSON.stringify(W.__kal));
-    kamGravRad = GR; kamBibRad = null; W.__kal.length = 0; rensaOppstartsRutor(); await vanta(40);
+    W.__kal.length = 0; lasKamOri({ grav: GR }); rensaOppstartsRutor(); await vanta(40);
     ok('en graveyard-ruta från Yes (ingen library-ruta) rörs inte', !!kamGravRad && W.__kal.length === 0);
-    mig().lage = 'skarm'; kamBibRad = BR; rensaOppstartsRutor(); await vanta(40);
-    ok('Use camera to add cards behåller rutorna', !!kamGravRad && !!kamBibRad && W.__kal.length === 0);
-    mig().lage = 'bord'; kamGravRad = null; kamBibRad = null; nollGrav(); renderAll(true);
+    kamGravRad = null; nollGrav(); renderAll(true);
   }
   if (steg === 7) {
     /* Kameran tappad i Mirror my table (Jesper i produktionen 2026-10-05: graveyard och "Pick up 40" i hörnet):
@@ -482,11 +477,24 @@ const PROV = async steg => {
       tg.classList.remove('over'); }
     kamGravRad = null; mig().gravHog = null; mig().bibHog = null; kamAnsluten = false;
     mig().cards = [];
-    /* Use camera to add cards: graveyard och library på fast plats som i dag, i D1:s utseende (inga ramar, bricka på underkanten). */
-    mig().lage = 'skarm'; kamLek = null; renderAll(true); renderBibHog();
+    /* Digital table: graveyard och library på fast plats som i dag, i D1:s utseende (inga ramar, bricka på underkanten).
+       Utan kamera, som valet av Digital table gör (oppUtan): en kamera som är på gör raden till Mirror my table (kameraLage). */
+    mig().lage = 'utan'; prefs.autoLage = false; kamLek = null; renderAll(true); renderBibHog();
     const gh = manaRow.querySelector('.grav'), rad = manaRow.querySelector('.gravtxt');
-    ok('Use camera to add cards: graveyard och library på sin fasta plats', !!gh && !gridEl.querySelector('.gravd1') && !$('#bibHog').hidden);
-    ok('Use camera to add cards: D1 — ingen ram, och brickan på underkanten', !!gh && getComputedStyle(gh).borderTopColor === 'rgba(0, 0, 0, 0)' && !!rad && getComputedStyle(rad).backgroundColor !== 'rgba(0, 0, 0, 0)' && rad.getBoundingClientRect().top < gh.getBoundingClientRect().bottom, gh ? getComputedStyle(gh).borderTopColor : '');
+    ok('Digital table: graveyard och library på sin fasta plats', !!gh && !gridEl.querySelector('.gravd1') && !$('#bibHog').hidden);
+    ok('Digital table: D1 — ingen ram, och brickan på underkanten', !!gh && getComputedStyle(gh).borderTopColor === 'rgba(0, 0, 0, 0)' && !!rad && getComputedStyle(rad).backgroundColor !== 'rgba(0, 0, 0, 0)' && rad.getBoundingClientRect().top < gh.getBoundingClientRect().bottom, gh ? getComputedStyle(gh).borderTopColor : '');
+    /* Kameran slås på i Digital table (Turn on camera, Reconnect camera, en telefon som skannat koden): raden
+       blir Mirror my table (kameraLage). Digital table i uppstarten gör tvärtom: raden får 'utan' och kameran
+       stängs av (oppUtan). */
+    const sattLage0 = Moln.sattLage; W.__lage = [];
+    Moln.sattLage = (id, l) => { W.__lage.push(l); return Promise.resolve(true); };
+    kameraLage.nar = 0; prefs.autoLage = true; renderMode(); await vanta(40);
+    ok('kameran på i Digital table: raden blir Mirror my table', mig().lage === 'bord' && W.__lage.join() === 'bord', `${mig().lage} [${W.__lage}]`);
+    W.__lage = []; oppSatt({ klar: false, avbojd: false }); oppUtan(); await vanta(40);
+    ok('Digital table i uppstarten: raden blir utan och kameran stängs av', mig().lage === 'utan' && W.__lage.join() === 'utan' && prefs.autoLage !== true && oppFor().avbojd === true,
+       `${mig().lage} [${W.__lage}] auto ${prefs.autoLage} avbojd ${oppFor().avbojd}`);
+    Moln.sattLage = sattLage0; oppSatt({ klar: true, avbojd: false });
+    prefs.autoLage = true; mig().lage = 'bord';
   }
   return rad;
 };
