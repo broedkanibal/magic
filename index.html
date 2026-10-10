@@ -1967,6 +1967,8 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .omatta.vand-upp .ofr.tappad{transform:rotate(270deg)}
 .ofr > .lyftskugga{position:absolute;inset:0;border-radius:inherit;box-shadow:0 26px 40px -12px #000f;opacity:0;pointer-events:none;z-index:-1}
 .ofr.fraga{cursor:pointer}
+.ofr.held{cursor:grabbing}
+.ofr.held > .lyftskugga{opacity:1}
 /* MES-351 (designytan "Mesa Name This Card", spec F2): ramen är Mesas egen, 4 px i brädets px, inte kamerafotots
    kant — beskärningen tar med en bordsremsa, och ett kort som ligger snett i fotot visade bordet på sidan. Fotot
    förstoras 1,18 från mitten så att bordet hamnar utanför ramen. Det undre lagret (.ofsudd) är hela fotot suddigt;
@@ -10060,6 +10062,18 @@ function matPlacera(p, ofr, v) {
     /* Table leads: det oframkallade kortet ligger där kortet vilar i bilden (q.kam, viloläget — det följer
        inte en hand som bär kortet), räknat som korten (speglaKamPos). Under sex bildpunkter är darr. */
     if (kamSpeglar(p) && q.kam) {
+      /* Flyttat för hand (Jespers beslut 2026-10-10, som korten i MES-352): står där handen lade det (q.hand: läget
+         vid släppet och platsen på mattan, mx/my) tills kameran ser att det riktiga kortet flyttats (handVidKam). */
+      if (q.hand) {
+        const h = handVidKam(q.hand, q.kam);
+        if (h) {
+          q.hand = h;
+          const var0 = ofrPos.get(q.id);
+          if (!var0 || var0.x !== h.mx || var0.y !== h.my) ofrPos.set(q.id, { x: h.mx, y: h.my });
+          continue;
+        }
+        delete q.hand;
+      }
       const m = kamTillMatta(q.kam, ofrSkala(p, q));
       const ny = clampKort({ name: '', x: m.x - MATTA.CW / 2, y: m.y - MATTA.CH / 2 }, { w: 1e6, h: 1e6 }, g), var0 = ofrPos.get(q.id);
       if (!var0 || Math.hypot(var0.x - ny.x, var0.y - ny.y) > 6) ofrPos.set(q.id, ny);
@@ -10220,13 +10234,32 @@ function kamPlats(c, skala, g) {
      ombindning till ett annat spår på samma plats (steg 3b, tvivelSteg, aterstallFlytt);
    - ett vilande läge längre bort är det riktiga kortet som flyttats: kameran tar över, också efter en ombindning.
    Tap rörs inte här: kameran skriver tapped bara när dess egen dom ändras (MODE-4), så ett tap på skärmen står kvar
-   tills det riktiga kortet vrids. */
-function handSnap(k) { return k ? { nar: k.nar, x: k.x, y: k.y, w: k.w, prel: k.prel ? 1 : undefined } : {}; }
-function handDelat(h) { return h.x == null ? {} : { x: +h.x.toFixed(4), y: +h.y.toFixed(4), w: +(h.w || 0).toFixed(4) }; }
+   tills det riktiga kortet vrids.
+   - ett läge vars låda ligger nästan helt inne i den gamla, eller tvärtom (HAND_SAMMA), är samma kort som blivit mer
+     eller mindre synligt: ett kort som legat över det har lyfts bort, eller ett kort har lagts ovanpå. Kameran ser
+     bara den synliga delen, så lådans mitt flyttar sig fast det riktiga kortet ligger still. Jespers bord 2026-10-10
+     (spelet QN74EE): ett Island låg över ett annat Island; det undre flyttades för hand, och när han flyttade det
+     övre åt sidan såg kameran hela det undre igen. Mitten hade gått mer än AUTO_FLYTT, och kortet hoppade tillbaka
+     dit kameran hade det. Lådorna är telefonens egna; ingen fråga till Claude. */
+const HAND_SAMMA = 0.9;   // andel av den mindre lådan som ligger inne i den större: samma kort, mer eller mindre skymt
+function handSnap(k) { return k ? { nar: k.nar, x: k.x, y: k.y, w: k.w, h: k.h, prel: k.prel ? 1 : undefined } : {}; }
+function handDelat(h) { return h.x == null ? {} : { x: +h.x.toFixed(4), y: +h.y.toFixed(4), w: +(h.w || 0).toFixed(4), h: h.h != null ? +h.h.toFixed(4) : undefined }; }
+function handSammaKort(h, k) {
+  if (!(h.w > 0) || !(h.h > 0) || !(k.w > 0) || !(k.h > 0)) return false;   // en rad från före HAND_SAMMA bär bara bredden
+  const a = { x: h.x - h.w / 2, y: h.y - h.h / 2, w: h.w, h: h.h }, b = { x: k.x - k.w / 2, y: k.y - k.h / 2, w: k.w, h: k.h };
+  return overlapAndel(a, b) >= HAND_SAMMA || overlapAndel(b, a) >= HAND_SAMMA;
+}
+/* Står det handflyttade kvar? h: läget vid släppet (handSnap), k: kamerans läge nu. Ger markeringen att behålla
+   (ankrad om på kamerans nya läge när det inte är en flytt), eller null när det riktiga kortet flyttats. Samma regel
+   för korten (handKvar) och för ett kort som kameran inte identifierat (matPlacera, ofrMinne). */
+function handVidKam(h, k) {
+  if (k.nar === h.nar || k.prel) return h;
+  if (h.x == null || Math.hypot(k.x - h.x, k.y - h.y) <= AUTO_FLYTT * (k.w || 0) || handSammaKort(h, k)) return Object.assign({}, h, handSnap(k));   // som kamLage: spårets bredd
+  return null;
+}
 function handKvar(c) {
-  const h = c.hand, k = c.kam;
-  if (k.nar === h.nar || k.prel) return true;
-  if (h.x == null || Math.hypot(k.x - h.x, k.y - h.y) <= AUTO_FLYTT * (k.w || 0)) { c.hand = handSnap(k); return true; }   // som kamLage: spårets bredd
+  const ny = handVidKam(c.hand, c.kam);
+  if (ny) { c.hand = ny; return true; }
   delete c.hand; delete c.kamRitad;
   /* En manahög som kortet lades i för hand: raknaOmHogar hade dragit tillbaka det till högen, och kameran hade
      aldrig fått ta över. */
@@ -10250,6 +10283,14 @@ function speglaKamPos(p, v) {
   for (const c of p.cards) {
     if (c.hand && !paMattan(c)) delete c.hand;   // i graveyard eller exile ligger kortet inte där handen lade det
     if (c.spar == null || !c.kam || !paMattan(c) || c.attachedTo) continue;
+    /* Kortet som tar över ett oidentifierat kort som flyttats för hand (ofrFran.hand) ligger där det oidentifierade
+       låg och är självt flyttat för hand: kameran tar över först när det riktiga kortet flyttas, som för korten. En
+       gång: sedan gäller kortets egen markering. */
+    if (c.ofrFran && c.ofrFran.hand) {
+      const fr = ofrPos.get(+c.ofrFran.nyckel.slice(2));
+      delete c.ofrFran.hand;
+      if (fr) { c.x = fr.x; c.y = fr.y; c.hand = handSnap(c.kam); delete c.kamRitad; andrat = true; }
+    }
     /* Flyttat för hand (MES-352): kortet står där det lades tills det riktiga kortet flyttats (handKvar). */
     if (c.hand) { if (handKvar(c)) continue; andrat = true; }
     if (c.kamRitad === c.kam.nar && c.kamOri === ori) continue;
@@ -11651,7 +11692,7 @@ function urHogTryck(ev) {
   const el = ev.target.closest && ev.target.closest('.card');
   if (!el) return false;
   const c = hand()[+el.dataset.i];
-  return manaHog(c) && hogAttFlytta(c).length > 1;
+  return (manaHog(c) && hogAttFlytta(c).length > 1) || !!hogOmlottAv(c);
 }
 gridWrap.addEventListener('pointerdown', ev => {
   matPanSvalg = false;
@@ -11974,11 +12015,11 @@ function renderPill() {
     return;
   }
   const v = matVy(), r = matRect(c);
-  const nStack = c.grp ? hand().filter(k => k.grp === c.grp).length : 0;
-  /* En manahög flyttas hel (MES-206); ur en tokenhög drar man fortfarande ut
+  const omHog = hogOmlottAv(c), nStack = omHog ? hogStorlek(omHog) : c.grp ? hand().filter(k => k.grp === c.grp).length : 0;
+  /* En manahög flyttas hel (MES-206), och högen på mattan i Mirror my table; ur en tokenhög drar man fortfarande ut
      ett kort. Tap står kvar i knappen bredvid och rör bara det här kortet. */
   const hint = nStack > 1
-    ? (manaHog(c) ? `${nStack} stacked: drag moves all, <kbd>⌃</kbd>+drag moves one`
+    ? (manaHog(c) || omHog ? `${nStack} stacked: drag moves all, <kbd>⌃</kbd>+drag moves one`
       : `${nStack} stacked: drag moves one out`)
     : esc(c.tapped ? 'Swing it back up' : 'Swing it sideways');
   const html = `<span class="hint">${hint}</span>`
@@ -12024,7 +12065,7 @@ function openKortMeny(cid, cx, cy) {
   }
   const dfc = arDfc(cardOf(c)), tok = tokDelar(cardOf(c));
   /* Ur en manahög: ⌃ + drag på datorn, den här raden på pekskärmen (MES-206). */
-  const losbar = manaHog(c) && hand().filter(k => k.grp === c.grp).length > 1;
+  const losbar = (manaHog(c) && hand().filter(k => k.grp === c.grp).length > 1) || !!hogOmlottAv(c);   // och högen på mattan i Mirror my table
   matMenyEl.dataset.cid = cid;
   matMenyEl.innerHTML = `<div class="hd">${esc(namnAv(c))}</div>
     <button type="button" data-ma="tap"><i style="background:var(--acc)"></i>${c.tapped ? 'Untap: stand it back up' : 'Tap: turn it sideways'}<kbd>T</kbd></button>
@@ -12269,6 +12310,7 @@ addEventListener('keydown', ev => {
   arkSvar('gissa', +ev.key - 1);
 }, true);
 gridEl.addEventListener('contextmenu', ev => {
+  if (dnd && ev.target.closest('.ofr[data-ofr]')) { ev.preventDefault(); return; }   // ⌃ + tryck på ett oidentifierat kort
   const el = ev.target.closest('.card'); if (!el || !redigerbar()) return;
   ev.preventDefault();
   /* ⌃ + tryck på ett kort i en manahög är uttagningen ur högen (MES-206);
@@ -14179,7 +14221,7 @@ gridEl.addEventListener('dblclick', ev => { if (ev.target.closest('.card')) open
    inget .card, och korthanteraren ovan ska inte veta av det. */
 gridEl.addEventListener('click', ev => {
   const o = ev.target.closest('.ofr.fraga, .ofrmark[data-pend], .ofretik[data-pend]');   // kortet, dess "Enter name" eller "NOT IDENTIFIED" (egna element, MES-346, MES-351)
-  if (!o || !o.dataset.pend || !redigerbar()) return;
+  if (!o || !o.dataset.pend || !redigerbar() || svalgKlick) return;   // svalgKlick: klicket efter ett drag
   ev.stopPropagation();
   const q = pendById(o.dataset.pend);
   if (q && q.overTak) openArk({ mode: 'olast', pend: q.id });
@@ -14478,6 +14520,83 @@ function flyttaElement(k) {
   el.style.top = Math.round(k.y || 0) + 'px';
   el.style.zIndex = Math.max(1, Math.round(k.z || 1));
 }
+/* ═══ HÖGEN PÅ MATTAN (Mirror my table, Jespers beslut 2026-10-10) ═══
+   På mitt eget bord i Mirror my table är en hög det som ligger omlott på mattan: kort och oidentifierade kort
+   (NOT IDENTIFIED) som täcker varandra till minst MATTA.JOIN_OV av det mindre kortets yta, också i flera led (A
+   över B över C). Ett drag i vilket kort som helst i högen flyttar hela högen; ⌃ (eller ⌥) + drag drar ut det
+   enskilda kortet, och kortmenyn har samma väg för pekskärmar — samma regel som manahögarna (MES-206). Ett klick
+   utan drag tappar kortet man klickade på; på ett oidentifierat kort öppnar det sökrutan som förut. Varje kort i
+   draget står sedan där det släpptes tills kameran ser att just det riktiga kortet flyttats (MES-352, handVidKam).
+   Det mattan visar är det som flyttas: inget av det bygger på telefonens relationer eller på Claude. Tokenhögar
+   (en token med grp) drar man fortfarande ut ett kort ur. Utanför Mirror my table gäller manahögarna som förut. */
+function hogOmlottAktiv() { return !!spelLage && redigerbar() && kamSpeglar(minSpelare()) && arMitt(player()); }
+function ofrRekt(q) {
+  const p = ofrPos.get(q.id);
+  if (!p) return null;
+  return ofrTappad(q) ? { x: p.x + (MATTA.CW - MATTA.CH) / 2, y: p.y + (MATTA.CH - MATTA.CW) / 2, w: MATTA.CH, h: MATTA.CW } : { x: p.x, y: p.y, w: MATTA.CW, h: MATTA.CH };
+}
+/* Högen kring start ({ cid } för ett kort, { ofr } för ett oidentifierat kort): { kort, ofr } — korten och de
+   oidentifierade kortens post-id:n. Ett kort i en manahög tar med hela manahögen. */
+function hogOmlott(start) {
+  const h = hand();
+  const kort = h.filter(k => paMattanKort(k) && !k.attachedTo && k.x != null && k.y != null && !(k.tok && k.grp)).map(k => ({ k, r: matRect(k), grp: k.grp || null }));
+  const alla = kort.concat(ofrNu().map(q => ({ ofr: q.id, r: ofrRekt(q) })).filter(o => o.r));
+  const s = alla.find(o => start.cid != null ? !!o.k && o.k.cid === start.cid : o.ofr === start.ofr);
+  if (!s) return { kort: [], ofr: [] };
+  const omlott = (a, b) => (a.grp && a.grp === b.grp) || Math.max(overlapAndel(a.r, b.r), overlapAndel(b.r, a.r)) >= MATTA.JOIN_OV;
+  const med = new Set([s]), ko = [s];
+  while (ko.length) { const a = ko.pop(); for (const b of alla) if (!med.has(b) && omlott(a, b)) { med.add(b); ko.push(b); } }
+  return { kort: [...med].filter(o => o.k).map(o => o.k), ofr: [...med].filter(o => o.ofr != null).map(o => o.ofr) };
+}
+const hogStorlek = om => om.kort.length + om.ofr.length;
+/* Kortets hög på mattan, när det ligger i en (fler än ett): annars null. */
+function hogOmlottAv(c) {
+  if (!c || (c.tok && c.grp) || !hogOmlottAktiv()) return null;
+  const om = hogOmlott({ cid: c.cid });
+  return hogStorlek(om) > 1 ? om : null;
+}
+/* De oidentifierade kortens lägen före ett drag: Undo och ⌘Z lägger tillbaka dem (handAngra, angra). */
+function ofrFore(ids) { return ids.map(id => { const q = ofrMinne.get(id), pos = ofrPos.get(id); return [id, q && q.hand ? Object.assign({}, q.hand) : null, pos ? { x: pos.x, y: pos.y } : null]; }); }
+function ofrAterstall(fore) {
+  let andrat = false;
+  for (const [id, hd, pos] of fore || []) {
+    const q = ofrMinne.get(id);
+    if (!q) continue;   // kortet har fått namn eller gått: inget att lägga tillbaka
+    if (hd) { q.hand = Object.assign({}, hd); ofrPos.set(id, { x: hd.mx, y: hd.my }); }
+    else { delete q.hand; if (pos) ofrPos.set(id, pos); }   // kameran lägger det där den har det (matPlacera)
+    andrat = true;
+  }
+  return andrat;
+}
+const ofrElAv = id => gridEl.querySelector(`:scope > .ofr[data-ofr="${id}"]`);
+/* Under ett drag: det oidentifierade kortet och dess "NOT IDENTIFIED" och "Enter name" följer pekaren. */
+function ofrFlyttaEl(id) {
+  const pos = ofrPos.get(id), q = ofrMinne.get(id);
+  if (!pos || !q) return;
+  for (const el of gridEl.querySelectorAll(`:scope > [data-ofr="${id}"]`)) {
+    const a = el.classList.contains('ofr') ? pos : el.classList.contains('ofretik') ? ofrEtikAnkare(q) : el.classList.contains('ofrmark') ? ofrMarkAnkare(q) : null;
+    if (a) { el.style.left = Math.round(a.x) + 'px'; el.style.top = Math.round(a.y) + 'px'; }
+  }
+}
+function hogenDnd(c, om, ev) {
+  return { cid: c ? c.cid : null, hog: true, grupp: om.kort.map(k => ({ cid: k.cid, x: k.x || 0, y: k.y || 0 })),
+           ofr: om.ofr.map(id => { const pos = ofrPos.get(id); return { id, x: pos.x, y: pos.y }; }),
+           p0: cpt(ev), x0: ev.clientX, y0: ev.clientY, drar: false, pointerId: ev.pointerId,
+           fore: JSON.stringify(hand()), ofrFore: ofrFore(om.ofr) };
+}
+/* Ett tryck på ett oidentifierat kort (NOT IDENTIFIED, MES-344) på mitt bord i Mirror my table: draget flyttar
+   kortet, eller hela högen det ligger i. ⌃ (⌥) + drag flyttar bara det. Ett klick utan drag går vidare till
+   klicket, som öppnar sökrutan (eller antalets fråga). */
+gridEl.addEventListener('pointerdown', ev => {
+  const o = ev.target.closest('.ofr[data-ofr]');
+  if (!o || dnd || (ev.button !== 0 && !ev.ctrlKey) || !hogOmlottAktiv()) return;
+  const id = +o.dataset.ofr;
+  if (!ofrMinne.has(id) || !ofrPos.has(id)) return;
+  ev.stopPropagation();                      // inte panorering
+  closeKortMeny();
+  if (matValda.size) { matValda.clear(); renderSel(); }
+  dnd = hogenDnd(null, ev.ctrlKey || ev.altKey ? { kort: [], ofr: [id] } : hogOmlott({ ofr: id }), ev);
+});
 /* Markeringen av flera kort. Räknas mot bordet man tittar på: id:n från
    ett annat bord matchar inget där. */
 function valdaKort() { return hand().filter(c => matValda.has(c.cid)); }
@@ -14510,19 +14629,28 @@ function hogAttFlytta(c) {
    av raknaOmHogar om bara ett kort blir kvar. */
 function losaUrHog(cid) {
   const h = hand(), c = h.find(k => k.cid === cid);
-  if (!c || !c.grp || !redigerbar()) return;
-  const hog = h.filter(k => k.grp === c.grp && paMattanKort(k));
-  const hoger = hog.reduce((a, b) => ((b.x || 0) > (a.x || 0) ? b : a), hog[0] || c);
-  angraPunkt();
+  if (!c || !redigerbar()) return;
+  /* Högen på mattan i Mirror my table (hogOmlott) eller manahögen. Kortet läggs till höger om högen. */
+  const om = hogOmlottAv(c);
+  if (!om && !c.grp) return;
+  const hog = om ? om.kort.filter(k => k !== c).map(matRect).concat(om.ofr.map(id => ofrRekt({ id, tappad: (ofrMinne.get(id) || {}).tappad })).filter(Boolean))
+    : h.filter(k => k.grp === c.grp && paMattanKort(k) && k !== c).map(matRect);
+  const hoger = hog.reduce((a, b) => (b.x + b.w > a.x + a.w ? b : a), hog[0] || matRect(c));
+  const fore = JSON.stringify(h);
+  angraPunkt(null, fore);
   c.grp = null; c.gi = null;
-  c.x = (hoger.x || 0) + matStorlek(c).w + 18;
-  c.y = hoger.y || 0;
+  c.x = hoger.x + hoger.w + 18;
+  c.y = hoger.y;
   const v = matVy(), pos = clampKort(c, v.board, gravRuta(v));
   c.x = pos.x; c.y = pos.y;
   matTopZ = Math.max(matTopZ, ...h.map(k => k.z || 0)) + 1;
   c.z = matTopZ;
+  /* Ett kort som kameran följer står där det lades tills det riktiga kortet flyttas (MES-352). */
+  const forHand = kamFoljer(c);
+  if (forHand) c.hand = handSnap(c.kam);
   raknaOmHogar(h);
   save(); renderGrid(true); fjarrIkapp();
+  if (forHand) visaHandToast(fore, [c.cid]);
 }
 /* ═══ DRAGET AV ETT KORT SOM KAMERAN FÖLJER (MES-352, "D · Move it anyway") ═══
    Inget vägrar: kortet dras som alla andra, och vid släppet står det där tills det riktiga kortet flyttas (c.hand,
@@ -14530,9 +14658,9 @@ function losaUrHog(cid) {
    samma storlek — och en streckad ram med en kamera där kameran har kortet. Efter släppet bär kortet en liten
    bricka (kortHtml), och en toast säger vad som hänt, med Undo för just de korten. */
 function kamFoljer(c) { return !!c && !!spelLage && kamSpeglar(minSpelare()) && c.spar != null && paMattan(c) && !c.attachedTo; }
-function handDragStart(kort) {
-  const foljda = kort.filter(kamFoljer);
-  if (!foljda.length) return;
+function handDragStart(kort, ofr) {
+  const foljda = kort.filter(kamFoljer), oq = (ofr || []).map(id => ofrMinne.get(id)).filter(q => q && q.kam);
+  if (!foljda.length && !oq.length) return;
   dnd.hand = true;
   /* Ramen räknas som speglaKamPos lägger kortet. Utan en skala därifrån (kameran har inte ritat något än) finns
      ingen plats att visa. */
@@ -14542,6 +14670,13 @@ function handDragStart(kort) {
     const p = kamPlats(c, skala, g), sz = matStorlek(c), el = document.createElement('div');
     el.className = 'kamplats' + (c.tapped ? ' tappad' : '');
     el.style.cssText = `left:${Math.round(p.x)}px;top:${Math.round(p.y)}px;width:${sz.w}px;height:${sz.h}px`;
+    el.innerHTML = kamIkon(18, '#8d98ad');
+    gridEl.appendChild(el);
+  }
+  if (skala) for (const q of oq) {
+    const m = kamTillMatta(q.kam, ofrSkala(player(), q)), p = clampKort({ name: '', x: m.x - MATTA.CW / 2, y: m.y - MATTA.CH / 2 }, { w: 1e6, h: 1e6 }, g), el = document.createElement('div');
+    el.className = 'kamplats' + (ofrTappad(q) ? ' tappad' : '');
+    el.style.cssText = `left:${Math.round(p.x)}px;top:${Math.round(p.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px`;
     el.innerHTML = kamIkon(18, '#8d98ad');
     gridEl.appendChild(el);
   }
@@ -14632,12 +14767,19 @@ gridEl.addEventListener('click', ev => { if (hogKlickSvalg) { hogKlickSvalg = fa
    tagit ut det, och Undo hade dragit tillbaka det till högen. ⌘Z (angra) lägger tillbaka hela
    bordet, och kunde då ta tillbaka det kameran skrivit efter draget. Dragets egen ⌘Z-punkt tas bort när den ligger
    överst: draget är ångrat. Ett kort som lämnat mattan sedan dess har inget läge att ångra. */
-function handAngra(fore, cids, efter) {
+function handAngra(fore, cids, efter, ofr) {
   const mig = minSpelare();
   if (!mig || !arMitt(mig) || !fore) return;
   let f0; try { f0 = new Map(JSON.parse(fore).map(k => [k.cid, k])); } catch (e) { return; }
   const flyttade = cids.map(cid => [mig.cards.find(k => k.cid === cid), f0.get(cid)]).filter(([c, f]) => c && f && paMattan(c) && paMattan(f));
-  if (!flyttade.length) return;
+  const ofrAter = ofrAterstall(ofr);   // de oidentifierade korten i draget
+  if (!flyttade.length) {
+    if (!ofrAter) return;
+    const sista = angraStack[angraStack.length - 1];
+    if (sista && sista.pid === mig.id && sista.bild === fore && sista.ofr) angraStack.pop();
+    save(); renderGrid(true); fjarrIkapp();
+    return;
+  }
   const hogar = new Set(flyttade.flatMap(([c, f]) => [c.grp, f.grp]).filter(Boolean)), flyttadeCid = new Set(flyttade.map(([c]) => c.cid));
   for (const c of mig.cards) {
     const f = f0.get(c.cid);
@@ -14663,7 +14805,7 @@ function handAngra(fore, cids, efter) {
    den. Tillståndet bor på handToastStang (som kamSkala.las): toast() anropar den, och toast() kan köras innan
    raderna här har körts. */
 function hogPlats(c) { return (c.grp || '') + '|' + (c.gi != null ? c.gi : ''); }
-function visaHandToast(fore, cids) {
+function visaHandToast(fore, cids, ofr) {
   const el = document.getElementById('handToast'), s = handToastStang;
   const efter = new Map(((minSpelare() || {}).cards || []).map(k => [k.cid, hogPlats(k)]));   // högarna direkt efter släppet (handAngra)
   clearTimeout(s.tid); clearTimeout(s.bort); s.tid = 0;
@@ -14671,7 +14813,7 @@ function visaHandToast(fore, cids) {
   el.innerHTML = `<div class="htkort"><span class="htikon">${handIkon(18, 2.2)}</span><div class="httxt"><b>Moved by hand</b>`
     + `<span>The camera takes over again when you move the real card.</span></div><button type="button" class="htangra">Undo</button></div>`;
   const k = el.firstElementChild;
-  k.querySelector('.htangra').onclick = ev => { ev.stopPropagation(); handAngra(fore, cids, efter); handToastStang(); };
+  k.querySelector('.htangra').onclick = ev => { ev.stopPropagation(); handAngra(fore, cids, efter, ofr); handToastStang(); };
   /* Pekaren över toasten räknas bara för en mus eller penna: ett finger har ingen hover, och Chrome på Android
      behåller :hover efter ett tryck — klockan hade aldrig gått vidare. */
   let over = false;
@@ -14709,8 +14851,9 @@ function gruppDrag(ev) {
       const el = kortEl(g.cid); if (el) { el.classList.add('held'); matStoppa(el); }
       bifogadeTill(g.cid).forEach(b => { const be = kortEl(b.cid); if (be) matStoppa(be); });
     }
+    for (const g of dnd.ofr || []) { const el = ofrElAv(g.id); if (el) { el.classList.add('held'); matStoppa(el); } }
     try { gridEl.setPointerCapture(dnd.pointerId); } catch (e) {}
-    handDragStart(dnd.grupp.map(g => hand().find(k => k.cid === g.cid)));
+    handDragStart(dnd.grupp.map(g => hand().find(k => k.cid === g.cid)), (dnd.ofr || []).map(g => g.id));
   }
   if (dnd.hand) handChip(ev, true);
   const pt = cpt(ev), dx = pt.x - dnd.p0.x, dy = pt.y - dnd.p0.y, h = hand();
@@ -14720,6 +14863,10 @@ function gruppDrag(ev) {
     flyttaElement(k);
     bifogadeTill(k.cid).forEach((b, n) => flyttaElement(Object.assign({ cid: b.cid }, bifogadPlats(k, n))));
   }
+  if (dnd.ofr && dnd.ofr.length) {
+    for (const g of dnd.ofr) { if (ofrPos.has(g.id)) ofrPos.set(g.id, { x: g.x + dx, y: g.y + dy }); ofrFlyttaEl(g.id); }
+    ofrMarkLagg();
+  }
 }
 /* Släppt: varje kort kläms mot brädet och graveyard-rutan, högarna räknas
    om. Inga högar, värdar eller graveyard-släpp för en grupp — det är en
@@ -14728,6 +14875,7 @@ function gruppDrag(ev) {
 function gruppSlapp(d, avbryt) {
   const h = hand();
   for (const g of d.grupp) { const el = kortEl(g.cid); if (el) el.classList.remove('held'); }
+  for (const g of d.ofr || []) { const el = ofrElAv(g.id); if (el) el.classList.remove('held'); }
   if (!d.drar) {
     if (d.hog) { const i = h.findIndex(k => k.cid === d.cid); if (i >= 0) tappa(i); }
     return;
@@ -14743,10 +14891,20 @@ function gruppSlapp(d, avbryt) {
      hela draget. */
   const forHand = avbryt ? [] : d.grupp.map(g => h.find(q => q.cid === g.cid)).filter(kamFoljer);
   for (const k of forHand) k.hand = handSnap(k.kam);
+  /* De oidentifierade korten: samma sak, med platsen på mattan (mx, my) — de har ingen egen plats i kortlistan. */
+  const ofrHand = [];
+  for (const g of d.ofr || []) {
+    const q = ofrMinne.get(g.id), pos = ofrPos.get(g.id);
+    if (!q || !pos) continue;
+    if (avbryt) { ofrPos.set(g.id, { x: g.x, y: g.y }); continue; }
+    const k = clampKort({ name: '', x: pos.x, y: pos.y }, { w: 1e6, h: 1e6 }, gr);   // som kameran lägger dem (matPlacera): brädet räknar inte med dem
+    ofrPos.set(g.id, k);
+    if (q.kam) { q.hand = Object.assign(handSnap(q.kam), { mx: k.x, my: k.y }); ofrHand.push(g.id); }
+  }
   raknaOmHogar(h);
-  if (!avbryt) { angraPunkt(null, d.fore); save(); }
+  if (!avbryt) { angraPunkt(null, d.fore, ofrHand.length ? d.ofrFore : null); save(); }
   renderGrid(true); fjarrIkapp();
-  if (forHand.length) visaHandToast(d.fore, d.grupp.map(g => g.cid));
+  if (forHand.length || ofrHand.length) visaHandToast(d.fore, d.grupp.map(g => g.cid), ofrHand.length ? d.ofrFore : null);
 }
 /* T med flera markerade: tappar alla, eller ställer upp alla om alla
    redan var tappade. */
@@ -14799,8 +14957,11 @@ gridEl.addEventListener('pointerdown', ev => {
      — och kortmenyn har "Take it out of the stack" för pekskärmar, som inte
      har några tangenter. Klicket utan drag tappar kortet (gruppSlapp), så
      tap är orört. */
-  const urHog = manaHog(c) && (ev.ctrlKey || ev.altKey);
+  /* I Mirror my table är högen det som ligger omlott på mattan, också ett oidentifierat kort (hogOmlott). */
+  const om = hogOmlottAv(c);
+  const urHog = (manaHog(c) || !!om) && (ev.ctrlKey || ev.altKey);
   if (ev.button !== 0 && !urHog) return;     // högerklicket har sin egen meny
+  if (om && !urHog) { dnd = hogenDnd(c, om, ev); return; }
   if (manaHog(c) && !urHog) {
     const flytt = hogAttFlytta(c);
     if (flytt.length > 1) {
@@ -15032,13 +15193,14 @@ function matAngra(msg, mutate) {
    en handling som inte ändrade något ska inte kosta ett ⌘Z. */
 const ANGRA_MAX = 60;
 let angraStack = [], angraTyst = 0;
-function angraPunkt(p, bild) {
+function angraPunkt(p, bild, ofr) {
   p = p || player();
   if (!p || angraTyst || fjarrLas || !arMitt(p)) return;
   if (bild == null) bild = JSON.stringify(p.cards);
   const sista = angraStack[angraStack.length - 1];
-  if (sista && sista.pid === p.id && sista.bild === bild) return;
-  angraStack.push({ pid: p.id, bild, sel: state.sel });
+  if (sista && sista.pid === p.id && sista.bild === bild && !ofr && !sista.ofr) return;
+  /* ofr: de oidentifierade kortens lägen före ett drag (ofrFore) — de står inte i kortlistan. */
+  angraStack.push(ofr ? { pid: p.id, bild, sel: state.sel, ofr } : { pid: p.id, bild, sel: state.sel });
   if (angraStack.length > ANGRA_MAX) angraStack.shift();
 }
 /* Kör fn utan en egen ångrapunkt — den som anropar har redan tagit
@@ -15049,9 +15211,10 @@ function angra() {
   while (angraStack.length) {
     const s = angraStack.pop();
     const p = state.players.find(q => q.id === s.pid);
-    if (!p || !arMitt(p) || JSON.stringify(p.cards) === s.bild) continue;
+    if (!p || !arMitt(p) || (JSON.stringify(p.cards) === s.bild && !(s.ofr && s.ofr.some(([id]) => ofrMinne.has(id))))) continue;
     closeKortMeny(); closeCounters(); if (ark) closeArk();
     p.cards = JSON.parse(s.bild);
+    ofrAterstall(s.ofr);
     /* Ett kort som togs bort för hand spärrade sitt kameraspår (removeAt).
        Är det tillbaka ska kameran få binda det igen. */
     for (const k of p.cards) if (k.spar != null) borttagna.delete(k.spar);
@@ -33109,7 +33272,7 @@ function ofrKam(t, nu) {
   return { x: cx, y: cy, w: t.w, h: t.h, nar: nu };
 }
 /* Fotot följer med kortet som tar över: elementets nyckel, fotot, om dess mitt var skarp (MES-351), och när. */
-function ofrFranAv(p, nu) { return { nyckel: 'o:' + p.id, foto: p.foto || null, skarp: !!p.pend, t: nu }; }
+function ofrFranAv(p, nu) { return { nyckel: 'o:' + p.id, foto: p.foto || null, skarp: !!p.pend, t: nu, hand: p.hand ? 1 : undefined }; }
 function ofrFotoSatt(spar, b64) {
   if (spar == null || typeof b64 !== 'string' || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b64) || ofrFoto.has(spar)) return false;
   ofrFoto.set(spar, b64);

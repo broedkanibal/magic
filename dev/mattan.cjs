@@ -29,6 +29,7 @@ const { spawn } = require('child_process'), fs = require('fs'), path = require('
 const ROT = path.join(__dirname, '..');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const TID = process.argv.includes('--tid'), VISA = process.argv.includes('--visa'), FILM = arg('--film', '');
+const BARA_HOG = process.argv.includes('--hog');
 const FIL = path.resolve(arg('--fil', path.join(ROT, 'index.html')));
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const vanta = ms => new Promise(r => setTimeout(r, ms));
@@ -1427,6 +1428,181 @@ const PROV = async () => {
   return rad;
 };
 
+/* ── Högen för hand (Jespers bord 2026-10-10, spelet QN74EE) ──
+   Island A ligger på bordet; ett Island B läggs ovanpå (telefonens under: B över A) och blir NOT IDENTIFIED.
+   Kameran ser bara en remsa av A medan B ligger där — lådan krymper och dess mitt flyttar sig. A flyttas för hand
+   på mattan; sedan flyttas det riktiga B åt sidan, och kameran ser hela A igen. Det är ingen flytt av A: A står
+   kvar där handen lade det, och NOT IDENTIFIED följer det riktiga B. Kört ensamt: node dev/mattan.cjs --hog. */
+const HOGPROV = async () => {
+  const rad = [], ok = (namn, villkor, detalj) => rad.push([namn, !!villkor, detalj || '']);
+  const vanta = ms => new Promise(r => setTimeout(r, ms));
+  const els = () => new Map([...gridEl.querySelectorAll('.card[data-cid]')].map(e => [e.dataset.cid, e]));
+  try {
+    visaVy('app');
+    const mig = player();
+    spelLage = { id: 'mattprov-hog', kod: 'MATT03', namn: 'Hög', vard: mig.id, mig: mig.id };
+    mig.lage = 'bord'; mig.cards = []; mig.pending = []; mig.plats = 1;
+    state.players = [mig]; state.active = mig.id;
+    oppSatt({ klar: true });
+    kamAnsluten = true; kamFas = ''; kamGrund = 0; prefs.autoLage = true; kamVand = 0;
+    handRad.length = 0; matValda.clear(); angraStack.length = 0;
+    if (kamSkala.las) kamSkala.las.clear();
+    lekKort = [{ name: 'Island', n: 10 }, { name: 'Serra Angel', n: 1 }]; sattLekTal(lekKort);
+    renderAll(true);
+    const FOTO = (() => { const c = document.createElement('canvas'); c.width = 16; c.height = 22; const x = c.getContext('2d'); x.fillStyle = '#6a8fb5'; x.fillRect(0, 0, 16, 22); return c.toDataURL('image/jpeg', 0.6); })();
+    const S = (id, namn, x, y, rest) => Object.assign({ id, tillstand: namn ? 'klar' : 'ny', namn, saker: !!namn, x, y, w: 0.08, h: 0.11, tappad: false, vilar: true, kortlik: true }, rest || {});
+    const ofrEl = id => [...gridEl.children].find(el => el._mat && el._mat.nyckel === 'o:' + id) || null;
+    const kort = s => mig.cards.find(c => c.spar === s), elK = c => els().get(c.cid);
+    const pe = (typ, x, y, mal, mod) => (mal || window).dispatchEvent(new PointerEvent(typ, Object.assign({ bubbles: true, button: 0, buttons: typ === 'pointerup' ? 0 : 1, clientX: x, clientY: y, pointerId: 6, isPrimary: true }, mod || {})));
+    const mittEl = el => { const q = el.getBoundingClientRect(); return { x: q.left + q.width / 2, y: q.top + q.height / 2 }; };
+    const draEl = (el, dx, dy, mod) => {
+      const m = mittEl(el);
+      pe('pointerdown', m.x, m.y, el, mod); pe('pointermove', m.x + dx / 2, m.y + dy / 2, null, mod); pe('pointermove', m.x + dx, m.y + dy, null, mod);
+      pe('pointerup', m.x + dx, m.y + dy, null, mod);
+    };
+    const nara = (a, b, tol) => !!a && !!b && Math.abs(a.x - b.x) <= (tol || 1) && Math.abs(a.y - b.y) <= (tol || 1);
+    const xy = c => c ? { x: Math.round(c.x), y: Math.round(c.y) } : null;
+
+    /* A ligger ensamt, helt synligt. */
+    const r = [S(91, 'Island', 0.36, 0.245)];
+    avstamBord(r, false);
+    for (const c of mig.cards) delete c.ny;
+    renderAll(true); await vanta(500);
+    const A = kort(91);
+    /* B läggs ovanpå, en bit nedåt: av A syns bara remsan överst (lådan 0,04 hög). B blir NOT IDENTIFIED. */
+    tagEmotFoto({ spar: 92, b64: FOTO });
+    r[0] = S(91, 'Island', 0.36, 0.245, { h: 0.04 });
+    r.push(S(92, null, 0.36, 0.285, { tillstand: 'okand', under: [91] }));
+    avstamBord(r, false); renderGrid(true);
+    await vanta(700);
+    const oB = ofrEl(92), postB = ofrLista().find(q => q.spar === 92);
+    ok('H0: B ovanpå A blir NOT IDENTIFIED (ett oframkallat kort i granskningen)', !!A && !!oB && !!postB && !!postB.pend, `A ${!!A}, kort ${!!oB}, pend ${postB && postB.pend}`);
+    /* A flyttas för hand åt höger (MES-352). */
+    await vanta(500);
+    const a0 = xy(A);
+    draEl(elK(A), 220, 0);
+    const a1 = xy(A);
+    ok('H1: A flyttas för hand', !!A.hand && a1.x > a0.x + 100, `${JSON.stringify(a0)} → ${JSON.stringify(a1)}, hand ${!!A.hand}`);
+    /* Det riktiga B flyttas åt sidan, samma spår; kameran ser hela A igen. */
+    const pB0 = ofrPos.get(postB.id) && Object.assign({}, ofrPos.get(postB.id));
+    r[0] = S(91, 'Island', 0.36, 0.245);
+    r[1] = S(92, null, 0.62, 0.285, { tillstand: 'okand' });
+    avstamBord(r, false); renderGrid(true);
+    await vanta(700);
+    const a2 = xy(A), pB1 = ofrPos.get(postB.id);
+    ok('H2: A blir helt synligt när B flyttas — ingen flytt av A, det står kvar där handen lade det', !!A.hand && nara(a2, a1), `${JSON.stringify(a1)} → ${JSON.stringify(a2)}, hand ${!!A.hand}`);
+    ok('H3: NOT IDENTIFIED följer det riktiga B åt sidan', !!pB0 && !!pB1 && pB1.x > pB0.x + 100, `${JSON.stringify(pB0)} → ${JSON.stringify(pB1)}`);
+    /* Samma sak när B:s spår dör under flytten och föds om på den nya platsen (93). */
+    r[1] = S(92, null, 0.36, 0.285, { tillstand: 'okand', under: [91] }); r[0] = S(91, 'Island', 0.36, 0.245, { h: 0.04 });
+    avstamBord(r, false); renderGrid(true); await vanta(700);
+    draEl(elK(A), -60, 40);
+    const a3 = xy(A);
+    tagEmotFoto({ spar: 93, b64: FOTO });
+    r.length = 1; r[0] = S(91, 'Island', 0.36, 0.245);
+    avstamBord(r, false); renderGrid(true); await vanta(300);
+    r.push(S(93, null, 0.62, 0.285, { tillstand: 'okand' }));
+    avstamBord(r, false); renderGrid(true); await vanta(1500);
+    avstamBord(r, false); renderGrid(true); await vanta(300);
+    const a4 = xy(A), o93 = ofrLista().find(q => q.spar === 93), p93 = o93 && ofrPos.get(o93.id), gamla = ofrLista().filter(q => q.spar === 92 || q.id === 92);
+    ok('H4: B:s spår föds om på nya platsen — A står kvar, NOT IDENTIFIED ligger på den nya platsen och inte kvar på den gamla',
+      !!A.hand && nara(a4, a3) && !!p93 && !gamla.length, `A ${JSON.stringify(a3)} → ${JSON.stringify(a4)} hand ${!!A.hand}, ny post ${JSON.stringify(p93)}, gamla ${gamla.map(q => q.id + ':' + q.spar).join(',') || '–'}, poster ${ofrLista().map(q => q.id + ':' + q.spar + (q.pend ? '*' : '')).join(',')}`);
+    /* ── Högen på mattan: en ny scen. A (Island, kameran följer) och B (NOT IDENTIFIED) ligger omlott; C (Serra
+       Angel) ligger för sig. ── */
+    await vanta(300);
+    handToastStang();
+    mig.cards = []; mig.pending = []; ofrGlom(); ofrPos.clear(); angraStack.length = 0; renderAll(true);
+    tagEmotFoto({ spar: 102, b64: FOTO });
+    const q = [S(101, 'Island', 0.30, 0.40, { h: 0.015 }), S(102, null, 0.30, 0.415, { tillstand: 'okand', under: [101] }), S(103, 'Serra Angel', 0.60, 0.40)];
+    avstamBord(q, false);
+    for (const c of mig.cards) delete c.ny;
+    renderAll(true); await vanta(700);
+    avstamBord(q, false); renderGrid(true); await vanta(300);
+    const kA = () => kort(101), kC = () => kort(103), pB = () => ofrLista().find(o => o.spar === 102), elB = () => ofrEl(102);
+    const posB = () => { const o = pB(); return o && ofrPos.get(o.id) ? { x: Math.round(ofrPos.get(o.id).x), y: Math.round(ofrPos.get(o.id).y) } : null; };
+    const hog0 = pB() ? hogOmlott({ cid: kA().cid }) : null;
+    const zm = matVy().z, flyttat = (fran, till, dx, dy) => !!fran && !!till && Math.abs(till.x - fran.x - dx / zm) <= 2 && Math.abs(till.y - fran.y - dy / zm) <= 2;   // drag i skärm-px, lägen i brädets
+    ok('H5: högen på mattan — A och NOT IDENTIFIED ligger omlott och är en hög, C ligger för sig', !!hog0 && hog0.kort.length === 1 && hog0.kort[0] === kA() && hog0.ofr.length === 1 && hogStorlek(hogOmlott({ cid: kC().cid })) === 1,
+      hog0 ? `kort ${hog0.kort.map(k => k.name).join(',')}, oidentifierade ${hog0.ofr.length}` : `B ${!!pB()}`);
+    /* Drag i A: hela högen följer med, båda står där de släpps (handflyttade), toasten kommer. */
+    const a5 = xy(kA()), b5 = posB(), c5 = xy(kC());
+    draEl(elK(kA()), 60, 30);
+    const a6 = xy(kA()), b6 = posB();
+    ok('H6: drag i kortet — hela högen flyttas (också NOT IDENTIFIED), båda handflyttade, C orört, toasten med Undo',
+      flyttat(a5, a6, 60, 30) && flyttat(b5, b6, 60, 30) && !!kA().hand && !!pB().hand && nara(xy(kC()), c5) && handToastOppen(),
+      `A ${JSON.stringify(a5)} → ${JSON.stringify(a6)}, B ${JSON.stringify(b5)} → ${JSON.stringify(b6)}, hand A ${!!kA().hand} B ${!!pB().hand}`);
+    ok('H7: motståndarna får NOT IDENTIFIED där handen lade det (ofrDelat), utan namn', (() => { const d = ofrDelat().find(h => h.cid === 'hog:ofr:' + pB().id); return !!d && d.x === b6.x && d.y === b6.y && d.name == null; })());
+    /* Kameran rapporterar samma bord och darrar: båda står kvar. */
+    avstamBord(q, false); renderGrid(true);
+    q[1] = S(102, null, 0.302, 0.416, { tillstand: 'okand', under: [101] }); avstamBord(q, false); renderGrid(true); await vanta(100);
+    ok('H8: samma bord och detektorns darr — båda står kvar där handen lade dem', nara(xy(kA()), a6) && nara(posB(), b6) && !!pB().hand, `A ${JSON.stringify(xy(kA()))}, B ${JSON.stringify(posB())}`);
+    /* Undo i toasten: båda tillbaka dit kameran har dem. */
+    $('#handToast').querySelector('.htangra').click();
+    renderGrid(true); await vanta(50);
+    ok('H9: Undo i toasten — kortet och NOT IDENTIFIED tillbaka, ingen handflyttning kvar', nara(xy(kA()), a5) && nara(posB(), b5, 2) && !kA().hand && !pB().hand,
+      `A ${JSON.stringify(xy(kA()))} mot ${JSON.stringify(a5)}, B ${JSON.stringify(posB())} mot ${JSON.stringify(b5)}`);
+    /* Drag i NOT IDENTIFIED: hela högen följer med. ⌘Z tar tillbaka båda. */
+    await vanta(400);
+    draEl(elB(), -60, 20);
+    const a10 = xy(kA()), b10 = posB();
+    ok('H10: drag i NOT IDENTIFIED — hela högen flyttas', flyttat(a5, a10, -60, 20) && flyttat(b5, b10, -60, 20) && !!kA().hand && !!pB().hand, `A ${JSON.stringify(a10)}, B ${JSON.stringify(b10)}`);
+    handToastStang();
+    const angrat = angra(); renderGrid(true); await vanta(50);
+    ok('H11: ⌘Z tar tillbaka hela draget, också NOT IDENTIFIED', angrat && nara(xy(kA()), a5) && nara(posB(), b5, 2) && !kA().hand && !pB().hand, `A ${JSON.stringify(xy(kA()))}, B ${JSON.stringify(posB())}`);
+    /* ⌃ + drag: bara kortet man tar i. */
+    await vanta(400);
+    draEl(elB(), 0, 30, { ctrlKey: true });
+    const a12 = xy(kA()), b12 = posB();
+    ok('H12: ⌃ + drag i NOT IDENTIFIED flyttar bara det', nara(a12, a5) && flyttat(b5, b12, 0, 30) && !!pB().hand && !kA().hand, `A ${JSON.stringify(a12)}, B ${JSON.stringify(b12)}`);
+    handToastStang(); angra(); renderGrid(true); await vanta(400);
+    draEl(elK(kA()), 0, -40, { ctrlKey: true });
+    ok('H13: ⌃ + drag i kortet flyttar bara kortet', flyttat(a5, xy(kA()), 0, -40) && nara(posB(), b5, 2) && !pB().hand && !!kA().hand, `A ${JSON.stringify(xy(kA()))}, B ${JSON.stringify(posB())}`);
+    handToastStang(); angra(); renderGrid(true); await vanta(400);
+    /* Klick utan drag: på kortet ett tap (bara det), på NOT IDENTIFIED sökrutan. */
+    const klick = el => { const m = mittEl(el); pe('pointerdown', m.x, m.y, el); pe('pointerup', m.x, m.y); el.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: m.x, clientY: m.y })); };
+    klick(elK(kA()));
+    const tapA = kA().tapped;
+    klick(elB());
+    const sok = !!ofrSok && ofrSok.pend === pB().pend;
+    ok('H14: klick utan drag — kortet tappas (inget annat rörs), NOT IDENTIFIED öppnar sökrutan', tapA === 1 && nara(xy(kA()), a5) && nara(posB(), b5, 2) && sok, `tap ${tapA}, sökrutan ${sok}`);
+    ofrSokStang(); angra(); renderGrid(true);
+    /* NOT IDENTIFIED flyttat för hand; sedan flyttas det riktiga B: kameran tar över för B, A står kvar. */
+    await vanta(400);
+    draEl(elB(), 200, 0, { ctrlKey: true });
+    const b15 = posB();
+    q[1] = S(102, null, 0.50, 0.70, { tillstand: 'okand' }); q[0] = S(101, 'Island', 0.30, 0.40);
+    avstamBord(q, false); renderGrid(true); await vanta(100);
+    ok('H15: det riktiga NOT IDENTIFIED flyttas — kameran tar över (A var inte handflyttat: det följer kameran som förut)', !pB().hand && !nara(posB(), b15, 20) && !kA().hand,
+      `B ${JSON.stringify(b15)} → ${JSON.stringify(posB())}, A ${JSON.stringify(xy(kA()))}`);
+    /* NOT IDENTIFIED flyttat för hand och sedan namngivet: kortet ligger där det oidentifierade låg, handflyttat. */
+    await vanta(400); handToastStang();
+    draEl(elB(), -100, -40);
+    const b16 = posB(), pend16 = pB().pend;
+    ofrNamnge(pend16, 'Island', null, false);
+    renderGrid(true); await vanta(100);
+    const nytt = mig.cards.find(c => c.spar === 102);
+    ok('H16: namngivet efter handflyttningen — kortet ligger där NOT IDENTIFIED låg, och står kvar tills det riktiga kortet flyttas',
+      !!nytt && nara(xy(nytt), b16, 1) && !!nytt.hand, nytt ? `${JSON.stringify(b16)} → ${JSON.stringify(xy(nytt))}, hand ${!!nytt.hand}` : 'inget kort');
+    avstamBord(q, false); renderGrid(true);
+    ok('H17: … genom nästa bord också', !!nytt && nara(xy(nytt), b16, 1) && !!nytt.hand, nytt ? JSON.stringify(xy(nytt)) : '');
+    /* Ett kort läggs på ett handflyttat kort: lådan krymper till remsan, men kortet har inte flyttats. */
+    handToastStang();
+    const c18 = xy(kC());
+    draEl(elK(kC()), 0, 120);
+    const c19 = xy(kC());
+    q[2] = S(103, 'Serra Angel', 0.60, 0.40, { h: 0.015 });
+    tagEmotFoto({ spar: 104, b64: FOTO });
+    q.push(S(104, null, 0.60, 0.415, { tillstand: 'okand', under: [103] }));
+    avstamBord(q, false); renderGrid(true); await vanta(700);
+    ok('H18: ett kort läggs på ett handflyttat kort — kortet under står kvar', flyttat(c18, c19, 0, 120) && nara(xy(kC()), c19) && !!kC().hand, `${JSON.stringify(c19)} → ${JSON.stringify(xy(kC()))}, hand ${!!kC().hand}`);
+    /* Utanför Mirror my table (kameran inte ansluten): ingen hög på mattan. */
+    handToastStang();
+    kamAnsluten = false;
+    ok('H19: utan kameran ansluten finns ingen hög på mattan (manahögarna som förut)', !hogOmlottAv(kA()) && !hogOmlottAktiv());
+    kamAnsluten = true;
+  } catch (e) { ok('högen för hand: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
+  return rad;
+};
+
 /* Filmen: tre kort ur kameran, sedan flyttas det första och tappas.
    Animeringarna pausas och ställs på tiden t, så att varje ruta visar
    precis det läget (ingen klocka att missa). Returnerar brädets ruta. */
@@ -1540,14 +1716,15 @@ const TIDPROV = async () => {
          emulerar mediefrågan, så att appens matLugn() läser den på riktigt.
          Den kan slås på och av flera gånger (mattans rörelser, zoomstegen). */
       let provKlart = false;
-      const r0 = c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')()', awaitPromise: true, returnByValue: true }).finally(() => { provKlart = true; });
+      const uttryck = `(async () => { const a = ${BARA_HOG ? '[]' : 'await (' + PROV.toString() + ')()'}; return a.concat(await (${HOGPROV.toString()})()); })()`;
+      const r0 = c.cdp('Runtime.evaluate', { expression: uttryck, awaitPromise: true, returnByValue: true }).finally(() => { provKlart = true; });
       /* Riktiga musklick (window.__mattKlick, riktigtKlick i provet): Chrome får tryck och släpp som från en mus,
          så att pekarfångsten (setPointerCapture) gäller som för en spelare. En syntetisk el.click() går förbi
          pointerdown — så missade provet att lassot svalde klicket på "Name this card". */
       let klickNr = 0;
       const vakt = (async () => {
         let pa = false;
-        const slut = Date.now() + 120000;
+        const slut = Date.now() + 240000;
         while (!provKlart && Date.now() < slut) {
           const v = await c.cdp('Runtime.evaluate', { expression: '[window.__mattLugn, window.__mattKlick || null]', returnByValue: true }).catch(() => null), [x, k] = (v && v.result.value) || [];
           if (x === true && !pa) { pa = true; await c.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] }); }
