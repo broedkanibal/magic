@@ -1941,6 +1941,30 @@ const HOGPROV = async () => {
         `Serra Angel ${S2 ? JSON.stringify(xy(S2)) : '–'}, Island ${JSON.stringify(xy(I))} hand ${!!I.hand}; omlott mattan ${r2(pa)} bilden ${r2(bild)}`);
     } catch (e) { ok('H40: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
     aterstall();
+
+    /* ── Tillbaka ur graveyard på samma plats (granskningen av grannarna på mattan, 2026-10-10): Serra Angel går
+       till graveyard (högvakten tog fel) och läggs tillbaka där det låg, med ett nytt spår. urGraven ger kortet en
+       ledig plats (matPlacera, ofta mattans hörn), men spåret ligger inom AUTO_FLYTT från kortets förra läge, så
+       kam.nar är densamma. Kameran ska ändå lägga det där den har det. ── */
+    try {
+      await vanta(300); handToastStang();
+      mig.cards = []; mig.pending = []; ofrGlom(); ofrPos.clear(); angraStack.length = 0; renderAll(true);
+      const g = [S(111, 'Serra Angel', 0.60, 0.40)];
+      avstamBord(g, false);
+      for (const c of mig.cards) delete c.ny;
+      renderAll(true); await vanta(500);
+      const S0 = mig.cards.find(k => k.name === 'Serra Angel'), s0 = xy(S0);
+      S0.zon = ZON_GRAV; delete S0.spar; delete S0.borta;
+      g.length = 0; avstamBord(g, false); renderGrid(true); await vanta(300);
+      g.push(S(112, 'Serra Angel', 0.605, 0.40));
+      avstamBord(g, false); renderGrid(true); await vanta(700);
+      avstamBord(g, false); renderGrid(true); await vanta(300);
+      const S1 = mig.cards.find(k => k.name === 'Serra Angel' && paMattan(k));
+      const kp = S1 && xy(kamPlats(S1, speglaKamPos.skala, gravRuta(matVy())));
+      ok('H41: ett kort som kommer tillbaka ur graveyard på samma plats ligger där kameran har det, inte på en ledig plats',
+        !!S1 && S1 === S0 && mig.cards.length === 1 && nara(xy(S1), kp, 2) && nara(xy(S1), s0, 4),
+        `före ${JSON.stringify(s0)}, efter ${S1 ? JSON.stringify(xy(S1)) : '–'}, kameran ${JSON.stringify(kp)}, kort ${mig.cards.length}`);
+    } catch (e) { ok('H41: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
   } catch (e) { ok('högen för hand: avsnittet gick att köra', false, String(e && e.stack || e).slice(0, 300)); }
   aterstall();
   return rad;

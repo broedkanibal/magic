@@ -34637,6 +34637,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
       delete ur.zon; delete ur.gravAuto; delete ur.spellAuto; delete ur.attachedTo;
       if (!aldrigDar) { ur.cts = []; ur.flipped = 0; }   // ett nytt objekt: counters och sida blev kvar på bordet (som nyttPaBordet)
       ur.x = ur.y = null;                       // kortet tar platshållarens plats, som ett nyskapat (matPlacera)
+      delete ur.kamRitad;                       // …och kameran lägger det igen: tillbaka där det låg är kam.nar densamma, och speglaKamPos hade hoppat över det
       ur.tapped = tapSynk && t.tappad ? 1 : 0;
       ur.kamTap = tapSynk ? (t.tappad ? 1 : 0) : undefined;
       ur.ny = nu; ur.etb = 1;
