@@ -13341,15 +13341,17 @@ async function bytLage(v) {
   if (v === 'bord' && kamAnsluten && prefs.autoLage === true && senasteSpar.length) avstamBord(senasteSpar);
 }
 /* Kameran på är Mirror my table (sedan Use camera to add cards togs bort 2026-10-10). Står min rad på
-   Digital table när kameran är på — Turn on camera, Reconnect camera, en telefon som skannat koden, eller en
-   rad från innan läget togs bort — byts den till 'bord'. Valet av Digital table stänger av kameran först
-   (oppUtan, menyn), så de två drar aldrig åt olika håll. Går skrivningen inte igenom säger bytLage det, och
-   nästa försök kommer tidigast efter en minut (kameraLage.nar — på funktionen, för renderKamPop ritas tidigt). */
+   Digital table när en telefon är ansluten i det här spelet med kameran på — Turn on camera, Reconnect
+   camera, en telefon som skannat koden, eller en rad från innan läget togs bort — byts den till 'bord'.
+   Telefonen och inte bara prefs.autoLage: valet gäller hela webbläsaren, och ett Digital table-spel som
+   öppnas efter ett Mirror-spel hade annars fått 'bord' utan någon kamera (granskningen, 3a). Valet av Digital
+   table stänger av kameran först (oppUtan, menyn), så de två drar aldrig åt olika håll. Går skrivningen inte
+   igenom säger bytLage det, och nästa försök kommer tidigast efter en minut (kameraLage.fel — på funktionen,
+   för renderKamPop ritas tidigt); en lyckad skrivning spärrar ingenting (granskningen, 3b). */
 function kameraLage() {
-  if (!spelLage || kameraEnhet || prefs.autoLage !== true || !minSpelare() || mittLage() === 'bord') return;
-  if (kameraLage.nar && Date.now() - kameraLage.nar < 60000) return;
-  kameraLage.nar = Date.now();
-  bytLage('bord');
+  if (!spelLage || kameraEnhet || prefs.autoLage !== true || !kamAnsluten || !minSpelare() || mittLage() === 'bord') return;
+  if (kameraLage.fel && Date.now() - kameraLage.fel < 60000) return;
+  bytLage('bord').then(() => { kameraLage.fel = mittLage() === 'bord' ? 0 : Date.now(); });
 }
 /* Ett enda ställe tar emot klicken: pillret, panelen och statusfältet.
    Pillret ritas om vid varje rendering, så en bindning mot dess id hade
@@ -21161,11 +21163,13 @@ menuEl.addEventListener('click', ev => {
     if (prefs.autoLage !== true) { prefs.autoLage = true; savePrefs(); autoSumStarta(); visaKamOv(); }
     bytLage('bord');
   }
-  /* Digital table: kameran stängs av (samma som gamla "Turn off camera") och
-     raden får 'utan', så att mattan får sina fasta högar — utan den här
-     raden fanns ingen väg tillbaka till manuellt läge när popovern inte går
-     att öppna (den kräver en ansluten telefon). */
-  if (a === 'lage-utan') stangAvAuto(true).then(ok => { if (ok) bytLage('utan'); });
+  /* Digital table: kameran stängs av (samma som gamla "Turn off camera"),
+     uppstarten räknas som avböjd som i steg 2 (oppUtan) — annars slog steg 3
+     på kameran igen om uppstarten stod öppen — och raden får 'utan', så att
+     mattan får sina fasta högar. Utan den här raden fanns ingen väg tillbaka
+     till manuellt läge när popovern inte går att öppna (den kräver en
+     ansluten telefon). */
+  if (a === 'lage-utan') stangAvAuto(true).then(ok => { if (ok) { oppSatt({ avbojd: true }); bytLage('utan'); } });
   if (a === 'ai') openAI();
   if (a === 'lamna') tillbakaTillHem();
   if (a === 'avsluta') avslutaSpelet();

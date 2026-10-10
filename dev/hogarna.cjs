@@ -488,11 +488,20 @@ const PROV = async steg => {
        stängs av (oppUtan). */
     const sattLage0 = Moln.sattLage; W.__lage = [];
     Moln.sattLage = (id, l) => { W.__lage.push(l); return Promise.resolve(true); };
-    kameraLage.nar = 0; prefs.autoLage = true; renderMode(); await vanta(40);
+    /* prefs.autoLage gäller hela webbläsaren: på utan telefon i det här spelet (ett Digital table-spel som öppnas efter
+       ett Mirror-spel) byter inte läget (granskningen, 3a). */
+    kameraLage.fel = 0; kamAnsluten = false; prefs.autoLage = true; renderMode(); await vanta(40);
+    ok('kameran på utan telefon i spelet: raden står kvar på Digital table', mig().lage === 'utan' && W.__lage.length === 0, `${mig().lage} [${W.__lage}]`);
+    kamAnsluten = true; renderMode(); await vanta(40);
     ok('kameran på i Digital table: raden blir Mirror my table', mig().lage === 'bord' && W.__lage.join() === 'bord', `${mig().lage} [${W.__lage}]`);
     W.__lage = []; oppSatt({ klar: false, avbojd: false }); oppUtan(); await vanta(40);
     ok('Digital table i uppstarten: raden blir utan och kameran stängs av', mig().lage === 'utan' && W.__lage.join() === 'utan' && prefs.autoLage !== true && oppFor().avbojd === true,
        `${mig().lage} [${W.__lage}] auto ${prefs.autoLage} avbojd ${oppFor().avbojd}`);
+    /* Menyns Digital table: kameran av, raden 'utan', och uppstarten avböjd — annars slog steg 3 på kameran igen. */
+    oppSatt({ klar: false, avbojd: false, lekOk: true, lage: true }); prefs.autoLage = true; kamAnsluten = false; mig().lage = 'bord'; W.__lage = [];
+    $('#menuBtn').click(); await vanta(40); document.querySelector('.menu button[data-a="lage-utan"]').click(); await vanta(80); renderMode(); await vanta(40);
+    ok('Digital table i menyn med uppstarten öppen: raden utan, uppstarten stängd, kameran förblir av', mig().lage === 'utan' && !oppOppen && prefs.autoLage === false,
+       `${mig().lage} öppen ${oppOppen} auto ${prefs.autoLage}`);
     Moln.sattLage = sattLage0; oppSatt({ klar: true, avbojd: false });
     prefs.autoLage = true; mig().lage = 'bord';
   }
