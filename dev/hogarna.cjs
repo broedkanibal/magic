@@ -502,6 +502,10 @@ const PROV = async steg => {
     $('#menuBtn').click(); await vanta(40); document.querySelector('.menu button[data-a="lage-utan"]').click(); await vanta(80); renderMode(); await vanta(40);
     ok('Digital table i menyn med uppstarten öppen: raden utan, uppstarten stängd, kameran förblir av', mig().lage === 'utan' && !oppOppen && prefs.autoLage === false,
        `${mig().lage} öppen ${oppOppen} auto ${prefs.autoLage}`);
+    /* …men en uppstart som redan är klar räknas inte som avböjd: Mirror my table i menyn efteråt ska inte ärva Digital table. */
+    oppSatt({ klar: true, avbojd: false }); prefs.autoLage = true; mig().lage = 'bord';
+    $('#menuBtn').click(); await vanta(40); document.querySelector('.menu button[data-a="lage-utan"]').click(); await vanta(80);
+    ok('Digital table i menyn efter uppstarten: raden utan, uppstarten inte avböjd', mig().lage === 'utan' && oppFor().klar === true && !oppFor().avbojd, JSON.stringify(oppFor()));
     Moln.sattLage = sattLage0; oppSatt({ klar: true, avbojd: false });
     prefs.autoLage = true; mig().lage = 'bord';
   }

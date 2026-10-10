@@ -13343,13 +13343,13 @@ async function bytLage(v) {
 /* Kameran på är Mirror my table (sedan Use camera to add cards togs bort 2026-10-10). Står min rad på
    Digital table när en telefon är ansluten i det här spelet med kameran på — Turn on camera, Reconnect
    camera, en telefon som skannat koden, eller en rad från innan läget togs bort — byts den till 'bord'.
-   Telefonen och inte bara prefs.autoLage: valet gäller hela webbläsaren, och ett Digital table-spel som
+   Kameran är på så länge prefs.autoLage inte är false, som i avstamBord. Telefonen och inte bara prefs.autoLage: valet gäller hela webbläsaren, och ett Digital table-spel som
    öppnas efter ett Mirror-spel hade annars fått 'bord' utan någon kamera (granskningen, 3a). Valet av Digital
    table stänger av kameran först (oppUtan, menyn), så de två drar aldrig åt olika håll. Går skrivningen inte
    igenom säger bytLage det, och nästa försök kommer tidigast efter en minut (kameraLage.fel — på funktionen,
    för renderKamPop ritas tidigt); en lyckad skrivning spärrar ingenting (granskningen, 3b). */
 function kameraLage() {
-  if (!spelLage || kameraEnhet || prefs.autoLage !== true || !kamAnsluten || !minSpelare() || mittLage() === 'bord') return;
+  if (!spelLage || kameraEnhet || prefs.autoLage === false || !kamAnsluten || !minSpelare() || mittLage() === 'bord') return;
   if (kameraLage.fel && Date.now() - kameraLage.fel < 60000) return;
   bytLage('bord').then(() => { kameraLage.fel = mittLage() === 'bord' ? 0 : Date.now(); });
 }
@@ -21164,12 +21164,14 @@ menuEl.addEventListener('click', ev => {
     bytLage('bord');
   }
   /* Digital table: kameran stängs av (samma som gamla "Turn off camera"),
-     uppstarten räknas som avböjd som i steg 2 (oppUtan) — annars slog steg 3
-     på kameran igen om uppstarten stod öppen — och raden får 'utan', så att
-     mattan får sina fasta högar. Utan den här raden fanns ingen väg tillbaka
+     en uppstart som pågår räknas som avböjd som i steg 2 (oppUtan) — annars
+     slog steg 3 på kameran igen — och raden får 'utan', så att mattan får
+     sina fasta högar. En uppstart som redan är klar rörs inte: avböjd står
+     kvar, och Mirror my table i menyn hade ärvt Digital tables zoomgräns och
+     pillertext (granskningen av e4fba06). Utan den här raden fanns ingen väg tillbaka
      till manuellt läge när popovern inte går att öppna (den kräver en
      ansluten telefon). */
-  if (a === 'lage-utan') stangAvAuto(true).then(ok => { if (ok) { oppSatt({ avbojd: true }); bytLage('utan'); } });
+  if (a === 'lage-utan') stangAvAuto(true).then(ok => { if (ok) { if (oppstartPagar()) oppSatt({ avbojd: true }); bytLage('utan'); } });
   if (a === 'ai') openAI();
   if (a === 'lamna') tillbakaTillHem();
   if (a === 'avsluta') avslutaSpelet();
