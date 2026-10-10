@@ -28039,8 +28039,11 @@ const Kamera = (() => {
              till (CLAUDE.md, Claude är reserven), och ett kort som fortfarande är okänt går till Name this card
              som förut. Inte medan frågan är ute (svarAI dömer spåret), inte efter Claudes "inget kort" (aiInget:
              då dömer omläsningen spåret till skräp), och högst OKAND_OM gånger per spår — en hand som flyttar
-             samma kort fram och tillbaka får inte läsa det i full kedja varje gång det stannar. */
-          else if (bast.tillstand === 'okand' && !bast.provas && !bast.aiInget && !arHelbild(bast) && (bast.okandOmN || 0) < OKAND_OM) {
+             samma kort fram och tillbaka får inte läsa det i full kedja varje gång det stannar.
+             Inte ett TÄCKT spår (arTackt: maskat, omlott eller med ett kort ovanpå): där är det högen som rör sig,
+             och omläsningen tog det övre kortets remsa — golden 18: Pacifism under Plains blev Plains, och den
+             riktiga Plains dömdes sedan som samma kort och försvann (Hittade 9 → 8). */
+          else if (bast.tillstand === 'okand' && !bast.provas && !bast.aiInget && !arHelbild(bast) && !arTackt(bast, bast.maskad) && (bast.okandOmN || 0) < OKAND_OM) {
             bast.okandOmN = (bast.okandOmN || 0) + 1;
             bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.sid = null; bast.saker = false; bast.namnLast = null; bast.del = false;
             bast.spek = null; bast.spekN = 0; bast.skrapN = 0; bast.utbrandN = 0; bast.vantaN = 0;
