@@ -25276,6 +25276,7 @@ const Kamera = (() => {
      som i dag när spåret är stilla. Aldrig en fråga till Claude för en
      tidig läsning, och högst SPEK_MAX per spår. */
   const SPEK_RUTOR = 2, SPEK_FORM = 0.06, SPEK_MAX = 2;
+  const OKAND_OM = 3;   // omläsningar av ett okänt kort som flyttats (matcha, 2026-10-10)
   /* Läsningen på första hela rutan (MES-227, T.luft). Uppmätt ruta för ruta
      i golden 07/09–12 (kor.cjs --rutlogg): kortet syns aldrig oskymt "i
      luften" — handen täcker det tills det ligger, och första rutan där
@@ -28031,6 +28032,19 @@ const Kamera = (() => {
             /* Ett första "inget kort" kan ha varit en exponering som dippat — samma
                skäl som de lokala omförsöken. En fråga till efter rörelse, aldrig fler. */
             if (bast.aiInget === 1) { bast.aiFragad = false; bast.ai = null; } }
+          /* Ett okänt kort som flyttas läses om när det vilat (2026-10-10). Jespers parti: kortet räknades stilla
+             medan handen låg över det, lästes med fingrarna i beskärningen, blev okänt — och när handen släppte
+             21 s senare låg det skarpt på bordet men lästes aldrig mer ("Read started 21,3 s before the card
+             last moved"). Bara den lokala kedjan: aiFragad står kvar, så omläsningen frågar inte Claude en gång
+             till (CLAUDE.md, Claude är reserven), och ett kort som fortfarande är okänt går till Name this card
+             som förut. Inte medan frågan är ute (svarAI dömer spåret), inte efter Claudes "inget kort" (aiInget:
+             då dömer omläsningen spåret till skräp), och högst OKAND_OM gånger per spår — en hand som flyttar
+             samma kort fram och tillbaka får inte läsa det i full kedja varje gång det stannar. */
+          else if (bast.tillstand === 'okand' && !bast.provas && !bast.aiInget && !arHelbild(bast) && (bast.okandOmN || 0) < OKAND_OM) {
+            bast.okandOmN = (bast.okandOmN || 0) + 1;
+            bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.sid = null; bast.saker = false; bast.namnLast = null; bast.del = false;
+            bast.spek = null; bast.spekN = 0; bast.skrapN = 0; bast.utbrandN = 0; bast.vantaN = 0;
+          }
           /* Den optimistiska tap-domen (MES-214): första rutan där kortet syns
              igen efter att handen släppt har mitten flyttat — kortet vreds
              runt ett hörn — och räknas som rörelse, så den stilla domen
