@@ -27379,7 +27379,7 @@ const Kamera = (() => {
     const l = [], kk = [];
     for (const t of spar) if (t !== utom && t.tillstand === 'klar' && t.saker && t.namnForm && !arHelbild(t) && !t.del) { l.push(t.namnForm.l); kk.push(t.namnForm.k); }
     if (!l.length) return null;
-    const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
+    const med = a => { a.sort((p, q) => p - q); const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };   // två kort: medel av båda, inte det större (MES-293, rättelse 3)
     return { l: med(l), k: med(kk), n: l.length };
   }
   function fyndUrLador(det, W, H, g) {
@@ -28125,11 +28125,21 @@ const Kamera = (() => {
            låda som förut. 1,25: Blightfang tappat vid bildens kant fick en
            låda med kortsidan 1,23 × kortets, och 1,12 tog tap-läget ifrån
            det; ihopväxningarna i 11 var 1,3 × och mer. */
+        /* Lådan (förra rutans bast.box) får bli kortets mått bara i rutan då namnet sätts, eller
+           när kortet ligger stilla och lådan inte växt sedan dess (MES-293, rättelse 3). Ramen
+           prövas i varje ruta; lådan gjorde det också, så länge ramen saknade kortets kvot — och
+           ett snett kort utan namnMatt har inget "vuxen runt kortet"-skydd, så en låda som vuxit
+           ihop med en hand (75 × 67 + 20 px = 95 × 67 = 0,705) kunde bli spårets namnMatt och
+           sedan hålla kortet med handen (bänken TP3). En hand som vilar bredvid kortet ligger
+           stilla men har gjort lådan större; ett kort som flyttats rakare får en mindre låda. */
+        if (bast.tillstand === 'klar' && bast.namnLadaYta == null && bast.box) { bast.namnLadaYta = bast.box.w * bast.box.h; bast.namnLadaNar = nu; }
+        const ladaKort = !!bast.box && bast.namnLadaYta != null && (bast.namnLadaNar === nu
+          || (bast.stillaFran && nu - bast.stillaFran >= T.stillaMs && bast.box.w * bast.box.h <= 1.05 * bast.namnLadaYta));
         if (bast.tillstand === 'klar' && !bast.namnMatt) {
           /* bara en kortformad låda (kortKvot): en halva som fått namnet, en ram med en bit av
              grannen eller en för kvadratisk ram är inte kortets mått. Ramen först, lådan om ramen
-             inte är kortformad (MES-293). */
-          for (const r of [bast.ram, bast.box]) {
+             inte är kortformad (MES-293) och lådan får prövas (ladaKort). */
+          for (const r of [bast.ram, ladaKort ? bast.box : null]) {
             if (!r) continue;
             const l = Math.max(r.w, r.h), k = Math.min(r.w, r.h);
             if (kortKvot(l, k)) { bast.namnMatt = { l, k }; break; }
@@ -28148,8 +28158,9 @@ const Kamera = (() => {
            Blade vid överkanten, 62×38 mot 73×58 — båda gav med momentens
            mått en falsk eller missad vridning). */
         if (bast.tillstand === 'klar' && !bast.namnForm) {
-          /* Ramen först, lådan uträtad om ramen inte har kortets kvot (kortKvot, MES-293). */
-          for (const r of [bast.ram, bast.box]) {
+          /* Ramen först, lådan uträtad om ramen inte har kortets kvot (kortKvot, MES-293) och
+             lådan får prövas (ladaKort, rättelse 3). */
+          for (const r of [bast.ram, ladaKort ? bast.box : null]) {
             if (!r) continue;
             const L = Math.max(r.w, r.h), K = Math.min(r.w, r.h);
             const a = Math.abs(f.vinkel) % (Math.PI / 2), fi = r === bast.ram ? 0 : Math.min(a, Math.PI / 2 - a);
@@ -28201,7 +28212,7 @@ const Kamera = (() => {
            delen, och en ruta där klumpen kommer tillbaka hel rör inget. */
         if (f.omlott && !bast.omlott && bast.areaRef > 1.2 * f.area) {
           bast.areaRef = f.area; bast.spek = null; bast.formN = 0; bast.helBox = null;
-          bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.sid = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.namnMatt = null; bast.namnForm = null; bast.gissning = null;
+          bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.sid = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.namnMatt = null; bast.namnForm = null; bast.namnLadaYta = null; bast.gissning = null;
           bast.aiFragad = false; bast.ai = null; bast.provas = false; bast.aiInget = 0;
         }
         if (f.omlott) bast.omlott = true;

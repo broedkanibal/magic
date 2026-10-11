@@ -1901,6 +1901,32 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
             fore.st === 'klar' && !fore.tappad && ram === '47×38' && matt === null && tp2 != null && tp2 <= 12);
     }
 
+    /* TP3 (MES-293, rättelse 3, granskarens fynd): samma snedlagda B som i TP2 — namngivet utan eget mått, ramen och
+       lådan utan kortets kvot. Sedan växer en hand ihop med lådan från höger, 2 px per ruta (54 → 66 × 48), och vilar
+       där. Lådan passerar kortets kvot på vägen (62 × 48 = 0,77; 66 × 48 = 0,73), och ett snett kort utan namnMatt har
+       inget "vuxen runt kortet"-skydd: blev hand-lådan namnMatt hade den sedan hållit kortet med handen. Lådan får bli
+       kortets mått bara i rutan då namnet sätts, eller när kortet ligger stilla och lådan inte växt sedan dess. */
+    {
+      const namnat = vridet(50, 75, 0), b = vridet(150, 75, 65);
+      const bl = { x: b.lada.x - 2, y: b.lada.y - 2, w: b.lada.w + 4, h: b.lada.h + 4 };
+      namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000, vinkelMat: 1 }); await lyft(LYFT);
+      kvSvar = q => (q.x0 < 100 * V ? svarFor(0) : svarFor(65, 'profil'));
+      for (let i = 0; i < 20; i++) await rutaDet(namnat.rita, det([ladaF(namnat.lada)], [remsaF(namnat.remsa)]));
+      const dd0 = det([ladaF(namnat.lada), ladaF(bl)], [remsaF(namnat.remsa), remsaF(b.remsa)]);
+      for (let i = 0; i < 20; i++) await rutaDet(g => { namnat.rita(g); b.rita(g); }, dd0);
+      const tb = Kamera.spar.find(q => q.cx > 100), idB = tb && tb.id, fore = { st: tb && tb.tillstand, matt: tb && tb.namnMatt ? 'satt' : null };
+      const mattB = () => { const t = Kamera.spar.find(q => q.id === idB); return t && t.namnMatt ? Math.round(t.namnMatt.l) + '×' + Math.round(t.namnMatt.k) : null; };
+      let forstaMatt = null;
+      for (let i = 1; i <= 26; i++) {
+        const v = Math.min(12, 2 * i), bh = { x: bl.x, y: bl.y, w: bl.w + v, h: bl.h };
+        const dd = det([ladaF(namnat.lada), ladaF(bh)], [remsaF(namnat.remsa), remsaF(b.remsa)]);
+        await rutaDet(g => { namnat.rita(g); b.rita(g); hand(g, W, Math.round(bl.x + bl.w + v - 7), 75, 8, 14, 60); }, dd);
+        if (forstaMatt == null && mattB()) forstaMatt = i + ': ' + mattB();
+      }
+      check(`TP3 en hand växer ihop med lådan på ett snett kort utan namnMatt (54 → 66 × 48, sedan stilla): före ${JSON.stringify(fore)}, namnMatt satt i ruta ${forstaMatt}`,
+            fore.st === 'klar' && fore.matt === null && forstaMatt == null);
+    }
+
     // VK2: långsidan hoppar 90° medan lådan står kvar (A2:s fälla 3, två kort i en låda) — spåret behåller sin; en verklig tappning (lådan vrids) gäller
     {
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
