@@ -32940,6 +32940,12 @@ let handRad = [];               // [{ cid, kort, i, borta0, nar, tok, namn, val?
    när bordet inte stäms av (ljuset, uppstarten, glomSpar): kameran ska ha hunnit läsa om bordet. */
 const LOS_MS = 8000;            // BORTA_NAD plus en läsning, som GRAV_ATER_MS
 let losKort = new Map();        // cid → när kortet först sågs obundet i ett riktigt bord
+/* Kanten (MES-343, kantHaller i avstamBord): telefonens fas 'kant' ("A card is partly outside the picture") håller ett
+   kort i väntan kvar på mattan — bara kortet vars spår dog strax innan kanten började, och högst KANT_MAX. En minut
+   räcker för ett kort som lämnas vid kanten medan bannern står (38 s i passet 2026-10-11), och ett kort som i själva
+   verket gått till handen ligger inte kvar i minuter (granskningen av e50baab: 'kant' stod 549 s i samma pass). */
+const KANT_MAX = 60000;
+let kantSedan = 0;              // när fasen 'kant' började (Date.now()); 0 = inte i kant
 /* Raderna som gått ut tas bort; sant när något togs bort. */
 function handRadStada(nu) {
   const n = handRad.length;
@@ -34369,6 +34375,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { losKort = new Map(); lugnGlom(); renderMode(); uppdateraPbStatus(); return; }   // spåren föds om efter ljuset: inget av det är kort som rört sig (lugnt läge)
   const nu = Date.now();
   gravTaEmot(grav, nu);
+  if (kamFas === 'kant') { if (!kantSedan) kantSedan = nu; } else kantSedan = 0;   // när kanten började (kantHaller)
   handRadStada(nu);   // raden vid nederkanten (MES-343): valet som gått ut står fast — handen
   { const n0 = mig.cards.length; spar = gravFoljer(spar, nu, mig); if (mig.cards.length !== n0) { save(); renderGrid(true); } }   // graveyard följer med när högen flyttas
   /* Ett bord utan pass startar ett (eller tar upp det sparade efter en
@@ -35076,9 +35083,21 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      kanten får inget spår förrän det syns helt). Kortet i väntan kan vara det kortet: i passet 2026-10-11 lades ett
      Island vid bildens högerkant (478 s), telefonen stod i 'kant' i 38 s utan att ge det något spår, och mattan
      skickade Islandet till handen efter nåden fast det låg på bordet (483,9 s). Telefonens besked är det enda
-     vittnet: handen syntes inte (ingen skymd-strimma, inget spår utan korts form). Osäkert betyder orört. */
-  const kantSagt = kamFas === 'kant';
-  const orort = k => namnAnnanstans(k) || olastSpar(k) || tacktAvKort(k) || urBild(k) || kantSagt;
+     vittnet: handen syntes inte (ingen skymd-strimma, inget spår utan korts form). Osäkert betyder orört.
+     …men bara kortet vars spår dog strax innan kanten började — lyftet först, sedan kortet vid kanten (Islandets spår
+     dog 478,8 s, kanten började 481,2 s): dött högst LOS_MS före kantens start, eller inom nåden SLAPP_MS efter den
+     (ett kort som skjuts ut dör först när rutan under det varit tom en stund). Inte varje kort som lyfts medan kanten
+     står: i samma pass stod fasen 'kant' från 655 s till slutet, 549 s (Expel vid överkanten), och ett kort som tagits
+     upp under tiden hade legat kvar på mattan i minuter (granskningen av e50baab). Och högst KANT_MAX från kantens
+     start. Aldrig under Match the camera: Match tar bort ett kort vars spår dött också under 'kant' (MES-357). */
+  let kantHoll = false;   // något kort hålls av kanten just nu: taket ska löpa ut på millisekunden (timern nedan)
+  const kantHaller = borta => {
+    if (matchar || kamFas !== 'kant' || !kantSedan || borta == null) return false;
+    const h = borta - kantSedan <= SLAPP_MS && kantSedan - borta <= LOS_MS && nu - kantSedan <= KANT_MAX;
+    if (h) kantHoll = true;
+    return h;
+  };
+  const orort = k => namnAnnanstans(k) || olastSpar(k) || tacktAvKort(k) || urBild(k) || kantHaller(k.borta);
   /* Fall 8 (MES-343): tre eller fler spår som dog inom SAMTIDIGT_MS utan att korten setts igen är telefonen
      som knuffats eller ljuset som slagit om (MES-103). Ingenting på mattan ändras: bindningarna släpps, och
      kameran binder om när den ankrat sig (ledigt på namnet). gravTid minns när varje korts spår dog, och
@@ -35137,7 +35156,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   for (const k of mig.cards.slice().sort((a, b) => (a.attachedTo ? 1 : 0) - (b.attachedTo ? 1 : 0))) {
     if (k.spar != null || !paBordet(k) || !k.kam || k.fysisk || k.kvarSagt || (k.slappt != null && !matchar) || k.attachedTo || (k.tok && matchar) || tackt(k)) { losKort.delete(k.cid); continue; }   // Match: ett släppt kort (fall 8) som kameran inte ser lämnar mattan; tokens rörs inte
     if (!losKort.has(k.cid)) { losKort.set(k.cid, nu); if (!matchar) continue; }
-    if ((nu - losKort.get(k.cid) < LOS_MS && !matchar) || olastNagot || namnAnnanstans(k) || tacktAvKort(k) || handNara(k, sparRa) || (kantSagt && !matchar)) continue;   // 'kant': kortet kan vara det vid bildens kant
+    if ((nu - losKort.get(k.cid) < LOS_MS && !matchar) || olastNagot || namnAnnanstans(k) || tacktAvKort(k) || handNara(k, sparRa) || kantHaller(losKort.get(k.cid))) continue;   // 'kant': kortet kan vara det vid bildens kant (från när det först sågs obundet)
     losKort.delete(k.cid);
     /* borta0 null: högvakten parar ingen ändring av graveyard med det här kortet — det lyftes inte nu. */
     if (tillHanden(mig, k, null, nu)) andrat = true;
@@ -35184,6 +35203,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      MES-343) driver ingen timer — det prövas i varje rapport och hjärtslag; annars fyrade timern var 100:e ms. */
   const frister = mig.cards.filter(k => k.borta && nu - k.borta <= BORTA_NAD).map(k => { const v = nu - k.borta; return k.borta + (v <= SLAPP_MS ? SLAPP_MS : BORTA_NAD); });
   for (const t0 of losKort.values()) if (nu - t0 < LOS_MS) frister.push(t0 + LOS_MS);   // kort utan spår: på millisekunden, inte vid nästa hjärtslag
+  if (kantHoll) frister.push(kantSedan + KANT_MAX);   // kantens tak (kantHaller): löper ut också när telefonen är tyst
   /* Dubblettväntan (steg 4) tar slut i tid också när telefonen är tyst; spår som försvunnit glöms. */
   for (const id of [...flyttVantan.keys()]) if (!synliga.has(id)) flyttVantan.delete(id);
   /* Platsminnet (steg 3b): var varje spår låg senast, FLYTT_VILA bakåt. Timerns omspelning av samma

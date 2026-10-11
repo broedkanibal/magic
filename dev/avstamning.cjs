@@ -3322,6 +3322,29 @@ prov('KA2 (scen B) kant utan att något kort väntar: ett kort som verkligen lyf
   klocka.t += 150; stam([], 'kort');
   assert.ok(iHanden(k), 'till handen när telefonen ser hela bordet igen och väntan är över');
 });
+prov('KA3 (granskningen av e50baab) kanten håller bara kortet vars spår dog strax innan den började, och högst KANT_MAX: ett kort som lyfts medan kanten står går till handen som vanligt', () => {
+  stam([klar(1, 'Island', { sen: 0, ...PORT }), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  const island = app.kort.find(c => c.name === 'Island'), mountain = app.kort.find(c => c.name === 'Mountain');
+  klocka.t += 150; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })]);                 // Islandet lyfts: spåret dör
+  klocka.t += 2400; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })], 'kant');        // …och läggs vid kanten
+  const kantStart = klocka.t;
+  klocka.t += 20000; stam([], 'kant');                                                // 20 s in i kanten tas Mountain upp
+  tid(klocka.t + 8000);
+  assert.ok(app.kort.includes(island) && island.borta, 'Islandet hålls av kanten'); assert.ok(iHanden(mountain), 'Mountain gick inte till handen fast det lyftes långt efter att kanten började');
+  tid(kantStart + 59000);
+  assert.ok(app.kort.includes(island), 'Islandet hålls kvar strax före taket');
+  tid(kantStart + 61000);
+  assert.ok(iHanden(island), 'taket: efter KANT_MAX går Islandet till handen fast kanten står (timern, telefonen tyst)');
+});
+prov('KA4 (granskningen av e50baab) Match the camera tar bort ett kort vars spår dött också medan telefonen säger kant', () => {
+  stam([klar(1, 'Island', { sen: 0, ...PORT }), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  const island = app.kort.find(c => c.name === 'Island');
+  klocka.t += 150; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  klocka.t += 2400; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })], 'kant');
+  assert.ok(app.kort.includes(island) && island.borta, 'hålls av kanten utan Match');
+  const r = app.matcha();
+  assert.ok(iHanden(island), 'Match tog inte bort kortet under kant'); assert.equal(r.bort, 1);
+});
 prov('FL3b (scen A) högen upphäver inte en flytt förrän spåret lästs: läsningen säger kortets eget säkra namn — kortet ligger kvar på nya platsen', () => {
   stamG([klar(1, 'Expel', { sen: 0, ...PORT })], hog(0));
   const k = app.kort[0];
