@@ -3294,6 +3294,118 @@ prov('MA9 ingenting fel: ingenting ändras', () => {
   assert.equal(JSON.stringify(app.kort), fore); assert.deepEqual([r.flyttade, r.bort, r.spoken.length, r.lasOm.length, r.grav], [0, 0, 0, 0, false]);
 });
 
+/* ── FLYTTEN (MES-341, 343, 356): passet 2026-10-11 i avstämningen ───────────
+   Scenerna ur Jespers parti (dev/diagnos/pass-2026-10-11/genomgang.md), som föll på main: ett kort vid bildens kant
+   gick till handen, en flytt spärrades av ett namn som inte kunde vara kortet, en gammal gissning hoppade tillbaka,
+   och högen tog en flytt innan läsningen hunnit bekräfta namnet. */
+prov('KA1 (scen B) telefonen säger kant — ett kort delvis utanför bilden: kortet i väntan går inte till handen förrän fasen är kort igen', () => {
+  stam([klar(1, 'Island', { sen: 0, ...PORT }), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  const k = app.kort.find(c => c.name === 'Island');
+  klocka.t += 150; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })]);                 // Islandet lyfts och läggs vid kanten: spåret dör, inget nytt spår
+  klocka.t += 2400; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })], 'kant');        // telefonen: "A card is partly outside the picture"
+  tid(klocka.t + 8000);                                                                // långt förbi nåden, telefonen tyst
+  assert.ok(app.kort.includes(k) && k.borta && k.spar === 1, 'gick till handen fast telefonen säger kant'); assert.equal(app.handRad.length, 0);
+  klocka.t += 150; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })], 'kant');
+  assert.ok(app.kort.includes(k), 'kvar så länge kanten gäller');
+  /* Kortet skjuts in i bilden: ett spår föds vid kanten och vilar — bordets minne bär Islandet dit (3b) när läsningen bekräftar. */
+  const KANT = box(0.93, 0.40, 0.063, 0.088);
+  klocka.t += 150; stam([klar(2, 'Mountain', { sen: 0, ...LANGT }), vilande(3, KANT, { tillstand: 'stilla', namn: null })], 'kort');
+  klocka.t += 300; stam([klar(2, 'Mountain', { sen: 0, ...LANGT }), vilande(3, KANT, { namn: 'Brainstorm', cands: [{ name: 'Brainstorm', score: 0.3 }], remsa: { namn: 'Island', saker: false, marginal: 0.14 } })], 'kort');
+  assert.equal(k.spar, 3, 'Islandet bars till spåret vid kanten på remsans vittne'); assert.equal(app.kort.length, 2); assert.equal(app.pending.length, 0);
+});
+prov('KA2 (scen B) kant utan att något kort väntar: ett kort som verkligen lyfts går till handen när fasen är kort igen', () => {
+  stam([klar(1, 'Island', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([], 'kant');
+  tid(klocka.t + 8000);
+  assert.ok(app.kort.includes(k), 'orört medan kanten gäller');
+  klocka.t += 150; stam([], 'kort');
+  assert.ok(iHanden(k), 'till handen när telefonen ser hela bordet igen och väntan är över');
+});
+prov('FL3b (scen A) högen upphäver inte en flytt förrän spåret lästs: läsningen säger kortets eget säkra namn — kortet ligger kvar på nya platsen', () => {
+  stamG([klar(1, 'Expel', { sen: 0, ...PORT })], hog(0));
+  const k = app.kort[0];
+  klocka.t += 150; stamG([], hog(0));
+  klocka.t += 300; stamG([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })], hog(0));
+  assert.equal(k.spar, 2, 'buret dit');
+  klocka.t += 600; stamG([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })], hog(1));   // högen "växte" medan spåret vilar oläst (i fönstret efter GRAV_TIDIGAST)
+  assert.equal(k.spar, 2); assert.equal(k.zon, undefined, 'inte till graveyard före läsningen');
+  klocka.t += 230; stamG([klar(2, 'Expel', { sen: 0, ...NY_PLATS, vx: mitt(NY_PLATS), vy: NY_PLATS.y + NY_PLATS.h / 2, vilar: true })], hog(1));
+  assert.equal(k.spar, 2); assert.equal(k.zon, undefined, 'namnet bekräftade: kortet ligger på bordet'); assert.equal(k.flyttFran, undefined);
+  assert.equal(app.kort.length, 1, 'inget nytt Expel ur graveyard');
+});
+prov('FL3c (scen A) …och säger läsningen ett annat namn tar högen kortet som förut, med samma fönster', () => {
+  stamG([klar(1, 'Expel', { sen: 0, ...PORT })], hog(0));
+  const k = app.kort[0];
+  klocka.t += 150; stamG([], hog(0));
+  klocka.t += 300; stamG([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })], hog(0));
+  assert.equal(k.spar, 2);
+  klocka.t += 600; stamG([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })], hog(1));
+  assert.equal(k.zon, undefined, 'väntar på läsningen');
+  klocka.t += 500; stamG([klar(2, 'Grizzly Bears', { sen: 0, ...NY_PLATS })], hog(1));
+  assert.equal(k.zon, 'grav', 'till graveyard'); assert.ok(k.gravAuto); assert.equal(k.spar, undefined);
+  assert.equal(app.kort.find(c => c.name === 'Grizzly Bears').spar, 2, 'det nya kortet tog spåret');
+});
+prov('OM1 (scen D) ett namn vars alla exemplar ligger säkert på mattan spärrar inte flytten: ärvd gissning, osäker läsning och Claudes svar som alla är sådana namn', () => {
+  app.lek = new Map([['Expel', 1], ['Opt', 1], ['Relic Sloth', 1], ['Maelstrom Muse', 1]]);
+  const P2 = box(0.55, 0.40, 0.063, 0.088), P3 = box(0.70, 0.40, 0.063, 0.088), P4 = box(0.10, 0.40, 0.063, 0.088), KANT = box(0.93, 0.40, 0.063, 0.088);
+  const andra = () => [klar(2, 'Opt', { sen: 0, ...P2 }), klar(3, 'Relic Sloth', { sen: 0, ...P3 }), klar(4, 'Maelstrom Muse', { sen: 0, ...P4 })];
+  stam([klar(1, 'Expel', { sen: 0, ...PORT })].concat(andra()));
+  const k = app.kort.find(c => c.name === 'Expel');
+  klocka.t += 150; stam(andra());                                                                                        // Expel lyfts
+  klocka.t += 300; stam(andra().concat(vilande(5, KANT, { tillstand: 'stilla', namn: null, gissning: 'Maelstrom Muse' })));   // nytt spår vid kanten, ärvd gissning
+  assert.equal(k.spar, 5, 'den ärvda gissningen Maelstrom Muse (som ligger säkert annanstans, leken har ett) spärrar inte');
+  klocka.t += 2000; stam(andra().concat(vilande(5, KANT, { namn: 'Opt', cands: [{ name: 'Opt', score: 0.3 }], remsa: { namn: 'Relic Sloth', saker: false, marginal: 0.09 } })));
+  assert.equal(k.spar, 5, 'läsningen "Opt?" kan inte vara kortet: Opt ligger säkert på bordet'); assert.equal(app.pending.length, 0, 'ingen granskning');
+  klocka.t += 3000; stam(andra().concat(vilande(5, KANT, { namn: 'Relic Sloth', cands: [{ name: 'Relic Sloth', score: 0.5 }], ai: { namn: 'Relic Sloth', svar: 'Relic Sloth', saker: false }, remsa: { namn: 'Relic Sloth', saker: false, marginal: 0.09 } })));
+  assert.equal(k.spar, 5, 'Claudes osäkra "Relic Sloth" likaså'); assert.equal(app.kort.length, 4); assert.deepEqual(ofrSlag(), []);
+});
+prov('OM2 (scen D) ett namn som KAN vara ett kort till spärrar som förut: leken har två, basland alltid, ett säkert namn rättar', () => {
+  app.lek = new Map([['Expel', 1], ['Opt', 2], ['Island', 1]]);
+  const P2 = box(0.55, 0.40, 0.063, 0.088), P3 = box(0.70, 0.40, 0.063, 0.088);
+  stam([klar(1, 'Expel', { sen: 0, ...PORT }), klar(2, 'Opt', { sen: 0, ...P2 }), klar(3, 'Island', { sen: 0, ...P3 })]);
+  const k = app.kort.find(c => c.name === 'Expel');
+  const andra = () => [klar(2, 'Opt', { sen: 0, ...P2 }), klar(3, 'Island', { sen: 0, ...P3 })];
+  klocka.t += 150; stam(andra());
+  klocka.t += 300; stam(andra().concat(vilande(5, NY_PLATS, { tillstand: 'stilla', namn: null, gissning: 'Opt' })));
+  assert.equal(k.spar, 1, 'leken har två Opt: gissningen kan vara ett andra Opt — inget binds');
+  app.nollstall(); klocka.t = 1e6; app.lek = new Map([['Expel', 1], ['Island', 1]]);
+  stam([klar(1, 'Expel', { sen: 0, ...PORT }), klar(3, 'Island', { sen: 0, ...P3 })]);
+  const e = app.kort.find(c => c.name === 'Expel');
+  klocka.t += 150; stam([klar(3, 'Island', { sen: 0, ...P3 })]);
+  klocka.t += 300; stam([klar(3, 'Island', { sen: 0, ...P3 }), vilande(5, NY_PLATS, { tillstand: 'stilla', namn: null, gissning: 'Island' })]);
+  assert.equal(e.spar, 1, 'basland: ett Island till är legitimt — inget binds');
+  app.nollstall(); klocka.t = 1e6; app.lek = new Map([['Expel', 1], ['Opt', 1]]);
+  stam([klar(1, 'Expel', { sen: 0, ...PORT }), klar(2, 'Opt', { sen: 0, ...P2 })]);
+  const x = app.kort.find(c => c.name === 'Expel');
+  klocka.t += 150; stam([klar(2, 'Opt', { sen: 0, ...P2 })]);
+  klocka.t += 300; stam([klar(2, 'Opt', { sen: 0, ...P2 }), vilande(5, NY_PLATS, { tillstand: 'stilla', namn: null })]);
+  assert.equal(x.spar, 5, 'buret dit');
+  klocka.t += 500; stam([klar(2, 'Opt', { sen: 0, ...P2 }), klar(5, 'Grizzly Bears', { sen: 0, ...NY_PLATS })]);
+  assert.equal(x.spar, 1, 'ett säkert annat namn rättar som förut'); assert.equal(app.kort.find(c => c.name === 'Grizzly Bears').spar, 5);
+});
+prov('GA1 (scen D) en gissad flytt som hållit längre än nåden står när spåret dör: kortet väntar på nya platsen och bärs vidare, hoppar inte tillbaka', () => {
+  stam([klar(1, 'Expel', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })]);
+  assert.equal(k.spar, 2);
+  for (let i = 0; i < 20; i++) { klocka.t += 1500; stam([vilande(2, NY_PLATS)]); }   // 30 s på nya platsen, läst utan namn
+  klocka.t += 150; stam([]);                                                          // spåret dör
+  assert.equal(k.flyttFran, undefined, 'gissningen står'); assert.ok(Math.abs(k.kam.x - mitt(NY_PLATS)) < 1e-9, 'kortet ligger kvar på nya platsen');
+  assert.ok(k.borta && klocka.t - k.borta < 1000, 'väntan räknas från nu');
+  const P3 = box(0.55, 0.40, 0.063, 0.088);
+  klocka.t += 300; stam([vilande(3, P3, { tillstand: 'stilla', namn: null })]);
+  assert.equal(k.spar, 3, 'bärs vidare till nästa plats'); assert.equal(app.kort.length, 1);
+  app.nollstall(); klocka.t = 1e6;
+  stam([klar(1, 'Expel', { sen: 0, ...PORT })]);
+  const u = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })]);
+  klocka.t += 1000; stam([]);                                                          // en ung gissning: spåret dog inom nåden
+  assert.ok(u.flyttFran === undefined && Math.abs(u.kam.x - mitt(PORT)) < 1e-9, 'tillbaka där det låg, som förut (V2sparDor)');
+});
+
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);
