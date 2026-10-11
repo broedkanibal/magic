@@ -25,10 +25,20 @@ står och väntar.
 ## Osäkert läge
 - **Slå inte ihop MES-362 och kör inte golden medan Jesper spelar.** En push till main
   driftsätter mitt i hans parti, och golden belastar datorn som kör Mesa. Fråga om han är klar.
-- **Worktreen `.claude/worktrees/agent-a3f13575bc8e2eb74` var låst** vid överlämningen (agenten
-  avslutade sitt arbete). Dess slutrapport kom aldrig till den här sessionen. Läs i stället
-  commit `0ca8830`, agentens kommentar på MES-362 i Linear, och kör `sh dev/kolla.sh` i worktreen.
-  Ta inte bort worktreen förrän grenen är ihopslagen.
+- **Byggagentens slutrapport för MES-362 (commit `0ca8830`, worktree `.claude/worktrees/agent-a3f13575bc8e2eb74`):**
+  - `OFR_TROSKEL` 500 → 0, med ett undantag: ett nytt spår som täcker ett kort vars spår lever,
+    utan känd över/under-relation, väntar 0,5 s (`OFR_TROSKEL_TACKT`). Annars föll O17 och O22.
+  - Variant B är en CSS-animation; `ofrTakt` ställer om återskapade element till postens tid och
+    kör resten av kurvan på 300 ms vid `.skarp`. `matFramkalla` börjar där fotot står.
+    Motståndaren klarnar till ~6 px; minskad rörelse = stilla sudd.
+  - `PROVA_MS` 5000; helbilden har kvar 15 s i `HELBILD_PROVA_MS`. Systemprompten orörd.
+  - Bänken grön: avstamning 303, kamerabank 248, mattan 229, övriga oförändrade.
+    Mat test: tid till något syns 0,45 → 0,30 s, saknade kort i parti-kedjan 19 → 17.
+  - Nya prov O1/O1b/O3/O23 föll på main (fångar ändringen). W15 sågs aldrig falla på main:
+    kör kamerabänken mot main och bekräfta.
+  - **Ej klart:** hela `sh dev/kolla.sh` i ett svep, golden (alla fall), fristående granskning,
+    riktig telefon. Kommentar finns på MES-362.
+  - Ta inte bort worktreen förrän grenen är ihopslagen.
 - **Anthropic-krediten tog slut** under G3 (`credit balance is too low`, efter 1,56 USD). Troligen
   samma konto som produktionen. Utan kredit svarar inte Claude i appen (appen fungerar ändå,
   osäkra kort går till Name this card). Bara Jesper kan fylla på.
