@@ -473,3 +473,135 @@ Det är ett beslut för Jesper och för mer material, inte något som ändrats i
   stället för att tas som säkert: 9–11 av de 13 svåra korten hade fått rätt förslag. Det kräver ingen ny kontroll, bara
   att spelaren bekräftar med ett tryck.
 - Öppet: ett snällare ORB-krav (ovan) eller ett andra lokalt vittne för Claudes namn. Båda kräver mer material.
+
+## Resultat: krymp världen (MES-363, 2026-10-11)
+
+### Svaret först
+
+| Fråga | Svar |
+|---|---|
+| Blir första försöket bättre? | **Nej, knappt.** Nya, oskymda kort (37 beskärningar): världen 24 säkra (65 %), färger som facit 25 (68 %), färger inlärda ur 3 kort 24,8 (24–25 över 20 frön, 67 %). Lagligt: 24, ingen skillnad. Det är +0–1 kort av 37. |
+| Blir det snabbare? | **Nej, i snitt långsammare.** Själva sökningen krymper (57 → 17–30 ms på Macen), men ORB och hämtningen (~90 ms) är kvar, och i 40–52 % av fallen blir den smala listan inte säker och världen söks efter. Trappan smal → världen tar 183–219 ms per beskärning mot 146 ms för bara världen. |
+| Blev något säkert fel? | **Ja, ett filter: B (färger inlärda).** Swamp → Plains (beskärning 06-11, marginal 0,185), 2 av 1 220 sökningar (frö 1 och 9). Ett enda säkert fel stoppar filtret, så B föreslås inte. A och D: 0 säkra fel. |
+| Vad ska byggas? | **Inget antagande om färg eller lagligt för att höja första försöket.** Se *Förslag*. |
+
+### Så mättes det
+
+Bänken är `dev/remsa/varlden.py`: stegen `filter`, `sammanfatta` och `commander`. Ett filter är en
+**delmängd av samma världslista** (samma centrering och vektorer, 33 223 namn, skarp + sudd), så en
+smal lista kan aldrig ge fler rätt än världen utan att filtret släpper igenom rätt kort. Resten är som
+i G1: appens 61 beskärningar, bildmodellen, ORB mot de tre bästa namnen, trappans regel
+(`orb-dom`: ORB bär ettan, basland på typ ≥ 0,15 och ORB inte emot). Trappan smal → världen: är den
+smala listans etta inte säker söks hela världen, och tiden är båda stegens (numpy + ORB + hämtning;
+Macen, telefonen är inte mätt). Ingen `--ai`, ingen bild till Claude, ingen ändring i appen,
+systemprompten eller trösklarna. Ett filter som kördes är baslinjen `inga` (världen): 40/61 rätt överst,
+33 säkra rätt / 0 säkra fel på alla 61 och 24 / 0 på de nya, samma som G1.
+
+**Golden-leken är inte W, B, G.** `lek-golden.json` har 33 namn och bland dem Island, Matterbending
+Mage (U) och Proctor's Gaze (GU), alltså färgidentiteten **W, U, B, G**. De 24 korten som beskärningarna
+visar är W, B och G. Därför två rader för A: *W, B, G* (beskärningarnas kort, övre gräns) och *lekens W, U, B, G*.
+
+### Per filter
+
+Namn i listan, rätt överst (alla 61 / nya 37), och **säkra rätt / säkra fel** med trappans regel på den smala
+listan. *Söktid* är numpy på Macen per beskärning. **Basland** (18 beskärningar) står för sig i nästa tabell.
+
+| Filter | Namn i listan | Rätt överst: alla / nya | Säkra rätt / fel, alla 61 | Säkra rätt / fel, nya 37 | Söktid |
+|---|---|---|---|---|---|
+| inga (världen) | 33 223 | 40 / 27 | 33 / 0 | 24 / 0 | 57 ms |
+| A. färger som facit, W B G | 19 105 (57 %) | 42 / 28 | 37 / 0 | 25 / 0 | 30 ms |
+| A. lekens färger, W U B G | 25 676 (77 %) | 42 / 28 | 34 / 0 | 25 / 0 | 47 ms |
+| B. inlärda, 20 frön (snitt, min–max) | 14 435 (13 282–15 568) | 33,8 (29–39) / 22,2 (19–25) | 29,1 (26–35) / **0,1 (0–1)** | 19,9 (17–23) / 0 | 17 ms |
+| D. lagligt i något format | 32 116 (−1 107) | 40 / 27 | 33 / 0 | 24 / 0 | 58 ms |
+| A (W B G) + D | 18 422 | 42 / 28 | 37 / 0 | 25 / 0 | 28 ms |
+
+| Basland (18 beskärningar) | Rätt överst | Säkra rätt / fel (smal lista) |
+|---|---|---|
+| inga (världen) | 12 | 8 / 0 |
+| A. W B G | 13 | 11 / 0 |
+| A. W U B G | 13 | 8 / 0 |
+| B. inlärda (snitt) | 10,5 | 8,2 / **0,1** (Swamp → Plains) |
+| D. lagligt | 12 | 8 / 0 |
+
+Trappan *smal lista → hela världen* (säkra rätt / fel, nya 37 inom parentes, och tiden per beskärning):
+
+| Filter | Säkra rätt / fel, alla 61 | Nya 37 | Söker världen efter | Tid per beskärning |
+|---|---|---|---|---|
+| bara världen | 33 / 0 | 24 / 0 | – | 146 ms (57 + 51 + 38) |
+| A. W B G | 37 / 0 | 25 / 0 | 24 av 61 | 193 ms |
+| A. W U B G | 34 / 0 | 25 / 0 | 27 av 61 | 215 ms |
+| **B. inlärda** | 36,1 (33–38) / **0,1 (0–1)** | 24,8 (24–25) / 0 | 31,9 (26–35) av 61 | 204 (183–219) ms |
+| A + D | 37 / 0 | 25 / 0 | 24 av 61 | 191 ms |
+
+(D ensam ger samma domar som världen, så dess trappa är meningslös och tiden räknas inte.)
+
+### Varför det inte lyfter
+
+- **De nya kort som blir osäkra är inte färgförväxlingar.** 13 av de 37 nya korten blir inte säkra mot
+  världen: åtta har ett liggande navkort som etta (Invasion of …, Fuss // Bother, Grand Entryway …, Hustle //
+  Bustle), tre blir rätt men med för liten marginal (Thriving Heath, Vraska's Finisher, Ukud Cobra) och två
+  är fel utan nav (Hooded Blightfang → Siege Dragon, Pharika's Chosen → Gorilla Tactics). Navkorten ligger i
+  alla färger och finns kvar i W, B, G-listan. A får bara ett kort till: Maul of the Skyclaves (06-04),
+  där just ett navkort (Invasion of Mercadia) försvinner ur listan.
+- **Basland är den enda riktiga vinsten, och den kräver facit.** Med W, B, G blir 11 av 18 basland säkra
+  (8 mot världen), eftersom färre länder konkurrerar. Med lekens W, U, B, G, där Island är med, är det 8 igen.
+  Inlärda färger ger också 8.
+- **Sökningen är inte den dyra delen.** På Macen är numpy 57 ms av 146; ORB (51 ms) och hämtningen av
+  tre small-bilder (38 ms) är kvar oavsett lista. Enligt G1:s uppskattning är ORB en större andel på
+  telefonen, så riktningen bör hålla även om siffrorna inte gör det.
+- **Fallbacken kostar:** med inlärda färger ligger rätt kort utanför den smala listan i 13 av 61 beskärningar
+  (7–19): kort i en färg som inte setts ännu (Plains, Swamp, Aphelia, Maul …). De faller tillbaka på
+  världen som de ska, och det kostar det andra steget.
+
+### Det säkra felet i B
+
+Swamp → Plains, beskärning 06-11, i frö 1 och 9. Båda gångerna hade de tre dragna korten bara W
+(Militant Inquisitor, Resistance Reunited … / Mirran Bardiche, Pacifism, Plains), så Swamp (B) låg
+utanför listan. Plains fick marginal 0,185 (≥ 0,15) och ORB sa inte emot (7 inliers), och basland-regeln
+gör det till ett säkert namn. Det är det felet G1 redan hade på leken (Swamp i plastfickan), nu med en
+smal lista som tar bort Swamp. Regeln "ett enda säkert fel stoppar" gäller, så B föreslås inte som den är.
+Mätt som tilläggsregel (inte föreslagen): **basland är aldrig säkra i den smala listan, bara i världen**
+ger B 0 säkra fel över alla 1 220 sökningar, 24,8 säkra nya (oförändrat), men 40,1 av 61 söker världen
+efter, alltså ännu långsammare.
+
+### Commander: hur stor världen blir
+
+En commander ger färgidentiteten, och listan är alla kort vars färgidentitet ryms i den. Antal namn
+(alla kombinationer av färgerna, färglösa med); i parentes bara de Commander-lagliga.
+
+| Färgidentitet | Namn (snitt, min–max) | Andel av världen |
+|---|---|---|
+| 0 (färglös) | 2 946 (2 746) | 9 % |
+| 1 färg | 7 855 (7 763–7 942) | 24 % |
+| 2 färger | 13 232 (13 064–13 351) | 40 % |
+| 3 färger | 19 167 (18 989–19 310) | 58 % |
+| 5 färger | 33 229 (32 073 lagliga) | 100 % |
+
+Med en eller två färger blir världen en fjärdedel till två femtedelar, med tre färger drygt hälften. Samma
+slutsats som ovan följer: ett filter som sparar 40–60 % av sökningen räddar inte första försöket. Commander
+är ändå det fall där en gissad färgidentitet är mest värd, eftersom en Commander-lek har ~100 kort.
+
+### Förbehåll
+
+- 61 beskärningar, 24 kort, en lek: B:s 20 frön ger spridning över *dragen*, inte över *kort*.
+- Macen, huvudlös Chrome. Telefonen är inte mätt.
+- Bänken har inte appens villkor att spåret ligger för sig självt (som stoppar Swamp → Plains i appen).
+  Det felet kan alltså vara övertecknat, men inte nollat i den smala listan.
+- Trappan kördes som två fulla steg efter varandra. Att söka världen parallellt med den smala listan
+  skulle ta bort väntetiden men inte kostnaden.
+
+### Förslag
+
+1. **Bygg inget färgantagande för att höja första försöket.** Bästa fallet (färger som facit) ger +1 av
+   37 nya kort, och det realistiska (inlärt) ger +0,8 med ett säkert fel och en längre tid.
+2. **Bygg inte B.** Ett säkert fel stoppar det. Om färger ändå ska användas senare (Commander, där
+   färgidentiteten är given): basland får inte vara säkra på en smal lista, bara på världen.
+3. **D (lagligt)** tar bort 1 107 namn (3 %), inga av lekens eller beskärningarnas kort, och ändrar inget
+   utfall. Det är en förminskning av fingeravtrycken (100 MB → ~97 MB) utan fallback, så den går bara
+   att bygga in i filen om Jesper säger att Un-kort och liknande aldrig ska hittas.
+4. **Det som kostar tid och träffar är ORB, hämtningen och navkorten, inte listans längd.** Åtta av de 13
+   osäkra nya korten har ett liggande navkort som etta. Nästa mätning med verkligt värde är därför navkorten
+   (Invasion of …, split, rum), inte färgerna: om de kan hållas utanför första sökningen, och vad det kostar
+   på de kort som faktiskt är liggande.
+5. Golden mot världen i appens kedja (etapp 2) står kvar, och fingeravtryckens storlek är det som
+   filtret på färg skulle kunna hjälpa mest med (57 % vid tre färger).

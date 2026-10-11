@@ -22,6 +22,21 @@ Steg (bilder och vektorer i ARBETE under dev/material, inte i git; ~5 GB):
          --port 8391 > dev/embed/cache/varlden/orb-svar-världen.json   # appens ORB (utdrag.cjs först)
     $PY dev/remsa/varlden.py orb-dom [--nav 10] --listor världen   # trappans regel
 
+Krymp världen (MES-361, "Resultat: krymp världen" i dev/plan/lekar-och-minnet.md): sök bara bland namn som
+passar ett antagande ur det kameran redan sett. Filtren är delmängder av SAMMA världslista (samma centrering,
+samma vektorer), så en smal lista kan inte ge fler rätt än världen utan att filtret släpper igenom rätt kort.
+
+    $PY dev/remsa/varlden.py filter --filter farg:WBG            # A: lekens färgidentitet (facit)
+    $PY dev/remsa/varlden.py filter --filter lagligt             # D: lagligt i något format
+    $PY dev/remsa/varlden.py filter --filter larda:0-19          # B: färger ur 3 andra kort, 20 frön
+    $PY dev/remsa/varlden.py filter --filter inga                # världen, som referens
+    $PY dev/remsa/varlden.py orb-uppgifter --fslug farg-WBG --listor världen
+    node dev/embed/webb.cjs varlden.html "ORBSTEG('dev/embed/cache/varlden/orb-uppgifter-världen-f-farg-WBG.json')" \
+         --port 8391 > dev/embed/cache/varlden/orb-svar-världen-f-farg-WBG.json
+    $PY dev/remsa/varlden.py orb-dom --fslug farg-WBG --listor världen
+    $PY dev/remsa/varlden.py sammanfatta                         # tabellerna, trappan (smal → världen)
+    $PY dev/remsa/varlden.py commander                           # världens storlek per färgidentitet
+
 --modell <onnx> byter bildmodell (förval appens mobileclip-s0-vision.onnx, se lib.MODELL).
 """
 import json, os, random, sys, time, urllib.request
@@ -161,6 +176,15 @@ def steg_hamta():
 # rum) nav mot världen, 20/61 rätt överst mot 40/61.
 VARIANTER = tuple((arg('--varianter', 'skarp,sudd')).split(','))
 VRIDNINGAR = (0, 90, 180, 270)
+
+
+FSLUG = arg('--fslug', '')
+FSUFF = ('-f-' + FSLUG) if FSLUG else ''
+
+
+def jamforfil(fslug=None):
+    f = FSUFF if fslug is None else (('-f-' + fslug) if fslug else '')
+    return os.path.join(ARBETE, f'jamfor-{MODELLNAMN}-{"+".join(VARIANTER)}{"-nav" + str(NAV_K) if NAV_K else ""}{f}.json')
 
 
 def vekfil(variant):
@@ -337,6 +361,231 @@ def steg_jamfor():
     json.dump(ut, open(os.path.join(ARBETE, f'jamfor-{MODELLNAMN}-{"+".join(VARIANTER)}{"-nav" + str(NAV_K) if NAV_K else ""}.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 
 
+# ── 3b. krymp världen: filter på världslistan (MES-361, "Resultat: krymp världen") ─────────────────────────────
+def varldlista():
+    """Hela världen som Lista (skarp + sudd, som i listorna())."""
+    zs = [np.load(vekfil(v)) for v in VARIANTER]
+    filer = list(zs[0]['filer'])
+    ra = np.stack([z['ra'] for z in zs], axis=1).reshape(-1, zs[0]['ra'].shape[1])
+    kat = {r['fil']: r for r in katalog()}
+    nv = len(VARIANTER)
+    return Lista([kat[f]['namn'] for f in filer for _ in range(nv)], ra, [f for f in filer for _ in range(nv)])
+
+
+def delmangd(lista, tillat):
+    """Samma lista (samma centrering och vektorer) men bara namn vars nyckel finns i TILLAT."""
+    ok = np.array([n in tillat for n in lista.namnlista])
+    mask = ok[lista._namnidx]
+    d = Lista.__new__(Lista)
+    d.medel, d.vek, d.h = lista.medel, lista.vek[mask], lista.h[mask]
+    d.fil = [f for f, k in zip(lista.fil, mask) if k]
+    d.namnlista = [n for n, k in zip(lista.namnlista, ok) if k]
+    d._namnidx = (np.cumsum(ok) - 1)[lista._namnidx[mask]]
+    return d
+
+
+def namnuppgifter():
+    """{namn: {ci, lagligt, commander}} ur unique_artwork. Legalities är kortets (samma för alla tryck)."""
+    ut = {}
+    for c in las_bulk():
+        n = c['name']
+        if n in ut:
+            continue
+        lg = c.get('legalities') or {}
+        ut[n] = {'ci': frozenset(c.get('color_identity') or []), 'lagligt': any(v in ('legal', 'restricted') for v in lg.values()),
+                 'commander': lg.get('commander') in ('legal', 'restricted')}
+    return ut
+
+
+def slå_upp(nu, namn):
+    if namn in nu:
+        return nu[namn]
+    for n, u in nu.items():
+        if n.split(' // ')[0] == namn.split(' // ')[0]:
+            return u
+    raise KeyError(namn)
+
+
+def lekkort():
+    """Golden-lekens kort (unika namn)."""
+    return sorted({c['name'] for c in json.load(open(os.path.join(ROT, 'dev', 'embed', 'cache', 'lek-golden.json'), encoding='utf-8'))['kort']})
+
+
+def facit_i_listan(lista, facit):
+    fronter = {n.split(' // ')[0] for n in lista.namnlista}
+    return facit in lista.namnlista or facit.split(' // ')[0] in fronter or (bastyp(facit) is not None and bastyp(facit) in lista.namnlista)
+
+
+def rader_for(lista, man, Q):
+    rad = []
+    for p, q in zip(man, Q):
+        t0 = time.perf_counter()
+        l, rot = lista.rangordna(q)
+        ms = (time.perf_counter() - t0) * 1000
+        d = domen(l, p['namn'])
+        qr = q[VRIDNINGAR.index(rot)]
+        d.update({'rot': rot, 'ettans_bilder': lista.basta_filer(qr, l[0][0], 3),
+                  'kandidater': [{'namn': nn, 'filer': lista.basta_filer(qr, nn, 1)} for nn, _ in l[:3]],
+                  'fil': p['fil'], 'facit': p['namn'], 'skymd': p['skymd'], 'helbild': p['helbild'],
+                  'ms_numpy': round(ms, 1), 'namn_i_listan': len(lista.namnlista), 'facit_i_listan': facit_i_listan(lista, p['namn'])})
+        rad.append(d)
+    return rad
+
+
+def steg_filter():
+    """--filter inga | farg:lek | farg:WBG | lagligt | farg:lek+lagligt | larda:0-19. Skriver jamfor-…-f-<slug>.json
+    med listan 'världen' (så att orb-uppgifter och orb-dom kan användas som de är)."""
+    spec = arg('--filter', 'inga')
+    m = Bildmodell(MODELLFIL)
+    man, Q = fragevektorer(m)
+    varld = varldlista()
+    nu = namnuppgifter()
+    lek = lekkort()
+    lek_ci = frozenset().union(*[slå_upp(nu, n)['ci'] for n in lek])
+    logg(f'lekens färgidentitet: {"".join(sorted(lek_ci))} ({len(lek)} namn); världen {len(varld.namnlista)} namn')
+    cache = {}
+
+    def bygg(ci, lagligt):
+        k = (ci, lagligt)
+        if k not in cache:
+            tillat = {nyckel(n) for n, u in nu.items() if (ci is None or u['ci'] <= ci) and (not lagligt or u['lagligt'])}
+            cache[k] = delmangd(varld, tillat) if (ci is not None or lagligt) else varld
+        return cache[k]
+
+    delar = spec.split('+')
+    lagligt = 'lagligt' in delar
+    farg = next((d.split(':')[1] for d in delar if d.startswith('farg:')), None)
+    larda = next((d.split(':')[1] for d in delar if d.startswith('larda:')), None)
+    if larda is not None:
+        a, b = (larda.split('-') + [larda])[:2] if '-' in larda else (larda, larda)
+        korningar = [(f'larda{s}' + ('+lagligt' if lagligt else ''), s) for s in range(int(a), int(b) + 1)]
+    else:
+        korningar = [(spec.replace(':', '-'), None)]
+    for slug, seed in korningar:
+        if seed is not None:
+            rader, nmn = [], []
+            for i, (p, q) in enumerate(zip(man, Q)):
+                andra = [n for n in lek if nyckel(n) != nyckel(p['namn']) and n.split(' // ')[0] != p['namn'].split(' // ')[0]]
+                tre = random.Random(seed * 1000 + i).sample(andra, 3)
+                ci = frozenset().union(*[slå_upp(nu, n)['ci'] for n in tre])
+                lista = bygg(ci, lagligt)
+                r = rader_for(lista, [p], [q])[0]
+                r['larda_fran'] = tre; r['larda_ci'] = ''.join(sorted(ci)); r['facit_ci_ok'] = slå_upp(nu, p['namn'])['ci'] <= ci
+                rader.append(r)
+        else:
+            lista = bygg(lek_ci if farg == 'lek' else (frozenset(farg) if farg else None), lagligt)
+            rader = rader_for(lista, man, Q)
+        f = jamforfil(slug)
+        json.dump({'världen': rader}, open(f, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+        print(f"{slug}: {sum(r['ratt'] for r in rader)}/{len(rader)} rätt överst, namn i listan {rader[0]['namn_i_listan']}"
+              f"{'' if seed is not None else ''}, facit utanför listan {sum(not r['facit_i_listan'] for r in rader)}, "
+              f"{np.median([r['ms_numpy'] for r in rader]):.0f} ms/fråga (median) → {os.path.relpath(f, ROT)}", flush=True)
+    if lagligt and larda is None:
+        borta = sorted(n for n, u in nu.items() if not u['lagligt'])
+        kat = {r['namn'] for r in katalog()}
+        print(f"lagligt: {len([n for n in borta if n in kat])} av {len(kat)} namn bort. Lekens kort som försvinner: "
+              f"{[n for n in lek if not slå_upp(nu, n)['lagligt']]}. Facitets kort som försvinner: "
+              f"{sorted({p['namn'] for p in man if not slå_upp(nu, p['namn'])['lagligt']})}")
+
+
+def steg_commander():
+    """Hur stor världen blir med en färgidentitet på 0, 1, 2, 3, 5 färger (alla kombinationer) — vad en gissad commander ger."""
+    import itertools
+    nu = namnuppgifter()
+    kat = {r['namn'] for r in katalog()}
+    nu = {n: u for n, u in nu.items() if n in kat}
+    print(f'världen: {len(nu)} namn; lagliga i Commander: {sum(u["commander"] for u in nu.values())}')
+    for k in (0, 1, 2, 3, 5):
+        st, stc = [], []
+        for comb in itertools.combinations('WUBRG', k):
+            c = frozenset(comb)
+            st.append(sum(u['ci'] <= c for u in nu.values()))
+            stc.append(sum(u['ci'] <= c and u['commander'] for u in nu.values()))
+        print(f'{k} färger ({len(st)} kombinationer): {np.mean(st):.0f} namn i snitt (min {min(st)}, max {max(st)}); '
+              f'bara Commander-lagliga: {np.mean(stc):.0f} (min {min(stc)}, max {max(stc)})')
+
+
+def trappa_saker(r, o):
+    """Trappans regel (orb-dom): ORB bär ettan, basland på typ ≥ 0,15 och ORB inte emot."""
+    return o['bar'] if not bastyp(r['namn']) else (r['marginal'] >= 0.15 and not o['emot'])
+
+
+def las_filter(slug):
+    j = json.load(open(jamforfil(slug), encoding='utf-8'))['världen']
+    svar = json.load(open(os.path.join(UPPG, f'orb-svar-världen-f-{slug}.json'), encoding='utf-8'))['ut']
+    return j, svar
+
+
+def mat(rad):
+    """rad: [(r, o)] → mått per grupp (alla, nya oskymda icke-basland, basland)."""
+    ut = {}
+    grupper = {'alla': lambda r: True, 'nya': lambda r: not r['skymd'] and not bastyp(r['facit']), 'basland': lambda r: bool(bastyp(r['facit']))}
+    for g, f in grupper.items():
+        x = [(r, o) for r, o in rad if f(r)]
+        ut[g] = {'n': len(x), 'ratt': sum(r['ratt'] for r, _ in x),
+                 'sr': sum(r['ratt'] and trappa_saker(r, o) for r, o in x), 'sf': sum((not r['ratt']) and trappa_saker(r, o) for r, o in x),
+                 'msr': sum(r['ratt'] and r['marginal'] > TROSKEL for r, _ in x), 'msf': sum((not r['ratt']) and r['marginal'] > TROSKEL for r, _ in x)}
+    return ut
+
+
+def steg_sammanfatta():
+    """Tabellerna: per filter, och trappan (smal lista → hela världen om inget blev säkert). --slugar a,b,c (larda = larda0..larda19)."""
+    slugar = arg('--slugar', 'inga,farg-lek,lagligt,farg-lek+lagligt,larda').split(',')
+    varld_j, varld_o = las_filter('inga')
+    print(f"världen ({varld_j[0]['namn_i_listan']} namn): ", end='')
+    for slug in slugar:
+        stora = [f'larda{s}' for s in range(20)] if slug == 'larda' else [slug]
+        stora = [s for s in stora if os.path.exists(jamforfil(s)) and os.path.exists(os.path.join(UPPG, f'orb-svar-världen-f-{s}.json'))]
+        if not stora:
+            print(f'\n{slug}: saknar körning'); continue
+        per = []
+        for s in stora:
+            j, o = las_filter(s)
+            rad = list(zip(j, o))
+            mm = mat(rad)
+            # trappan: smal först, sedan världen om inget blev säkert
+            sr = sf = 0; sr_n = sf_n = 0; tid = []; fallb = 0; fel = []
+            for (r, oo), (rw, ow) in zip(rad, zip(varld_j, varld_o)):
+                smal_saker = trappa_saker(r, oo)
+                t1 = r['ms_numpy'] + oo['tOrb'] + oo['tHamt']
+                if smal_saker:
+                    rr, ok, t = r['ratt'], True, t1; kalla = 'smal'
+                else:
+                    fallb += 1
+                    ok = trappa_saker(rw, ow); rr = rw['ratt']; kalla = 'världen'
+                    t = t1 + rw['ms_numpy'] + ow['tOrb'] + ow['tHamt']
+                tid.append(t)
+                nya = not r['skymd'] and not bastyp(r['facit'])
+                if ok and rr:
+                    sr += 1; sr_n += nya
+                if ok and not rr:
+                    sf += 1; sf_n += nya; fel.append(f"{r['facit']} → {(r if kalla == 'smal' else rw)['namn']} ({kalla})")
+            per.append({'slug': s, 'mm': mm, 'trappa': {'sr': sr, 'sf': sf, 'sr_nya': sr_n, 'sf_nya': sf_n, 'ms': float(np.mean(tid)), 'fallback': fallb, 'fel': fel},
+                        'namn': j[0]['namn_i_listan'] if s != 'larda' else None,
+                        'namn_snitt': float(np.mean([x['namn_i_listan'] for x in j])), 'utanfor': sum(not x['facit_i_listan'] for x in j),
+                        'ms_numpy': float(np.median([x['ms_numpy'] for x in j])), 'orb': float(np.mean([x['tOrb'] for x in o])),
+                        'hamt': float(np.median([x['tHamt'] for x in o])),
+                        'sf_smal': [f"{r['facit']} → {r['namn']}" for r, oo in rad if (not r['ratt']) and trappa_saker(r, oo)]})
+        def agg(f):
+            v = [f(p) for p in per]
+            return f'{np.mean(v):.1f}' + (f' ({min(v)}–{max(v)})' if len(v) > 1 else '')
+        print(f"\n== {slug} ({len(per)} körning{'ar' if len(per) > 1 else ''})")
+        print(f"   namn i listan (snitt) {agg(lambda p: p['namn_snitt'])}, facit utanför listan {agg(lambda p: p['utanfor'])}/61, "
+              f"numpy {agg(lambda p: p['ms_numpy'])} ms, ORB {agg(lambda p: p['orb'])} ms, hämtning (median) {agg(lambda p: p['hamt'])} ms")
+        for g in ('alla', 'nya', 'basland'):
+            print(f"   {g:8} n={per[0]['mm'][g]['n']:2}  rätt överst {agg(lambda p: p['mm'][g]['ratt'])}  "
+                  f"smal lista: säkra rätt {agg(lambda p: p['mm'][g]['sr'])} / säkra fel {agg(lambda p: p['mm'][g]['sf'])}   "
+                  f"(modellen ensam >0,11: {agg(lambda p: p['mm'][g]['msr'])} / {agg(lambda p: p['mm'][g]['msf'])})")
+        if slug != 'inga':
+            print(f"   TRAPPAN (smal → världen): alla säkra rätt {agg(lambda p: p['trappa']['sr'])} / säkra fel {agg(lambda p: p['trappa']['sf'])}; "
+                  f"nya säkra rätt {agg(lambda p: p['trappa']['sr_nya'])} / fel {agg(lambda p: p['trappa']['sf_nya'])}; "
+                  f"fallback till världen {agg(lambda p: p['trappa']['fallback'])} av 61; tid {agg(lambda p: p['trappa']['ms'])} ms/beskärning (numpy+ORB+hämtning)")
+        fel = sorted({x for p in per for x in p['sf_smal']})
+        felt = sorted({x for p in per for x in p['trappa']['fel']})
+        if fel: print(f"   SÄKRA FEL i smal lista: {fel}")
+        if felt: print(f"   SÄKRA FEL i trappan: {felt}")
+
+
 # ── 4. trappans steg 3: bildmodellen OCH ORB ──────────────────────────────────
 UPPG = os.path.join(ROT, 'dev', 'embed', 'cache', 'varlden')   # sidan når bara repot (dev/embed/server.cjs)
 LISTOR_ORB = tuple(arg('--listor', 'leken,världen').split(','))
@@ -361,7 +610,7 @@ def steg_orb_uppgifter():
     """Uppgifterna till dev/embed/varlden.html: per beskärning bildmodellens etta och kandidaternas bilder.
     leken: alla lekens bilder av de tre bästa namnen (som appens pool). världen: bästa konstverket av vart
     och ett av de tre bästa namnen, hämtat från Scryfall vid behov."""
-    j = json.load(open(os.path.join(ARBETE, f'jamfor-{MODELLNAMN}-{"+".join(VARIANTER)}{"-nav" + str(NAV_K) if NAV_K else ""}.json'), encoding='utf-8'))
+    j = json.load(open(jamforfil(), encoding="utf-8"))
     lek = json.load(open(os.path.join(ROT, 'dev', 'embed', 'cache', 'lek-golden.json'), encoding='utf-8'))['kort']
     sm = None
     os.makedirs(UPPG, exist_ok=True)
@@ -381,17 +630,17 @@ def steg_orb_uppgifter():
             upp.append({'fraga': 'dev/embed/riktiga/' + r['fil'], 'marginalBeskarning': 0.08, 'rot': (360 - r['rot']) % 360,
                         'etta': r['namn'], 'marginal': r['marginal'], 'troskel': TROSKEL, 'land': bool(bastyp(r['namn'])),
                         'landNamn': [n for n in namn3 if bastyp(n)], 'bilder': bilder, 'hamta': lnamn != 'leken'})
-        f = os.path.join(UPPG, f'orb-uppgifter-{lnamn}.json')
+        f = os.path.join(UPPG, f'orb-uppgifter-{lnamn}{FSUFF}.json')
         json.dump(upp, open(f, 'w', encoding='utf-8'), ensure_ascii=False)
         print(os.path.relpath(f, ROT))
 
 
 def steg_orb_dom():
     """Domen per lista ur varlden.html:s svar (orb-svar-<lista>.json): appens bär-regel och trappans regel."""
-    j = json.load(open(os.path.join(ARBETE, f'jamfor-{MODELLNAMN}-{"+".join(VARIANTER)}{"-nav" + str(NAV_K) if NAV_K else ""}.json'), encoding='utf-8'))
+    j = json.load(open(jamforfil(), encoding="utf-8"))
     LAND_MARGINAL = 0.15
     for lnamn in LISTOR_ORB:
-        f = os.path.join(UPPG, f'orb-svar-{lnamn}.json')
+        f = os.path.join(UPPG, f'orb-svar-{lnamn}{FSUFF}.json')
         if not os.path.exists(f):
             continue
         svar = json.load(open(f, encoding='utf-8'))['ut']
@@ -421,4 +670,5 @@ def steg_orb_dom():
 if __name__ == '__main__':
     steg = ARGS[0] if ARGS else ''
     {'hamta': steg_hamta, 'vektorer': steg_vektorer, 'jamfor': steg_jamfor,
-     'orb-uppgifter': steg_orb_uppgifter, 'orb-dom': steg_orb_dom}.get(steg, lambda: print(__doc__))()
+     'orb-uppgifter': steg_orb_uppgifter, 'orb-dom': steg_orb_dom, 'filter': steg_filter, 'commander': steg_commander,
+     'sammanfatta': steg_sammanfatta}.get(steg, lambda: print(__doc__))()
