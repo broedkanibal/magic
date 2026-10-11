@@ -140,7 +140,18 @@ const PROJEKTEN = ['Private beta', 'Private beta · Commander'];
    eller Todo (CLAUDE.md, "Triage, Backlog och Todo"). Todo sätts bara när
    Jesper bett om just den saken i chatten. projekt: namn eller id, se
    hittaProjekt; null lägger issuen utanför alla projekt. */
-async function skapaIssue({ teamId, title, description, etiketter, status, projekt = PROJEKT_FORVAL, assigneeId = JESPER_ID, delegeraTillAgenten = true }) {
+/* Milstolpen i ett projekt, efter namn (t.ex. '5 · Redo för främlingar'). Okänt namn = fel. */
+async function hittaMilstolpe(projectId, namn) {
+  if (!namn || !projectId) return undefined;
+  const data = await graphql(`query($id: String!) { project(id: $id) { projectMilestones(first: 50) { nodes { id name } } } }`, { id: projectId });
+  const m = data.project.projectMilestones.nodes.find(x => x.name === namn);
+  if (!m) throw new Error(`Milstolpen "${namn}" finns inte i projektet`);
+  return m.id;
+}
+
+/* parentId: gör issuen till en sub-issue (CLAUDE.md: bara när barnen landar ihop).
+   milstolpe: namnet på en milstolpe i projektet. */
+async function skapaIssue({ teamId, title, description, etiketter, status, projekt = PROJEKT_FORVAL, assigneeId = JESPER_ID, delegeraTillAgenten = true, parentId, milstolpe }) {
   if (projekt === undefined) projekt = PROJEKT_FORVAL;
   if (!status) status = 'triage';
   if (projekt === null) {
@@ -154,9 +165,10 @@ async function skapaIssue({ teamId, title, description, etiketter, status, proje
      brädan: utan namnet hamnade en Todo-issue hos Jesper (MES-319). */
   const stateId = status ? await hittaState(teamId, status, status === 'unstarted' ? 'Todo' : undefined) : undefined;
   const projectId = await hittaProjekt(teamId, projekt);
+  const projectMilestoneId = await hittaMilstolpe(projectId, milstolpe);
   const data = await graphql(
     `mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }`,
-    { input: { teamId, title, description, assigneeId, delegateId, labelIds, stateId, projectId } }
+    { input: { teamId, title, description, assigneeId, delegateId, labelIds, stateId, projectId, projectMilestoneId, parentId } }
   );
   return data.issueCreate.issue;
 }
