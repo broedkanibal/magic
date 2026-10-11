@@ -120,7 +120,7 @@ fortfarande kännas igen, och "Name this card" ska nästan aldrig synas.
 | # | Gap |
 |---|---|
 | D1 | Vad som syns när Mirror startar utan lekval. |
-| D2 | Läsmarkeringen för ett nytt kort. Hör ihop med "Mesa Mirror Animations" sida 2, "När kameran vet". |
+| D2 | Läsmarkeringen för ett nytt kort. Designytan ["Mesa Reading Mark"](https://claude.ai/artifact/EguWdqncyTDFqvPR5TGYNM) (MES-362, 2026-10-11): A stilla sudd, B framkallas i takt, C tyst prick; väntar på Jespers val. Källor i `design_handoff_lasmarkering/`. |
 | D3 | Efter partiet ("Mesa learned 34 cards") och hur learned- och complete-lekar syns på Home. |
 | D4 | Att göra en learned lek complete inför Digital: lekfoto, import (Moxfield, Archidekt) eller inklistring. |
 

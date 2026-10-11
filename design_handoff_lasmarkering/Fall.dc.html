@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>Fallen i stillbilder</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0d1015}
+.rot{width:2200px;height:1700px;box-sizing:border-box;padding:40px;background:#0d1015;color:#e7ecf4;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,sans-serif;display:flex;flex-direction:column;gap:22px}
+.hu h1{margin:0;font-size:26px;font-weight:650}
+.hu p{margin:6px 0 0;font-size:14px;color:#93a1b6}
+.tab{display:flex;flex-direction:column;gap:18px}
+.rad{display:flex;gap:36px;align-items:flex-start}
+.ek{width:300px;flex:none;display:flex;flex-direction:column;gap:6px}
+.ek h3{margin:0;font-size:15px;font-weight:650}
+.ek ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px}
+.ek li{font-size:12.5px;line-height:17px;color:#93a1b6}
+.ek li b{display:inline-block;width:44px;font:600 11.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:#ffd98a}
+.grupp{width:568px;flex:none;display:flex;flex-direction:column;gap:8px}
+.grupp h2{margin:0;font-size:16px;font-weight:650}
+.tider{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.tider span{font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#66748a}
+.ramar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.ram{position:relative;width:136px;height:176px;border-radius:10px;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#1c2533 0%,#141a24 70%,#10151d 100%);border:1px solid #ffffff12}
+.delning{position:absolute;left:0;right:0;top:86px;border-top:1px dashed #ffffff22}
+.k{position:absolute;width:120px;height:168px;border-radius:7px;transform-origin:50% 50%}
+.k .skugga{position:absolute;inset:0;border-radius:inherit;box-shadow:0 26px 40px -12px #000f}
+.k .bas{position:absolute;inset:0;border-radius:inherit;background:#1a212c;box-shadow:0 4px 12px -3px #000c}
+.k .konst{position:absolute;inset:0;border-radius:inherit;background-size:cover;background-position:50% 50%;z-index:2}
+.k .ofram{position:absolute;inset:0;z-index:3;box-sizing:border-box;border:4px solid #121417;border-radius:7px;overflow:hidden;background:#121417}
+.k .ofoto{position:absolute;inset:0;background-color:#11161e;background-size:cover;background-position:50% 50%;transform:scale(1.18)}
+.k .oskarp{-webkit-mask-image:radial-gradient(ellipse 62% 52% at 50% 42%,#000 45%,transparent 100%);mask-image:radial-gradient(ellipse 62% 52% at 50% 42%,#000 45%,transparent 100%)}
+.k .oglans{position:absolute;inset:0;background:linear-gradient(118deg,#0000 30%,#ffffff40 44%,#ffffff12 52%,#0000 62%),linear-gradient(#c8d6e622,#c8d6e622);mix-blend-mode:screen}
+.k .prick{position:absolute;z-index:4;top:10px;right:10px;width:7px;height:7px;border-radius:50%;background:#ffd98a;box-shadow:0 0 0 2px #0d1015b3}
+.k .ring{position:absolute;z-index:4;inset:-3px;border-radius:9px;box-shadow:0 0 0 2px #57c785,0 0 14px 2px #57c78566;pointer-events:none}
+.k .etik{position:absolute;z-index:5;top:9px;left:50%;transform:translateX(-50%);box-sizing:border-box;height:18px;padding:0 7px;border-radius:5px;background:#0d1015e6;border:1px solid #f0a52a88;color:#ffd98a;font:700 9px/16px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,sans-serif;letter-spacing:.8px;white-space:nowrap}
+.k .knapp{position:absolute;z-index:5;bottom:6px;left:50%;transform:translateX(-50%);height:28px;padding:0 11px;border-radius:14px;border:1px solid #f0a52a;background:#1b2230f2;color:#ffd98a;font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,sans-serif;white-space:nowrap;box-shadow:0 6px 16px -6px #000e}
+.a-flutterfox{background-image:url(/_blob/7fddfc200ce4d5cfb0f50ec79763e23e)}
+.a-pikemaster{background-image:url(/_blob/8141aec5168b7cdaab77bfa7ada04bf8)}
+.a-pharika{background-image:url(/_blob/7bde262976c5e0967c7ee6171b0243af)}
+.a-moor{background-image:url(/_blob/89e676294ead1d4ea038dae6bfecbfd4)}
+.a-heath{background-image:url(/_blob/128da63f067d045294b91840369c66c9)}
+.a-inquisitor{background-image:url(/_blob/a282edb45cd0c08c444da78b437d71c5)}
+.a-bardiche{background-image:url(/_blob/1bc85d570d8cd694a7a4c070f2d2d657)}
+.a-blightfang{background-image:url(/_blob/4587080e1c9c08215eacce188381d22c)}
+.a-retriever{background-image:url(/_blob/93edebe69e7cce1dc9a5fc992f5f98ec)}
+.f-flutterfox{background-image:url(/_blob/1913399e17f68d2c6ad4482eba175f64)}
+.f-pikemaster{background-image:url(/_blob/862aa17754f42b77e3a48bae4aaf951b)}
+.f-pharika{background-image:url(/_blob/b7d543dff5b13394f82f16913c145288)}
+.f-moor{background-image:url(/_blob/54bafaafaa352efe69770a9cded4ba76)}
+.f-inquisitor{background-image:url(/_blob/e8b716638799e4b41016ab5ebbc5f006)}
+.f-bardiche{background-image:url(/_blob/ed0eb4247d1d11499455b238fb595a1c)}
+.f-blightfang{background-image:url(/_blob/0a10de1103da15d7ce10d0332d431cfa)}
+.f-retriever{background-image:url(/_blob/b9b666d57ee00ab91fb0d3d34a1eeab3)}
+</style>
+</helmet>
+<div class="rot">
+  <header class="hu">
+    <h1>Fallen i stillbilder</h1>
+    <p>Samma motor som prototypen. Kolumnerna är tiden från släppet, när kortet ligger still. Den gröna ringen visar ett namn som nyss kom.</p>
+  </header>
+  <div class="tab">
+    <div class="rad">
+      <div class="ek"></div>
+      <sc-for list="{{varianter}}" as="v" hint-placeholder-count="3">
+        <div class="grupp">
+          <h2>{{v.namn}}</h2>
+          <div class="tider">
+            <sc-for list="{{tider}}" as="ti" hint-placeholder-count="4"><span>{{ti}}</span></sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <sc-for list="{{rader}}" as="r" hint-placeholder-count="7">
+      <div class="rad">
+        <div class="ek">
+          <h3>{{r.titel}}</h3>
+          <ol>
+            <sc-for list="{{r.hand}}" as="h" hint-placeholder-count="3"><li><b>{{h.tid}}</b>{{h.txt}}</li></sc-for>
+          </ol>
+        </div>
+        <sc-for list="{{r.grupper}}" as="g" hint-placeholder-count="3">
+          <div class="grupp">
+            <div class="ramar">
+              <sc-for list="{{g.ramar}}" as="ra" hint-placeholder-count="4">
+                <div class="ram">
+                  <sc-if value="{{ra.opp}}" hint-placeholder-val="{{false}}"><i class="delning"></i></sc-if>
+                  <sc-for list="{{ra.kort}}" as="c" hint-placeholder-count="1">
+                    <div class="k" style="left: {{c.x}}px; top: {{c.y}}px; opacity: {{c.op}}; transform: {{c.tf}}">
+                      <div class="bas"></div>
+                      <div class="{{c.aKl}}" style="opacity: {{c.konstOp}}; clip-path: inset(0 0 {{c.klipp}}% 0)"></div>
+                      <div class="ofram" style="opacity: {{c.ofrOp}}">
+                        <div class="{{c.fKl}}" style="filter: blur({{c.blur}}px) saturate({{c.sat}}) brightness({{c.bri}})"></div>
+                        <div class="{{c.sKl}}" style="opacity: {{c.skarp}}"></div>
+                        <div class="oglans" style="opacity: {{c.glans}}"></div>
+                      </div>
+                      <div class="prick" style="opacity: {{c.prick}}"></div>
+                      <div class="ring" style="opacity: {{c.ring}}"></div>
+                      <sc-if value="{{c.fraga}}" hint-placeholder-val="{{false}}">
+                        <span class="etik">NOT IDENTIFIED</span>
+                        <button type="button" class="knapp">Enter name</button>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"framkallningstid":{"editor":"range","min":800,"max":4000,"step":100,"unit":"ms","default":1800,"section":"B · Framkallas i takt"},"$preview":{"width":2200,"height":1700}}'>
+const TIDER = [300, 1200, 3500, 7500];
+const kl = x => Math.max(0, Math.min(1, x));
+const ut = p => 1 - Math.pow(1 - p, 3);
+const sek = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
+const VARIANTER = [
+  { id: 'A', namn: 'A · Stilla sudd' },
+  { id: 'B', namn: 'B · Framkallas i takt' },
+  { id: 'C', namn: 'C · Tyst prick' }
+];
+const FALL = [
+  { id: 'lokal', titel: 'Namn lokalt efter 1 s', kort: [{ b: 'flutterfox', slapp: 0, namn: 1000 }],
+    hand: [[0, 'Kortet läggs ned med kamerans foto'], [1000, 'Telefonen: säkert namn']] },
+  { id: 'claude', titel: 'Namn via Claude efter 3 s', kort: [{ b: 'pikemaster', slapp: 0, namn: 3000 }],
+    hand: [[0, 'Kortet läggs ned med kamerans foto'], [900, 'Telefonen är inte säker och frågar Claude'], [3000, 'Claude: Faithful Pikemaster']] },
+  { id: 'spelaren', titel: 'Inget namn: spelaren namnger', kort: [{ b: 'pharika', slapp: 0, pend: 3200, spelaren: 6500 }],
+    hand: [[0, 'Kortet läggs ned med kamerans foto'], [900, 'Telefonen frågar Claude'], [3200, 'Claude är inte säker: till spelaren'], [6500, 'Spelaren skriver namnet']] },
+  { id: 'byter', titel: 'Ett kort som byter namn när det blir säkert', kort: [{ b: 'moor', slapp: 0, namn: 2200 }],
+    hand: [[0, 'Kortet läggs ned med kamerans foto'], [700, 'Gissar Thriving Heath, osäkert: visas inte'], [2200, 'ORB bär Thriving Moor: säkert']] },
+  { id: 'flera', titel: 'Flera nya kort på en gång', kort: [{ b: 'inquisitor', slapp: 0, namn: 600, plats: 0 }, { b: 'bardiche', slapp: 150, namn: 1500, plats: 1 }, { b: 'retriever', slapp: 300, namn: 3400, plats: 2 }],
+    hand: [[0, 'Tre kort läggs ut i ett svep'], [600, 'Det första: lokalt'], [1500, 'Det andra: lokalt'], [3400, 'Det tredje: via Claude']] },
+  { id: 'motst', titel: 'Motståndarens kort', kort: [{ b: 'blightfang', slapp: 0, namn: 2600, opp: true }],
+    hand: [[0, 'Du ser en liten suddig bild, aldrig den skarpa'], [2600, 'Hens telefon eller Claude: namnet']] },
+  { id: 'utan', titel: 'Claude av eller taket nått', kort: [{ b: 'pikemaster', slapp: 0, pend: 900, spelaren: 5000 }],
+    hand: [[0, 'Kortet läggs ned med kamerans foto'], [900, 'Inte säker, ingen Claude: till spelaren'], [5000, 'Spelaren skriver namnet']] }
+];
+function rita(c, t, v, o, cx, cy, s) {
+  const dt = t - c.slapp;
+  if (dt < 0) return null;
+  const namnT = c.namn != null ? c.namn : c.spelaren != null ? c.spelaren : null;
+  const pendT = c.pend != null ? c.pend : null;
+  let lage = 'las';
+  if (namnT != null && t >= namnT) lage = 'namn';
+  else if (pendT != null && t >= pendT) lage = 'pend';
+  let e = 0;
+  if (v === 'B') e = pendT != null && t >= pendT ? 1 : 1 - Math.exp(-Math.max(0, dt) / o.bTid);
+  let blur = 12 - 8.5 * e, sat = 0.62 + 0.36 * e, bri = 0.8 + 0.17 * e, glans = 0.55 - 0.3 * e;
+  if (c.opp) { blur = 16 - 6 * e; glans = 0.55; }
+  const prick = v === 'C' && lage === 'las' ? 0.85 : 0;
+  let konstOp = 0, ofrOp = 1, skarp = 0, ring = 0;
+  if (lage === 'namn') { konstOp = 1; ofrOp = 0; ring = t - namnT < 2000 ? 1 : 0; }
+  else if (lage === 'pend' && !c.opp) skarp = 1;
+  const f = n => n.toFixed(3);
+  return {
+    x: (cx - 60).toFixed(1), y: (cy - 84).toFixed(1), op: '1',
+    tf: 'scale(' + s + ') rotate(' + (c.opp ? 180 : 0) + 'deg)',
+    aKl: 'konst a-' + c.b, fKl: 'ofoto f-' + c.b, sKl: 'ofoto oskarp f-' + c.b,
+    konstOp: f(konstOp), klipp: '0', ofrOp: f(ofrOp),
+    blur: blur.toFixed(2), sat: f(sat), bri: f(bri), glans: f(glans),
+    skarp: f(skarp), prick: f(prick), ring: f(ring),
+    fraga: lage === 'pend' && !c.opp
+  };
+}
+function ramKort(fall, t, v, o) {
+  const W = 136, H = 176, ut_ = [];
+  for (const c of fall.kort) {
+    let cx = W / 2, cy = H / 2, s = 0.78;
+    if (fall.id === 'flera') { s = 0.36; cx = W / 2 + (c.plats - 1) * 46; }
+    else if (c.opp) { s = 0.42; cy = 42; }
+    const k = rita(c, t, v, o, cx, cy, s);
+    if (k) ut_.push(k);
+  }
+  return ut_;
+}
+class Component extends DCLogic {
+  renderVals() {
+    const o = { still: true, bTid: this.props.framkallningstid ?? 1800 };
+    return {
+      varianter: VARIANTER,
+      tider: TIDER.map(sek),
+      rader: FALL.map(fall => ({
+        titel: fall.titel,
+        hand: fall.hand.map(([ms, txt]) => ({ tid: sek(ms), txt })),
+        grupper: VARIANTER.map(v => ({ ramar: TIDER.map(t => ({ opp: fall.id === 'motst', kort: ramKort(fall, t, v.id, o) })) }))
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>
