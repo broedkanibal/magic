@@ -27360,10 +27360,11 @@ const Kamera = (() => {
   /* Kortets egna sidor på bordet: medianen av de säkert namngivna spårens namnForm (kortets
      egen lång- och kortsida, analyspixlar). Samma slags mått som sidL/sidK — inte kortMatt, som
      tar spårens RAKA lådor och är större än kortet så fort det ligger snett (granskningen F2).
-     null innan något kort fått namn och mått. */
-  function kortEgenMatt() {
+     null innan något kort fått namn och mått. utom: ett spår som inte räknas (tapTydlig prövar
+     ett kort mot DE ANDRA kortens mått, MES-293). */
+  function kortEgenMatt(utom) {
     const l = [], kk = [];
-    for (const t of spar) if (t.tillstand === 'klar' && t.saker && t.namnForm && !arHelbild(t) && !t.del) { l.push(t.namnForm.l); kk.push(t.namnForm.k); }
+    for (const t of spar) if (t !== utom && t.tillstand === 'klar' && t.saker && t.namnForm && !arHelbild(t) && !t.del) { l.push(t.namnForm.l); kk.push(t.namnForm.k); }
     if (!l.length) return null;
     const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
     return { l: med(l), k: med(kk), n: l.length };
@@ -27767,15 +27768,26 @@ const Kamera = (() => {
      tapTapp): golden 18, Plains i hög B gav en skymd låda (23 × 30) som
      lådans regel läste som ett otappat kort medan vinkeln stod på 21° — mitt
      emellan — och kortet vreds fram och tillbaka 61,95–64,05 s. */
+  /* Måttstocken (MES-293, Jespers parti 2026-10-11, bordsloggen pass-2026-10-11-2006): måtten
+     prövas mot kortets EGET namnForm ELLER mot de ANDRA namngivna kortens (kortEgenMatt utan
+     kortet självt) — korten är lika stora. namnForm tas en gång, ur ramen när namnet sätts, och
+     en ram som tagit med en bit av grannen eller handen gör det för långt för alltid: Island
+     (spår 8) fick namnet tappat med ramen 79 × 49 (kortet är ~66 × 48), och när det tappades upp
+     var regionen 65 × 49 — under 0,85 × 79 — så varje dom var otydlig och kortet stod tappat i
+     ~80 s med otappad form. Mot de andra korten är 65 × 49 ett kort. Samma gränser, 0,85–1,3;
+     bara måttstocken är två.
+     Vinkelgränserna (T.tapOtapp/T.tapTapp, MES-298) är orörda. */
   function tapTydlig(f, t, upp) {
     let nm = t.namnForm;
     const egen = !!nm;
     if (!nm && t.tillstand !== 'klar') { const km = kortMatt(); if (km.kalla === 'spår') nm = { l: km.lang, k: km.kort }; }
     if (!nm) return false;
+    const andra = egen ? kortEgenMatt(t) : null;
     const bas = kal.grund != null ? kal.grund : ((upp || kal.ruta.upp) === 'h' ? 0 : Math.PI / 2);
+    const passar = (fl, fk, m) => !!m && fl >= 0.85 * m.l && fl <= 1.3 * m.l && fk >= 0.85 * m.k && fk <= 1.3 * m.k;
     const tydlig = (fl, fk, vinkel) => {
       if (!(fl >= 1.15 * fk)) return false;
-      if (fl < 0.85 * nm.l || fl > 1.3 * nm.l || fk < 0.85 * nm.k || fk > 1.3 * nm.k) return false;
+      if (!passar(fl, fk, nm) && !passar(fl, fk, andra)) return false;
       const d = axSkillnad(vinkel, bas) * 180 / Math.PI;
       return d < T.tapOtapp || d > T.tapTapp;
     };

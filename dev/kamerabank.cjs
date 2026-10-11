@@ -2648,6 +2648,29 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       KVl.kortVinkel = kvForra; lvSvar = null;
     }
 
+    // ── TP: tap-läget följer en tydlig form (MES-293, Jespers parti 2026-10-11) ──
+    /* Bordsloggen pass-2026-10-11-2006: Island (spår 8) fick namnet tappat med en ram som tagit med en
+       bit av grannen (79 × 49, kortet ~66 × 48). namnForm tas en gång, så när det tappades upp var
+       regionen 65 × 49 — under 0,85 × 79 — och varje dom otydlig: tappat i ~80 s med otappad form.
+       Nu prövas måtten också mot de andra kortens. Här detektorns lådor (steg(…, det)) och ett
+       namngivet otappat kort A bredvid, som ger bordet en kortstorlek. */
+    {
+      const A = { x: 40, y: 60, w: 30, h: 42 };
+      // TP1: B läggs tappat med en flik kant i kant (ramen/lådan 50 × 32), får namnet, fliken tas bort och B tappas upp rakt
+      await nyttBord('v'); Kamera.satGrundGrader(90);
+      const flik = g => { for (let y = 69; y < 101; y++) for (let x = 162; x < 170; x++) g[y * W + x] = 180; };
+      const Bt = { x: 120, y: 70, w: 42, h: 30 }, Bo = { x: 126, y: 64, w: 30, h: 42 };
+      await kor(16, [kortR(A)], [lada(A, 'kort')]);
+      await kor(20, [kortR(A), kortR(Bt), flik], [lada(A, 'kort'), lada({ x: 120, y: 69, w: 50, h: 32 }, 'kort')]);
+      const bSpar = () => Kamera.spar.find(t => Math.abs(t.cx - 145) < 12 && Math.abs(t.cy - 85) < 12);
+      const b1 = bSpar(), b1id = b1 && b1.id, b1klar = b1 && b1.tillstand, b1tapp = !!(b1 && b1.tappad), b1form = b1 && b1.namnForm ? Math.round(b1.namnForm.l) + '×' + Math.round(b1.namnForm.k) : null;
+      let tp1 = null;
+      for (let i = 1; i <= 14; i++) { await steg1([kortR(A), kortR(Bo)], [lada(A, 'kort'), lada(Bo, 'kort')]); const t = Kamera.spar.find(q => q.id === b1id); if (tp1 == null && t && !t.tappad) tp1 = i; }
+      const b1e = Kamera.spar.find(q => q.id === b1id);
+      check(`TP1 namngivet tappat med en flik (namnForm ${b1form}), fliken bort och upptappat rakt: före ${b1klar} tappad ${b1tapp}; otappat i ruta ${tp1} (högst 10), samma id ${!!b1e}`,
+            b1klar === 'klar' && b1tapp && b1form === '50×32' && tp1 != null && tp1 <= 10 && !!b1e);
+    }
+
     nystart(); namnSvar = forraSvar;
   }
 
