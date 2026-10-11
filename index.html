@@ -16080,7 +16080,7 @@ function lekSattAktiv(rad) {
   /* Platshållarna ur ett lekfoto (MES-289) är inga kort att spela: de står
      under To check tills någon väljer kortet. */
   const kort = rad && Array.isArray(rad.kort) ? rad.kort.filter(k => !k.okand) : null;
-  if (rad && rad.kort) sattLekTal(kort);
+  if (rad && rad.kort) sattLekTal(kort, kort ? rad.kort.filter(k => k.okand).reduce((n, k) => n + (Number(k.n) || 1), 0) : 0);   // platshållarna räknas (lekPlatshallare)
   lekKort = kort;
   lekForhamta(lekKort).catch(() => {});
 }
@@ -16451,12 +16451,18 @@ function lekNyssKvar(nyss, kort) {
    namn som inte står i den. lekTal fylls när en lek väljs (D5-3) och
    nollas när den tas bort. Harnessarna stubbar samma namn. */
 let lekTal = null;
+let lekOkanda = 0;   // lekfotots platshållare (okand, MES-289) som ännu inte fått namn: exemplar av okänt kort
 function lekAntal(namn) {
   if (!lekTal) return Infinity;
   const n = lekTal.get(norm(namn));
   return n == null ? Infinity : n;
 }
-function sattLekTal(kort) {
+/* Hur många kort i leken som saknar namn (platshållarna). Det omöjliga namnet i avstämningen (omojligt, MES-356)
+   räknar dem som möjliga exemplar av varje namn — annars räknades en riktig andra kopia som omöjlig så länge dess rad
+   i leken var en platshållare. Harnessarna utan funktionen räknar 0. */
+function lekPlatshallare() { return lekTal ? lekOkanda : 0; }
+function sattLekTal(kort, okanda) {
+  lekOkanda = Number(okanda) || 0;
   if (!Array.isArray(kort) || !kort.length) { lekTal = null; return; }
   lekTal = new Map();
   for (const k of kort) { const key = norm(k.name); lekTal.set(key, (lekTal.get(key) || 0) + (Number(k.n) || 1)); }
@@ -34555,13 +34561,20 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      Expel stod kvar på sin gamla plats och spåret blev NOT IDENTIFIED. Bara namn på kort som inte är basland (extra
      basland är legitima, antalets fråga i steg 4) och bara mot ett icke säkert namn på spåret självt: ett säkert namn
      rättar som förut (steg 1). Namnet avgör som förut så snart något exemplar är ledigt. Leken är lokal, Claude är
-     inget villkor. Utan lek (Infinity) är inget omöjligt. */
+     inget villkor. Utan lek (Infinity) är inget omöjligt.
+     Det säkra spåret ska visa var kortet ligger JUST NU: färskt (detektorn gav det en region i någon av de senaste
+     rutorna, farsktSpar) och inte skymt. Telefonens spår dör först när rutan under det varit tom en stund (bortaMs), så
+     ett säkert spår lever kvar som spöke medan kortet bärs: Islandets spår 21 i passet 2026-10-11 stod med sen 361 när
+     det nya spåret föddes (478,4 s). Med spöket som vittne hade kortets eget namn på den nya platsen varit omöjligt, och
+     två kort som flyttas i samma svep kunde byta namn tills telefonen läste säkert (genomgangen rad 38; granskningen av
+     e50baab). Lekfotots platshållare (lekPlatshallare, MES-289) räknas som möjliga exemplar: en platshållare kan vara
+     ett exemplar till av vilket kort som helst. */
   const BASLAND_RE = /^(?:Snow-Covered )?(?:Plains|Island|Swamp|Mountain|Forest|Wastes)$/;
   const omojligt = (namn, t) => {
-    const tak = lekAntal(namn);
+    const tak = lekAntal(namn) + (typeof lekPlatshallare === 'function' ? lekPlatshallare() : 0);
     if (!isFinite(tak) || BASLAND_RE.test(namn) || (t.tillstand === 'klar' && t.saker && t.namn === namn)) return false;
     return mig.cards.filter(c => c.name === namn && paBordet(c) && c.spar != null && c.spar !== t.id && synliga.has(c.spar)
-      && spar.some(u => u.id === c.spar && u.tillstand === 'klar' && !!u.saker)).length >= tak;
+      && spar.some(u => u.id === c.spar && u.tillstand === 'klar' && !!u.saker && !u.skymd && farsktSpar(u))).length >= tak;
   };
   /* Namnen som säger emot kortet k på spåret t: postens namn utom kortets eget och de omöjliga. */
   const namnEmot = (k, t) => { const n = postensNamn(t); return n.has(k.name) ? [] : [...n].filter(x => !omojligt(x, t)); };

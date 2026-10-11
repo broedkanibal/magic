@@ -49,6 +49,10 @@ let kamGrund = 20;
    Sätts per prov med app.lek = new Map([['Sol Ring', 1]]). */
 let lekTal = new Map();
 const lekAntal = namn => lekTal.has(namn) ? lekTal.get(namn) : Infinity;
+/* Lekfotots platshållare (appens lekPlatshallare): exemplar utan namn, som det omöjliga namnet räknar som möjliga. 0 i
+   alla prov utom OM4 (app.platshallare = n). */
+let lekOkanda = 0;
+function lekPlatshallare() { return lekOkanda; }
 /* Baslandets typ — samma som appens landTyp (ett basland med egen remsa räknar lekens antal annorlunda). */
 function landTyp(namn) { const m = /^(?:Snow-Covered )?(Plains|Island|Swamp|Mountain|Forest|Wastes)$/.exec(String(namn || '')); return m ? m[1] : null; }
 /* Typraden (besvärjelseregeln, MODE-3): per namn i provet, annars tom. */
@@ -134,6 +138,7 @@ return {
      stubbspelaren: inget läge). Avstämningen läser inte läget: den körs bara
      när kameran speglar bordet. */
   set lek(m) { lekTal = m; },
+  set platshallare(n) { lekOkanda = n; },
   set spelsatt(v) { if (v) state.players[0].lage = v; else delete state.players[0].lage; },
   set typ(m) { typRad = m; },
   get senasteKamSpar() { return senasteKamSpar; },
@@ -3406,6 +3411,28 @@ prov('OM2 (scen D) ett namn som KAN vara ett kort till spärrar som förut: leke
   assert.equal(x.spar, 5, 'buret dit');
   klocka.t += 500; stam([klar(2, 'Opt', { sen: 0, ...P2 }), klar(5, 'Grizzly Bears', { sen: 0, ...NY_PLATS })]);
   assert.equal(x.spar, 1, 'ett säkert annat namn rättar som förut'); assert.equal(app.kort.find(c => c.name === 'Grizzly Bears').spar, 5);
+});
+/* Två kort flyttas i samma svep: Opt lyfts, och Expels spår lever kvar (spöke, eller skymt) medan ett nytt spår på
+   Expels nya plats läses "Expel?". Med spöket som vittne vore Expel omöjligt där, och Opt bars dit — två kort som byter
+   namn tills telefonen läser säkert (genomgangen rad 38). */
+const svep = (expelSpar, platshallare = 0) => {
+  app.nollstall(); klocka.t = 1e6; app.lek = new Map([['Expel', 1], ['Opt', 1]]); app.platshallare = platshallare;
+  const P2 = box(0.55, 0.40, 0.063, 0.088), P4 = box(0.70, 0.60, 0.063, 0.088);
+  stam([klar(1, 'Expel', { sen: 0, ...PORT }), klar(2, 'Opt', { sen: 0, ...P2 })]);
+  const opt = app.kort.find(c => c.name === 'Opt');
+  klocka.t += 150; stam([klar(1, 'Expel', { sen: 0, ...PORT })]);                                                            // Opt lyfts
+  klocka.t += 300; stam([klar(1, 'Expel', { sen: 0, ...PORT, ...expelSpar }), vilande(4, P4, { namn: 'Expel', cands: [{ name: 'Expel', score: 0.3 }] })]);
+  app.platshallare = 0;
+  return opt.spar;
+};
+prov('OM3 (granskningen av e50baab) ett säkert spår som lever kvar som spöke medan kortet bärs — gammalt (sen) eller skymt — gör inte kortets namn omöjligt på den nya platsen: inget annat kort bärs dit', () => {
+  assert.equal(svep({ sen: 700 }), 2, 'spöket (sen 700) räknades som vittne: Opt bars till spåret som läser Expel?');
+  assert.equal(svep({ sen: 0, skymd: true }), 2, 'ett skymt spår räknades som vittne');
+  assert.equal(svep({ sen: 0 }), 4, 'ett färskt, fritt säkert spår är vittne (OM1): Expel? kan inte vara ett andra Expel, Opt bars dit');
+});
+prov('OM4 (granskningen av e50baab) lekfotots platshållare räknas som möjliga exemplar: med en platshållare i leken är "Expel?" inte omöjligt fast lekens enda Expel ligger säkert på bordet', () => {
+  assert.equal(svep({ sen: 0 }, 1), 2, 'platshållaren kan vara ett andra Expel: Opt bars inte dit');
+  assert.equal(svep({ sen: 0 }, 0), 4, 'utan platshållare som OM1');
 });
 prov('GA1 (scen D) en gissad flytt som hållit längre än nåden står när spåret dör: kortet väntar på nya platsen och bärs vidare, hoppar inte tillbaka', () => {
   stam([klar(1, 'Expel', { sen: 0, ...PORT })]);
