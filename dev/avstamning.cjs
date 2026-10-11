@@ -1132,6 +1132,22 @@ prov('O22 (MES-346, granskningen T2) två lådor på SAMMA kort: en låda inne i
   tid(klocka.t + 600);
   assert.deepEqual(ofrSlag(), [], 'ett oframkallat kort ovanpå kortet');
 });
+/* MES-362 (granskningen): väntan på 0,5 s (OFR_TROSKEL_TACKT) gäller också ett spår som täcker ett OFRAMKALLAT kort —
+   ett oläst kort och ett kort i NOT IDENTIFIED — inte bara ett kort på mattan. Utan det gav en andra låda en kort stund
+   (300 ms) på kortet ett andra oframkallat kort ovanpå (["1","9"]) som stod kvar i nåden (OFR_NAD). */
+for (const [vad, rest, slag] of [['oläst', {}, '1'], ['i NOT IDENTIFIED', { tillstand: 'okand', cands: [{ name: 'Swamp', score: 0.4 }] }, '1#']]) {
+  prov(`O24 (MES-362, granskningen) en andra låda en kort stund på ett oframkallat kort (${vad}): inget andra oframkallat kort ovanpå`, () => {
+    const DEL = box(PORT.x, PORT.y + 0.03, 0.063, 0.058);                           // en bit av samma kort
+    stam([ovila(1, rest)]);
+    assert.deepEqual(ofrSlag(), [slag], 'vid släppet');
+    klocka.t += 150; stam([ovila(1, rest), ovila(9, DEL)]);                         // en andra låda på kortet
+    assert.deepEqual(ofrSlag(), [slag], 'en andra låda på kortet');
+    klocka.t += 300; stam([ovila(1, rest)]);                                        // borta efter 300 ms
+    assert.deepEqual(ofrSlag(), [slag], 'när lådan gått');
+    tid(klocka.t + 1500);
+    assert.deepEqual(ofrSlag(), [slag], 'efter nåden');
+  });
+}
 prov('O11 namnet kommer på ett spår som fötts om bredvid: kortet tar över, ingen post blir kvar bredvid', () => {
   stam([ovila(1)]);
   tid(klocka.t + 600);

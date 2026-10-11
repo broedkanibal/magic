@@ -1993,7 +1993,11 @@ body.ispel:not(.lasvy) .handbar{display:none}
    Elementet behåller sitt läge vid omritningar (matBarn byter inte .ofsudd), så animationen startar inte om; ett
    element som skapas om långt efter släppet ställs på postens tid (ofrTakt). Spelaren behövs (.skarp): resten av
    kurvan på 300 ms (ofrTakt). Namnet kommer: framkallningen (matFramkalla) börjar där kurvan står. Motståndaren
-   (.opp, den lilla 22 × 31-bilden) blir aldrig skarp: suddet går ned till ~6 px, glansen står still. Minskad
+   (.opp, den lilla 22 × 31-bilden) blir aldrig skarp: suddet går ned till ~6 px, glansen står still. Avviker
+   medvetet från tavlan (rita() visar motståndaren 16 → 10 px; ofrBopp går 12 → 6,1 px): samma startsudd som mitt
+   kort, så att ett kort ser likadant ut i släppet på båda borden, och eftersom motståndaren aldrig får se kortet
+   skarpt (det är mitt kort, och namnet är inte känt) behövs ingen marginal uppåt — 6 px på 22 px bredd är redan
+   oläsligt. ofrTakt rör inte motståndarens element: skapas det om börjar kurvan om från 12 px. Minskad
    rörelse: ingen animation, stilla sudd som förut. */
 @media (prefers-reduced-motion:no-preference){
   .ofram > .ofsudd{animation:ofrB 7.2s linear forwards}
@@ -33697,9 +33701,13 @@ function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas) {
     return !ofrSkilda(k.spar, t.id) && fodd >= (k.borta || nu) - FLYTT_FORE && lamnatPlatsen(k);
   };
   for (const [id, p] of [...ofrMinne]) if (synliga.has(p.spar) && spoke(spar.find(t => t.id === p.spar))) { ofrMinne.delete(id); andrat = true; }
-  /* Ett spår som täcker ett kort vars spår lever (OFR_TROSKEL_TACKT): samma kort sett två gånger, eller ett nytt? */
-  const levande = mig.cards.map(c => c.spar != null ? spar.find(u => u.id === c.spar) : null).filter(u => u && u.w != null && u.h != null && !franHelbild(u));
-  const tackerKort = t => levande.some(u => u.id !== t.id && tackning(u, t) >= SAMMA_KORT_TACKNING && !ofrSkilda(u.id, t.id));
+  /* Ett spår som täcker ett kort vars spår lever (OFR_TROSKEL_TACKT): samma kort sett två gånger, eller ett nytt?
+     Kortet är ett kort på mattan eller ett oframkallat kort (oläst eller i NOT IDENTIFIED) — postens spår läses när
+     frågan ställs, så att en post som lagts ned i samma avstämning räknas. Utan posterna gav en andra låda en kort
+     stund på ett oframkallat kort ett andra ovanpå, som stod kvar i nåden (granskningen av MES-362, avstamning.cjs O24). */
+  const levandeSpar = ids => ids.map(id => id != null && synliga.has(id) ? spar.find(u => u.id === id) : null).filter(u => u && u.w != null && u.h != null && !franHelbild(u));
+  const levande = levandeSpar(mig.cards.map(c => c.spar));
+  const tackerKort = t => levande.concat(levandeSpar([...ofrMinne.values()].map(p => p.spar))).some(u => u.id !== t.id && tackning(u, t) >= SAMMA_KORT_TACKNING && !ofrSkilda(u.id, t.id));
   /* Nya: ett löst spår som ligger still som ett kort, från släppet (OFR_TROSKEL), utan namn — eller med
      antalets fråga. Inte ett spår spelaren hoppat över eller tagit bort, inte ett som kan vara ett kort
      i väntan som flyttats hit (det avgörs när telefonen läst det), och inte ett som ligger där ett kort i
