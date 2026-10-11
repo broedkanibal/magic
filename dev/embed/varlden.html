@@ -1,0 +1,73 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Världens ORB-steg</title>
+<style>body{background:#0d1015;color:#e7ecf4;font:12px/1.5 ui-monospace,Menlo,monospace;padding:14px}</style>
+</head><body>
+<h1>Trappans steg 3: bildmodellen + ORB mot Scryfall-bilden (MES-361)</h1>
+<!-- Appens ORB (cache/kedjan.js, node dev/embed/utdrag.cjs) på de riktiga beskärningarna, mot bilderna av
+     bildmodellens tre bästa namn. Uppgifterna skriver dev/remsa/varlden.py orb-uppgifter; svaret läser
+     varlden.py orb-dom. Kandidaternas bilder hämtas från Scryfall (small, som appens ORB-pool) vid varje
+     beskärning utan cache, och tiden mäts — det är kostnaden för att hämta "vid behov".
+
+       node dev/embed/webb.cjs varlden.html "ORBSTEG('<uppgifter.json, relativt repot>')" --tak 1800 -->
+<pre id="log"></pre>
+<script src="cache/kedjan.js"></script>
+<script>
+const log = m => { document.getElementById('log').textContent += m + '\n'; console.log(m); };
+const _mc = new MessageChannel(), _q = []; _mc.port1.onmessage = () => { const r = _q.shift(); if (r) r(); };
+const andas = () => new Promise(r => { _q.push(r); _mc.port2.postMessage(0); });
+const bildAv = async (url, utanCache) => {
+  const b = await (await fetch(url, utanCache ? { cache: 'no-store', mode: 'cors' } : {})).blob();
+  return createImageBitmap(b);
+};
+const canvasAv = im => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; c.getContext('2d', { willReadFrequently: true }).drawImage(im, 0, 0); return c; };
+
+/* Appens konstanter läses ur index.html, så att sidan följer appen. */
+async function konstanter() {
+  const html = await (await fetch('/index.html')).text();
+  const rad = re => { const m = html.match(re); if (!m) throw new Error('hittar inte ' + re); return m; };
+  const a = rad(/\nconst ORB_EMOT = (\d+), MODELL_NAMN = (\d+), ORB_SKALA = \[([\d.]+), ([\d.]+)\], ORB_HEL = ([\d.]+);/);
+  return { ORB_EMOT: +a[1], ORB_SKALA: [+a[3], +a[4]], ORB_HEL: +a[5], ORB_ACCEPT: +rad(/\nconst ORB_ACCEPT = (\d+);/)[1],
+           DEL_MARGINAL: +rad(/\nconst DEL_MARGINAL = ([\d.]+);/)[1], LAND_MARGINAL: +rad(/\nconst LAND_MARGINAL = ([\d.]+);/)[1] };
+}
+
+window.ORBSTEG = async function (fil) {
+  const K = await konstanter();
+  const uppg = await (await fetch('/' + fil)).json();
+  const ut = [];
+  for (let i = 0; i < uppg.length; i++) {
+    const u = uppg[i];
+    /* Rutan är kortet utan beskärningens marginal (Kamera.beskar: 8 % runt kortet), som spårets ruta i appen. */
+    const q = canvasAv(await bildAv('/' + u.fraga)), f = (u.marginalBeskarning || 0) / (1 + 2 * (u.marginalBeskarning || 0));
+    const box = { x: q.width * f, y: q.height * f, w: q.width * (1 - 2 * f), h: q.height * (1 - 2 * f) };
+    /* Kandidaternas bilder: hämtade parallellt (som en telefon skulle göra), tiden mäts. */
+    const t0 = performance.now();
+    const ims = await Promise.all(u.bilder.map(b => bildAv(b.url, !!u.hamta)));
+    const tHamt = performance.now() - t0;
+    const t1 = performance.now();
+    const feats = ims.map(im => ORB.refFeatures(im, 200));
+    const P = { names: u.bilder.map(b => b.namn), orb: ORB.pack(feats) };
+    const vilka = P.names.map((_, k) => k);
+    const r0 = ((u.rot || 0) % 360 + 360) % 360;
+    const traffar = Kedjan.orbSvep(q, box, [r0, (r0 + 180) % 360], vilka, K.ORB_ACCEPT + 4, K.ORB_SKALA, P);
+    const tOrb = performance.now() - t1;
+    /* Domen som identifyMedModell (index.html): stöd, bär, emot. */
+    const per = new Map(), perSkala = new Map(); let bast = { inliers: 0, namn: null, skala: null };
+    for (const h of traffar) {
+      const n = h.skala != null && h.skala >= K.ORB_SKALA[0] && h.skala <= K.ORB_SKALA[1] ? h.inliers : 0;
+      const pn = P.names[h.i];
+      if (n > (per.get(pn) || 0)) { per.set(pn, n); perSkala.set(pn, h.skala); }
+      if (n > bast.inliers) bast = { inliers: n, namn: pn, skala: h.skala };
+    }
+    const etta = u.etta, m = u.marginal, saker = m > u.troskel;
+    const stod = (perSkala.get(etta) || 0) >= K.ORB_HEL ? (per.get(etta) || 0) : 0;
+    const helRuta = !(bast.skala < K.ORB_HEL);
+    const bar = bast.namn === etta && (helRuta || m >= K.DEL_MARGINAL)
+      && (bast.inliers >= 25 || (bast.inliers >= 14 && m >= 0.06) || (bast.inliers >= K.ORB_ACCEPT && saker));
+    const emot = bast.namn !== etta && bast.inliers >= (u.land && (u.landNamn || []).includes(bast.namn) ? K.ORB_ACCEPT : K.ORB_EMOT);
+    ut.push({ fraga: u.fraga, etta, bar, emot, stod, helRuta, orbNamn: bast.namn, inliers: bast.inliers, skala: bast.skala,
+              bilder: u.bilder.length, tHamt: +tHamt.toFixed(1), tOrb: +tOrb.toFixed(1) });
+    if (i % 5 === 0) { log(`${i + 1}/${uppg.length}`); await andas(); }
+  }
+  return { K, ut };
+};
+</script>
+</body></html>
