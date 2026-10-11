@@ -343,3 +343,133 @@ villkoras av G3 före etapp 3: Claude + kontrollen mot Scryfall-bilden får inte
 
 Därefter: golden mot världen i appens kedja, för den riktiga siffran för första försöket. Bänken
 underskattar troligen, eftersom appen har remsan och fler rutor.
+
+## Resultat G3 (MES-364, 2026-10-11)
+
+Claude som lärare: frågan ställs utan lekens namnlista, med kortlägets instruktioner exakt som de står i
+`api/identify.js` (`mode === 'card'`, läses ur filen av skriptet), och svaret kontrolleras mot
+Scryfall-bilden. Skript och rådata: `dev/g3/` (`fraga.cjs`, `kontroll.py`, `resultat/`).
+
+### Svaret först
+
+| Fråga | Svar |
+|---|---|
+| Har Claude rätt? | **Ja, nästan alltid:** 55–57 av 61 med Opus 5, Opus 5.5 och Sonnet 5.5 (90–93 %). Av de 13 beskärningar telefonen inte klarade i G1 får Claude 9–11 rätt. Haiku 5.5 (49/61, sju tomma svar) och Sonnet 5 (51/61, felstavade namn) är sämre. |
+| Säkra fel efter kontrollen? | **0, i alla sju konfigurationer och alla tre mängder.** Claudes fel blir aldrig säkra: felstavade namn finns inte i Scryfall, grannkort och fel kort får för få ORB-träffar. |
+| Hur ofta stoppar kontrollen ett rätt svar? | **Ofta: 17–19 av 55–57 rätta (31–33 %).** Av de 13 svåra korten släpps bara 2 igenom, fast Claude har rätt på 9–11. Kontrollen stoppar alltså det mesta av det Claude är till för. 8 av de 18 stoppade hos Opus 5.5 medium är basland med låg marginal, resten är kort där ORB inte hittar något (suddigt, skymt, blänk), samma kort som ORB inte bar i G1. |
+| Hur lång tid? | Median **1,1–1,4 s** med Sonnet och **1,8–2,9 s** med Opus; p90 2,0 s (Sonnet 5.5) mot 3,0–6,1 s (Opus). Haiku är inte snabbare (2,0 s, p90 3,9 s). Kontrollen lägger ~0,1–0,3 s (G1). |
+| Vilken modell? | **Sonnet 5.5, effort low** (förslag): lika många rätt som Opus på de nya korten (33 av 37, Opus 5.5 low 35), p90 2,2 s, **0,25 cent** per fråga mot 0,5–0,6 cent för Opus. Det är bättre än kodens förval för kortläget, Sonnet 5 (29/37, 9 fel namn). |
+
+### Så mättes det
+
+- **Material:** appens 61 riktiga beskärningar (`dev/embed/riktiga`, facit i `manifest.json`), skickade som de är
+  (410–505 px breda JPEG). Tre mängder: alla 61; de 37 oskymda nya korten som inte är basland (som G1); och de 13
+  av dem som telefonen inte klarade mot världen i G1 (trappans regel i G1, omräknad: Thriving Heath ×2, Maul of the
+  Skyclaves ×3, Vraska's Finisher, Scourge of the Undercity, Pacifism, Ukud Cobra, Pharika's Chosen ×2, Hooded
+  Blightfang, Faithful Pikemaster).
+- **Fråga:** `claude-*`, `output_config.effort`, `max_tokens` 4000, ingen `thinking`-parameter (som i appen),
+  strömmande anrop; svarstiden är klientens tid från anrop till färdigt svar, från Macen, sju konfigurationer
+  samtidigt. En körning per konfiguration (se förbehåll).
+- **Kontrollen** är trappans steg 3 i G1 med Claudes namn som kandidat: namnet slås upp i Scryfalls
+  `unique_artwork` (finns det inte: stoppat, "okänt namn"); bildmodellen räknar sin poäng och marginal för just
+  det namnet (negativ när modellen har något annat överst); ORB körs i appens egen kod mot den bild av namnets
+  konstverk som ligger närmast beskärningen. Säkert när ORB bär namnet enligt appens trappa (`identifyMedModell`:
+  25 inliers på hel ruta, 14 med marginal 0,06, eller ORB_ACCEPT med säker modell). Basland: säkert på typen vid
+  modellmarginal ≥ 0,15 (`LAND_MARGINAL`) som i G1. Siffrorna är på namn, inte konstverk: Claude kan inte veta vilken
+  tryckning spelaren har.
+- **Rätt** = samma namn, framsidan av ett dubbelsidigt kort, eller samma basland (som `samma_kort` i G1).
+
+### Alla 61 beskärningar
+
+| Konfiguration | Rätt | Rätt och säkra | **Säkra fel** | Rätt men stoppade | Fel och stoppade | Tomt svar | Median | p90 | Per fråga |
+|---|---|---|---|---|---|---|---|---|---|
+| Opus 5, medium (dagens huvudmodell) | 56 | 38 | **0** | 18 | 3 | 2 | 1,8 s | 3,5 s | 0,63 cent |
+| Opus 5.5, medium | 56 | 38 | **0** | 18 | 4 | 1 | 2,9 s | 6,1 s | 0,58 cent |
+| **Opus 5.5, low** | **57** | 38 | **0** | 19 | 4 | 0 | 1,8 s | 3,0 s | 0,50 cent |
+| Sonnet 5.5, medium | 55 | 38 | **0** | 17 | 3 | 3 | 1,4 s | 2,0 s | 0,24 cent |
+| **Sonnet 5.5, low** | 55 | 38 | **0** | 17 | 3 | 3 | 1,3 s | 2,2 s | 0,25 cent |
+| Haiku 5.5, medium | 49 | 35 | **0** | 14 | 5 | 7 | 2,0 s | 3,9 s | 0,03 cent |
+| Sonnet 5, medium (kodens förval för kortläget) | 51 | 36 | **0** | 15 | 9 | 1 | 1,1 s | 1,3 s | 0,22 cent |
+
+### De 37 nya, oskymda kort som inte är basland
+
+| Konfiguration | Rätt | Rätt och säkra | Säkra fel | Rätt men stoppade | Fel och stoppade | Tomt svar |
+|---|---|---|---|---|---|---|
+| Opus 5, medium | 33 | 26 | 0 | 7 | 3 | 1 |
+| Opus 5.5, medium | 34 | 26 | 0 | 8 | 2 | 1 |
+| Opus 5.5, low | 35 | 26 | 0 | 9 | 2 | 0 |
+| Sonnet 5.5, medium | 33 | 26 | 0 | 7 | 1 | 3 |
+| Sonnet 5.5, low | 33 | 26 | 0 | 7 | 1 | 3 |
+| Haiku 5.5, medium | 29 | 24 | 0 | 5 | 3 | 5 |
+| Sonnet 5, medium | 29 | 25 | 0 | 4 | 7 | 1 |
+
+För jämförelse klarade telefonen själv 24 av de 37 (G1, 65 %). Claude + kontrollen ger 26: två kort mer, inte de 33–35
+som Claude har rätt på.
+
+### De 13 som telefonen inte klarade (G1)
+
+| Konfiguration | Rätt | Rätt och säkra | Säkra fel | Rätt men stoppade | Fel och stoppade | Tomt svar |
+|---|---|---|---|---|---|---|
+| Opus 5, medium | 9 | 2 | 0 | 7 | 3 | 1 |
+| Opus 5.5, medium | 10 | 2 | 0 | 8 | 2 | 1 |
+| Opus 5.5, low | 11 | 2 | 0 | 9 | 2 | 0 |
+| Sonnet 5.5, medium | 9 | 2 | 0 | 7 | 1 | 3 |
+| Sonnet 5.5, low | 9 | 2 | 0 | 7 | 1 | 3 |
+| Haiku 5.5, medium | 5 | 0 | 0 | 5 | 3 | 5 |
+| Sonnet 5, medium | 5 | 1 | 0 | 4 | 7 | 1 |
+
+### Vad de fel Claude gör är
+
+- **Felstavningar** (Haiku och Sonnet 5): "Maul of the Skyslaves", "Dead Cobra", "Adelita, Viper Whisperer",
+  "Faithful Pikesmaster". De stoppas redan av uppslagningen. Det är hela skillnaden mot Sonnet 5.5.
+- **Grannkort och fel kort:** Scourge of the Undercity → Pacifism (alla sju konfigurationer; ORB 7 inliers), Pharika's
+  Chosen → Phyrexian Ghoul/Obliterator, Hooded Blightfang → Bladewing the Risen/Bloodhall Ooze.
+- **Basland:** Swamp → Plains (05-06, 06-11) hos flera konfigurationer. Modellens marginal för Plains är −0,006 och
+  0,019, långt under 0,15, så de stoppas.
+- **Claudes egen säkerhet är värdelös som signal:** 27 av 31 felaktiga svar har `sakerhet: "hog"`. Utan kontrollen
+  hade nästan alla fel blivit säkra.
+
+### Kan kontrollen vara snällare? (efterhandsprov, inte en regel)
+
+Bara 5 unika felaktiga svar utan basland (46 unika par), så det här säger lite. ORB mot Claudes namn, utan krav på hel ruta
+och utan modellens hjälp, på de unika paren över alla konfigurationer:
+
+| ORB-krav | Rätta svar som släpps igenom (av 41) | Fel som släpps igenom (av 5) |
+|---|---|---|
+| ≥ 25 inliers (dagens trappa, utan modellens stöd) | 25 | 0 |
+| ≥ 14 | 31 | 0 |
+| ≥ 10 | 33 | 0 |
+| ≥ 8 | 33 | 0 |
+| ≥ 5 | 34 | 1 (Pacifism, 7 inliers) |
+
+Ett lägre ORB-krav (8–14 inliers) skulle släppa igenom 6–8 rätta svar till, utan nytt fel i det här materialet, men
+det felet vi har (Pacifism, 7 inliers) ligger bara en tröskel under. Fem fel är för få för att sätta en tröskel på.
+Det är ett beslut för Jesper och för mer material, inte något som ändrats i appen.
+
+### Förbehåll
+
+- **En körning per konfiguration.** En andra körning gick inte att göra: kontots kredit tog slut (`Your credit balance
+  is too low`) efter ~1,56 USD i G3, så de två bästa kördes inte om. Skillnader på ett eller två kort (Opus 5.5 low 35
+  mot Sonnet 5.5 33 av 37) är inom bruset, och p90 av 61 anrop är grovt.
+- **Svarstiden** är mätt från Macen mot API:et, sju konfigurationer samtidigt, inte från en telefon. Opus 5.5 medium
+  hade enstaka anrop på 8–12 s. Kodens kommentar om 6,9 s (Opus) och 2,9 s (Sonnet) för närbilder är från den
+  gamla modellgenerationen och stämmer inte längre.
+- **Beskärningarna** är appens golden-beskärningar från ett ljus och en lek (24 kort, 13 delvis skymda), inte spelares
+  kameror. Ett nytt kort i ett riktigt parti är ofta svårare (blänk, ljus, hand).
+- **Kontrollen kördes i huvudlös Chrome på Macen**, med bilder hämtade från Scryfall vid behov (som G1); telefonen är inte mätt.
+- **Namnuppslagningen** är exakt (gemener, eller framsidan av ett dubbelsidigt kort). Appen skulle behöva Scryfalls
+  `fuzzy` eller en egen lista; en fuzzy-träff på "Skyslaves" hade släppt in ett fel namn som kontrollen sedan får bära.
+- **Kostnaden** är räknad ur `usage` med listpriser (Opus 5 5/25 USD, Opus 5.5 4/20, Sonnet 2/10, Haiku 5.5 0,10/0,50
+  per miljon token); totalt 1,56 USD för sju konfigurationer × 61 frågor.
+- **Systemprompten är oförändrad.** Instruktionerna används exakt som de står i `api/identify.js`; ingen ändring i
+  appen eller i `api/`.
+
+### Vad det betyder för B4 (Claude som lärare)
+
+- Säkerheten håller: **0 säkra fel** med kontrollen, i 7 × 61 svar.
+- Vinsten är liten med dagens kontroll: Claude + ORB ger 26 av 37 nya kort säkra, telefonen ensam 24. Claude har rätt på
+  33–35 av 37, men kontrollen stoppar det mesta av det som telefonen inte redan bar.
+- Det som stoppas hamnar hos spelaren ("Name this card"), som CLAUDE.md kräver, men Claudes namn kan då **föreslås** i
+  stället för att tas som säkert: 9–11 av de 13 svåra korten hade fått rätt förslag. Det kräver ingen ny kontroll, bara
+  att spelaren bekräftar med ett tryck.
+- Öppet: ett snällare ORB-krav (ovan) eller ett andra lokalt vittne för Claudes namn. Båda kräver mer material.
