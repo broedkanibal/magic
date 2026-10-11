@@ -34528,6 +34528,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     /* När handen lade sig över kortet (en obruten skymd-strimma): ligger den kvar länge (HAND_VILA)
        öppnas flyttens fönster vid lyftet, inte vid sista fria sikten (granskningen GRa4). */
     if (t.skymd) { if (k.handFran == null) k.handFran = nu; } else delete k.handFran;
+    if (k.flyttFran && (t.tillstand === 'okand' || t.tillstand === 'klar')) k.flyttFran.last = true;   // spåret har lästs medan det bar kortet (gissningens ålder nedan)
     if (k.flyttFran && t.tillstand === 'klar' && t.saker && t.namn === k.name) delete k.flyttFran;
   };
   /* Flytten utan namn (steg 3b) var fel: spåret bär ett annat namn — säkert, osäkert eller som
@@ -35025,8 +35026,11 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      står, och kortet dör där det låg senast (väntan nedan, från nu), inte 30 s tillbaka på den gamla platsen. Passet
      2026-10-11 (606 s): Expel hade burits till högerkanten i 32 s; när spåret dog hoppade kortet tillbaka till platsen
      det lämnat vid 573 s, med väntan räknad från då — redan över nåden — och kunde varken bäras till det nya spåret
-     (steg 3b: vantar) eller stanna kvar (till handen vid 651 s). */
-  for (const k of mig.cards) if (k.flyttFran && k.spar != null && !synliga.has(k.spar)) { if (nu - k.flyttFran.nar <= BORTA_NAD) aterstallFlytt(k); else delete k.flyttFran; }
+     (steg 3b: vantar) eller stanna kvar (till handen vid 651 s).
+     …och bara om spåret lästs medan det bar kortet (flyttFran.last: okand eller klar — ett säkert annat namn hade redan
+     tagit flytten tillbaka i steg 1). Ett spår som dog oläst (ny, stilla) efter nåden har inte visat att det var ett
+     kort: gissningen faller som en ung (granskningen av e50baab, regel 3). */
+  for (const k of mig.cards) if (k.flyttFran && k.spar != null && !synliga.has(k.spar)) { if (nu - k.flyttFran.nar <= BORTA_NAD || !k.flyttFran.last) aterstallFlytt(k); else delete k.flyttFran; }
   for (const k of mig.cards) if (k.spar != null && !synliga.has(k.spar) && !k.borta) { k.borta = lugnDod.has(k.spar) ? lugnDod.get(k.spar) : nu; gravTid.set(k.cid, k.borta); andrat = true; }   // dog spåret medan mattan stod fryst: från när det dog (lugnt läge)
   /* En flytt utan namn (steg 3b) som inget namn bekräftat upphävs av högen: växte graveyard i fönstret
      efter att kortets spår dog (flyttFran.borta) lämnade kortet bordet — det ligger inte där det nya
@@ -35039,11 +35043,13 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      tappat Expel i sidled: flytten bands på det stilla spåret, högen "växte" i samma stund, kortet flög till graveyard,
      och 0,2 s senare läste telefonen Expel på det nya spåret och kortet kom tillbaka ur graveyard (urGraven) — "snabb
      animering mot graveyard, sen tillbaka". Säger läsningen ett annat namn tas flytten tillbaka (steg 1, 5) och högen får
-     kortet i väntans loop nedan, med samma fönster. Priset är högst en läsning (~1 s) innan högen vinner. */
+     kortet i väntans loop nedan, med samma fönster. Priset är högst en läsning (~1 s) innan högen vinner — högst
+     BORTA_NAD: telefonen läser ett stilla spår inom någon sekund, och ett spår som står oläst längre än nåden får inte
+     hålla högen borta för alltid (granskningen av e50baab). Högens ändring står kvar i 60 s (gravTaEmot). */
   for (const k of mig.cards) {
     if (!k.flyttFran || k.spar == null || !synliga.has(k.spar) || !gravAutoKan(k, k.flyttFran.borta)) continue;
     const t = spar.find(u => u.id === k.spar);
-    if (t && (t.tillstand === 'ny' || t.tillstand === 'stilla')) continue;   // läsningen avgör först
+    if (t && (t.tillstand === 'ny' || t.tillstand === 'stilla') && nu - k.flyttFran.nar <= BORTA_NAD) continue;   // läsningen avgör först
     const borta0 = k.flyttFran.borta; aterstallFlytt(k); delete k.spar; delete k.borta;
     gravAutoOm(k, borta0);
   }

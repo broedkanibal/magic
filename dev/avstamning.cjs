@@ -3374,6 +3374,19 @@ prov('FL3c (scen A) …och säger läsningen ett annat namn tar högen kortet so
   assert.equal(k.zon, 'grav', 'till graveyard'); assert.ok(k.gravAuto); assert.equal(k.spar, undefined);
   assert.equal(app.kort.find(c => c.name === 'Grizzly Bears').spar, 2, 'det nya kortet tog spåret');
 });
+prov('FL3d (granskningen av e50baab) …och står spåret oläst (stilla) längre än nåden vinner högen ändå: den väntar inte för alltid på läsningen', () => {
+  stamG([klar(1, 'Expel', { sen: 0, ...PORT })], hog(0));
+  const k = app.kort[0];
+  klocka.t += 150; stamG([], hog(0));
+  klocka.t += 300; stamG([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })], hog(0));
+  assert.equal(k.spar, 2, 'buret dit');
+  klocka.t += 600; stamG([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })], hog(1));
+  assert.equal(k.zon, undefined, 'väntar på läsningen');
+  klocka.t += 2000; stamG([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })], hog(1));
+  assert.equal(k.zon, undefined, 'väntar fortfarande, inom nåden');
+  klocka.t += 1500; stamG([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })], hog(1));   // > BORTA_NAD (3 s i proven) sedan flytten, spåret aldrig läst
+  assert.equal(k.zon, 'grav', 'högen tog kortet'); assert.ok(k.gravAuto); assert.equal(k.spar, undefined);
+});
 prov('OM1 (scen D) ett namn vars alla exemplar ligger säkert på mattan spärrar inte flytten: ärvd gissning, osäker läsning och Claudes svar som alla är sådana namn', () => {
   app.lek = new Map([['Expel', 1], ['Opt', 1], ['Relic Sloth', 1], ['Maelstrom Muse', 1]]);
   const P2 = box(0.55, 0.40, 0.063, 0.088), P3 = box(0.70, 0.40, 0.063, 0.088), P4 = box(0.10, 0.40, 0.063, 0.088), KANT = box(0.93, 0.40, 0.063, 0.088);
@@ -3454,6 +3467,17 @@ prov('GA1 (scen D) en gissad flytt som hållit längre än nåden står när sp�
   klocka.t += 300; stam([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })]);
   klocka.t += 1000; stam([]);                                                          // en ung gissning: spåret dog inom nåden
   assert.ok(u.flyttFran === undefined && Math.abs(u.kam.x - mitt(PORT)) < 1e-9, 'tillbaka där det låg, som förut (V2sparDor)');
+});
+prov('GA2 (granskningen av e50baab) en gissad flytt på ett spår som aldrig lästs (stilla hela tiden) faller när spåret dör, hur länge det än hållit: bara ett läst spår har visat att det var ett kort', () => {
+  stam([klar(1, 'Expel', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 300; stam([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })]);
+  assert.equal(k.spar, 2);
+  for (let i = 0; i < 20; i++) { klocka.t += 1500; stam([vilande(2, NY_PLATS, { tillstand: 'stilla', namn: null })]); }   // 30 s, aldrig läst
+  klocka.t += 150; stam([]);
+  assert.ok(k.flyttFran === undefined && Math.abs(k.kam.x - mitt(PORT)) < 1e-9, 'tillbaka där det låg: spåret lästes aldrig');
+  assert.ok(iHanden(k), 'väntan räknas från det första försvinnandet (V2sparDor), långt över nåden: till handen');
 });
 
 console.log([...ok, ...fel].join('\n'));
