@@ -399,11 +399,11 @@ const PROV = async steg => {
     const meddelande = async (l, lista) => { await vanta(15); tagEmotLek(l); avstamBord(lista, false); };
     const NED = { id: 7, ruta: { x: 0.80, y: 0.5, w: 0.1, h: 0.22 } };
     /* Framkallningen (MES-344): platshållaren är borta. Det vanliga kortet syns först med namnet, eller som ett
-       oframkallat kort en halv sekund efter att det lagt sig (ofrSteg) — det nedvända kortets spår får aldrig
-       något bredvid sig. */
+       oframkallat kort när det lagt sig (ofrSteg; vid släppet sedan MES-362, förut efter en halv sekund) — det
+       nedvända kortets spår får aldrig något bredvid sig. */
     await meddelande(Object.assign(lek('nere', 1, R1), { ned: [NED] }), [ny(61, 0.2, 0.3, { vilar: true }), ny(62, 0.85, 0.61, { ned: true, vilar: true })]);
-    const p1 = gridEl.querySelectorAll('.plats, .ofr').length, n1 = gridEl.querySelectorAll('.nedkort').length;
-    ok('nedvänt kort och vanligt kort i samma meddelande: det nedvända syns på en gång, ingenting bredvid det', p1 === 0 && n1 === 1, `platshållare/oframkallade ${p1}, nedvända kort ${n1}`);
+    const o0 = [...gridEl.querySelectorAll('.plats, .ofr')].map(el => el._mat && el._mat.nyckel), n1 = gridEl.querySelectorAll('.nedkort').length;
+    ok('nedvänt kort och vanligt kort i samma meddelande: det nedvända syns på en gång, ingenting bredvid det; det vanliga oframkallat vid släppet (MES-362)', o0.join(',') === 'o:61' && n1 === 1, `platshållare/oframkallade ${o0.join(',') || '–'}, nedvända kort ${n1}`);
     await vanta(560);
     const o1 = [...gridEl.querySelectorAll('.ofr')].map(el => el._mat && el._mat.nyckel), n1b = gridEl.querySelectorAll('.nedkort').length;
     ok('… en halv sekund senare: det vanliga kortet oframkallat, det nedvända fortfarande utan något bredvid', o1.join(',') === 'o:61' && n1b === 1 && !gridEl.querySelector('.plats'), `oframkallade ${o1.join(',') || '–'}, nedvända kort ${n1b}`);

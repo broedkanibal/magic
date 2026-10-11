@@ -116,6 +116,8 @@ Designytans sida 3 visar högarna så sedan 2026-10-06: graveyard och library li
 
 **Ändrat 2026-10-08 (Jesper, MES-349):** det oframkallade kortet läggs ned direkt vid släppet — målet är att kortet syns i median inom 0,1 s — inte efter 0,5 s. Raderna "Namnet kommer inom ungefär 0,5 s" och "Namnet dröjer mer än ~0,5 s" ovan gäller alltså inte längre som de står; nästan varje kort går från suddigt till skarpt.
 
+**Byggt 2026-10-11 (MES-362):** `OFR_TROSKEL` = 0 — kortet läggs ned vid släppet. Ett undantag: ett nytt spår som täcker ett kort vars spår fortfarande lever, utan att telefonen sett det ena ligga över det andra, väntar 0,5 s som förut (`OFR_TROSKEL_TACKT`) — det kan vara samma kort sett två gånger. Medan kortet läses klarnar fotot sakta (designytan "Mesa Reading Mark", variant B), och Claude-gränsen är 5 s i stället för 15 s.
+
 **Avfärdat:**
 - En kortbaksida medan vi väntar. I Magic betyder ett nedvänt kort något (morph, manifest), så den skulle säga något som inte är sant.
 - En räknare utanför mattan, eftersom det är en laddtext på en annan plats.
