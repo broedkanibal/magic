@@ -8,6 +8,12 @@ session. Kan köras medan Jesper är borta — det som kräver honom (del C, MES
 hans. Föräldern är [MES-271](https://linear.app/mesagames/issue/MES-271); delarna är **MES-365 (A), MES-366 (B),
 MES-368 (D)**. Deras beskrivningar är specen: *Definition of done* där är grinden för varje del, inte den här filen.
 
+**Samtyckesmodellen (Jesper 2026-10-12, står i MES-367):** felrapporter utan bilder = inget val; rapporten = trycket,
+inga kryssrutor; rättade kort = en inställning i kontots `user_metadata` (`improve_pictures`), **av** från början.
+Ett syfte, inget separat träningssamtycke — test/träning i D är en mätregel. I B betyder det: en rättelse sparas bara
+när inställningen är på, läst i ögonblicket; växeln finns i Developer-lådan tills C bygger spelarens yta. En rapport
+följer aldrig inställningen.
+
 ---
 
 Läs först CLAUDE.md (hela), MES-271 med kommentaren från 2026-10-11, MES-365, MES-366 och MES-368, `dev/golden/SNABBGUIDE.md`,
@@ -37,7 +43,7 @@ Samma samtal som fortsätter: ingen hälsning, nämn inte dokumenten.
 | 1 | **MES-365 A** svarta lådan, felfångsten, knappen, uppladdningen, `dev/rapport/hamta.cjs` + `lista.cjs` | mesa-bygg | datorsidan i `index.html` (ny modul, händelsekrokar i mattan och menyerna), telefonsidan (läge + fel i kanalen), `supabase/migrations/`, `dev/rapport/` | ingen — A först och ensam |
 | 2 | **MES-366 B** stillbilderna på telefonen, beskärningen per namn, de tysta rättelserna, bilderna i uppspelaren | mesa-bygg | telefonsidan i `index.html` (kameraloopen: **bara läsa ur det detektorn redan ritat**), `dev/mattest/` (visaren) | 3 |
 | 3 | **MES-368 D** `till-fall.cjs` (--mattest, --bank, --traning, --logg), spärren test/träning, `satt.cjs` | mesa-bygg | bara `dev/rapport/`, `dev/mattest/fall.cjs` + `underlag/` | 2 — rör inte `index.html` |
-| — | **MES-367 C** | ingen | — | **rör den inte**: designytan (knappen, samtyckesrutan, privacy-texten) körs i en egen session; bygget kommer efter A och B |
+| — | **MES-367 C** | ingen | — | **rör den inte**: designytan körs i en egen session (`prompt-2026-10-12-mes-367-design.md`); bygget kommer efter A och B |
 
 `paborjaIssue` när ett steg startar; MES-271 (föräldern) flyttas till In Progress av dig när A börjar och tillbaka
 till Todo om något blir kvar.
@@ -63,7 +69,8 @@ till Todo om något blir kvar.
 - systemprompten i `api/identify.js`; designval (knappens placering för spelare, texter för alla — det är C);
   allt som kräver telefonen i handen; en ändring som ger ett enda fel namn i golden.
 - **Bilder i jsonb**: nej. Bilder går till storage (`scans/<uid>/rapporter/<kod>/`), raden pekar dit.
-- **Något som skickas utan tryck** i A och B: nej. Automatiken är C och kräver samtyckestexten.
+- **Något som skickas utan tryck** i A och B: nej, utom B:s rättelser med inställningen på. De automatiska
+  felrapporterna för alla är C, eftersom de kräver privacy-texten.
 - En krock med en annan session i samma del av `index.html` (`ListAgents`; skriv till den innan du rör dess område).
 
 ## Kostnad (CLAUDE.md, mätt 2026-10-08)
