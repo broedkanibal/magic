@@ -16080,7 +16080,7 @@ function lekSattAktiv(rad) {
   /* Platshållarna ur ett lekfoto (MES-289) är inga kort att spela: de står
      under To check tills någon väljer kortet. */
   const kort = rad && Array.isArray(rad.kort) ? rad.kort.filter(k => !k.okand) : null;
-  if (rad && rad.kort) sattLekTal(kort);
+  if (rad && rad.kort) sattLekTal(kort, kort ? rad.kort.filter(k => k.okand).reduce((n, k) => n + (Number(k.n) || 1), 0) : 0);   // platshållarna räknas (lekPlatshallare)
   lekKort = kort;
   lekForhamta(lekKort).catch(() => {});
 }
@@ -16451,12 +16451,18 @@ function lekNyssKvar(nyss, kort) {
    namn som inte står i den. lekTal fylls när en lek väljs (D5-3) och
    nollas när den tas bort. Harnessarna stubbar samma namn. */
 let lekTal = null;
+let lekOkanda = 0;   // lekfotots platshållare (okand, MES-289) som ännu inte fått namn: exemplar av okänt kort
 function lekAntal(namn) {
   if (!lekTal) return Infinity;
   const n = lekTal.get(norm(namn));
   return n == null ? Infinity : n;
 }
-function sattLekTal(kort) {
+/* Hur många kort i leken som saknar namn (platshållarna). Det omöjliga namnet i avstämningen (omojligt, MES-356)
+   räknar dem som möjliga exemplar av varje namn — annars räknades en riktig andra kopia som omöjlig så länge dess rad
+   i leken var en platshållare. Harnessarna utan funktionen räknar 0. */
+function lekPlatshallare() { return lekTal ? lekOkanda : 0; }
+function sattLekTal(kort, okanda) {
+  lekOkanda = Number(okanda) || 0;
   if (!Array.isArray(kort) || !kort.length) { lekTal = null; return; }
   lekTal = new Map();
   for (const k of kort) { const key = norm(k.name); lekTal.set(key, (lekTal.get(key) || 0) + (Number(k.n) || 1)); }
@@ -32940,6 +32946,17 @@ let handRad = [];               // [{ cid, kort, i, borta0, nar, tok, namn, val?
    när bordet inte stäms av (ljuset, uppstarten, glomSpar): kameran ska ha hunnit läsa om bordet. */
 const LOS_MS = 8000;            // BORTA_NAD plus en läsning, som GRAV_ATER_MS
 let losKort = new Map();        // cid → när kortet först sågs obundet i ett riktigt bord
+/* Kanten (MES-343, kantHaller i avstamBord): telefonens fas 'kant' ("A card is partly outside the picture") håller ett
+   kort i väntan kvar på mattan — bara kortet vars spår dog strax innan kanten började, och högst KANT_MAX. En minut
+   räcker för ett kort som lämnas vid kanten medan bannern står (38 s i passet 2026-10-11), och ett kort som i själva
+   verket gått till handen ligger inte kvar i minuter (granskningen av e50baab: 'kant' stod 549 s i samma pass).
+   Taket är ett val, inte en mätning: ett kort som ligger kvar vid kanten längre än så går till handen (Expel vid
+   överkanten 655 s–slutet i samma pass, till handen vid 715 s). Kanten går inte att binda till en plats på datorn,
+   för telefonen skickar ingen: det avskurna spåret filtreras ur bordet (rapportera: spar.filter(!avskuren)) och
+   fasen 'kant' bär varken låda eller sida. Ska kortet hållas så länge kanten ligger DÄR det dog behöver telefonen
+   skicka kantspårets låda (mätt 2026-10-12). */
+const KANT_MAX = 60000;
+let kantSedan = 0;              // när fasen 'kant' började (Date.now()); 0 = inte i kant
 /* Raderna som gått ut tas bort; sant när något togs bort. */
 function handRadStada(nu) {
   const n = handRad.length;
@@ -33787,7 +33804,9 @@ let kamBordLogg = null;   // { pass (autoSum.start), start, rader: [{ s, fas, no
 function loggaBord(m) {
   const nu = Date.now(), p = autoSumSakra();
   if (!kamBordLogg || kamBordLogg.pass !== p.start) kamBordLogg = { pass: p.start, start: nu, rader: [], kapad: false };
-  kamBordLogg.rader.push({ s: Math.round(nu - kamBordLogg.start) / 1000, fas: m.fas || null, nollstall: !!m.nollstall, grund: m.grund === undefined ? undefined : m.grund, spar: m.spar || [] });
+  /* grav: högvaktens räknare (gravTaEmot) — utan den kan uppspelningen inte visa att ett kort gick till graveyard,
+     eller att högen upphävde en flytt (passet 2026-10-11: Expel mot graveyard och tillbaka syntes inte i loggen). */
+  kamBordLogg.rader.push({ s: Math.round(nu - kamBordLogg.start) / 1000, fas: m.fas || null, nollstall: !!m.nollstall, grund: m.grund === undefined ? undefined : m.grund, spar: m.spar || [], grav: m.grav === undefined ? undefined : m.grav });
   if (kamBordLogg.rader.length > BORDLOGG_MAX) { kamBordLogg.rader.shift(); kamBordLogg.kapad = true; }
 }
 function bordLoggFil() {
@@ -34367,6 +34386,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { losKort = new Map(); lugnGlom(); renderMode(); uppdateraPbStatus(); return; }   // spåren föds om efter ljuset: inget av det är kort som rört sig (lugnt läge)
   const nu = Date.now();
   gravTaEmot(grav, nu);
+  if (kamFas === 'kant') { if (!kantSedan) kantSedan = nu; } else kantSedan = 0;   // när kanten började (kantHaller)
   handRadStada(nu);   // raden vid nederkanten (MES-343): valet som gått ut står fast — handen
   { const n0 = mig.cards.length; spar = gravFoljer(spar, nu, mig); if (mig.cards.length !== n0) { save(); renderGrid(true); } }   // graveyard följer med när högen flyttas
   /* Ett bord utan pass startar ett (eller tar upp det sparade efter en
@@ -34513,6 +34533,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     /* När handen lade sig över kortet (en obruten skymd-strimma): ligger den kvar länge (HAND_VILA)
        öppnas flyttens fönster vid lyftet, inte vid sista fria sikten (granskningen GRa4). */
     if (t.skymd) { if (k.handFran == null) k.handFran = nu; } else delete k.handFran;
+    if (k.flyttFran && (t.tillstand === 'okand' || t.tillstand === 'klar')) k.flyttFran.last = true;   // spåret har lästs medan det bar kortet (gissningens ålder nedan)
     if (k.flyttFran && t.tillstand === 'klar' && t.saker && t.namn === k.name) delete k.flyttFran;
   };
   /* Flytten utan namn (steg 3b) var fel: spåret bär ett annat namn — säkert, osäkert eller som
@@ -34536,7 +34557,34 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      I en hög med Plains säger namnet ingenting, och utan relationen bars landet under till det nya landets plats.
      Kortets spår är det det hade före en gissad flytt (flyttFran). */
   const annatKort = (k, t) => ofrSkilda(k.flyttFran ? k.flyttFran.spar : k.spar, t.id);
-  const motsager = (k, t) => { const n = postensNamn(t); return (n.size > 0 && !n.has(k.name)) || annatKort(k, t); };
+  /* Ett namn som inte kan vara kortet på spåret (bordets minne, MES-341/356): leken har N exemplar och N ligger
+     redan på mattan, bundna till synliga SÄKRA spår andra än det här. Telefonens antalsprior (priorPaGissningar) tar
+     bort ett sådant namn ur ett osäkert spårs lista men lämnar det överst när det är det enda förslaget, och ett nytt
+     spår ärver gissningen av ett dött spår intill. Passet 2026-10-11 (573 s): Expel och Relic Sloth flyttades åt höger
+     i samma svep; Expels spår dog, ett nytt spår föddes vid högerkanten med gissningen Maelstrom Muse (som nyss legat
+     där, och låg säkert på en annan plats), lästes sedan "Opt?" (Opt låg säkert på bordet, leken har ett) och fick
+     Claudes "Relic Sloth?" (säkert bundet bredvid). Inget av namnen kunde vara kortet, men vart och ett spärrade flytten:
+     Expel stod kvar på sin gamla plats och spåret blev NOT IDENTIFIED. Bara namn på kort som inte är basland (extra
+     basland är legitima, antalets fråga i steg 4) och bara mot ett icke säkert namn på spåret självt: ett säkert namn
+     rättar som förut (steg 1). Namnet avgör som förut så snart något exemplar är ledigt. Leken är lokal, Claude är
+     inget villkor. Utan lek (Infinity) är inget omöjligt.
+     Det säkra spåret ska visa var kortet ligger JUST NU: färskt (detektorn gav det en region i någon av de senaste
+     rutorna, farsktSpar) och inte skymt. Telefonens spår dör först när rutan under det varit tom en stund (bortaMs), så
+     ett säkert spår lever kvar som spöke medan kortet bärs: Islandets spår 21 i passet 2026-10-11 stod med sen 361 när
+     det nya spåret föddes (478,4 s). Med spöket som vittne hade kortets eget namn på den nya platsen varit omöjligt, och
+     två kort som flyttas i samma svep kunde byta namn tills telefonen läste säkert (genomgangen rad 38; granskningen av
+     e50baab). Lekfotots platshållare (lekPlatshallare, MES-289) räknas som möjliga exemplar: en platshållare kan vara
+     ett exemplar till av vilket kort som helst. */
+  const BASLAND_RE = /^(?:Snow-Covered )?(?:Plains|Island|Swamp|Mountain|Forest|Wastes)$/;
+  const omojligt = (namn, t) => {
+    const tak = lekAntal(namn) + (typeof lekPlatshallare === 'function' ? lekPlatshallare() : 0);
+    if (!isFinite(tak) || BASLAND_RE.test(namn) || (t.tillstand === 'klar' && t.saker && t.namn === namn)) return false;
+    return mig.cards.filter(c => c.name === namn && paBordet(c) && c.spar != null && c.spar !== t.id && synliga.has(c.spar)
+      && spar.some(u => u.id === c.spar && u.tillstand === 'klar' && !!u.saker && !u.skymd && farsktSpar(u))).length >= tak;
+  };
+  /* Namnen som säger emot kortet k på spåret t: postens namn utom kortets eget och de omöjliga. */
+  const namnEmot = (k, t) => { const n = postensNamn(t); return n.has(k.name) ? [] : [...n].filter(x => !omojligt(x, t)); };
+  const motsager = (k, t) => namnEmot(k, t).length > 0 || annatKort(k, t);
   /* Täckt: ett bifogat kort vars värd syns, eller ett kort i en hög vars
      understa (gi 0) syns, är inte borta — det ligger under. */
   const tackt = k => {
@@ -34669,7 +34717,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      gäller inte undantaget: ett osäkert spår på ett skymt kort kan vara samma kort sett två gånger. */
   const overKant = (id, k, t) => { const c = bunden(id); return !!c && c !== k && paBordet(c) && ofrSkilda(id, t.id) && telefonensNamn(t).has(k.name); };
   const tomPlats = (k, t) => { for (const [id, e] of platsMinne) if (id !== t.id && id !== k.spar && !kant.has(id) && !overKant(id, k, t) && tackning(e, t) >= SAMMA_KORT_TACKNING) return false; return true; };
-  const passar = (k, t) => { const n = postensNamn(t); return (!n.size || n.has(k.name)) && !annatKort(k, t) && sedd(t) >= fran(k) - FLYTT_FORE && tomPlats(k, t); };
+  const passar = (k, t) => !namnEmot(k, t).length && !annatKort(k, t) && sedd(t) >= fran(k) - FLYTT_FORE && tomPlats(k, t);
   /* Framkallningen (MES-344): ett spår som inte lästs än och som ett kort i väntan kan bäras till får
      inget oframkallat kort — flytten avgörs när telefonen bestämt sig för att läsa det (stilla). */
   /* …och inte heller medan telefonen läser det (stilla, MES-356): binder inte steg 3b redan där är det för att
@@ -34978,15 +35026,35 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   }
   /* Det gissade spåret dog utan namn (skräp hos Claude, eller borta): gissningen föll. Kortet tillbaka
      där det låg, och väntan räknas från det första försvinnandet (kontrollgranskningen, V2sparDor). */
-  for (const k of mig.cards) if (k.flyttFran && k.spar != null && !synliga.has(k.spar)) aterstallFlytt(k);
+  /* …om gissningen är ung. Har spåret burit kortet längre än nåden (BORTA_NAD) utan att något sagt emot — ett
+     kortformat spår som legat still och lästs i tiotals sekunder — var det ett kort, och kortet låg där: gissningen
+     står, och kortet dör där det låg senast (väntan nedan, från nu), inte 30 s tillbaka på den gamla platsen. Passet
+     2026-10-11 (606 s): Expel hade burits till högerkanten i 32 s; när spåret dog hoppade kortet tillbaka till platsen
+     det lämnat vid 573 s, med väntan räknad från då — redan över nåden — och kunde varken bäras till det nya spåret
+     (steg 3b: vantar) eller stanna kvar (till handen vid 651 s).
+     …och bara om spåret lästs medan det bar kortet (flyttFran.last: okand eller klar — ett säkert annat namn hade redan
+     tagit flytten tillbaka i steg 1). Ett spår som dog oläst (ny, stilla) efter nåden har inte visat att det var ett
+     kort: gissningen faller som en ung (granskningen av e50baab, regel 3). */
+  for (const k of mig.cards) if (k.flyttFran && k.spar != null && !synliga.has(k.spar)) { if (nu - k.flyttFran.nar <= BORTA_NAD || !k.flyttFran.last) aterstallFlytt(k); else delete k.flyttFran; }
   for (const k of mig.cards) if (k.spar != null && !synliga.has(k.spar) && !k.borta) { k.borta = lugnDod.has(k.spar) ? lugnDod.get(k.spar) : nu; gravTid.set(k.cid, k.borta); andrat = true; }   // dog spåret medan mattan stod fryst: från när det dog (lugnt läge)
   /* En flytt utan namn (steg 3b) som inget namn bekräftat upphävs av högen: växte graveyard i fönstret
      efter att kortets spår dog (flyttFran.borta) lämnade kortet bordet — det ligger inte där det nya
      spåret vilar. Högen är det starkare beviset (MES-291: "högen som växer bevisar att kortet lämnat
      bordet"). Före väntans loop, så att ändringen ges det kort vars död den följde. Flutterfox i passet
      2026-09-22, 95 s: lyft till graveyard, och ett spår i landhögen vilade i samma stund. */
+  /* …men först när telefonen läst det nya spåret (okand eller klar). Ett spår som ännu inte lästs (ny, stilla) får
+     sin läsning inom någon sekund: säger den kortets eget säkra namn ligger kortet på bordet (lagg släpper flyttFran)
+     och högens ändring var något annat — en hand över högen, ett annat kort. I passet 2026-10-11 (420 s) flyttades ett
+     tappat Expel i sidled: flytten bands på det stilla spåret, högen "växte" i samma stund, kortet flög till graveyard,
+     och 0,2 s senare läste telefonen Expel på det nya spåret och kortet kom tillbaka ur graveyard (urGraven) — "snabb
+     animering mot graveyard, sen tillbaka". Säger läsningen ett annat namn tas flytten tillbaka (steg 1, 5) och högen får
+     kortet i väntans loop nedan, med samma fönster. Priset är högst en läsning (~1 s) innan högen vinner — högst
+     BORTA_NAD: telefonen läser ett stilla spår inom någon sekund, och ett spår som står oläst längre än nåden får inte
+     hålla högen borta för alltid (granskningen av e50baab). Högens ändring står kvar i 60 s (gravTaEmot). */
   for (const k of mig.cards) {
     if (!k.flyttFran || k.spar == null || !synliga.has(k.spar) || !gravAutoKan(k, k.flyttFran.borta)) continue;
+    const t = spar.find(u => u.id === k.spar);
+    if (t && (t.tillstand === 'ny' || t.tillstand === 'stilla') && nu - k.flyttFran.nar <= BORTA_NAD) continue;   // läsningen avgör först
     const borta0 = k.flyttFran.borta; aterstallFlytt(k); delete k.spar; delete k.borta;
     gravAutoOm(k, borta0);
   }
@@ -35035,7 +35103,25 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const tacktAvKort = k => !!k.kam && spar.some(u => u.w != null && !franHelbild(u) && !u.skymd && (u.tillstand === 'klar' || u.kortlik) && tackning(kamRekt(k.kam), u) >= SAMMA_KORT_TACKNING);
   const vidKant = b => b.x <= 0.005 || b.y <= 0.005 || b.x + b.w >= 0.995 || b.y + b.h >= 0.995;
   const urBild = k => !!k.sist && !!k.vilade && vidKant(k.sist) && !vidKant(k.vilade);
-  const orort = k => namnAnnanstans(k) || olastSpar(k) || tacktAvKort(k) || urBild(k);
+  /* …och så länge telefonen säger att ett kort ligger delvis utanför bilden (fasen 'kant', kantVakt: ett kort vid
+     kanten får inget spår förrän det syns helt). Kortet i väntan kan vara det kortet: i passet 2026-10-11 lades ett
+     Island vid bildens högerkant (478 s), telefonen stod i 'kant' i 38 s utan att ge det något spår, och mattan
+     skickade Islandet till handen efter nåden fast det låg på bordet (483,9 s). Telefonens besked är det enda
+     vittnet: handen syntes inte (ingen skymd-strimma, inget spår utan korts form). Osäkert betyder orört.
+     …men bara kortet vars spår dog strax innan kanten började — lyftet först, sedan kortet vid kanten (Islandets spår
+     dog 478,8 s, kanten började 481,2 s): dött högst LOS_MS före kantens start, eller inom nåden SLAPP_MS efter den
+     (ett kort som skjuts ut dör först när rutan under det varit tom en stund). Inte varje kort som lyfts medan kanten
+     står: i samma pass stod fasen 'kant' från 655 s till slutet, 549 s (Expel vid överkanten), och ett kort som tagits
+     upp under tiden hade legat kvar på mattan i minuter (granskningen av e50baab). Och högst KANT_MAX från kantens
+     start. Aldrig under Match the camera: Match tar bort ett kort vars spår dött också under 'kant' (MES-357). */
+  let kantHoll = false;   // något kort hålls av kanten just nu: taket ska löpa ut på millisekunden (timern nedan)
+  const kantHaller = borta => {
+    if (matchar || kamFas !== 'kant' || !kantSedan || borta == null) return false;
+    const h = borta - kantSedan <= SLAPP_MS && kantSedan - borta <= LOS_MS && nu - kantSedan <= KANT_MAX;
+    if (h) kantHoll = true;
+    return h;
+  };
+  const orort = k => namnAnnanstans(k) || olastSpar(k) || tacktAvKort(k) || urBild(k) || kantHaller(k.borta);
   /* Fall 8 (MES-343): tre eller fler spår som dog inom SAMTIDIGT_MS utan att korten setts igen är telefonen
      som knuffats eller ljuset som slagit om (MES-103). Ingenting på mattan ändras: bindningarna släpps, och
      kameran binder om när den ankrat sig (ledigt på namnet). gravTid minns när varje korts spår dog, och
@@ -35094,7 +35180,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   for (const k of mig.cards.slice().sort((a, b) => (a.attachedTo ? 1 : 0) - (b.attachedTo ? 1 : 0))) {
     if (k.spar != null || !paBordet(k) || !k.kam || k.fysisk || k.kvarSagt || (k.slappt != null && !matchar) || k.attachedTo || (k.tok && matchar) || tackt(k)) { losKort.delete(k.cid); continue; }   // Match: ett släppt kort (fall 8) som kameran inte ser lämnar mattan; tokens rörs inte
     if (!losKort.has(k.cid)) { losKort.set(k.cid, nu); if (!matchar) continue; }
-    if ((nu - losKort.get(k.cid) < LOS_MS && !matchar) || olastNagot || namnAnnanstans(k) || tacktAvKort(k) || handNara(k, sparRa)) continue;
+    if ((nu - losKort.get(k.cid) < LOS_MS && !matchar) || olastNagot || namnAnnanstans(k) || tacktAvKort(k) || handNara(k, sparRa) || kantHaller(losKort.get(k.cid))) continue;   // 'kant': kortet kan vara det vid bildens kant (från när det först sågs obundet)
     losKort.delete(k.cid);
     /* borta0 null: högvakten parar ingen ändring av graveyard med det här kortet — det lyftes inte nu. */
     if (tillHanden(mig, k, null, nu)) andrat = true;
@@ -35141,6 +35227,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      MES-343) driver ingen timer — det prövas i varje rapport och hjärtslag; annars fyrade timern var 100:e ms. */
   const frister = mig.cards.filter(k => k.borta && nu - k.borta <= BORTA_NAD).map(k => { const v = nu - k.borta; return k.borta + (v <= SLAPP_MS ? SLAPP_MS : BORTA_NAD); });
   for (const t0 of losKort.values()) if (nu - t0 < LOS_MS) frister.push(t0 + LOS_MS);   // kort utan spår: på millisekunden, inte vid nästa hjärtslag
+  if (kantHoll) frister.push(kantSedan + KANT_MAX);   // kantens tak (kantHaller): löper ut också när telefonen är tyst
   /* Dubblettväntan (steg 4) tar slut i tid också när telefonen är tyst; spår som försvunnit glöms. */
   for (const id of [...flyttVantan.keys()]) if (!synliga.has(id)) flyttVantan.delete(id);
   /* Platsminnet (steg 3b): var varje spår låg senast, FLYTT_VILA bakåt. Timerns omspelning av samma

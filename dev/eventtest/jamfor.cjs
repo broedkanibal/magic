@@ -64,6 +64,12 @@ const KORNING = LOGG ? '' : path.resolve(arg('--korning', path.join(materialMapp
 const MD = arg('--md', ''), TSV = arg('--tsv', ''), JSONFIL = arg('--json', '');
 const FORE = +arg('--fore', 2), EFTER = +arg('--efter', 10);
 const UTAN_LEK = process.argv.includes('--utan-lek');
+/* --lek <fil>: lekens antal ur en annan fil i lek.txt-format ("2 Island", annars 1) än dev/golden/lek.txt —
+   ett riktigt pass (--logg) spelades med spelarens egen lek, inte golden-passens. Utan den räknas Island
+   som ett i leken och varje andra Island blir "över lekens antal" fast bordet hade två (passet 2026-10-11). */
+const LEK_FIL = arg('--lek', '');
+/* Ett riktigt pass utan --pass har inget händelsefacit: då skrivs bara tidslinjen och slutbordet. */
+const UTAN_FACIT = !!LOGG && process.argv.indexOf('--pass') < 0;
 /* --html <fil>: en annan index.html (t.ex. main:s, ur `git show main:index.html`),
    så att före och efter spelas upp på samma logg från samma träd (MES-294). */
 const HTML = path.resolve(arg('--html', path.join(ROT, 'index.html')));
@@ -109,6 +115,8 @@ let hoppade = new Set(), borttagna = new Set();
 function slappLyft(k) { delete k.lyft; if (lyftTips === k.cid) lyftTips = null; }
 function glomSpar() {}
 let kamGrund = null;
+const addEventListener = () => {};   // spelupplevelsens pagehide (khSkicka) ligger i utdraget (som dev/dubbletter.cjs)
+const mittLage = () => 'bord', Moln = { inloggad: () => false };   // spelupplevelsens korthändelser (khLogga): utloggad, så inget loggas
 let lekTal = new Map();
 const lekAntal = namn => lekTal.has(namn) ? lekTal.get(namn) : Infinity;
 const TYPER = ${JSON.stringify(TYPER)};
@@ -127,12 +135,25 @@ return {
   avstamBord, tackning,
   get kort() { return state.players[0].cards; },
   get pending() { return state.players[0].pending; },
+  get ofr() { return ofrLista(); },
+  get fas() { return kamFas; },
   set grund(v) { kamGrund = v; },
   set lek(m) { lekTal = m; }
 };`)({ now: () => klocka.t }, setTimeoutV, clearTimeoutV);
   app.grund = grund;
   if (lek) app.lek = lek;
   return { app, klocka, timers };
+}
+
+/* Lekens antal ur en fil i lek.txt-format (--lek): "2 Island" eller bara namnet (= 1); # är kommentar. */
+function lasLek(fil) {
+  const m = new Map();
+  for (const r of fs.readFileSync(fil, 'utf8').split('\n')) {
+    const s = r.trim(); if (!s || s.startsWith('#')) continue;
+    const x = s.match(/^(\d+)\s+(.+)$/);
+    m.set(x ? x[2] : s, (m.get(x ? x[2] : s) || 0) + (x ? +x[1] : 1));
+  }
+  return m;
 }
 
 /* ── källan ── */
@@ -158,7 +179,11 @@ function bild(app) {
   return {
     kort: app.kort.map(c => ({ cid: c.cid, namn: c.name, zon: c.zon || null, lyft: c.lyft != null, borta: !!c.borta, tappad: !!c.tapped, spar: c.spar != null ? c.spar : null,
       kam: c.kam ? { x: r3(c.kam.x), y: r3(c.kam.y), w: r3(c.kam.w), h: r3(c.kam.h) } : null, fast: c.attachedTo || null, gravAuto: !!c.gravAuto, spellAuto: !!c.spellAuto, sist: c.sist ? { x: r3(c.sist.x), y: r3(c.sist.y), w: r3(c.sist.w), h: r3(c.sist.h) } : null })),
-    fragor: app.pending.map(q => ({ id: q.id, spar: q.spar, namn: q.cands && q.cands[0] ? q.cands[0].name : null, overTak: !!q.overTak }))
+    fragor: app.pending.map(q => ({ id: q.id, spar: q.spar, namn: q.cands && q.cands[0] ? q.cands[0].name : null, overTak: !!q.overTak })),
+    /* De oframkallade korten på mattan (MES-344, ofrSteg): ett kort kameran ser men inte namngett — med en post i
+       granskningen (pend) är det "NOT IDENTIFIED" med "Enter name"/"not sure (…)" på mattan (MES-351). */
+    ofr: app.ofr.map(p => ({ id: p.id, spar: p.spar, pend: p.pend || null, overTak: !!p.overTak, namn: p.namn || null, kam: p.kam ? { x: r3(p.kam.x), y: r3(p.kam.y), w: r3(p.kam.w), h: r3(p.kam.h) } : null })),
+    fas: app.fas || null
   };
 }
 function spelaUpp(logg, lek) {
@@ -193,7 +218,7 @@ function spelaUpp(logg, lek) {
 const paMattan = c => c.zon !== 'grav' && c.zon !== 'exil';
 const syns = c => paMattan(c) && !c.lyft;
 function tidslinje(bilder) {
-  const h = []; let fore = { kort: [], fragor: [] };
+  const h = []; let fore = { kort: [], fragor: [], ofr: [] };
   for (const b of bilder) {
     const var0 = new Map(fore.kort.map(c => [c.cid, c]));
     for (const c of b.kort) {
@@ -217,6 +242,16 @@ function tidslinje(bilder) {
     for (const v of fore.kort) if (!nu0.has(v.cid) && paMattan(v)) h.push({ s: b.s, typ: 'till handen', cid: v.cid, namn: v.namn, fran: v.lyft ? 'nedtonat' : 'bordet' });
     const f0 = new Set(fore.fragor.map(q => q.id));
     for (const q of b.fragor) if (!f0.has(q.id)) h.push({ s: b.s, typ: 'fråga', cid: null, namn: q.namn, overTak: q.overTak, fraga: q.id });
+    /* Oframkallade kort: lagt ned (utan namn), NOT IDENTIFIED (posten i granskningen kom: "Enter name" eller
+       "not sure (namn)" på mattan), borta (kortet tog över, spåret dog, eller spöket togs bort). */
+    const o0 = new Map((fore.ofr || []).map(p => [p.id, p]));
+    for (const p of b.ofr || []) {
+      const v = o0.get(p.id);
+      if (!v) h.push({ s: b.s, typ: 'oframkallat', cid: null, namn: null, spar: p.spar, ofr: p.id });
+      if (p.pend && !(v && v.pend)) { const q = b.fragor.find(q => q.id === p.pend); h.push({ s: b.s, typ: 'NOT IDENTIFIED', cid: null, namn: q ? q.namn : null, spar: p.spar, ofr: p.id, overTak: p.overTak }); }
+    }
+    const o1 = new Set((b.ofr || []).map(p => p.id));
+    for (const v of fore.ofr || []) if (!o1.has(v.id)) h.push({ s: b.s, typ: 'oframkallat bort', cid: null, namn: null, spar: v.spar, ofr: v.id });
     fore = b;
   }
   return h;
@@ -376,7 +411,7 @@ function jamfor(rader, bilder, h, logg) {
   for (varv = 1; varv <= 2; varv++) for (const r of rader) { if (svar.has(r)) continue; const o = enRad(r); if (o) svar.set(r, o); }
   for (const r of rader) if (svar.has(r)) ut.push(svar.get(r));
   /* Det som hände på bordet utan en rad i facit: nya kort, vridningar, nedtoningar och flyttar som ingen rad tog. */
-  const over = h.map((x, i) => Object.assign({ i }, x)).filter(x => !tagna.has(x.i) && ['ny', 'ut ur graveyard', 'tappat', 'otappat', 'nedtonat', 'till graveyard', 'till handen', 'flyttat', 'fråga'].includes(x.typ));
+  const over = h.map((x, i) => Object.assign({ i }, x)).filter(x => !tagna.has(x.i) && ['ny', 'ut ur graveyard', 'tappat', 'otappat', 'nedtonat', 'till graveyard', 'till handen', 'flyttat', 'fråga', 'oframkallat', 'NOT IDENTIFIED', 'oframkallat bort'].includes(x.typ));
   return { rader: ut, over };
 }
 
@@ -388,9 +423,9 @@ const fs2 = v => v == null ? '–' : (v >= 0 ? '+' : '') + (+v).toFixed(2).repla
 function rapport(k, res, spel, rader) {
   const L = [];
   const p = s => L.push(s);
-  p(`# Spegelläget mot händelsefacit — ${PASS}`);
+  p(`# Spegelläget mot händelsefacit — ${UTAN_FACIT ? k.namn + ' (utan facit: bara tidslinjen och slutbordet)' : PASS}`);
   p('');
-  p(`Källa: \`${k.namn}\`${k.extra.skapad ? ` (körd ${k.extra.skapad.slice(0, 16).replace('T', ' ')})` : ''}. ${k.extra.ai ? `Med Claude (${k.extra.modell || '?'}, systemprompt v${k.extra.promptv != null ? k.extra.promptv : '?'}, ${k.extra.namnViaAi || 0} namn via Claude${k.extra.aiFel && k.extra.aiFel.n ? `, ${k.extra.aiFel.n} anrop misslyckades` : ''})` : 'Utan Claude — bara telefonens egen igenkänning'}. Poolen: ${k.extra.pool != null ? k.extra.pool + ' kort' : '–'}. ${k.logg.length} bord från telefonen, uppspelade genom datorns avstamBord med grundläget ${spel.grund}°, lekens antal ${UTAN_LEK ? 'av' : 'ur lek.txt'}, nåd ${NAD_MS} ms. Fönster: ${FORE} s före till ${EFTER} s efter facits tid.`);
+  p(`Källa: \`${k.namn}\`${k.extra.skapad ? ` (körd ${k.extra.skapad.slice(0, 16).replace('T', ' ')})` : ''}. ${k.extra.ai ? `Med Claude (${k.extra.modell || '?'}, systemprompt v${k.extra.promptv != null ? k.extra.promptv : '?'}, ${k.extra.namnViaAi || 0} namn via Claude${k.extra.aiFel && k.extra.aiFel.n ? `, ${k.extra.aiFel.n} anrop misslyckades` : ''})` : 'Utan Claude — bara telefonens egen igenkänning'}. Poolen: ${k.extra.pool != null ? k.extra.pool + ' kort' : '–'}. ${k.logg.length} bord från telefonen, uppspelade genom datorns avstamBord med grundläget ${spel.grund}°, lekens antal ${UTAN_LEK ? 'av' : LEK_FIL ? 'ur ' + LEK_FIL : 'ur lek.txt'}, nåd ${NAD_MS} ms. Fönster: ${FORE} s före till ${EFTER} s efter facits tid.`);
   p('');
   p('## Per händelsetyp');
   p('');
@@ -428,7 +463,7 @@ function rapport(k, res, spel, rader) {
   const grupp = {};
   for (const x of res.over) (grupp[x.typ] = grupp[x.typ] || []).push(x);
   if (!res.over.length) p('Ingenting.');
-  for (const [typ, l] of Object.entries(grupp)) p(`- **${typ}** (${l.length}): ` + l.map(x => `${x.s.toFixed(1).replace('.', ',')} s ${x.namn || '?'}${x.d != null ? ` ${x.d} kb` : ''}${x.overTak ? ' (över lekens antal)' : ''}`).join(' · '));
+  for (const [typ, l] of Object.entries(grupp)) p(`- **${typ}** (${l.length}): ` + l.map(x => `${x.s.toFixed(1).replace('.', ',')} s ${x.namn ? x.namn + ' ' : (x.spar != null ? '' : '? ')}${x.spar != null ? `spår ${x.spar}` : ''}${x.d != null ? ` ${x.d} kb` : ''}${x.overTak ? ' (över lekens antal)' : ''}`).join(' · '));
   p('');
   p('## Slutbordet');
   p('');
@@ -462,8 +497,8 @@ function rapport(k, res, spel, rader) {
 /* ── kör ── */
 let k;
 try { k = lasKalla(); } catch (e) { console.error('eventtest/jamfor.cjs: ' + e.message); process.exit(2); }
-const rader = lasFacit(PASS);
-const lek = UTAN_LEK ? null : lekAntal();
+const rader = UTAN_FACIT ? [] : lasFacit(PASS);
+const lek = UTAN_LEK ? null : LEK_FIL ? lasLek(path.resolve(LEK_FIL)) : lekAntal();
 const spel = spelaUpp(k.logg, lek);
 const h = tidslinje(spel.bilder);
 const res = jamfor(rader, spel.bilder, h, k.logg);
@@ -471,7 +506,7 @@ const text = rapport(k, res, spel, rader);
 process.stdout.write(text);
 if (MD) { fs.writeFileSync(path.resolve(MD), text); console.log(`\nrapporten skriven till ${MD}`); }
 if (TSV) {
-  fs.writeFileSync(path.resolve(TSV), 's\ttyp\tcid\tnamn\tdetalj\n' + h.map(x => [x.s, x.typ, x.cid || '', x.namn || '', [x.varfor && 'varför ' + x.varfor, x.fran && !Array.isArray(x.fran) && 'från ' + x.fran, x.d != null && x.d + ' kortbredder', x.vid && 'vid ' + x.vid, x.overTak && 'över lekens antal'].filter(Boolean).join(', ')].join('\t')).join('\n') + '\n');
+  fs.writeFileSync(path.resolve(TSV), 's\ttyp\tcid\tnamn\tdetalj\n' + h.map(x => [x.s, x.typ, x.cid || '', x.namn || '', [x.varfor && 'varför ' + x.varfor, x.fran && !Array.isArray(x.fran) && 'från ' + x.fran, x.d != null && x.d + ' kortbredder', x.vid && 'vid ' + x.vid, x.overTak && 'över lekens antal', x.spar != null && 'spår ' + x.spar].filter(Boolean).join(', ')].join('\t')).join('\n') + '\n');
   console.log(`det digitala bordets tidslinje skriven till ${TSV} (${h.length} ändringar)`);
 }
 if (JSONFIL) { fs.writeFileSync(path.resolve(JSONFIL), JSON.stringify({ pass: PASS, kalla: k.namn, logg: LOGG ? path.resolve(LOGG) : KORNING, html: path.relative(ROT, HTML), fore: FORE, efter: EFTER, grund: spel.grund, rader: res.rader, over: res.over, tidslinje: h, bilder: spel.bilder }) + '\n'); console.log(`allt skrivet till ${JSONFIL}`); }
