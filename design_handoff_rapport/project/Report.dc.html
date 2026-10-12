@@ -59,12 +59,15 @@ a{color:#a9bcff}a:hover{color:#c6d3ff}
       <div class="bd">
         <div class="done">
           <span class="ok"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
-          <h3>Report <span class="code">R-0412</span> sent</h3>
-          <p class="dim">Thanks. If you write to us about it, mention R-0412.</p>
+          <h3>Report sent</h3>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span class="code">R-0412</span>
+            <button class="btn sm" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>Copy</button>
+          </div>
+          <p class="dim">Thanks. If you write to us about it, mention this code.</p>
         </div>
       </div>
       <footer class="ft">
-        <button class="btn ghost" type="button">Copy code</button>
         <span class="grow"></span>
         <button class="btn prim" type="button" onClick="{{reset}}">Done</button>
       </footer>

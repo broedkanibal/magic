@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Report a problem, revised</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#a9bcff}a:hover{color:#c6d3ff}
+</style>
+</helmet>
+<div class="ab" style="width: 600px; height: 1000px; padding: 30px 30px; background: #070a0e">
+  <section class="pop" aria-label="Report a problem">
+    <header class="hd2">
+      <h2>Report a problem</h2>
+      <button class="x" type="button" aria-label="Close" onClick="{{reset}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </header>
+
+    <sc-if value="{{notSent}}" hint-placeholder-val="{{ true }}">
+      <div class="bd">
+        <div>
+          <span class="lbl">What went wrong?</span>
+          <div class="chips">
+            <sc-for list="{{tags}}" as="t" hint-placeholder-count="7">
+              <button class="{{t.cls}}" type="button" aria-pressed="{{t.on}}" onClick="{{t.pick}}">{{t.label}}</button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <p class="ask">{{pointAsk}}</p>
+          <div class="snap" role="group" aria-label="Your table when you pressed Report a problem">
+            <div class="cd island" style="left: 13%; top: 30%; transform: rotate(-3deg)"></div>
+            <div class="cd" style="left: 31%; top: 27%; --art: #3b3446"></div>
+            <div class="cd mtn" style="left: 49%; top: 31%; transform: rotate(-1deg)"></div>
+            <div class="cd sorc" style="left: 67%; top: 56%; transform: rotate(4deg)"></div>
+            <sc-for list="{{spots}}" as="p" hint-placeholder-count="5">
+              <button class="{{p.cls}}" type="button" style="{{p.style}}" aria-label="{{p.aria}}" onClick="{{p.pick}}"><sc-if value="{{p.hasName}}" hint-placeholder-val="{{ true }}"><span class="nm">{{p.name}}</span></sc-if></button>
+            </sc-for>
+            <span class="snapcap">Your table when you pressed Report a problem</span>
+          </div>
+        </div>
+
+        <sc-if value="{{isName}}" hint-placeholder-val="{{ false }}">
+          <div>
+            <label class="lbl" for="cardname">What is the card called?</label>
+            <input class="inp" id="cardname" type="text" placeholder="Search for the card" value="{{nameVal}}">
+          </div>
+        </sc-if>
+
+        <div style="display: flex; align-items: center; gap: 12px">
+          <span class="lbl" style="margin: 0">It happened</span>
+          <div class="seg">
+            <button class="{{nowCls}}" type="button" onClick="{{setNow}}">Just now</button>
+            <button class="{{earlierCls}}" type="button" onClick="{{setEarlier}}">Earlier</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="lbl" for="note">Anything to add? <span style="font-weight: 400">(optional)</span></label>
+          <input class="inp" id="note" type="text" placeholder="{{notePh}}">
+        </div>
+
+        <div class="what">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+          <p><b>What we get:</b> this picture, what your camera saw and what happened on your mat in the last 10 minutes. We use it to fix problems and improve Mesa's card recognition, including training our models. <a href="https://magic-mauve-xi.vercel.app/privacy.html">More</a></p>
+        </div>
+      </div>
+      <footer class="ft">
+        <span class="grow"></span>
+        <button class="btn ghost" type="button" onClick="{{reset}}">Cancel</button>
+        <sc-if value="{{idle}}" hint-placeholder-val="{{ true }}">
+          <button class="btn prim" type="button" onClick="{{send}}">Send report</button>
+        </sc-if>
+        <sc-if value="{{busy}}" hint-placeholder-val="{{ false }}">
+          <button class="btn prim" type="button" disabled><span class="spin"></span>Sending</button>
+        </sc-if>
+      </footer>
+    </sc-if>
+
+    <sc-if value="{{sent}}" hint-placeholder-val="{{ false }}">
+      <div class="bd">
+        <div class="done">
+          <span class="ok"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+          <h3>Report sent</h3>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span class="code">R-0412</span>
+            <button class="btn sm" type="button" onClick="{{copy}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>{{copyTxt}}</button>
+          </div>
+          <p class="dim">Thanks. If you write to us about it, mention this code.</p>
+        </div>
+      </div>
+      <footer class="ft">
+        <span class="grow"></span>
+        <button class="btn prim" type="button" onClick="{{reset}}">Done</button>
+      </footer>
+    </sc-if>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":600,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tag: null, spot: null, when: 'now', step: 'idle', copied: false };
+  }
+  componentWillUnmount() { clearTimeout(this.t); }
+  renderVals() {
+    const s = this.state;
+    const T = [
+      ['name', 'Wrong name', 'Point at the card with the wrong name', 'For example: it changed back after I fixed it'],
+      ['missing', 'Missing card', 'Point at the card Mesa missed', 'For example: it never showed up'],
+      ['extra', 'Extra card', 'Point at the card that isn’t on your table', 'For example: the same card twice'],
+      ['tap', 'Tapped wrong', 'Point at the card', 'For example: it untapped by itself'],
+      ['place', 'Wrong place', 'Point at the card', 'For example: it went to the graveyard'],
+      ['slow', 'Slow', 'Point at the card that was slow (optional)', 'For example: about 5 seconds before it showed up'],
+      ['else', 'Something else', 'Point at a card if it helps (optional)', 'What happened?']
+    ];
+    const cur = T.find((x) => x[0] === s.tag);
+    const S = [
+      { id: 'i', name: 'Island', style: 'left: 12%; top: 26%', aria: 'Island' },
+      { id: 'w', name: 'Island', style: 'left: 30%; top: 23%', aria: 'Card named Island' },
+      { id: 'm', name: 'Mountain', style: 'left: 48%; top: 27%', aria: 'Mountain' },
+      { id: 'b', name: '', style: 'left: 66%; top: 52%', aria: 'A card without a name', bare: true },
+      { id: 'x', name: 'Forest', style: 'left: 82%; top: 22%', aria: 'Forest on the mat, not on the table', extra: true }
+    ];
+    return {
+      tags: T.map((x) => ({
+        label: x[1], on: s.tag === x[0], cls: s.tag === x[0] ? 'chip on' : 'chip',
+        pick: () => this.setState({ tag: s.tag === x[0] ? null : x[0] })
+      })),
+      pointAsk: cur ? cur[2] : 'Point at the card it is about (optional)',
+      notePh: cur ? cur[3] : 'What happened?',
+      isName: s.tag === 'name',
+      nameVal: s.tag === 'name' && s.spot === 'w' ? 'Swamp' : '',
+      spots: S.map((p) => ({
+        ...p, hasName: !!p.name,
+        cls: 'pt' + (p.bare ? ' bare' : '') + (p.extra ? ' extra' : '') + (s.spot === p.id ? ' on' : ''),
+        pick: () => this.setState({ spot: s.spot === p.id ? null : p.id })
+      })),
+      nowCls: s.when === 'now' ? 'on' : '',
+      earlierCls: s.when === 'earlier' ? 'on' : '',
+      setNow: () => this.setState({ when: 'now' }),
+      setEarlier: () => this.setState({ when: 'earlier' }),
+      idle: s.step === 'idle', busy: s.step === 'busy', sent: s.step === 'sent', notSent: s.step !== 'sent',
+      copyTxt: s.copied ? 'Copied' : 'Copy',
+      copy: () => this.setState({ copied: true }),
+      send: () => {
+        this.setState({ step: 'busy' });
+        clearTimeout(this.t);
+        this.t = setTimeout(() => this.setState({ step: 'sent' }), 1400);
+      },
+      reset: () => { clearTimeout(this.t); this.setState({ step: 'idle', tag: null, spot: null, when: 'now', copied: false }); }
+    };
+  }
+}
+</script>
+</body>
+</html>
