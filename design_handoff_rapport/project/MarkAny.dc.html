@@ -41,18 +41,6 @@ a{color:#a9bcff}a:hover{color:#c6d3ff}
           </div>
           <div class="pair">
             <div class="pane">
-              <p class="ph">What the camera saw · {{when}}</p>
-              <div class="snap">
-                <div class="cd island" style="left: 13%; top: 29%; transform: rotate(-3deg)"></div>
-                <div class="cd" style="left: 31%; top: 26%; --art: #3b3446"></div>
-                <div class="cd mtn" style="left: 49%; top: 30%; transform: rotate(-1deg)"></div>
-                <div class="cd sorc" style="left: 69%; top: 52%; transform: rotate(4deg)"></div>
-                <sc-for list="{{cam}}" as="t" hint-placeholder-count="4">
-                  <button class="{{t.cls}}" type="button" style="{{t.style}}" aria-label="{{t.aria}}" aria-pressed="{{t.on}}" onClick="{{t.pick}}"><sc-if value="{{t.on}}" hint-placeholder-val="{{ false }}"><span class="pin">{{t.num}}</span></sc-if></button>
-                </sc-for>
-              </div>
-            </div>
-            <div class="pane">
               <p class="ph">Your mat · {{when}}</p>
               <div class="matv">
                 <div class="tile island" style="left: 10%; top: 12%"><span class="tn">Island</span></div>
@@ -61,6 +49,18 @@ a{color:#a9bcff}a:hover{color:#c6d3ff}
                 <div class="tile mtn" style="left: 46%; top: 12%"><span class="tn">Mountain</span></div>
                 <div class="tile forest" style="left: 72%; top: 46%"><span class="tn">Forest</span></div>
                 <sc-for list="{{mat}}" as="t" hint-placeholder-count="5">
+                  <button class="{{t.cls}}" type="button" style="{{t.style}}" aria-label="{{t.aria}}" aria-pressed="{{t.on}}" onClick="{{t.pick}}"><sc-if value="{{t.on}}" hint-placeholder-val="{{ false }}"><span class="pin">{{t.num}}</span></sc-if></button>
+                </sc-for>
+              </div>
+            </div>
+            <div class="pane">
+              <p class="ph">What the camera saw · {{when}}</p>
+              <div class="snap">
+                <div class="cd island" style="left: 13%; top: 29%; transform: rotate(-3deg)"></div>
+                <div class="cd" style="left: 31%; top: 26%; --art: #3b3446"></div>
+                <div class="cd mtn" style="left: 49%; top: 30%; transform: rotate(-1deg)"></div>
+                <div class="cd sorc" style="left: 69%; top: 52%; transform: rotate(4deg)"></div>
+                <sc-for list="{{cam}}" as="t" hint-placeholder-count="4">
                   <button class="{{t.cls}}" type="button" style="{{t.style}}" aria-label="{{t.aria}}" aria-pressed="{{t.on}}" onClick="{{t.pick}}"><sc-if value="{{t.on}}" hint-placeholder-val="{{ false }}"><span class="pin">{{t.num}}</span></sc-if></button>
                 </sc-for>
               </div>
