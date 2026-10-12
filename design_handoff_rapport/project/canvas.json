@@ -309,7 +309,7 @@
       "y": 0,
       "w": 1360,
       "h": 980,
-      "title": "X1 · Simple report in the game (play it)",
+      "title": "X1 · Simple report in the game · chosen (play it)",
       "page": "p8",
       "is_interactive": true
     },
@@ -343,9 +343,65 @@
       "y": 1650,
       "w": 1360,
       "h": 980,
-      "title": "X5 · X1 + which cards, with suggestions · proposal (try it)",
+      "title": "X5 · X1 + which cards (dropped 2026-10-13: the reader sorts out which card)",
       "page": "p8",
       "is_interactive": true
+    },
+    "ReportSending.dc.html": {
+      "x": 0,
+      "y": 3350,
+      "w": 520,
+      "h": 720,
+      "title": "Y1 · Sending",
+      "page": "p8"
+    },
+    "ReportSent.dc.html": {
+      "x": 600,
+      "y": 3350,
+      "w": 520,
+      "h": 720,
+      "title": "Y2 · Sent: code with Copy, Done",
+      "page": "p8"
+    },
+    "ReportFailed.dc.html": {
+      "x": 1200,
+      "y": 3350,
+      "w": 520,
+      "h": 720,
+      "title": "Y3 · Couldn't send (no network)",
+      "page": "p8"
+    },
+    "ReportLimit.dc.html": {
+      "x": 1800,
+      "y": 3350,
+      "w": 520,
+      "h": 420,
+      "title": "Y4 · Today's limit reached",
+      "page": "p8"
+    },
+    "ReportNoPhone.dc.html": {
+      "x": 2400,
+      "y": 3350,
+      "w": 520,
+      "h": 760,
+      "title": "Y5 · Phone not connected",
+      "page": "p8"
+    },
+    "PhoneReportSent.dc.html": {
+      "x": 3000,
+      "y": 3350,
+      "w": 440,
+      "h": 840,
+      "title": "Y6 · On the phone: sent by the computer",
+      "page": "p8"
+    },
+    "PhoneReportAlone.dc.html": {
+      "x": 3520,
+      "y": 3350,
+      "w": 440,
+      "h": 840,
+      "title": "Y7 · On the phone: computer out of reach",
+      "page": "p8"
     }
   },
   "order": [
@@ -384,7 +440,14 @@
     "SimplePoint.dc.html",
     "SimpleReader.dc.html",
     "SimplePhone.dc.html",
-    "SimpleCards.dc.html"
+    "SimpleCards.dc.html",
+    "ReportSending.dc.html",
+    "ReportSent.dc.html",
+    "ReportFailed.dc.html",
+    "ReportLimit.dc.html",
+    "ReportNoPhone.dc.html",
+    "PhoneReportSent.dc.html",
+    "PhoneReportAlone.dc.html"
   ],
   "notes": {
     "t1": {
@@ -640,6 +703,22 @@
       "y": 2730,
       "w": 1360,
       "text": "X5 opens already in the report with A card appeared that I didn't play picked; try other quick picks. A field shows under the quick picks, its label follows the pick (Which card disappeared?). Several cards: each becomes a small token with a cross. Suggestions in order: cards that were on your mat in the last 10 minutes, with a short hint (left the mat 30 s ago) so two Islands can be told apart and the reader knows which one; then your deck; typing searches all cards. A card never showed up suggests your deck first. Wrong name is a pair, Mesa showed and it is, with + Another card. Everything stays optional.",
+      "fill": "gray",
+      "page": "p8"
+    },
+    "t8c": {
+      "x": 0,
+      "y": 3050,
+      "text": "The states around X1",
+      "kind": "title1",
+      "maxW": 3960,
+      "page": "p8"
+    },
+    "y0": {
+      "x": 0,
+      "y": 4300,
+      "w": 1120,
+      "text": "Same box as X1 in every state: your words, quick picks, Send. The box stays open while it sends (a few seconds). The receipt shows the code with its own Copy button and Done alone. If sending fails, your words are kept until the box is closed. The limit shows as soon as the box opens. Without the phone the report goes from the computer, without the phone's pictures. The phone never sends by itself; X4 is its box, Y6 and Y7 its receipt and its error. Replaces G to O on page 4.",
       "fill": "orange",
       "page": "p8"
     }

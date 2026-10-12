@@ -263,3 +263,14 @@ de senaste 10 minuterna, med en ledtråd (*left the mat 30 s ago*) så att två 
 skilja och läsaren vet vilket spår det är; sedan leken; och när man skriver, alla kort.
 *A card never showed up* föreslår leken först. *Wrong name* är ett par, *Mesa showed* → *it is*,
 med *+ Another card*.
+
+**Valt 2026-10-13: X1 är rapportrutan.** Egna ord, valfritt snabbval, *Send report*. X5 (kortfältet)
+är struken: vilket kort det gäller reder läsaren ut ur loggen och stillbilderna (MES-366: en bild
+varannan sekund plus en vid varje händelse, mattans varje ändring loggad), inte spelaren.
+Visar de första riktiga rapporterna att det inte räcker, läggs något till då.
+
+Lägena kring X1 (Y1–Y7, sida 8) ersätter G–O på sida 4: Y1 skickar (rutan står öppen några
+sekunder), Y2 kvittens (koden med *Copy*, *Done* ensam, *Report something else*), Y3 gick inte
+(orden ligger kvar tills rutan stängs, *Try again*), Y4 dagens tak (visas när rutan öppnas),
+Y5 telefonen inte ansluten (skickas från datorn utan telefonens bilder), Y6–Y7 telefonens
+kvittens och fel. X4 är telefonens ruta; *Report a problem* sitter i telefonens topprad.
