@@ -17,13 +17,43 @@ cd "$(dirname "$0")/.."
 # `node … > /dev/null && echo …` — i en &&-lista stoppar set -e inte, så en
 # krasch gav ändå slutkod 0 och raden "kördes" uteblev bara (2026-09-27:
 # "clamp is not defined" i varje pass syntes bara i stderr).
+#
+# Varje steg har en tidsgräns (KOLLA_TAK sekunder, förval 600; ett steg tar
+# normalt sekunder till ett par minuter). Natten 2026-10-12 hängde hogarna.cjs
+# i 72 minuter i huvudlös Chrome — samma kod gick på 33 s när den kördes om —
+# och leken.cjs hängde likadant samma natt; kolla.sh väntade utan att säga
+# något. Ett steg som slår i taket stoppas med allt det startat (Chrome är ett
+# barn till node) och körs om EN gång: ett häng är ingen testdom. Hänger det
+# igen fälls kolla.sh.
+TAK="${KOLLA_TAK:-600}"
+HANG="${TMPDIR:-/tmp}/kolla-hang.$$"
+doda_trad() { for b in $(pgrep -P "$1" 2>/dev/null); do doda_trad "$b"; done; kill "$1" 2>/dev/null; }
+kor_med_tak() {
+  rm -f "$HANG"
+  "$@" &
+  p=$!
+  ( s=0
+    while [ $s -lt "$TAK" ]; do sleep 2; s=$((s + 2)); kill -0 $p 2>/dev/null || exit 0; done
+    : > "$HANG"; doda_trad $p ) &
+  v=$!
+  wait $p; k=$?
+  kill $v 2>/dev/null; wait $v 2>/dev/null
+  return $k
+}
 steg() {
   namn="$1"; shift
-  if "$@"; then :; else
-    kod=$?
-    echo "kolla.sh: FEL i steget $namn (slutkod $kod)" >&2
-    exit 1
+  kor_med_tak "$@" && return 0 || kod=$?
+  if [ -f "$HANG" ]; then
+    echo "kolla.sh: steget $namn hängde i $TAK s — stoppat, körs om en gång" >&2
+    kor_med_tak "$@" && { rm -f "$HANG"; return 0; } || kod=$?
+    if [ -f "$HANG" ]; then
+      rm -f "$HANG"
+      echo "kolla.sh: FEL i steget $namn: hängde i $TAK s två gånger" >&2
+      exit 1
+    fi
   fi
+  echo "kolla.sh: FEL i steget $namn (slutkod $kod)" >&2
+  exit 1
 }
 steg syntax node -e '
 const fs = require("fs"), os = require("os"), path = require("path"), cp = require("child_process");

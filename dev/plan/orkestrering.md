@@ -187,6 +187,13 @@ golden-körningar i kö.
   bara om kod 2 — kod 1 är ett resultat (SÄMRE), inte ett fel. Köar du två
   ko.sh i följd: `sh ko.sh … ; sh ko.sh …` i ett och samma
   bakgrundskommando, inte en väntan på den förra.
+- **Varje väntan har ett tak som säger till.** Ett bakgrundsjobb som
+  hänger ger ingen notis, och orkestreraren väntar då på något som aldrig
+  kommer. `dev/kolla.sh` har ett tak per steg (`KOLLA_TAK`, 600 s): ett
+  steg som hänger stoppas med sin huvudlösa Chrome och körs om en gång
+  (natten 2026-10-12 hängde hogarna.cjs i 72 min och gick sedan på 33 s).
+  Allt annat långt som startas i bakgrunden får en vakt
+  (`kör & p=$!; (sleep N; kill $p) &`).
 
 ## Så slås en gren ihop (orkestreraren, sekventiellt)
 
