@@ -18,6 +18,7 @@ använder dem.
 | **Deck golden** | `dev/lekgolden/` (byter inte namn) | lekfotot, lekgolden |
 | **Latency** | `dev/latens/` | latens |
 | **Component tests** | se avsnitt 6 | delprov, bänkarna |
+| **Riktiga partier** | `node dev/spelupplevelse.cjs` (Supabase: `kort_handelser`, `claude_fragor`) | spelupplevelsen |
 
 Två riktiga partier är inspelade:
 
@@ -37,6 +38,7 @@ Två riktiga partier är inspelade:
 | **Mattan visar bordet** | Beter sig korten på skärmen rätt: inga hopp, rätt plats, borta i tid? | **Mat test** | inspelade loggar från 8 fall | ingår inte |
 | **Fart på riktig telefon** | Hur lång tid tar det från att kortet släpps tills namnet syns? | **Latency** | dina pass med riktig telefon | med, som i spelet |
 | **Component tests** | *Var* i kedjan går något fel? | fem component tests, se avsnitt 6 | utklippta bitar och konstgjorda bilder | ingår inte |
+| **Riktiga partier** | Hur ofta måste spelarna rätta kameran, och vad kostar Claude per modell? | **Riktiga partier** | varje parti med kameran på, loggas av sig själv | som i spelet |
 
 **Golden och lekfotot är grindar.** Blir de sämre stoppas ändringen. Det gäller
 också Mat test för spegelmattan. Component tests är diagnos: de förklarar varför

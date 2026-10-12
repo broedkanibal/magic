@@ -1,6 +1,6 @@
 ---
 name: measurements
-description: Visar Mesas senaste mätningar som tabeller — Golden (rätt namn, fel namn), Deck golden, golden-videornas förlopp, Event test, Mat test, Latency på riktig telefon och Component tests — med Nu, Förra, när det mättes och ⚠ äldre kod när koden ändrats sedan mätningen, plus en tabell över hur varje verktyg visas i detalj och mäts om. Förval utan Claude; "med claude" visar båda. Ett verktygsnamn ("/measurements golden") ger allt för det verktyget. Använd när Jesper frågar "hur ligger vi till", "vad säger golden", "senaste mätningarna", "har vi blivit bättre", "vad mäter vi", eller ber om "measurements" eller "mätningarna". Läser bara; kör inga mätningar.
+description: Visar Mesas senaste mätningar som tabeller — Golden (rätt namn, fel namn), Deck golden, golden-videornas förlopp, Event test, Mat test, Latency på riktig telefon, Component tests och riktiga partier (rättningar per 100 kort, Claude-frågorna per modell) — med Nu, Förra, när det mättes och ⚠ äldre kod när koden ändrats sedan mätningen, plus en tabell över hur varje verktyg visas i detalj och mäts om. Förval utan Claude; "med claude" visar båda. Ett verktygsnamn ("/measurements golden") ger allt för det verktyget. Använd när Jesper frågar "hur ligger vi till", "vad säger golden", "senaste mätningarna", "har vi blivit bättre", "vad mäter vi", eller ber om "measurements" eller "mätningarna". Läser bara; kör inga mätningar.
 ---
 
 # Measurements
@@ -21,6 +21,7 @@ visar bara talen.
 | `/measurements mattest` | `node dev/measurements/show.cjs mattest` |
 | `/measurements latency` | `node dev/measurements/show.cjs latency` |
 | `/measurements components` | `node dev/measurements/show.cjs components` |
+| `/measurements games` | `node dev/measurements/show.cjs games` (riktiga partier: per spelare och parti) |
 
 Skriver Jesper ett gammalt namn, översätt: händelseprovet/spegelfacit =
 `eventtest`, mattprovet/uppspelaren = `mattest`, lekfotot/lekgolden =
@@ -78,6 +79,13 @@ kartans avsnitt, eller förklara kort ur kartan.
 | Mat test | `dev/mattest/baslinje/baslinje.json` och dess förra version i git |
 | Latency | nyaste passet i `dev/latens/`, genom `analys.cjs` |
 | Component tests | registret `dev/measurements/register.jsonl` |
+| Riktiga partier | produktionens Supabase genom `node dev/spelupplevelse.cjs --json`: vyerna `upplevelse_*` (ur `kort_handelser`, sedan 2026-10-09, läget bord = kameran på) |
+| Kamerans frågor till Claude, per modell | tabellen `claude_fragor` (en rad per fråga, sedan 2026-10-02): modell, kostnad och svarstid. "(svaret aldrig loggat)" = frågan räknades men svaret skrevs aldrig i loggen |
+
+Riktiga partier har ingen "Förra": de räknas om ur alla partier varje gång.
+Byts kamerans modell syns det i Claude-tabellen som en ny rad, med sitt
+eget datumspann. Rättningar per 100 kort räknar bara det spelaren gör —
+kort som lämnas utan namn står i raden *Kort som aldrig fick namn*.
 
 Mapparna `dev/spegelfacit` och `dev/uppspelaren` bytte namn till
 `dev/eventtest` och `dev/mattest` 2026-10-08 (prompt H); de gamla namnen är

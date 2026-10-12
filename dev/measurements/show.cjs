@@ -9,7 +9,12 @@
      node dev/measurements/show.cjs                översikten, utan Claude (förval)
      node dev/measurements/show.cjs --claude       översikten med båda: utan och med Claude
      node dev/measurements/show.cjs golden         ett verktyg i detalj (golden, deckgolden,
-                                                   eventtest, mattest, latency, components)
+                                                   eventtest, mattest, latency, components, games)
+
+   Spelupplevelsen (riktiga partier) och frågorna till Claude per modell läses
+   ur Supabase genom dev/spelupplevelse.cjs --json (kräver
+   SUPABASE_SERVICE_ROLE_KEY i .env.local). Går den inte att nå står det i
+   tabellen; resten av översikten visas ändå.
 
    Component tests har inga egna resultatfiler med ett fast format. Den som kör
    ett component test skriver in talet i registret dev/measurements/register.jsonl:
@@ -104,6 +109,45 @@ const varning = (andrad) => andrad === true ? ' ⚠' : andrad === null ? ' ?' : 
 const las = (rel) => fs.readFileSync(p(rel), 'utf8');
 const lasJson = (rel) => JSON.parse(las(rel));
 const ren = (s) => (s || '').replace(/\*\*/g, '').trim();
+
+// ---------- riktiga partier (Supabase) ----------
+/* Spelupplevelsen och Claude-frågorna ur produktionens databas. null + fel
+   när den inte går att nå — översikten visas ändå. */
+function spelupplevelse() {
+  return enGang('spel', () => {
+    const r = spawnSync('node', [p('dev/spelupplevelse.cjs'), '--json'], { cwd: ROT, encoding: 'utf8', timeout: 30000 });
+    if (r.status !== 0) return { fel: ((r.stderr || '').trim().split('\n').pop() || (r.error && r.error.message) || 'svarade inte').slice(0, 120) };
+    try { return JSON.parse(r.stdout); } catch (e) { return { fel: 'svaret gick inte att läsa' }; }
+  });
+}
+const procent = (x) => x == null ? '–' : `${String(x).replace('.', ',')} %`;
+const tal1 = (x) => x == null ? '–' : String(x).replace('.', ',');
+function spelRader() {
+  const s = spelupplevelse();
+  if (s.fel) return [['Spelupplevelsen', 'gick inte att läsa', '', '', s.fel]];
+  const t = s.totalt || {};
+  const forst = (s.partier || []).map(x => x.startad).filter(Boolean).sort()[0];
+  const sist = (s.partier || []).map(x => x.startad).filter(Boolean).sort().pop();
+  const kalla = `${t.spel} partier · ${t.spelare} spelare · ${t.kort} kort`;
+  const utanNamn = (s.perSpel || []).reduce((a, r) => a + (+r.lamnade_utan_namn || 0), 0);
+  const viaClaude = (t.procent_identifierade != null && t.procent_identifierade_utan_claude != null)
+    ? Math.round(10 * (t.procent_identifierade - t.procent_identifierade_utan_claude)) / 10 : null;
+  return [
+    ['Rättningar per 100 kort', tal1(t.rattningar_per_100_kort), '', forst ? `${kortTid(forst, false, false)} – ${kortTid(sist, false, false)}` : '', obs(kalla, 'huvudmåttet, ska ner')],
+    ['Fel namn per 100 kort', tal1(t.fel_namn_per_100_kort), '', '', 'löftet, mål 0'],
+    ['Kort med namn utan spelaren', procent(t.procent_identifierade), '', '', `varav via Claude ${procent(viaClaude)}`],
+    ['Kort som aldrig fick namn', t.kort ? `${utanNamn} av ${t.kort}` : '–', '', '', 'räknas inte som rättningar'],
+    ['Tid till namn, median', t.median_ms != null ? `${tal1(Math.round(t.median_ms / 100) / 10)} s` : '–', '', '', t.p90_ms != null ? `9 av 10 inom ${tal1(Math.round(t.p90_ms / 100) / 10)} s` : ''],
+  ];
+}
+function claudeRader() {
+  const s = spelupplevelse();
+  if (s.fel) return [['Claude-frågor', 'gick inte att läsa', '', '', '', s.fel]];
+  return (s.claude || []).filter(c => c.mode === 'kamera').map(c => [
+    c.modell || '(svaret aldrig loggat)', c.fragor, c.cent_per_fraga != null ? `${tal1(c.cent_per_fraga)} cent` : '–',
+    c.median_ms != null ? `${tal1(Math.round(c.median_ms / 100) / 10)} s` : '–',
+    `${kortTid(c.forst, false, false)} – ${kortTid(c.sist, false, false)}`, `${c.partier} partier`]);
+}
 
 // ---------- golden ----------
 function goldenHistorik() {
@@ -305,6 +349,7 @@ const VERKTYG = [
   ['Mat test', 'mattest', '`node dev/mattest/kor.cjs --jamfor` (~25 s)'],
   ['Latency', 'latency', 'telefonpass med `?debug`, sedan `node dev/latens/analys.cjs <fil>`'],
   ['Component tests', 'components', 'ett kommando per test, se `/measurements components`'],
+  ['Riktiga partier', 'games', 'mäts av sig själv i varje parti (kort_handelser, claude_fragor)'],
 ];
 
 function oversikt(medClaude) {
@@ -371,6 +416,9 @@ function oversikt(medClaude) {
   sektion('Component tests (diagnos, inte grind)', H, dp.map(d => d.sen
     ? [d.namn, d.sen.tal, d.forra ? (d.forra.tal === d.sen.tal ? 'samma' : d.forra.tal) : '', `${kortTid(d.sen.tid)} · ${d.sen.commit || '–'}`, varnText(d.andrad)]
     : [d.namn, 'inte avläst', '', '', d.senFil ? `senaste fil ${path.basename(d.senFil.f)} (${kortTid(d.senFil.t, false, false)})` : '']));
+
+  sektion('Riktiga partier (alla spelare, kameran på)', H, spelRader());
+  sektion('Kamerans frågor till Claude, per modell', ['Modell', 'Frågor', 'Kostnad/fråga', 'Svarstid, median', 'Period', 'Obs'], claudeRader());
 
   ut.push(rubrik('Mer om ett verktyg'), '', tabell(['Verktyg', 'Visa detaljer', 'Mät om'], VERKTYG.map(([n, id, kor]) => [n, `\`/measurements ${id}\``, kor])), '');
   ut.push('⚠ äldre kod = koden mätningen beror på har ändrats sedan mätningen. I terminalen: `node dev/measurements/show.cjs [--claude] [verktyg]`.');
@@ -459,6 +507,11 @@ function detaljComponents() {
   return ut.join('\n');
 }
 
+function detaljSpel() {
+  const r = spawnSync('node', [p('dev/spelupplevelse.cjs'), '--spel'], { cwd: ROT, encoding: 'utf8', timeout: 30000 });
+  return r.status === 0 ? r.stdout : 'Spelupplevelsen gick inte att läsa: ' + (r.stderr || '').trim();
+}
+
 function registrera(args) {
   const [id, tal] = args;
   if (!DELPROV.some(d => d.id === id) || !tal) {
@@ -481,6 +534,7 @@ else {
   const medClaude = args.includes('--claude');
   const DETALJ = {
     golden: detaljGolden, deckgolden: detaljLek, eventtest: detaljHandelse, mattest: detaljMatt, latency: detaljLatens, components: detaljComponents,
+    games: detaljSpel, spel: detaljSpel, partier: detaljSpel,
   };
   if (!vad) console.log(oversikt(medClaude));
   else if (DETALJ[vad]) console.log(DETALJ[vad]());

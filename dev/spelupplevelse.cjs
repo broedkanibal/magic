@@ -3,7 +3,11 @@
 
      node dev/spelupplevelse.cjs            hela bilden + per spelare + partier
      node dev/spelupplevelse.cjs --spel     också per spelare och spel
-     node dev/spelupplevelse.cjs --json     allt som JSON
+     node dev/spelupplevelse.cjs --json     allt som JSON (också claude: frågorna per läge och modell)
+
+   Claude-frågorna läses ur claude_fragor (en rad per fråga, med modell,
+   kostnad och svarstid). En rad utan modell är en fråga som räknades men vars
+   svar aldrig skrevs i loggen — de visas för sig, inte som en modell.
 
    Läser bara. Nycklarna ur miljön eller .env.local i repots rot:
      SUPABASE_URL                 (annars hämtas den ur produktionens /api/config)
@@ -19,10 +23,34 @@ function lasEnv() {
   return env;
 }
 
+/* Claude-frågorna per läge och modell. Rader utan modell (svaret aldrig
+   loggat) får modellen null och räknas för sig. */
+function claudePerModell(rader) {
+  const grupper = new Map();
+  for (const r of rader) {
+    const nyckel = (r.mode || '?') + '\t' + (r.modell || '');
+    if (!grupper.has(nyckel)) grupper.set(nyckel, { mode: r.mode, modell: r.modell || null, fragor: 0, ok: 0, dollar: 0, medDollar: 0, ms: [], spel: new Set(), forst: r.tid, sist: r.tid });
+    const g = grupper.get(nyckel);
+    g.fragor++; if (r.ok) g.ok++;
+    if (r.dollar != null) { g.dollar += +r.dollar; g.medDollar++; }
+    if (r.ms != null) g.ms.push(+r.ms);
+    if (r.spel) g.spel.add(r.spel);
+    if (r.tid < g.forst) g.forst = r.tid;
+    if (r.tid > g.sist) g.sist = r.tid;
+  }
+  return [...grupper.values()].map(g => {
+    g.ms.sort((a, b) => a - b);
+    return { mode: g.mode, modell: g.modell, fragor: g.fragor, ok: g.ok, partier: g.spel.size,
+      dollar: g.medDollar ? Math.round(g.dollar * 1e4) / 1e4 : null,
+      cent_per_fraga: g.medDollar ? Math.round(1000 * g.dollar / g.medDollar) / 10 : null,
+      median_ms: g.ms.length ? g.ms[g.ms.length >> 1] : null, forst: g.forst, sist: g.sist };
+  }).sort((a, b) => (a.mode > b.mode) - (a.mode < b.mode) || (b.sist > a.sist) - (b.sist < a.sist));
+}
+
 async function hamta(url, nyckel, vy, ordning) {
   const h = { apikey: nyckel };
   if (!nyckel.startsWith('sb_')) h.Authorization = 'Bearer ' + nyckel;
-  const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/${vy}?select=*${ordning ? '&order=' + ordning : ''}`, { headers: h });
+  const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/${vy}${vy.includes('?') ? '&' : '?select=*'}${ordning ? '&order=' + ordning : ''}`, { headers: h });
   const text = await r.text();
   if (!r.ok) {
     if (/PGRST205|42P01|does not exist|Could not find/.test(text)) throw new Error(`${vy} finns inte — kör supabase/migrations/20261009120000_spelupplevelse.sql först`);
@@ -56,8 +84,9 @@ const RUBRIK = {
   const [totalt] = await hamta(url, nyckel, 'upplevelse_totalt');
   const spelare = await hamta(url, nyckel, 'upplevelse_spelare', 'kort.desc');
   const partier = await hamta(url, nyckel, 'upplevelse_partier', 'startad.desc');
-  const perSpel = arg.includes('--spel') ? await hamta(url, nyckel, 'upplevelse_spelare_spel', 'forsta_kort.desc') : null;
-  if (arg.includes('--json')) { console.log(JSON.stringify({ totalt, spelare, partier, perSpel }, null, 2)); return; }
+  const perSpel = arg.includes('--spel') || arg.includes('--json') ? await hamta(url, nyckel, 'upplevelse_spelare_spel', 'forsta_kort.desc') : null;
+  const claude = claudePerModell(await hamta(url, nyckel, 'claude_fragor?select=tid,mode,modell,dollar,ms,ok,spel&limit=10000', 'tid.asc'));
+  if (arg.includes('--json')) { console.log(JSON.stringify({ totalt, spelare, partier, perSpel, claude }, null, 2)); return; }
 
   const v = x => x == null ? '–' : String(x);
   console.log(`\nSpelupplevelsen · ${v(totalt.spel)} spel · ${v(totalt.spelare)} spelare · ${v(totalt.kort)} kort\n`);
@@ -74,7 +103,12 @@ const RUBRIK = {
     klart: p.klart ? 'ja' : p.pagar ? 'pågår' : 'nej', spelare: p.spelare,
     'igen 14 d': p.avgjort ? p.spelade_igen : `${p.spelade_igen} (ej avgjort)`, svar: p.svar, betyg: p.betyg_snitt })));
 
-  if (perSpel) {
+  console.log('Frågor till Claude, per läge och modell (claude_fragor)');
+  console.table(claude.map(c => ({ läge: c.mode, modell: c.modell || '(svaret aldrig loggat)', frågor: c.fragor, 'svar ok': c.ok,
+    partier: c.partier, dollar: c.dollar, 'cent/fråga': c.cent_per_fraga, median_ms: c.median_ms,
+    period: `${(c.forst || '').slice(0, 10)} – ${(c.sist || '').slice(0, 10)}` })));
+
+  if (perSpel && arg.includes('--spel')) {
     console.log('Per spelare och spel');
     console.table(perSpel.map(r => ({ kod: r.kod, spelare: r.spelare, kort: r.kort, 'ej id.': r.ej_identifierade,
       namngivna: r.namngivna, 'utan namn': r.lamnade_utan_namn, fel: r.fel_namn, tillagda: r.tillagda,
