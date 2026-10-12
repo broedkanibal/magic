@@ -27429,12 +27429,26 @@ const Kamera = (() => {
   /* Kortets egna sidor på bordet: medianen av de säkert namngivna spårens namnForm (kortets
      egen lång- och kortsida, analyspixlar). Samma slags mått som sidL/sidK — inte kortMatt, som
      tar spårens RAKA lådor och är större än kortet så fort det ligger snett (granskningen F2).
-     null innan något kort fått namn och mått. */
-  function kortEgenMatt() {
+     null innan något kort fått namn och mått. utom: ett spår som inte räknas (tapTydlig prövar
+     ett kort mot DE ANDRA kortens mått, MES-293). */
+  /* Kortets kvot (kortsida/långsida) när ett mått får bli kortets eget (namnMatt, namnForm):
+     ett fönster runt 63/88 = 0,716, inte 0,6–0,85 som förut (MES-293, rättelse 2). Ramen
+     (finLada) godtar 0,716 ± 0,12, och båda kanterna av det spannet är ett annat kort än
+     kortet: Island (spår 8, partiet 2026-10-11) fick ramen 79 × 49 = 0,62 med en bit av
+     grannen, och Mountain (spår 7) ramen 59 × 47 = 0,80 runt ett kort som låg tappat ~20°
+     snett i en låda på 75 × 67 — för kvadratisk. Islands mått gjorde tap-domen otydlig i
+     ~80 s; Mountains namnMatt gjorde lådan "vuxen runt kortet" i varje ruta, så att tap-läget
+     aldrig dömdes på 50 s. Ett mått utanför fönstret blir inget mått: spåret prövar i en
+     senare ruta, lådan om ramen var fel, och tap-domen tar under tiden de andra korten
+     (tapTydlig). Kort i ficka (66 × 91 = 0,725) och tokens (samma storlek) ligger i mitten;
+     loggens stilla, namngivna kort låg på 0,68–0,79 (de flesta 0,71–0,77). */
+  const KORT_KVOT_MIN = 0.66, KORT_KVOT_MAX = 0.78;
+  const kortKvot = (l, k) => l > 0 && k >= KORT_KVOT_MIN * l && k <= KORT_KVOT_MAX * l;
+  function kortEgenMatt(utom) {
     const l = [], kk = [];
-    for (const t of spar) if (t.tillstand === 'klar' && t.saker && t.namnForm && !arHelbild(t) && !t.del) { l.push(t.namnForm.l); kk.push(t.namnForm.k); }
+    for (const t of spar) if (t !== utom && t.tillstand === 'klar' && t.saker && t.namnForm && !arHelbild(t) && !t.del) { l.push(t.namnForm.l); kk.push(t.namnForm.k); }
     if (!l.length) return null;
-    const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
+    const med = a => { a.sort((p, q) => p - q); const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };   // två kort: medel av båda, inte det större (MES-293, rättelse 3)
     return { l: med(l), k: med(kk), n: l.length };
   }
   function fyndUrLador(det, W, H, g) {
@@ -27836,15 +27850,31 @@ const Kamera = (() => {
      tapTapp): golden 18, Plains i hög B gav en skymd låda (23 × 30) som
      lådans regel läste som ett otappat kort medan vinkeln stod på 21° — mitt
      emellan — och kortet vreds fram och tillbaka 61,95–64,05 s. */
+  /* Måttstocken (MES-293, Jespers parti 2026-10-11, bordsloggen pass-2026-10-11-2006): måtten
+     prövas mot kortets EGET namnForm ELLER mot de ANDRA namngivna kortens (kortEgenMatt utan
+     kortet självt) — korten är lika stora. namnForm tas en gång, ur ramen när namnet sätts, och
+     en ram som tagit med en bit av grannen eller handen gör det för långt för alltid: Island
+     (spår 8) fick namnet tappat med ramen 79 × 49 (kortet är ~66 × 48), och när det tappades upp
+     var regionen 65 × 49 — under 0,85 × 79 — så varje dom var otydlig och kortet stod tappat i
+     ~80 s med otappad form. Mot de andra korten är 65 × 49 ett kort. Samma gränser, 0,85–1,3;
+     bara måttstocken är två.
+     Vinkelgränserna (T.tapOtapp/T.tapTapp, MES-298) är orörda. */
+  /* Ett namngivet kort utan eget mått (MES-293, rättelse 2: ramen hade inte kortets kvot,
+     kortKvot) prövas mot de andra korten (kortEgenMatt utan kortet självt) — samma slags mått
+     som namnForm, så kortets egna sidor (sidL/sidK) jämförs som för ett eget mått. Förut
+     dömdes ett sådant kort aldrig. Inte helbildens spår eller en del av ett kort. */
   function tapTydlig(f, t, upp) {
     let nm = t.namnForm;
+    if (!nm && t.tillstand === 'klar' && !arHelbild(t) && !t.del) nm = kortEgenMatt(t);
     const egen = !!nm;
     if (!nm && t.tillstand !== 'klar') { const km = kortMatt(); if (km.kalla === 'spår') nm = { l: km.lang, k: km.kort }; }
     if (!nm) return false;
+    const andra = t.namnForm ? kortEgenMatt(t) : null;
     const bas = kal.grund != null ? kal.grund : ((upp || kal.ruta.upp) === 'h' ? 0 : Math.PI / 2);
+    const passar = (fl, fk, m) => !!m && fl >= 0.85 * m.l && fl <= 1.3 * m.l && fk >= 0.85 * m.k && fk <= 1.3 * m.k;
     const tydlig = (fl, fk, vinkel) => {
       if (!(fl >= 1.15 * fk)) return false;
-      if (fl < 0.85 * nm.l || fl > 1.3 * nm.l || fk < 0.85 * nm.k || fk > 1.3 * nm.k) return false;
+      if (!passar(fl, fk, nm) && !passar(fl, fk, andra)) return false;
       const d = axSkillnad(vinkel, bas) * 180 / Math.PI;
       return d < T.tapOtapp || d > T.tapTapp;
     };
@@ -28164,9 +28194,25 @@ const Kamera = (() => {
            låda som förut. 1,25: Blightfang tappat vid bildens kant fick en
            låda med kortsidan 1,23 × kortets, och 1,12 tog tap-läget ifrån
            det; ihopväxningarna i 11 var 1,3 × och mer. */
+        /* Lådan (förra rutans bast.box) får bli kortets mått bara i rutan då namnet sätts, eller
+           när kortet ligger stilla och lådan inte växt sedan dess (MES-293, rättelse 3). Ramen
+           prövas i varje ruta; lådan gjorde det också, så länge ramen saknade kortets kvot — och
+           ett snett kort utan namnMatt har inget "vuxen runt kortet"-skydd, så en låda som vuxit
+           ihop med en hand (75 × 67 + 20 px = 95 × 67 = 0,705) kunde bli spårets namnMatt och
+           sedan hålla kortet med handen (bänken TP3). En hand som vilar bredvid kortet ligger
+           stilla men har gjort lådan större; ett kort som flyttats rakare får en mindre låda. */
+        if (bast.tillstand === 'klar' && bast.namnLadaYta == null && bast.box) { bast.namnLadaYta = bast.box.w * bast.box.h; bast.namnLadaNar = nu; }
+        const ladaKort = !!bast.box && bast.namnLadaYta != null && (bast.namnLadaNar === nu
+          || (bast.stillaFran && nu - bast.stillaFran >= T.stillaMs && bast.box.w * bast.box.h <= 1.05 * bast.namnLadaYta));
         if (bast.tillstand === 'klar' && !bast.namnMatt) {
-          const r = bast.ram || bast.box, l = Math.max(r.w, r.h), k = Math.min(r.w, r.h);
-          if (k >= 0.6 * l && k <= 0.85 * l) bast.namnMatt = { l, k };   // bara en kortformad låda: en halva som fått namnet är inte kortets mått
+          /* bara en kortformad låda (kortKvot): en halva som fått namnet, en ram med en bit av
+             grannen eller en för kvadratisk ram är inte kortets mått. Ramen först, lådan om ramen
+             inte är kortformad (MES-293) och lådan får prövas (ladaKort). */
+          for (const r of [bast.ram, ladaKort ? bast.box : null]) {
+            if (!r) continue;
+            const l = Math.max(r.w, r.h), k = Math.min(r.w, r.h);
+            if (kortKvot(l, k)) { bast.namnMatt = { l, k }; break; }
+          }
         }
         /* Kortets egna mått (namnForm, MES-298) — det tap-domen (tapTydlig)
            jämför regionens mått med. Ramen är kortets kant, funnen med
@@ -28181,12 +28227,16 @@ const Kamera = (() => {
            Blade vid överkanten, 62×38 mot 73×58 — båda gav med momentens
            mått en falsk eller missad vridning). */
         if (bast.tillstand === 'klar' && !bast.namnForm) {
-          const r = bast.ram || bast.box, L = Math.max(r.w, r.h), K = Math.min(r.w, r.h);
-          const a = Math.abs(f.vinkel) % (Math.PI / 2), fi = bast.ram ? 0 : Math.min(a, Math.PI / 2 - a);
-          if (fi <= Math.PI / 6) {
+          /* Ramen först, lådan uträtad om ramen inte har kortets kvot (kortKvot, MES-293) och
+             lådan får prövas (ladaKort, rättelse 3). */
+          for (const r of [bast.ram, ladaKort ? bast.box : null]) {
+            if (!r) continue;
+            const L = Math.max(r.w, r.h), K = Math.min(r.w, r.h);
+            const a = Math.abs(f.vinkel) % (Math.PI / 2), fi = r === bast.ram ? 0 : Math.min(a, Math.PI / 2 - a);
+            if (fi > Math.PI / 6) continue;
             const c = Math.cos(fi), s = Math.sin(fi), det = c * c - s * s;
             const l = (c * L - s * K) / det, k = (c * K - s * L) / det;
-            if (k >= 0.6 * l && k <= 0.85 * l) bast.namnForm = { l, k };
+            if (kortKvot(l, k)) { bast.namnForm = { l, k }; break; }
           }
         }
         const nm = bast.tillstand === 'klar' && !helt ? bast.namnMatt : null;
@@ -28231,7 +28281,7 @@ const Kamera = (() => {
            delen, och en ruta där klumpen kommer tillbaka hel rör inget. */
         if (f.omlott && !bast.omlott && bast.areaRef > 1.2 * f.area) {
           bast.areaRef = f.area; bast.spek = null; bast.formN = 0; bast.helBox = null;
-          bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.sid = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.namnMatt = null; bast.namnForm = null; bast.gissning = null;
+          bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.sid = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.namnMatt = null; bast.namnForm = null; bast.namnLadaYta = null; bast.gissning = null;
           bast.aiFragad = false; bast.ai = null; bast.provas = false; bast.aiInget = 0;
         }
         if (f.omlott) bast.omlott = true;

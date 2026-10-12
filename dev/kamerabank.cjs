@@ -1882,6 +1882,58 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`VK1e spår utan namn, tappat 65° bredvid ett namngivet: ${JSON.stringify(e1)}; med vinkelMat 0 ${JSON.stringify(e0)}`,
           e1.namnat === 'klar' && e1.b !== 'klar' && e1.tappad && e0.namnat === 'klar' && !e0.tappad);
 
+    /* TP2 (MES-293, rättelse 2): Mountain i Jespers parti 2026-10-11 (bordsloggen pass-2026-10-11-2006,
+       spår 7, s 254–304). Kortet låg tappat ~20° snett i en nästan kvadratisk låda (75 × 67) och fick
+       namnet med ramen 59 × 47 — kvoten 0,80, för kvadratisk för ett kort. Ramen blev namnMatt, lådans
+       kortsida var över 1,25 × 47, och "vuxen runt kortet" tog varje ruta: tap-läget dömdes aldrig, och
+       kortet stod otappat i 50 s. Här: B ligger tappat 65° (det namngivna A otappat bredvid), detektorns
+       låda 2 px lös (54 × 48), och ramen blir 47 × 38 (0,81). Långsidan är först osäker (profil) — B
+       föds och får namnet otappat, som Mountain — sedan säker (remsan). Med fönstret 0,66–0,78
+       (kortKvot) blir ramen inget mått, och tap-domen går mot A:s. */
+    {
+      const namnat = vridet(50, 75, 0), b = vridet(150, 75, 65);
+      const bl = { x: b.lada.x - 2, y: b.lada.y - 2, w: b.lada.w + 4, h: b.lada.h + 4 };
+      namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000, vinkelMat: 1 }); await lyft(LYFT);
+      let kallaB = 'profil';
+      kvSvar = q => (q.x0 < 100 * V ? svarFor(0) : svarFor(65, kallaB));
+      for (let i = 0; i < 20; i++) await rutaDet(namnat.rita, det([ladaF(namnat.lada)], [remsaF(namnat.remsa)]));
+      const bild = g => { namnat.rita(g); b.rita(g); }, dd = det([ladaF(namnat.lada), ladaF(bl)], [remsaF(namnat.remsa), remsaF(b.remsa)]);
+      for (let i = 0; i < 20; i++) await rutaDet(bild, dd);
+      const tb = Kamera.spar.find(q => q.cx > 100), idB = tb && tb.id, fore = { st: tb && tb.tillstand, tappad: !!(tb && tb.tappad) };
+      const ram = tb && tb.ram ? tb.ram.w + '×' + tb.ram.h : null, matt = tb && tb.namnMatt ? Math.round(tb.namnMatt.l) + '×' + Math.round(tb.namnMatt.k) : null;
+      kallaB = 'remsa';
+      let tp2 = null;
+      for (let i = 1; i <= 14; i++) { await rutaDet(bild, dd); const t = Kamera.spar.find(q => q.id === idB); if (tp2 == null && t && t.tappad) tp2 = i; }
+      check(`TP2 tappat 65° i en lös låda, namnet satt med ramen ${ram} (för kvadratisk): namnMatt ${matt}, före ${JSON.stringify(fore)}; tappat i ruta ${tp2} av 14 när långsidan blev säker`,
+            fore.st === 'klar' && !fore.tappad && ram === '47×38' && matt === null && tp2 != null && tp2 <= 12);
+    }
+
+    /* TP3 (MES-293, rättelse 3, granskarens fynd): samma snedlagda B som i TP2 — namngivet utan eget mått, ramen och
+       lådan utan kortets kvot. Sedan växer en hand ihop med lådan från höger, 2 px per ruta (54 → 66 × 48), och vilar
+       där. Lådan passerar kortets kvot på vägen (62 × 48 = 0,77; 66 × 48 = 0,73), och ett snett kort utan namnMatt har
+       inget "vuxen runt kortet"-skydd: blev hand-lådan namnMatt hade den sedan hållit kortet med handen. Lådan får bli
+       kortets mått bara i rutan då namnet sätts, eller när kortet ligger stilla och lådan inte växt sedan dess. */
+    {
+      const namnat = vridet(50, 75, 0), b = vridet(150, 75, 65);
+      const bl = { x: b.lada.x - 2, y: b.lada.y - 2, w: b.lada.w + 4, h: b.lada.h + 4 };
+      namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000, vinkelMat: 1 }); await lyft(LYFT);
+      kvSvar = q => (q.x0 < 100 * V ? svarFor(0) : svarFor(65, 'profil'));
+      for (let i = 0; i < 20; i++) await rutaDet(namnat.rita, det([ladaF(namnat.lada)], [remsaF(namnat.remsa)]));
+      const dd0 = det([ladaF(namnat.lada), ladaF(bl)], [remsaF(namnat.remsa), remsaF(b.remsa)]);
+      for (let i = 0; i < 20; i++) await rutaDet(g => { namnat.rita(g); b.rita(g); }, dd0);
+      const tb = Kamera.spar.find(q => q.cx > 100), idB = tb && tb.id, fore = { st: tb && tb.tillstand, matt: tb && tb.namnMatt ? 'satt' : null };
+      const mattB = () => { const t = Kamera.spar.find(q => q.id === idB); return t && t.namnMatt ? Math.round(t.namnMatt.l) + '×' + Math.round(t.namnMatt.k) : null; };
+      let forstaMatt = null;
+      for (let i = 1; i <= 26; i++) {
+        const v = Math.min(12, 2 * i), bh = { x: bl.x, y: bl.y, w: bl.w + v, h: bl.h };
+        const dd = det([ladaF(namnat.lada), ladaF(bh)], [remsaF(namnat.remsa), remsaF(b.remsa)]);
+        await rutaDet(g => { namnat.rita(g); b.rita(g); hand(g, W, Math.round(bl.x + bl.w + v - 7), 75, 8, 14, 60); }, dd);
+        if (forstaMatt == null && mattB()) forstaMatt = i + ': ' + mattB();
+      }
+      check(`TP3 en hand växer ihop med lådan på ett snett kort utan namnMatt (54 → 66 × 48, sedan stilla): före ${JSON.stringify(fore)}, namnMatt satt i ruta ${forstaMatt}`,
+            fore.st === 'klar' && fore.matt === null && forstaMatt == null);
+    }
+
     // VK2: långsidan hoppar 90° medan lådan står kvar (A2:s fälla 3, två kort i en låda) — spåret behåller sin; en verklig tappning (lådan vrids) gäller
     {
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
@@ -2653,6 +2705,32 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       check(`LV7 mätningarna hoppar 20°/28°: lekens vinkel ${vMatt()}, grundläget ${grader()}°`, vMatt() === null && grader() === 90);
 
       KVl.kortVinkel = kvForra; lvSvar = null;
+    }
+
+    // ── TP: tap-läget följer en tydlig form (MES-293, Jespers parti 2026-10-11) ──
+    /* Bordsloggen pass-2026-10-11-2006: Island (spår 8) fick namnet tappat med en ram som tagit med en
+       bit av grannen (79 × 49, kortet ~66 × 48). namnForm tas en gång, så när det tappades upp var
+       regionen 65 × 49 — under 0,85 × 79 — och varje dom otydlig: tappat i ~80 s med otappad form.
+       Nu prövas måtten också mot de andra kortens. Här detektorns lådor (steg(…, det)) och ett
+       namngivet otappat kort A bredvid, som ger bordet en kortstorlek. */
+    {
+      const A = { x: 40, y: 60, w: 30, h: 42 };
+      // TP1: B läggs tappat med en flik kant i kant (ramen/lådan 50 × 32), får namnet, fliken tas bort och B tappas upp rakt
+      await nyttBord('v'); Kamera.satGrundGrader(90);
+      const flik = g => { for (let y = 69; y < 101; y++) for (let x = 162; x < 170; x++) g[y * W + x] = 180; };
+      const Bt = { x: 120, y: 70, w: 42, h: 30 }, Bo = { x: 126, y: 64, w: 30, h: 42 };
+      await kor(16, [kortR(A)], [lada(A, 'kort')]);
+      await kor(20, [kortR(A), kortR(Bt), flik], [lada(A, 'kort'), lada({ x: 120, y: 69, w: 50, h: 32 }, 'kort')]);
+      const bSpar = () => Kamera.spar.find(t => Math.abs(t.cx - 145) < 12 && Math.abs(t.cy - 85) < 12);
+      const b1 = bSpar(), b1id = b1 && b1.id, b1klar = b1 && b1.tillstand, b1tapp = !!(b1 && b1.tappad), b1form = b1 && b1.namnForm ? Math.round(b1.namnForm.l) + '×' + Math.round(b1.namnForm.k) : null;
+      let tp1 = null;
+      for (let i = 1; i <= 14; i++) { await steg1([kortR(A), kortR(Bo)], [lada(A, 'kort'), lada(Bo, 'kort')]); const t = Kamera.spar.find(q => q.id === b1id); if (tp1 == null && t && !t.tappad) tp1 = i; }
+      const b1e = Kamera.spar.find(q => q.id === b1id);
+      /* 50 × 32 = 0,64 har inte kortets kvot (kortKvot 0,66–0,78, rättelse 2): inget eget mått, och
+         tap-domen tar A:s. Före rättelse 2 blev det namnForm 50 × 32 och domen gick mot A (runda 1). */
+      check(`TP1 namngivet tappat med en flik (namnForm ${b1form}), fliken bort och upptappat rakt: före ${b1klar} tappad ${b1tapp}; otappat i ruta ${tp1} (högst 10), samma id ${!!b1e}`,
+            b1klar === 'klar' && b1tapp && b1form === null && tp1 != null && tp1 <= 10 && !!b1e);
+
     }
 
     nystart(); namnSvar = forraSvar;
