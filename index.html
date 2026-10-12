@@ -33874,7 +33874,7 @@ function ofrGlom() { ofrMinne = new Map(); ofrVila = new Map(); ofrFoto = new Ma
    ett datumsuffix (-YYYYMMDD) stryks före uppslaget. En okänd modell — eller
    attrappens stub-model — ger null, aldrig 0: "pris okänt" är ett svar,
    "0 USD" vore en lögn. */
-const AI_PRIS = { 'claude-opus-5': [5, 25], 'claude-sonnet-5': [2, 10], 'claude-fable-5-1': [10, 50], 'claude-haiku-4-5': [1, 5] };
+const AI_PRIS = { 'claude-opus-5-5': [4, 20], 'claude-opus-5': [5, 25], 'claude-sonnet-5-5': [2, 10], 'claude-sonnet-5': [2, 10], 'claude-fable-5-1': [10, 50], 'claude-haiku-5-5': [0.1, 0.5], 'claude-haiku-4-5': [1, 5] };
 function aiPris(modell) { if (!modell) return null; return AI_PRIS[String(modell).replace(/-\d{8}$/, '')] || null; }
 function aiKostnad(modell, inTok, utTok) { const p = aiPris(modell); return p ? ((+inTok || 0) * p[0] + (+utTok || 0) * p[1]) / 1e6 : null; }
 const K_AUTOSUM = 'sthv.autosum.v1.';

@@ -28,6 +28,18 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import AnthropicSDK from '@anthropic-ai/sdk';
 import * as Vakt from './_vakt.js';
 
+/* waitUntil håller funktionen vid liv tills loggen i claude_fragor är
+   skriven. Loggen skrivs efter svaret, och utan waitUntil får Vercel stänga
+   funktionen så fort svaret gått: 59 av 122 kamerafrågor 2–11 okt 2026 fick
+   aldrig modell, kostnad eller svarstid i loggen. Vercel lägger anropets
+   sammanhang under den här symbolen — samma väg som paketet
+   @vercel/functions går, men utan paketet: .vercelignore skickar inte med
+   package.json, så Vercel installerar inga nya beroenden (12 okt: ett import
+   av paketet gav 500 på varje anrop). Utanför Vercel är det ett nollsteg. */
+const waitUntil = (p) => {
+  try { globalThis[Symbol.for('@vercel/request-context')]?.get?.()?.waitUntil?.(p); } catch (e) {}
+};
+
 /* Varje fråga till Anthropic går genom den här klassen. Den är SDK:ns egen
    klient — lägena nedan skapar sina klienter precis som förut, med
    `new Anthropic(...)`, och ingenting i dem är ändrat — men när anropet
@@ -312,8 +324,9 @@ export default async function handler(req, res) {
     if (fangad) res.json = json0;
     const u = (svar && svar.usage) || {};
     const tal = v => (v == null || !Number.isFinite(+v)) ? null : Math.round(+v);
-    /* Efter svaret: klienten har redan fått det och väntar inte på loggen. */
-    await Vakt.logga(plats.id, {
+    /* Efter svaret: klienten har redan fått det och väntar inte på loggen.
+       waitUntil låter funktionen leva tills loggen är skriven. */
+    const loggen = Vakt.logga(plats.id, {
       modell: (svar && typeof svar.modell === 'string') ? svar.modell.slice(0, 80) : null,
       input_tokens: tal(u.input_tokens), output_tokens: tal(u.output_tokens),
       cache_read: tal(u.cache_read_input_tokens), cache_write: tal(u.cache_creation_input_tokens),
@@ -322,6 +335,8 @@ export default async function handler(req, res) {
       ok: res.statusCode === 200 && !!svar && !svar.varfor && !svar.error,
       raknas: vakt.betald
     });
+    waitUntil(loggen);
+    await loggen;
   }
 }
 

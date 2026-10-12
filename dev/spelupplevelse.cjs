@@ -84,14 +84,21 @@ const RUBRIK = {
   const [totalt] = await hamta(url, nyckel, 'upplevelse_totalt');
   const spelare = await hamta(url, nyckel, 'upplevelse_spelare', 'kort.desc');
   const partier = await hamta(url, nyckel, 'upplevelse_partier', 'startad.desc');
-  const perSpel = arg.includes('--spel') || arg.includes('--json') ? await hamta(url, nyckel, 'upplevelse_spelare_spel', 'forsta_kort.desc') : null;
+  const perSpel = await hamta(url, nyckel, 'upplevelse_spelare_spel', 'forsta_kort.desc');
+  /* Av korten kameran lade ut utan namn: hur många spelaren namngav själv
+     (Jespers mått 2026-10-12). Resten lämnades utan namn och syns inte i
+     rättningarna. */
+  const summa = k => perSpel.reduce((a, r) => a + (+r[k] || 0), 0);
+  const utanNamn = { av: summa('ej_identifierade'), namngivna: summa('namngivna'), lamnade: summa('lamnade_utan_namn') };
+  utanNamn.procent_namngivna = utanNamn.av ? Math.round(1000 * utanNamn.namngivna / utanNamn.av) / 10 : null;
   const claude = claudePerModell(await hamta(url, nyckel, 'claude_fragor?select=tid,mode,modell,dollar,ms,ok,spel&limit=10000', 'tid.asc'));
-  if (arg.includes('--json')) { console.log(JSON.stringify({ totalt, spelare, partier, perSpel, claude }, null, 2)); return; }
+  if (arg.includes('--json')) { console.log(JSON.stringify({ totalt, utanNamn, spelare, partier, perSpel, claude }, null, 2)); return; }
 
   const v = x => x == null ? '–' : String(x);
   console.log(`\nSpelupplevelsen · ${v(totalt.spel)} spel · ${v(totalt.spelare)} spelare · ${v(totalt.kort)} kort\n`);
   for (const [k, txt] of Object.entries(RUBRIK)) console.log(`  ${txt.padEnd(56)} ${v(totalt[k])}`);
   console.log(`  ${'Betyg: svar / hoppade över'.padEnd(56)} ${v(totalt.betyg_svar)} / ${v(totalt.betyg_hoppade)}`);
+  console.log(`  ${'% av korten utan namn som spelaren namngav'.padEnd(56)} ${v(utanNamn.procent_namngivna)} (${utanNamn.namngivna} av ${utanNamn.av}; ${utanNamn.lamnade} lämnades utan namn)`);
 
   console.log('\nPer spelare');
   console.table(spelare.map(s => ({ spelare: s.spelare, spel: s.spel, kort: s.kort, '% namn': s.procent_identifierade,

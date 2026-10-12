@@ -6,15 +6,61 @@ Tavlornas källor ligger i `project/` (samma filer som på ytan, `rap.css` är s
 Gjord 2026-10-12 efter Jespers samtyckesmodell (MES-367:s beskrivning). **Inget är valt än.**
 Bygget av del C kommer efter A (MES-365) och B (MES-366) och är inte designsessionens.
 
+## Beslutat (Jesper 2026-10-12)
+
+- **Knappen är alltid synlig (V2)** och heter **Report a problem** överallt, också på telefonen,
+  där den sitter i toppraden bredvid Disconnect (inte som en rund flytande knapp).
+- **V3 är struken**: att fråga "Did the camera get it wrong?" efter att spelaren själv döpt om
+  ett kort är konstigt — rättelsen säger redan att det var fel.
+- **"Sends the last 10 minutes" var otydligt.** Ersatt i G2 av *What we get: this picture, what
+  your camera saw and what happened on your mat in the last 10 minutes.*
+- **Kvittensen:** *Copy code* i foten såg ut som en länk och *Done* som knappen som kopierar. Nu
+  står koden med en egen *Copy*-knapp bredvid sig och *Done* ensam i foten. Raden "If the box was
+  closed while sending" är borta: rutan stängs inte medan den skickar (några sekunder).
+
 ## Jesper väljer
 
 | Val | Förslag | Var |
 |---|---|---|
-| Knappens plats | **V1**: i spelmenyn + kamerapanelens fot; på telefonen i toppraden bredvid Disconnect | sida 3 |
-| Knappens namn | **Report a problem** (telefonen: *Report*) — samma ord som kvittensen *Report R-0412 sent* | sida 3 |
+| Rapportrutan | **G2**: sju kategorier, peka på kortet, *Just now / Earlier* | sida 4 |
 | Inställningens namn och text | **Share pictures of cards I correct** | sida 1, 2 |
-| Texterna i rapportrutan | se *Texterna* nedan | sida 4 |
 | privacy-utkastet, rättsliga grunder per rad, meningen om tränade modeller | tavla P | sida 5 |
+
+Lägena H–O har fortfarande G:s gamla texter och taggar; de ritas om efter G2 när den är vald.
+
+## G2: kategorierna och det som gör rapporten lätt att läsa
+
+**Kategorierna** (en åt gången, inget krävs):
+
+| Kategori | Täcker | Följdfrågan |
+|---|---|---|
+| Wrong name | fel namn | peka på kortet + *What is the card called?* (kortsök) |
+| Missing card | kortet ligger på bordet men inte på mattan, "ser inte kortet" | peka där kortet ligger |
+| Extra card | dubbletter, spöken, kort kvar som tagits bort | peka på kortet |
+| Tapped wrong | tap och untap | peka på kortet |
+| Wrong place | flyttat fel, fel hög (graveyard, hand) | peka på kortet |
+| Slow | kortet kom sent | peka på kortet (valfritt) |
+| Something else | allt annat, också appfel | fritext |
+
+*Flicker* är borttagen som egen kategori: ett kort som flimrar syns för spelaren som saknat,
+extra eller flyttat, och hamnar där. Sju är gränsen; fler och folk slutar välja.
+
+**Det som gör rapporten lätt att tolka:**
+
+1. **Bilden fryses vid trycket.** Rutan visar kamerabilden från ögonblicket spelaren tryckte, med
+   Mesas namn ovanpå korten. Läsaren ser samma sak som spelaren, och vet var i de 10 minuterna
+   felet är (trycket = slutet).
+2. **Peka på kortet.** Ett tryck i bilden markerar kortet. Rapporten får spårets id och
+   positionen, så "Island" aldrig kan betyda fel Island. Ett kort Mesa missat har ingen ram men går
+   att peka på; ett extra kort är en ram utan kort under.
+3. **Wrong name frågar vad kortet heter**, med samma kortsök som när man namnger. Det ger facit
+   direkt, i stället för en fritext att tolka. Har spelaren redan döpt om kortet fylls namnet i.
+4. **It happened: Just now / Earlier.** Säger om felet ligger vid trycket eller längre bak.
+5. **Fritexten är valfri och följer kategorin** (platshållaren byts), så den blir ett tillägg och
+   inte hela beskrivningen.
+
+För byggaren av hämtverktyget (`dev/rapport/hamta.cjs`, MES-365): lägg trycket, kategorin, det
+pekade spåret och *Just now / Earlier* överst i `LÄS-MIG.md`, före tidslinjen.
 
 ## Sidorna och lägena
 
@@ -26,12 +72,12 @@ Bygget av del C kommer efter A (MES-365) och B (MES-366) och är inte designsess
 | | **D** | Settings: växeln + *Delete my reports and pictures* (provbar) |
 | | **E** | Raderingen frågas en gång, i rutan (inte en ny dialog) |
 | | **F** | Efter raderingen: texten säger det på plats, ingen grön notis; växeln orörd |
-| 3 · The button | **V1** · förslag | menyn + kamerapanelens fot; telefonens topprad |
-| | **V2** | alltid i toppraden bredvid kamerapillret; telefonen: rund knapp |
-| | **V3** | erbjuds i 8 s efter en rättelse eller Match (+ V1:s menyrad); telefonen: knapp i bottenpanelen |
-| 4 · The report | **G** | rutan (provbar: tagg, Send → Sending → Sent) |
+| 3 · The button | **V1** | menyn + kamerapanelens fot; telefonens topprad |
+| | **V2** · vald | alltid i toppraden bredvid kamerapillret, *Report a problem*; telefonen: toppraden |
+| 4 · The report | **G2** · förslag | den omgjorda rutan (provbar: kategori, peka, Send) |
+| | **G** | första utkastet, ersatt av G2 |
 | | **H** | skickar: fälten låsta, stapel; rutan får stängas, kvittensen kommer som en rad |
-| | **I** | skickat: *Report R-0412 sent*, Copy code, Done; och raden om rutan stängts |
+| | **I** | skickat: *Report sent*, koden med *Copy* bredvid, *Done* |
 | | **J** | gick inte (nät): röd rad, texten och taggen ligger kvar, *Try again* |
 | | **K** | dagens tak (20): sägs direkt när rutan öppnas, bara *Close* |
 | | **L** | telefonen inte ansluten: gul rad, skickas från datorn utan telefonens bilder |
@@ -44,9 +90,9 @@ Bygget av del C kommer efter A (MES-365) och B (MES-366) och är inte designsess
 
 | Variant | Vinner | Förlorar |
 |---|---|---|
-| **V1** (förslag) | inget nytt på skärmen; där man letar efter hjälp (menyn) och där kamerafel syns (panelen) | två klick; den som aldrig öppnar menyn eller panelen hittar den inte |
-| V2 | ett klick, alltid synlig, alla lär sig att den finns | en kontroll till i en full topprad för något sällsynt; bjuder in rapporter om allt; telefonens runda knapp kan tryckas när telefonen ställs upp |
-| V3 | frågar direkt efter en rättelse, medan de 10 minuterna innehåller felet | dyker upp vid vanliga rättelser och kan tjata; missar fel spelaren aldrig rättat, så V1:s menyrad behövs ändå; är en notis om något som redan syns |
+| V1 | inget nytt på skärmen; där man letar efter hjälp (menyn) och där kamerafel syns (panelen) | två klick; den som aldrig öppnar menyn eller panelen hittar den inte |
+| **V2** (vald) | ett klick, alltid synlig, alla lär sig att den finns | en kontroll till i toppraden |
+| ~~V3~~ (struken) | — | frågar efter en rättelse som redan visar att det var fel |
 
 ## Texterna (förslag, engelska, utan tankstreck)
 
@@ -64,21 +110,21 @@ Bygget av del C kommer efter A (MES-365) och B (MES-366) och är inte designsess
 Frågan: *Delete 3 reports and 41 card pictures? They are deleted from Mesa right away. Pictures already used to train a model can't be taken out of that model.* · Delete / Cancel.
 Efter: *Nothing you sent is stored in Mesa* · *3 reports and 41 card pictures were deleted. The switch is still on: new corrections are kept from now on.*
 
-**Rapportrutan** (G):
+**Rapportrutan** (G, första utkastet — taggarna, meningen och fältet ersätts av G2 ovan; knappnamnet är *Report a problem* också på telefonen):
 - Rubrik: *Report a problem*
 - Fält: *What went wrong?* — platshållare *For example: it showed Island, I played Swamp*
 - Taggar: *Wrong card · Can't see the card · Slow · Flicker · Other* (en åt gången, tryck igen för att ta bort)
 - Meningen: ***Sends the last 10 minutes of this game,** with pictures from your phone's camera, to fix problems and improve Mesa's card recognition, including training our models.* + länken *What's in a report* (privacy.html)
 - Knappar: *Cancel* / *Send report*. **Inget krävs**: Send fungerar utan text och tagg — de 10 minuterna är rapporten.
-- Skickar: *Sending. You can keep playing; this box can be closed.*
-- Kvittens: *Report R-0412 sent* · *Thanks. If you write to us about it, mention R-0412.* · Copy code / Done
+- Skickar: *Sending. This takes a few seconds.* Rutan stängs inte medan den skickar.
+- Kvittens: *Report sent* · koden `R-0412` med en *Copy*-knapp bredvid · *Thanks. If you write to us about it, mention this code.* · *Done* ensam i foten
 - Gick inte: *Couldn't send the report. Check your internet connection and try again. Your report is kept until you close this box.* · Try again
 - Tak: *You have sent 20 reports today. That is the most for one day. You can send more tomorrow.*
 - Telefonen borta: *Your phone isn't connected. The report is sent from this computer, without the phone's pictures.* — och meningen blir *Sends the last 10 minutes of this game from this computer, to fix problems …*
 
 **Telefonen** (M–O):
 - Meningen: ***Your computer sends the last 10 minutes of this game,** with pictures from this phone, to fix problems …*
-- Skickat: *Report R-0412 sent* · *Your computer sent it. If you write to us about it, mention R-0412.*
+- Skickat: *Report sent* · `R-0412` · *Your computer sent it. If you write to us about it, mention this code.*
 - Når inte datorn: *Can't reach your computer. Reports are sent from the computer. Try again when the dot at the top is green, or use Report a problem on the computer.*
 
 ## privacy.html (tavla P)
@@ -113,7 +159,7 @@ gallringsregel säger: `anvandning` null eller `slangd`, oavsett `kalla`).
 - **Delete** raderar allt spelaren skickat (rapporter, rättelser, bilder i storage) oavsett växeln, och lämnar växeln orörd.
 - **Rapporten följer aldrig inställningen.** Med växeln av går det att skicka en rapport (DoD 2).
 - **Telefonen skickar aldrig själv:** ett tryck där ber datorn skicka samma paket; kvittensen visas på telefonen (N). Når den inte datorn: O.
-- **Rutan får stängas medan den skickar.** Kvittensen kommer då som en rad med koden (I, nedre delen). Den raden är en kvittens med en kod spelaren behöver, inte en grön ok-notis.
+- **Rutan stängs inte medan den skickar** (några sekunder). Ingen separat kvittensrad behövs.
 - **Taket** visas när rutan öppnas, inte efter att spelaren skrivit.
 - **Settings** finns i Home-menyn (C). I spelets meny finns ingen Settings-rad i förslaget; spelaren går till Home för den.
 
