@@ -85,7 +85,7 @@ kartans avsnitt, eller förklara kort ur kartan.
 Riktiga partier har ingen "Förra": de räknas om ur alla partier varje gång.
 Byts kamerans modell syns det i Claude-tabellen som en ny rad, med sitt
 eget datumspann. Rättningar per 100 kort räknar bara det spelaren gör —
-kort som lämnas utan namn står i raden *Kort som aldrig fick namn*.
+kort som lämnas utan namn syns i raden *Kort utan namn som spelaren namngav* (namngivna av alla kort kameran lade ut utan namn; resten lämnades utan namn).
 
 Mapparna `dev/spegelfacit` och `dev/uppspelaren` bytte namn till
 `dev/eventtest` och `dev/mattest` 2026-10-08 (prompt H); de gamla namnen är

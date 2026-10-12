@@ -266,7 +266,8 @@ export async function reservera({ anvandare, mode, spel }) {
    Ändras ett pris ändras båda. Modellens id stryks på datumsuffix (-YYYYMMDD)
    före uppslaget. Cache: läsning kostar 0,1 × inpriset, skrivning (5 min) 1,25 ×
    — och Anthropics input_tokens räknar inte cache-tokens, så de läggs till. */
-const PRIS = { 'claude-opus-5': [5, 25], 'claude-sonnet-5': [2, 10], 'claude-fable-5-1': [10, 50], 'claude-haiku-4-5': [1, 5] };
+const PRIS = { 'claude-opus-5-5': [4, 20], 'claude-opus-5': [5, 25], 'claude-sonnet-5-5': [2, 10], 'claude-sonnet-5': [2, 10],
+  'claude-fable-5-1': [10, 50], 'claude-haiku-5-5': [0.1, 0.5], 'claude-haiku-4-5': [1, 5] };   // Anthropics prislista, kontrollerad 2026-10-12
 const CACHE_LASA = 0.1, CACHE_SKRIV = 1.25;
 /* Dollar för en fråga, eller null när modellen eller tokens saknas: "okänt"
    är ett svar, 0 vore en lögn. */

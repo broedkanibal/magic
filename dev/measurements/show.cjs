@@ -129,14 +129,14 @@ function spelRader() {
   const forst = (s.partier || []).map(x => x.startad).filter(Boolean).sort()[0];
   const sist = (s.partier || []).map(x => x.startad).filter(Boolean).sort().pop();
   const kalla = `${t.spel} partier · ${t.spelare} spelare · ${t.kort} kort`;
-  const utanNamn = (s.perSpel || []).reduce((a, r) => a + (+r.lamnade_utan_namn || 0), 0);
+  const u = s.utanNamn || {};
   const viaClaude = (t.procent_identifierade != null && t.procent_identifierade_utan_claude != null)
     ? Math.round(10 * (t.procent_identifierade - t.procent_identifierade_utan_claude)) / 10 : null;
   return [
     ['Rättningar per 100 kort', tal1(t.rattningar_per_100_kort), '', forst ? `${kortTid(forst, false, false)} – ${kortTid(sist, false, false)}` : '', obs(kalla, 'huvudmåttet, ska ner')],
     ['Fel namn per 100 kort', tal1(t.fel_namn_per_100_kort), '', '', 'löftet, mål 0'],
     ['Kort med namn utan spelaren', procent(t.procent_identifierade), '', '', `varav via Claude ${procent(viaClaude)}`],
-    ['Kort som aldrig fick namn', t.kort ? `${utanNamn} av ${t.kort}` : '–', '', '', 'räknas inte som rättningar'],
+    ['Kort utan namn som spelaren namngav', procent(u.procent_namngivna), '', '', u.av != null ? `${u.namngivna} av ${u.av} · ${u.lamnade} lämnades utan namn (räknas inte som rättningar)` : ''],
     ['Tid till namn, median', t.median_ms != null ? `${tal1(Math.round(t.median_ms / 100) / 10)} s` : '–', '', '', t.p90_ms != null ? `9 av 10 inom ${tal1(Math.round(t.p90_ms / 100) / 10)} s` : ''],
   ];
 }
