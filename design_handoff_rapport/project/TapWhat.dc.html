@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>R1 · Tap what's wrong</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#a9bcff}a:hover{color:#c6d3ff}
+</style>
+</helmet>
+<div class="ab" style="width: 1120px; height: 1060px; padding: 30px 30px; background: #070a0e">
+  <section class="pop" aria-label="Report a problem">
+    <header class="hd2">
+      <h2>Report a problem</h2>
+      <button class="x" type="button" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </header>
+    <div class="bd">
+      <p style="font-size: 14.5px"><b>Tap what's wrong,</b> <span class="dim">in the camera picture or on your mat. Both show the moment you pressed Report a problem.</span></p>
+
+      <div class="pair">
+        <div class="pane">
+          <p class="ph">What the camera saw</p>
+          <div class="snap">
+            <div class="cd island" style="left: 13%; top: 29%; transform: rotate(-3deg)"></div>
+            <div class="cd" style="left: 31%; top: 26%; --art: #3b3446"></div>
+            <div class="cd mtn" style="left: 49%; top: 30%; transform: rotate(-1deg)"></div>
+            <div class="cd sorc" style="left: 69%; top: 52%; transform: rotate(4deg)"></div>
+            <sc-for list="{{cam}}" as="t" hint-placeholder-count="4">
+              <button class="{{t.cls}}" type="button" style="{{t.style}}" aria-label="{{t.aria}}" onClick="{{t.pick}}"><sc-if value="{{t.hasPin}}" hint-placeholder-val="{{ false }}"><span class="pin">{{t.num}}</span></sc-if></button>
+            </sc-for>
+          </div>
+        </div>
+        <div class="pane">
+          <p class="ph">Your mat</p>
+          <div class="matv">
+            <div class="tile island" style="left: 10%; top: 18%"><span class="tn">Island</span></div>
+            <div class="tile island" style="left: 28%; top: 18%"><span class="tn">Island</span></div>
+            <div class="tile mtn" style="left: 46%; top: 18%"><span class="tn">Mountain</span></div>
+            <div class="tile forest ghost" style="left: 72%; top: 46%"><span class="tn">Forest</span></div>
+            <sc-for list="{{mat}}" as="t" hint-placeholder-count="4">
+              <button class="{{t.cls}}" type="button" style="{{t.style}}" aria-label="{{t.aria}}" onClick="{{t.pick}}"><sc-if value="{{t.hasPin}}" hint-placeholder-val="{{ false }}"><span class="pin">{{t.num}}</span></sc-if></button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}">
+        <div class="panel">
+          <p class="pt2">{{selTitle}}</p>
+          <div>
+            <span class="lbl">What's wrong with it?</span>
+            <div class="chips">
+              <sc-for list="{{opts}}" as="o" hint-placeholder-count="5">
+                <button class="{{o.cls}}" type="button" aria-pressed="{{o.on}}" onClick="{{o.pick}}">{{o.label}}</button>
+              </sc-for>
+            </div>
+          </div>
+          <sc-if value="{{isName}}" hint-placeholder-val="{{ false }}">
+            <div>
+              <label class="lbl" for="nm">What is it called?</label>
+              <input class="inp" id="nm" type="text" placeholder="Search for the card" value="{{nameVal}}">
+            </div>
+          </sc-if>
+          <div>
+            <label class="lbl" for="nt">Anything to add? <span style="font-weight: 400">(optional)</span></label>
+            <input class="inp" id="nt" type="text" placeholder="{{notePh}}">
+          </div>
+          <div style="display: flex; gap: 8px">
+            <button class="btn sm" type="button" onClick="{{close}}">Done</button>
+            <sc-if value="{{selPinned}}" hint-placeholder-val="{{ false }}"><button class="btn sm ghost" type="button" onClick="{{remove}}">Remove</button></sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{hasPins}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span class="lbl" style="margin: 0">In your report</span>
+          <sc-for list="{{rows}}" as="r" hint-placeholder-count="1">
+            <button class="pinrow" type="button" onClick="{{r.pick}}" style="text-align: left"><span class="num">{{r.num}}</span><b style="font-weight: 600">{{r.title}}</b><span class="dim">{{r.what}}</span></button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+        <span class="lbl" style="margin: 0">Not about one card?</span>
+        <sc-for list="{{gen}}" as="g" hint-placeholder-count="2">
+          <button class="{{g.cls}}" type="button" onClick="{{g.pick}}">{{g.label}}</button>
+        </sc-for>
+      </div>
+
+      <div class="what">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+        <p><b>What we get:</b> these two pictures, what your camera saw and what happened on your mat in the last 10 minutes. We use it to fix problems and improve Mesa's card recognition, including training our models. <a href="https://magic-mauve-xi.vercel.app/privacy.html">More</a></p>
+      </div>
+    </div>
+    <footer class="ft">
+      <span class="grow"></span>
+      <button class="btn ghost" type="button">Cancel</button>
+      <button class="btn prim" type="button">Send report</button>
+    </footer>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1120,"height":1060}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { pins: [{ g: 'g2', cat: 'name', val: 'Swamp' }], sel: 'g5', gen: null };
+  }
+  renderVals() {
+    const s = this.state;
+    const L = { name: 'Wrong name', missing: "Didn't show up", extra: "Shouldn't be there", tap: 'Tapped wrong', place: 'Wrong place', slow: 'Slow' };
+    const PH = { name: 'For example: it changed back after I fixed it', missing: 'For example: it never showed up', extra: 'For example: the same card twice', tap: 'For example: it untapped by itself', place: 'For example: it went to the graveyard', slow: 'For example: about 5 seconds' };
+    const both = ['name', 'extra', 'tap', 'place', 'slow'];
+    const G = {
+      g1: { title: 'Island', opts: both },
+      g2: { title: 'Island, second from left', opts: both },
+      g3: { title: 'Mountain', opts: both },
+      g4: { title: 'A card the mat doesn’t show', opts: ['missing', 'slow'] },
+      g5: { title: 'Forest, only on your mat', opts: ['extra', 'name', 'place'] }
+    };
+    const CAM = [
+      { g: 'g1', style: 'left: 12%; top: 25%; width: 13%; height: 44%' },
+      { g: 'g2', style: 'left: 30%; top: 22%; width: 13%; height: 44%' },
+      { g: 'g3', style: 'left: 48%; top: 26%; width: 13%; height: 44%' },
+      { g: 'g4', style: 'left: 68%; top: 48%; width: 13%; height: 44%' }
+    ];
+    const MAT = [
+      { g: 'g1', style: 'left: 9%; top: 15%; width: 16%; height: 50%' },
+      { g: 'g2', style: 'left: 27%; top: 15%; width: 16%; height: 50%' },
+      { g: 'g3', style: 'left: 45%; top: 15%; width: 16%; height: 50%' },
+      { g: 'g5', style: 'left: 71%; top: 43%; width: 16%; height: 50%' }
+    ];
+    const pinIdx = (g) => s.pins.findIndex((p) => p.g === g);
+    const sel = s.sel, selPin = sel ? s.pins[pinIdx(sel)] : null;
+    const tgt = (t) => {
+      const i = pinIdx(t.g);
+      return { ...t, aria: G[t.g].title, hasPin: i >= 0, num: i + 1,
+        cls: 'tgt' + (i >= 0 ? ' pinned' : '') + (sel === t.g ? ' sel' : ''),
+        pick: () => this.setState({ sel: t.g }) };
+    };
+    const setCat = (cat) => {
+      const pins = s.pins.slice(), i = pinIdx(sel);
+      if (i >= 0) pins[i] = { ...pins[i], cat }; else pins.push({ g: sel, cat, val: '' });
+      this.setState({ pins });
+    };
+    return {
+      cam: CAM.map(tgt),
+      mat: MAT.map(tgt),
+      hasSel: !!sel,
+      selTitle: sel ? G[sel].title : '',
+      opts: sel ? G[sel].opts.map((c) => ({ label: L[c], on: !!selPin && selPin.cat === c,
+        cls: selPin && selPin.cat === c ? 'chip on' : 'chip', pick: () => setCat(c) })) : [],
+      isName: !!selPin && selPin.cat === 'name',
+      nameVal: selPin ? selPin.val : '',
+      notePh: selPin ? PH[selPin.cat] : 'What happened?',
+      selPinned: !!selPin,
+      close: () => this.setState({ sel: null }),
+      remove: () => this.setState({ pins: s.pins.filter((p) => p.g !== sel), sel: null }),
+      hasPins: s.pins.length > 0,
+      rows: s.pins.map((p, i) => ({ num: i + 1, title: G[p.g].title,
+        what: L[p.cat] + (p.cat === 'name' && p.val ? ': it is ' + p.val : ''),
+        pick: () => this.setState({ sel: p.g }) })),
+      gen: ['Slow', 'Something else'].map((label) => ({ label, cls: s.gen === label ? 'chip on' : 'chip',
+        pick: () => this.setState({ gen: s.gen === label ? null : label }) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

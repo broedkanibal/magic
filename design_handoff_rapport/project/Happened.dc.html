@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>R3 · Pick it from what happened</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#a9bcff}a:hover{color:#c6d3ff}
+</style>
+</helmet>
+<div class="ab" style="width: 820px; height: 1060px; padding: 30px 30px; background: #070a0e">
+  <section class="pop" aria-label="Report a problem">
+    <header class="hd2">
+      <h2>Report a problem</h2>
+      <button class="x" type="button" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </header>
+    <div class="bd">
+      <p style="font-size: 14.5px"><b>What went wrong?</b> <span class="dim">Tap it in the list. Newest first.</span></p>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <button class="ev on" type="button" aria-pressed="true"><span class="t">20 s ago</span><span class="thumb" style="--art: #3b3446"></span><span>You renamed <b>Island</b> to <b>Swamp</b></span><span class="you">Your fix</span></button>
+        <button class="ev" type="button"><span class="t">40 s ago</span><span class="thumb island"></span><span><b>Island</b> showed up twice</span></button>
+        <button class="ev" type="button"><span class="t">40 s ago</span><span class="thumb island"></span><span>The second <b>Island</b> went away</span></button>
+        <button class="ev" type="button"><span class="t">1 min ago</span><span class="thumb forest"></span><span><b>Forest</b> showed up</span></button>
+        <button class="ev" type="button"><span class="t">2 min ago</span><span class="thumb mtn"></span><span><b>Mountain</b> tapped</span></button>
+        <button class="ev" type="button"><span class="t">3 min ago</span><span class="thumb mtn"></span><span><b>Mountain</b> showed up</span></button>
+        <button class="btn link" type="button" style="align-self: flex-start; font-size: 13px; margin-top: 2px">Show earlier</button>
+      </div>
+
+      <div class="panel">
+        <p class="pt2">You renamed Island to Swamp</p>
+        <div>
+          <span class="lbl">What's wrong with it?</span>
+          <div class="chips">
+            <button class="chip on" type="button" aria-pressed="true">Wrong name</button>
+            <button class="chip" type="button">Shouldn't be there</button>
+            <button class="chip" type="button">Slow</button>
+          </div>
+        </div>
+        <div>
+          <label class="lbl" for="nt">Anything to add? <span style="font-weight: 400">(optional)</span></label>
+          <input class="inp" id="nt" type="text" placeholder="For example: it changed back after I fixed it">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 14px; align-items: center; padding: 12px; border-radius: 10px; border: 1px dashed #4a5870">
+        <div class="snap" style="width: 200px; flex: none">
+          <div class="cd island" style="left: 13%; top: 29%"></div>
+          <div class="cd" style="left: 31%; top: 26%; --art: #3b3446"></div>
+          <div class="cd mtn" style="left: 49%; top: 30%"></div>
+          <div class="cd sorc" style="left: 69%; top: 52%; transform: rotate(4deg)"></div>
+        </div>
+        <p class="dim" style="font-size: 13px"><b style="color: var(--txt); font-weight: 600">A card never showed up?</b> It isn't in the list. Tap it in the camera picture.</p>
+      </div>
+
+      <div class="what">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+        <p><b>What we get:</b> what your camera saw and what happened on your mat in the last 10 minutes. We use it to fix problems and improve Mesa's card recognition, including training our models. <a href="https://magic-mauve-xi.vercel.app/privacy.html">More</a></p>
+      </div>
+    </div>
+    <footer class="ft">
+      <span class="grow"></span>
+      <button class="btn ghost" type="button">Cancel</button>
+      <button class="btn prim" type="button">Send report</button>
+    </footer>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":820,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

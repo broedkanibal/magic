@@ -7,7 +7,7 @@
   "title": "Mesa Problem Report",
   "launch": {
     "view": "canvas",
-    "page": "p4"
+    "page": "p6"
   },
   "pages": [
     {
@@ -29,6 +29,10 @@
     {
       "id": "p5",
       "name": "5 · privacy.html"
+    },
+    {
+      "id": "p6",
+      "name": "6 · Pointing at what went wrong"
     }
   ],
   "boards": {
@@ -187,6 +191,31 @@
       "title": "G2 · Report a problem, revised · proposal (try it: category, point, Send)",
       "page": "p4",
       "is_interactive": true
+    },
+    "TapWhat.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1120,
+      "h": 1060,
+      "title": "R1 · Tap what is wrong, camera and mat side by side (try it)",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "Rewind.dc.html": {
+      "x": 1200,
+      "y": 0,
+      "w": 1120,
+      "h": 1160,
+      "title": "R2 · R1 + go back to the moment it happened · proposal",
+      "page": "p6"
+    },
+    "Happened.dc.html": {
+      "x": 2400,
+      "y": 0,
+      "w": 820,
+      "h": 1060,
+      "title": "R3 · Pick it from what happened",
+      "page": "p6"
     }
   },
   "order": [
@@ -208,7 +237,10 @@
     "PhoneSheet.dc.html",
     "PhoneSent.dc.html",
     "PhoneAlone.dc.html",
-    "Privacy.dc.html"
+    "Privacy.dc.html",
+    "TapWhat.dc.html",
+    "Rewind.dc.html",
+    "Happened.dc.html"
   ],
   "notes": {
     "t1": {
@@ -298,6 +330,38 @@
       "text": "G2: seven categories that match what goes wrong on the mat. Pointing at the card in the picture frozen at the press tells the reader which card. Wrong name asks what the card is called. It happened: Just now or Earlier tells the reader where in the 10 minutes to look. Only the category picks are new; Send still works with nothing filled in. States H to O get the new texts once G2 is chosen.",
       "fill": "orange",
       "page": "p4"
+    },
+    "t6": {
+      "x": 0,
+      "y": -300,
+      "text": "Which card, and when: point at it",
+      "kind": "title1",
+      "maxW": 3220,
+      "page": "p6"
+    },
+    "r1": {
+      "x": 0,
+      "y": 1260,
+      "w": 1120,
+      "text": "R1 wins: tap first, then say what is wrong; the choices follow where you tapped (a card only in the camera can only be Didn't show up). A pin shows on both pictures, so the reader sees the same card twice. Loses: only shows the moment of the press; a problem that already went away can't be pointed at.",
+      "fill": "gray",
+      "page": "p6"
+    },
+    "r2": {
+      "x": 1200,
+      "y": 1260,
+      "w": 1120,
+      "text": "R2 wins: everything in R1, plus a strip of the last minutes. Drag back to when it looked wrong and point there. Handles a duplicate that flickered and went away, or a card you already fixed. Loses: one more row; the mat in the strip comes from the computer's own history, the camera pictures from the phone's stills (MES-366), fetched when the box opens.",
+      "fill": "orange",
+      "page": "p6"
+    },
+    "r3": {
+      "x": 2400,
+      "y": 1160,
+      "w": 820,
+      "text": "R3 wins: no pictures to search; a list of what Mesa did, with your own fixes marked. Tap the line that went wrong. Very exact for the reader. Loses: a card that never showed up is not in the list (needs the camera picture below), and a list is harder to scan than a picture during a game.",
+      "fill": "gray",
+      "page": "p6"
     }
   },
   "designSystems": []

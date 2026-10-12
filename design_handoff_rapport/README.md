@@ -35,8 +35,8 @@ Lägena H–O har fortfarande G:s gamla texter och taggar; de ritas om efter G2 
 | Kategori | Täcker | Följdfrågan |
 |---|---|---|
 | Wrong name | fel namn | peka på kortet + *What is the card called?* (kortsök) |
-| Missing card | kortet ligger på bordet men inte på mattan, "ser inte kortet" | peka där kortet ligger |
-| Extra card | dubbletter, spöken, kort kvar som tagits bort | peka på kortet |
+| Didn't show up | kortet ligger på bordet men inte på mattan, "ser inte kortet" | peka där kortet ligger |
+| Shouldn't be there | dubbletter, spöken, kort kvar som tagits bort | peka på kortet |
 | Tapped wrong | tap och untap | peka på kortet |
 | Wrong place | flyttat fel, fel hög (graveyard, hand) | peka på kortet |
 | Slow | kortet kom sent | peka på kortet (valfritt) |
@@ -168,3 +168,20 @@ gallringsregel säger: `anvandning` null eller `slangd`, oavsett `kalla`).
 - Kamerapanelen i övrigt (MES-358): Match, Pause camera, ↻.
 - Villkorsrutan och Google-knappen på A, och spärrens knappar på B.
 - Inga kryssrutor i rapportrutan.
+
+## Sida 6: peka på det som gick fel (2026-10-12, efter Jespers andra genomgång)
+
+Jespers frågor: felet finns ofta inte kvar när man trycker, och "peka på kortet" syntes inte i G2.
+Tre riktningar, inget borttaget. Kategorinamnen är nu *Didn't show up* och *Shouldn't be there*
+(i stället för *Missing card* och *Extra card*).
+
+| Tavla | Idé | Vinner | Förlorar |
+|---|---|---|---|
+| **R1** (provbar) | kamerabilden och mattan sida vid sida, frysta vid trycket. **Tryck först, säg sedan vad som är fel**: valen följer var man tryckte (ett kort bara i kameran kan bara vara *Didn't show up*, ett kort bara på mattan oftast *Shouldn't be there*). Nålen syns på båda bilderna | ett tryck på kortet och ett val; kategori och kort i samma rörelse | bara ögonblicket vid trycket |
+| **R2** · förslag | R1 + en remsa med de senaste minuterna. Dra tillbaka till när det såg fel ut och peka där | fångar fel som redan gått över (dubbletten som flimrade, kortet man redan rättat) | en rad till; mattans historik finns på datorn, kamerans stillbilder hämtas från telefonen när rutan öppnas (MES-366) |
+| R3 | en lista över vad Mesa gjort, nyast först, med spelarens egna rättelser märkta. Tryck på raden som blev fel | mest exakt för läsaren: en rad = en händelse | ett kort som aldrig kom finns inte i listan (kamerabilden under behövs); en lista är svårare att läsa av mitt i ett spel |
+
+Svar på frågan om felet finns kvar vid trycket: ofta inte. Fel namn och saknade kort står kvar
+tills spelaren rättar, men dubbletter, flimmer och fart är borta, och spelaren rättar ofta innan
+den rapporterar. Därför förslaget R2, och därför *It happened: Just now / Earlier* i G2 ersätts av
+remsan.
