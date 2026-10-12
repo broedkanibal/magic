@@ -7,7 +7,7 @@
   "title": "Mesa Problem Report",
   "launch": {
     "view": "canvas",
-    "page": "p4"
+    "page": "p7"
   },
   "pages": [
     {
@@ -29,6 +29,14 @@
     {
       "id": "p5",
       "name": "5 · privacy.html"
+    },
+    {
+      "id": "p6",
+      "name": "6 · Pointing at what went wrong"
+    },
+    {
+      "id": "p7",
+      "name": "7 · The whole flow, simulated"
     }
   ],
   "boards": {
@@ -187,6 +195,110 @@
       "title": "G2 · Report a problem, revised · proposal (try it: category, point, Send)",
       "page": "p4",
       "is_interactive": true
+    },
+    "TapWhat.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1120,
+      "h": 1060,
+      "title": "R1 · Tap what is wrong, camera and mat side by side (try it)",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "Rewind.dc.html": {
+      "x": 1200,
+      "y": 0,
+      "w": 1120,
+      "h": 1160,
+      "title": "R2 · R1 + go back to the moment it happened · proposal",
+      "page": "p6"
+    },
+    "Happened.dc.html": {
+      "x": 2400,
+      "y": 0,
+      "w": 820,
+      "h": 1060,
+      "title": "R3 · Pick it from what happened",
+      "page": "p6"
+    },
+    "MarkAny.dc.html": {
+      "x": 0,
+      "y": 1900,
+      "w": 1120,
+      "h": 1240,
+      "title": "S1 · One problem, mark any cards (try it)",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "MarkFilled.dc.html": {
+      "x": 1200,
+      "y": 1900,
+      "w": 1120,
+      "h": 1240,
+      "title": "S2 · Filled in: you played 1, Mesa made 2 and 3",
+      "page": "p6"
+    },
+    "ReaderView.dc.html": {
+      "x": 2400,
+      "y": 1900,
+      "w": 820,
+      "h": 860,
+      "title": "S3 · What you read in the report",
+      "page": "p6"
+    },
+    "Flow.dc.html": {
+      "x": 0,
+      "y": 3900,
+      "w": 1120,
+      "h": 1080,
+      "title": "T1 · Find the moment, mark the cards, then say what · proposal (try it)",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "FlowMarked.dc.html": {
+      "x": 1200,
+      "y": 3900,
+      "w": 1120,
+      "h": 1080,
+      "title": "T2 · Step 1 filled in: 40 s ago, three cards marked (try it)",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "FlowSay.dc.html": {
+      "x": 2400,
+      "y": 3900,
+      "w": 1120,
+      "h": 1080,
+      "title": "T3 · Step 2 filled in: the report written from your choices (try it)",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "WholeWhatFirst.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1360,
+      "h": 980,
+      "title": "W1 · Say what first, then show it · proposal (play it)",
+      "page": "p7",
+      "is_interactive": true
+    },
+    "WholeOnMat.dc.html": {
+      "x": 1440,
+      "y": 0,
+      "w": 1360,
+      "h": 980,
+      "title": "W2 · Report on the mat itself (play it)",
+      "page": "p7",
+      "is_interactive": true
+    },
+    "WholeSuggest.dc.html": {
+      "x": 2880,
+      "y": 0,
+      "w": 1360,
+      "h": 980,
+      "title": "W3 · Say what, Mesa suggests where (play it)",
+      "page": "p7",
+      "is_interactive": true
     }
   },
   "order": [
@@ -208,7 +320,19 @@
     "PhoneSheet.dc.html",
     "PhoneSent.dc.html",
     "PhoneAlone.dc.html",
-    "Privacy.dc.html"
+    "Privacy.dc.html",
+    "TapWhat.dc.html",
+    "Rewind.dc.html",
+    "Happened.dc.html",
+    "MarkAny.dc.html",
+    "MarkFilled.dc.html",
+    "ReaderView.dc.html",
+    "Flow.dc.html",
+    "FlowMarked.dc.html",
+    "FlowSay.dc.html",
+    "WholeWhatFirst.dc.html",
+    "WholeOnMat.dc.html",
+    "WholeSuggest.dc.html"
   ],
   "notes": {
     "t1": {
@@ -223,7 +347,7 @@
       "x": 0,
       "y": 900,
       "w": 1120,
-      "text": "New on A and B: the second box, Share pictures of cards I correct. Never ticked from the start, and not needed to continue: only the terms box unlocks the button. Asked once per account; after that it lives in Settings. On A the fine print adds \"and any errors\". On B a short What's new box says why the terms changed.",
+      "text": "New on A and B: the second box, Share pictures of cards I correct. Never ticked from the start, and not needed to continue: only the terms box unlocks the button. Asked once per account; after that it lives in Settings. The fine print is new: To find and fix problems, Mesa notes how the app is used and any errors. No ads, and no pictures unless you choose. On B a short What's new box says why the terms changed.",
       "fill": "gray",
       "page": "p1"
     },
@@ -298,6 +422,118 @@
       "text": "G2: seven categories that match what goes wrong on the mat. Pointing at the card in the picture frozen at the press tells the reader which card. Wrong name asks what the card is called. It happened: Just now or Earlier tells the reader where in the 10 minutes to look. Only the category picks are new; Send still works with nothing filled in. States H to O get the new texts once G2 is chosen.",
       "fill": "orange",
       "page": "p4"
+    },
+    "t6": {
+      "x": 0,
+      "y": -300,
+      "text": "Which card, and when: point at it",
+      "kind": "title1",
+      "maxW": 3220,
+      "page": "p6"
+    },
+    "r1": {
+      "x": 0,
+      "y": 1260,
+      "w": 1120,
+      "text": "R1 wins: tap first, then say what is wrong; the choices follow where you tapped (a card only in the camera can only be Didn't show up). A pin shows on both pictures, so the reader sees the same card twice. Loses: only shows the moment of the press; a problem that already went away can't be pointed at.",
+      "fill": "gray",
+      "page": "p6"
+    },
+    "r2": {
+      "x": 1200,
+      "y": 1260,
+      "w": 1120,
+      "text": "R2 wins: everything in R1, plus a strip of the last minutes. Drag back to when it looked wrong and point there. Handles a duplicate that flickered and went away, or a card you already fixed. Loses: one more row; the mat in the strip comes from the computer's own history, the camera pictures from the phone's stills (MES-366), fetched when the box opens.",
+      "fill": "orange",
+      "page": "p6"
+    },
+    "r3": {
+      "x": 2400,
+      "y": 1160,
+      "w": 820,
+      "text": "R3 wins: no pictures to search; a list of what Mesa did, with your own fixes marked. Tap the line that went wrong. Very exact for the reader. Loses: a card that never showed up is not in the list (needs the camera picture below), and a list is harder to scan than a picture during a game.",
+      "fill": "gray",
+      "page": "p6"
+    },
+    "t6b": {
+      "x": 0,
+      "y": 1600,
+      "text": "New version: one problem, mark any cards",
+      "kind": "title1",
+      "maxW": 3220,
+      "page": "p6"
+    },
+    "s1": {
+      "x": 0,
+      "y": 3240,
+      "w": 1120,
+      "text": "S1: three steps, same order every time. 1 What went wrong (one category). 2 Which cards: tap any number, in the camera picture and on the mat, each picture on its own; numbers follow the order you tap. The strip picks the moment. 3 Anything to add, where the numbers can be used. One report is one problem; several problems are several reports (Report something else after sending). Nothing is linked between the pictures and nothing is asked per card, so there are no special cases. Only Wrong name asks one more thing: what the card is called.",
+      "fill": "orange",
+      "page": "p6"
+    },
+    "s3": {
+      "x": 2400,
+      "y": 2860,
+      "w": 820,
+      "text": "S3 is not something the player sees. It is the top of LÄS-MIG.md that dev/rapport/hamta.cjs writes (MES-365): category, the moment, every mark with its track and what Mesa did with it, the note, and the events around the moment. The marks turn the player's numbers into track ids, so the note can't be misread.",
+      "fill": "gray",
+      "page": "p6"
+    },
+    "t6c": {
+      "x": 0,
+      "y": 3600,
+      "text": "Third version: find it, mark it, then say what",
+      "kind": "title1",
+      "maxW": 3520,
+      "page": "p6"
+    },
+    "tn": {
+      "x": 0,
+      "y": 5080,
+      "w": 1120,
+      "text": "T1 in two steps. Step 1: pick the moment in the strip; the mat and the camera picture below follow it, so you look for the moment where the cards were wrong. Then tap the cards, on the mat, in the camera, or both. Step 2: what went wrong, and Your report: a sentence Mesa writes from your choices (category, moment, which numbers on the mat and in the camera). It only repeats what you picked and is not editable, so it can never put words in your mouth. The note is closed (+ Add a note) and is only for what the report doesn't say. A report with no note is still clear: the choices carry the meaning.",
+      "fill": "orange",
+      "page": "p6"
+    },
+    "t7": {
+      "x": 0,
+      "y": -300,
+      "text": "The whole flow: playing, the mistake, the report",
+      "kind": "title1",
+      "maxW": 4240,
+      "page": "p7"
+    },
+    "w0": {
+      "x": 0,
+      "y": -160,
+      "w": 1360,
+      "text": "Each board starts in a game. Press Next in the dashed bar: you play Island, Mesa shows it twice, the extra one goes away by itself. Then press Report a problem in the top bar and report it. Start over to try again with other answers.",
+      "fill": "gray",
+      "page": "p7"
+    },
+    "w1": {
+      "x": 0,
+      "y": 1080,
+      "w": 1360,
+      "text": "W1: a dialog in three steps. 1 What went wrong, as seven big buttons with a line each (\"A card on the mat isn't on your table\"), so the names never need explaining. 2 Show it: the instruction follows the answer, then the list of changes on your mat, and the mat and camera at the moment you pick. 3 Your report, written from your choices, and Send. Wins: the order people think in, one question per screen. Loses: three steps, and the pictures are small copies of the mat.",
+      "fill": "orange",
+      "page": "p7"
+    },
+    "w2": {
+      "x": 1440,
+      "y": 1080,
+      "w": 1360,
+      "text": "W2: no dialog. The mat itself goes back in time, with a timeline of every change under it and the camera picture in the corner. You tap the cards on the real mat. A side panel asks what went wrong and writes your report. Wins: you recreate the mistake exactly where you saw it. Loses: the game is hidden while you report, and it is the biggest thing to build.",
+      "fill": "gray",
+      "page": "p7"
+    },
+    "w3": {
+      "x": 2880,
+      "y": 1080,
+      "w": 1360,
+      "text": "W3: like W1, but after the answer Mesa shows the moment it thinks you mean, with the card ringed (here: the Island that came and went). Yes sends it in two taps; No opens Show it from W1. Wins: fastest when Mesa guesses right. Loses: a wrong guess that people accept without looking makes a wrong report; needs a rule for what Mesa suggests per answer.",
+      "fill": "gray",
+      "page": "p7"
     }
   },
   "designSystems": []

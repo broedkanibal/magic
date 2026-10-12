@@ -35,8 +35,8 @@ Lägena H–O har fortfarande G:s gamla texter och taggar; de ritas om efter G2 
 | Kategori | Täcker | Följdfrågan |
 |---|---|---|
 | Wrong name | fel namn | peka på kortet + *What is the card called?* (kortsök) |
-| Missing card | kortet ligger på bordet men inte på mattan, "ser inte kortet" | peka där kortet ligger |
-| Extra card | dubbletter, spöken, kort kvar som tagits bort | peka på kortet |
+| Didn't show up | kortet ligger på bordet men inte på mattan, "ser inte kortet" | peka där kortet ligger |
+| Shouldn't be there | dubbletter, spöken, kort kvar som tagits bort | peka på kortet |
 | Tapped wrong | tap och untap | peka på kortet |
 | Wrong place | flyttat fel, fel hög (graveyard, hand) | peka på kortet |
 | Slow | kortet kom sent | peka på kortet (valfritt) |
@@ -102,7 +102,7 @@ pekade spåret och *Just now / Earlier* överst i `LÄS-MIG.md`, före tidslinje
 - Under rutan (A, B): *Optional. You can change it any time in Settings.*
 - I Settings, av: *Off. Nothing is kept when you correct a card.* På: *On since 12 Oct 2026.*
 
-**Finstilt på A och B** (ändrat): *Mesa records how you use the app and any errors, linked to your account, to find and fix problems.* — tillägget är *and any errors* (felrapporterna).
+**Finstilt på A och B** (Jesper 2026-10-12): *To find and fix problems, Mesa notes how the app is used and any errors. No ads, and no pictures unless you choose.* Ligger inte i bildrutan: den är ett samtycke, användningsloggen är berättigat intresse.
 
 **What's new på B:** *You can send us a problem report with pictures, and choose whether to share pictures of cards you correct.*
 
@@ -168,3 +168,61 @@ gallringsregel säger: `anvandning` null eller `slangd`, oavsett `kalla`).
 - Kamerapanelen i övrigt (MES-358): Match, Pause camera, ↻.
 - Villkorsrutan och Google-knappen på A, och spärrens knappar på B.
 - Inga kryssrutor i rapportrutan.
+
+## Sida 6: peka på det som gick fel (2026-10-12, efter Jespers andra genomgång)
+
+Jespers frågor: felet finns ofta inte kvar när man trycker, och "peka på kortet" syntes inte i G2.
+Tre riktningar, inget borttaget. Kategorinamnen är nu *Didn't show up* och *Shouldn't be there*
+(i stället för *Missing card* och *Extra card*).
+
+| Tavla | Idé | Vinner | Förlorar |
+|---|---|---|---|
+| **R1** (provbar) | kamerabilden och mattan sida vid sida, frysta vid trycket. **Tryck först, säg sedan vad som är fel**: valen följer var man tryckte (ett kort bara i kameran kan bara vara *Didn't show up*, ett kort bara på mattan oftast *Shouldn't be there*). Nålen syns på båda bilderna | ett tryck på kortet och ett val; kategori och kort i samma rörelse | bara ögonblicket vid trycket |
+| **R2** · förslag | R1 + en remsa med de senaste minuterna. Dra tillbaka till när det såg fel ut och peka där | fångar fel som redan gått över (dubbletten som flimrade, kortet man redan rättat) | en rad till; mattans historik finns på datorn, kamerans stillbilder hämtas från telefonen när rutan öppnas (MES-366) |
+| R3 | en lista över vad Mesa gjort, nyast först, med spelarens egna rättelser märkta. Tryck på raden som blev fel | mest exakt för läsaren: en rad = en händelse | ett kort som aldrig kom finns inte i listan (kamerabilden under behövs); en lista är svårare att läsa av mitt i ett spel |
+
+Svar på frågan om felet finns kvar vid trycket: ofta inte. Fel namn och saknade kort står kvar
+tills spelaren rättar, men dubbletter, flimmer och fart är borta, och spelaren rättar ofta innan
+den rapporterar. Därför förslaget R2, och därför *It happened: Just now / Earlier* i G2 ersätts av
+remsan.
+
+### Ny version på sida 6: ett problem, markera vilka kort som helst (S1–S3)
+
+Jesper: att en markering i kameran också markerar mattan är förvirrande, och en händelse kan
+gälla flera kort (ett spelat på bordet, två dubbletter på mattan). Enkelt för spelaren, och utan
+specialfall. R1–R3 ligger kvar ovanför.
+
+| Tavla | Vad |
+|---|---|
+| **S1** · förslag (provbar) | tre steg i samma ordning: **1** vad gick fel (en kategori) · **2** vilka kort: tryck på hur många som helst, i kamerabilden och på mattan, varje bild för sig; siffrorna följer trycken, remsan väljer ögonblicket · **3** något att lägga till, där siffrorna kan användas (*When I played 1, 2 and 3 appeared*) |
+| S2 | S1 ifylld med dubblettfallet |
+| S3 | det du läser: överst i `LÄS-MIG.md` (MES-365) — kategori, ögonblick, varje markering med sitt spår och vad Mesa gjorde, texten, händelserna runt ögonblicket |
+
+Reglerna som håller det enkelt: **en rapport = ett problem** (fler problem = fler rapporter;
+kvittensen har *Report something else*). Ingenting kopplas mellan bilderna och ingenting frågas
+per kort. Bara *Wrong name* frågar en sak till: vad kortet heter. Allt utom att trycka
+*Send report* är valfritt.
+
+### Tredje versionen på sida 6: hitta ögonblicket, markera, säg vad (T1–T3)
+
+Jesper: ordningen ska vara tiden först (där korten låg fel), sedan korten; fritext som är valfri
+är svår att tolka, men en förifylld textruta blir lätt fel.
+
+| Steg | Vad |
+|---|---|
+| **1 av 2** | välj ögonblicket i remsan (förval *Now*). Mattan och kamerabilden under följer det valda ögonblicket. Tryck på korten, på mattan, i kameran eller båda; siffror i tryckordning |
+| **2 av 2** | *What went wrong?* (en kategori; *Wrong name* frågar vad kortet heter). **Your report**: en mening Mesa skriver av valen — kategori, ögonblick, vilka siffror på mattan och i kameran. Den upprepar bara valen och går inte att ändra, så den lägger aldrig ord i spelarens mun. *+ Add a note* är stängd och bara för det rapporten inte säger |
+
+En rapport utan text är ändå tydlig: valen bär betydelsen. T2 och T3 är T1 med stegen ifyllda.
+
+### Sida 7: hela flödet simulerat (W1–W3)
+
+Jesper: ordningen i T kändes onaturlig; det naturliga är att först säga vad som gick fel. Varje
+tavla börjar mitt i ett spel: *Next* i den streckade raden spelar Island, Mesa visar den två
+gånger, den extra försvinner av sig själv — sedan *Report a problem* i toppraden.
+
+| Tavla | Ordning | Vinner | Förlorar |
+|---|---|---|---|
+| **W1** · förslag | dialog i tre steg: **vad** (sju stora knappar med en rad var, t.ex. *A card on the mat isn't on your table*) → **visa** (instruktionen följer svaret; listan över ändringar på mattan; mattan och kameran i det valda ögonblicket; tryck på korten) → **kolla och skicka** (rapporten skriven av valen) | den ordning man tänker; en fråga per skärm; kategorinamnen förklaras på knappen | tre steg; bilderna är små kopior av mattan |
+| W2 | ingen dialog: mattan själv går tillbaka i tiden, tidslinjen med varje ändring under den, kameran i hörnet, en sidopanel frågar vad och skriver rapporten | man återskapar felet precis där man såg det | spelet är dolt medan man rapporterar; störst att bygga |
+| W3 | som W1, men efter svaret visar Mesa det ögonblick den tror att man menar, med kortet ringat. *Yes* skickar på två tryck, *No* öppnar W1:s visa-steg | snabbast när Mesa gissar rätt | en fel gissning som godtas utan att titta blir en fel rapport; kräver en regel per svar för vad Mesa föreslår |

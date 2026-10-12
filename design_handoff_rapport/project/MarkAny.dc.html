@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>S1 · One problem, mark any cards</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#a9bcff}a:hover{color:#c6d3ff}
+</style>
+</helmet>
+<div class="ab" style="width: 1120px; height: 1240px; padding: 30px 30px; background: #070a0e">
+  <section class="pop" aria-label="Report a problem">
+    <header class="hd2">
+      <h2>Report a problem</h2>
+      <button class="x" type="button" aria-label="Close" onClick="{{reset}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </header>
+
+    <sc-if value="{{notSent}}" hint-placeholder-val="{{ true }}">
+      <div class="bd" style="gap: 18px">
+        <div>
+          <span class="lbl"><span class="num" style="display: inline-block; margin-right: 8px; width: 19px; height: 19px; line-height: 19px; font-size: 11px; background: var(--bg4); color: var(--txt)">1</span>What went wrong?</span>
+          <div class="chips">
+            <sc-for list="{{tags}}" as="t" hint-placeholder-count="7">
+              <button class="{{t.cls}}" type="button" aria-pressed="{{t.on}}" onClick="{{t.pick}}">{{t.label}}</button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl" style="margin: 0"><span class="num" style="display: inline-block; margin-right: 8px; width: 19px; height: 19px; line-height: 19px; font-size: 11px; background: var(--bg4); color: var(--txt)">2</span>Which cards? <span style="font-weight: 400">Tap every card it is about, in the camera picture or on your mat. Tap again to unmark. (optional)</span></span>
+          <div class="strip" role="group" aria-label="When it happened">
+            <sc-for list="{{frames}}" as="f" hint-placeholder-count="5">
+              <button class="{{f.cls}}" type="button" onClick="{{f.pick}}"><span class="mini"><i class="island" style="left: 10%; top: 20%"></i><i class="mtn" style="left: 46%; top: 20%"></i><i class="forest" style="left: 72%; top: 48%"></i></span>{{f.label}}</button>
+            </sc-for>
+          </div>
+          <div class="pair">
+            <div class="pane">
+              <p class="ph">Your mat · {{when}}</p>
+              <div class="matv">
+                <div class="tile island" style="left: 10%; top: 12%"><span class="tn">Island</span></div>
+                <div class="tile island" style="left: 28%; top: 12%"><span class="tn">Island</span></div>
+                <div class="tile island" style="left: 28%; top: 50%"><span class="tn">Island</span></div>
+                <div class="tile mtn" style="left: 46%; top: 12%"><span class="tn">Mountain</span></div>
+                <div class="tile forest" style="left: 72%; top: 46%"><span class="tn">Forest</span></div>
+                <sc-for list="{{mat}}" as="t" hint-placeholder-count="5">
+                  <button class="{{t.cls}}" type="button" style="{{t.style}}" aria-label="{{t.aria}}" aria-pressed="{{t.on}}" onClick="{{t.pick}}"><sc-if value="{{t.on}}" hint-placeholder-val="{{ false }}"><span class="pin">{{t.num}}</span></sc-if></button>
+                </sc-for>
+              </div>
+            </div>
+            <div class="pane">
+              <p class="ph">What the camera saw · {{when}}</p>
+              <div class="snap">
+                <div class="cd island" style="left: 13%; top: 29%; transform: rotate(-3deg)"></div>
+                <div class="cd" style="left: 31%; top: 26%; --art: #3b3446"></div>
+                <div class="cd mtn" style="left: 49%; top: 30%; transform: rotate(-1deg)"></div>
+                <div class="cd sorc" style="left: 69%; top: 52%; transform: rotate(4deg)"></div>
+                <sc-for list="{{cam}}" as="t" hint-placeholder-count="4">
+                  <button class="{{t.cls}}" type="button" style="{{t.style}}" aria-label="{{t.aria}}" aria-pressed="{{t.on}}" onClick="{{t.pick}}"><sc-if value="{{t.on}}" hint-placeholder-val="{{ false }}"><span class="pin">{{t.num}}</span></sc-if></button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl" style="margin: 0"><span class="num" style="display: inline-block; margin-right: 8px; width: 19px; height: 19px; line-height: 19px; font-size: 11px; background: var(--bg4); color: var(--txt)">3</span>Anything to add? <span style="font-weight: 400">(optional)</span></span>
+          <sc-if value="{{isName}}" hint-placeholder-val="{{ false }}">
+            <input class="inp" type="text" placeholder="What is the card called? Search for it" aria-label="What is the card called?">
+          </sc-if>
+          <input class="inp" type="text" placeholder="{{notePh}}" aria-label="Anything to add?">
+        </div>
+
+        <div class="what">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+          <p><b>What we get:</b> these two pictures, what your camera saw and what happened on your mat in the last 10 minutes. We use it to fix problems and improve Mesa's card recognition, including training our models. <a href="https://magic-mauve-xi.vercel.app/privacy.html">More</a></p>
+        </div>
+      </div>
+      <footer class="ft">
+        <span class="note">{{summary}}</span>
+        <span class="grow"></span>
+        <button class="btn ghost" type="button" onClick="{{reset}}">Cancel</button>
+        <button class="btn prim" type="button" onClick="{{send}}">Send report</button>
+      </footer>
+    </sc-if>
+
+    <sc-if value="{{sent}}" hint-placeholder-val="{{ false }}">
+      <div class="bd">
+        <div class="done">
+          <span class="ok"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+          <h3>Report sent</h3>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span class="code">R-0412</span>
+            <button class="btn sm" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>Copy</button>
+          </div>
+          <p class="dim">Thanks. If you write to us about it, mention this code.</p>
+        </div>
+      </div>
+      <footer class="ft">
+        <button class="btn ghost" type="button" onClick="{{reset}}">Report something else</button>
+        <span class="grow"></span>
+        <button class="btn prim" type="button" onClick="{{reset}}">Done</button>
+      </footer>
+    </sc-if>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1120,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cat: null, frame: 4, marks: [], step: 'idle' };
+  }
+  renderVals() {
+    const s = this.state;
+    const T = [
+      ['name', 'Wrong name', 'For example: 1 is a Swamp, not an Island'],
+      ['missing', "Didn’t show up", 'For example: 1 never showed up on the mat'],
+      ['extra', "Shouldn’t be there", 'For example: when I played 1, 2 and 3 appeared'],
+      ['tap', 'Tapped wrong', 'For example: 1 untapped by itself'],
+      ['place', 'Wrong place', 'For example: 1 went to the graveyard'],
+      ['slow', 'Slow', 'For example: 1 took about 5 seconds'],
+      ['else', 'Something else', 'What happened? Use the numbers to point at cards']
+    ];
+    const F = ['4 min ago', '2 min ago', '1 min ago', '40 s ago', 'Now'];
+    const CAM = [
+      { id: 'c1', aria: 'Island in the camera', style: 'left: 12%; top: 25%; width: 13%; height: 44%' },
+      { id: 'c2', aria: 'Second card in the camera', style: 'left: 30%; top: 22%; width: 13%; height: 44%' },
+      { id: 'c3', aria: 'Mountain in the camera', style: 'left: 48%; top: 26%; width: 13%; height: 44%' },
+      { id: 'c4', aria: 'Fourth card in the camera', style: 'left: 68%; top: 48%; width: 13%; height: 44%' }
+    ];
+    const MAT = [
+      { id: 'm1', aria: 'Island on the mat', style: 'left: 9%; top: 9%; width: 16%; height: 50%' },
+      { id: 'm2', aria: 'Second Island on the mat', style: 'left: 27%; top: 9%; width: 16%; height: 50%' },
+      { id: 'm4', aria: 'Third Island on the mat', style: 'left: 27%; top: 47%; width: 16%; height: 50%' },
+      { id: 'm3', aria: 'Mountain on the mat', style: 'left: 45%; top: 9%; width: 16%; height: 50%' },
+      { id: 'm5', aria: 'Forest on the mat', style: 'left: 71%; top: 43%; width: 16%; height: 50%' }
+    ];
+    const tg = (t) => {
+      const i = s.marks.indexOf(t.id);
+      return { ...t, on: i >= 0, num: i + 1, cls: 'tgt' + (i >= 0 ? ' sel' : ''),
+        pick: () => this.setState({ marks: i >= 0 ? s.marks.filter((m) => m !== t.id) : s.marks.concat(t.id) }) };
+    };
+    const cur = T.find((x) => x[0] === s.cat);
+    const n = s.marks.length;
+    return {
+      tags: T.map((x) => ({ label: x[1], on: s.cat === x[0], cls: s.cat === x[0] ? 'chip on' : 'chip',
+        pick: () => this.setState({ cat: s.cat === x[0] ? null : x[0] }) })),
+      frames: F.map((label, i) => ({ label, cls: s.frame === i ? 'frame on' : 'frame', pick: () => this.setState({ frame: i }) })),
+      when: F[s.frame] === 'Now' ? 'when you pressed' : F[s.frame],
+      cam: CAM.map(tg),
+      mat: MAT.map(tg),
+      isName: s.cat === 'name',
+      notePh: cur ? cur[2] : 'What happened? Use the numbers to point at cards',
+      summary: (cur ? cur[1] : 'No category') + ' · ' + (n === 0 ? 'no cards marked' : n === 1 ? '1 card marked' : n + ' cards marked'),
+      notSent: s.step !== 'sent',
+      sent: s.step === 'sent',
+      send: () => this.setState({ step: 'sent' }),
+      reset: () => this.setState({ cat: null, frame: 4, marks: [], step: 'idle' })
+    };
+  }
+}
+</script>
+</body>
+</html>

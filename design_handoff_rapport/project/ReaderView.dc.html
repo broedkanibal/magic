@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>S3 · Det du läser</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+</style>
+</helmet>
+<div class="ab" style="width: 820px; height: 860px; padding: 30px 30px; background: #070a0e">
+  <div style="border: 1px solid var(--line); border-radius: 12px; background: #0b0f15; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; font: 13px/1.6 var(--mono); color: var(--dim)">
+    <p style="font: 600 11px var(--sans); letter-spacing: .8px; text-transform: uppercase; color: var(--dim2)">dev/diagnos/rapporter/R-0412/LÄS-MIG.md · överst</p>
+    <p style="color: var(--txt); font-size: 15px; font-weight: 700">R-0412 · Shouldn't be there</p>
+    <div style="display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 4px 14px">
+      <span>Tryckt</span><span style="color: var(--txt)">2026-10-12 21:14:07 · spel K7QX · Jesper</span>
+      <span>Ögonblicket</span><span style="color: var(--txt)">40 s före trycket (21:13:27)</span>
+      <span>Spelarens text</span><span style="color: #f6c46a">"When I played 1, the two Islands 2 and 3 appeared"</span>
+    </div>
+    <div style="border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 6px">
+      <p style="color: var(--txt)">Markerade kort</p>
+      <p><span class="num" style="display: inline-block; margin-right: 8px">1</span>kameran · spår 14 · Mesa: Island (0,62) · lagt 21:13:25</p>
+      <p><span class="num" style="display: inline-block; margin-right: 8px">2</span>mattan · Island · spår 14 · lagt 21:13:25</p>
+      <p><span class="num" style="display: inline-block; margin-right: 8px">3</span>mattan · Island · spår 17 · lagt 21:13:26 · borta 21:13:40</p>
+    </div>
+    <div style="border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 4px">
+      <p style="color: var(--txt)">Runt ögonblicket (±10 s)</p>
+      <p>21:13:24 · spår 14 syns i kameran, handen över</p>
+      <p>21:13:25 · spår 14 → Island, lagt på mattan</p>
+      <p>21:13:26 · spår 17 → Island, lagt på mattan (samma plats, 1 s senare)</p>
+      <p>21:13:40 · spår 17 borta</p>
+    </div>
+    <div style="border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 4px">
+      <p style="color: var(--txt)">Filer</p>
+      <p>kamera-40s.jpg · matta-40s.png (med siffrorna ritade) · rapport.json · diagnos.json</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":820,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

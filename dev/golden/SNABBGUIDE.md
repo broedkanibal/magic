@@ -236,8 +236,9 @@ oberoende inramningar som måste vara överens (beslut 2026-09-04).
 4. **Byta modell i appen på riktigt** görs i Vercel: projektet *magic* →
    Settings → Environment Variables → lägg till `ANTHROPIC_MODEL_KAMERA` (till
    exempel `claude-sonnet-5`) för Production, och gör en ny deploy — variabeln
-   läses först då. I dag är den inte satt, så koden väljer `claude-opus-5`
-   (beslutet ovan). Kontrollera vad produktionen kör med
+   läses först då. Sedan 2026-10-12 är den satt till `claude-sonnet-5-5`
+   (MES-327: golden med Claude lika många rätt, 0 säkra fel mot Opus 1);
+   utan den väljer koden `claude-opus-5`. Kontrollera vad produktionen kör med
    `curl -s https://magic-mauve-xi.vercel.app/api/identify` — fältet
    `modeller.kamera`.
    Spara därefter en ny baslinje med den modellen.
