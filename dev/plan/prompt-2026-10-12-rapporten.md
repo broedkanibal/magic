@@ -22,8 +22,9 @@ Samma samtal som fortsätter: ingen hälsning, nämn inte dokumenten.
    är körd — kontrollerat 2026-10-12) är det första fröet till rapporten och byggs vidare på, inte bredvid.
 2. `ListAgents` + `git worktree list`: pågår en orkestrerare eller en golden (`pgrep -f kor.cjs`)? Då väntar
    golden; bygget kan börja ändå i egna worktrees.
-3. Linear: är MES-365, 366, 368 i **Todo**? Agenter plockar bara ur Todo. Ligger de kvar i Triage: skriv det i
-   chatten och stanna — Jesper flyttar. `agent.kontrolleraInnanStart` på var och en (blockerare, pågående).
+3. Linear: MES-365, 366, 368 ligger i **Todo** (flyttade 2026-10-12, Medium; relationen till MES-190 borttagen).
+   `agent.kontrolleraInnanStart` på var och en (blockerare, pågående). Står MES-367 i In Progress är det
+   designsessionen — den rör bara designytan, ingen kod.
 4. Supabase (projekt `rtoejcafnssypnysjmey`, "Magic"): finns tabellen `rapporter` (eller typen i `kort_handelser`
    byggaren väljer)? 2026-10-12 fanns den inte. Migrationen skrivs i `supabase/migrations/` och körs med
    `apply_migration`. Stoppar behörigheten: skriv filen, lägg MES-365 i Behöver dig med exakt vad Jesper ska köra, gå
@@ -36,7 +37,7 @@ Samma samtal som fortsätter: ingen hälsning, nämn inte dokumenten.
 | 1 | **MES-365 A** svarta lådan, felfångsten, knappen, uppladdningen, `dev/rapport/hamta.cjs` + `lista.cjs` | mesa-bygg | datorsidan i `index.html` (ny modul, händelsekrokar i mattan och menyerna), telefonsidan (läge + fel i kanalen), `supabase/migrations/`, `dev/rapport/` | ingen — A först och ensam |
 | 2 | **MES-366 B** stillbilderna på telefonen, beskärningen per namn, de tysta rättelserna, bilderna i uppspelaren | mesa-bygg | telefonsidan i `index.html` (kameraloopen: **bara läsa ur det detektorn redan ritat**), `dev/mattest/` (visaren) | 3 |
 | 3 | **MES-368 D** `till-fall.cjs` (--mattest, --bank, --traning, --logg), spärren test/träning, `satt.cjs` | mesa-bygg | bara `dev/rapport/`, `dev/mattest/fall.cjs` + `underlag/` | 2 — rör inte `index.html` |
-| sist | **MES-367 C** | ingen | — | lämnas i Behöver dig: skriv utkastet till privacy-texten och de två samtyckesvalen som en kommentar på issuen; ingen kod |
+| — | **MES-367 C** | ingen | — | **rör den inte**: designytan (knappen, samtyckesrutan, privacy-texten) körs i en egen session; bygget kommer efter A och B |
 
 `paborjaIssue` när ett steg startar; MES-271 (föräldern) flyttas till In Progress av dig när A börjar och tillbaka
 till Todo om något blir kvar.
