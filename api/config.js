@@ -59,6 +59,8 @@ export default async function handler(req, res) {
     supabaseUrl: url || null,
     supabaseAnonKey: key || null,
     mixpanelToken: (process.env.MIXPANEL_TOKEN || '').trim() || null,
-    mixpanelHost: (process.env.MIXPANEL_HOST || '').trim() || null
+    mixpanelHost: (process.env.MIXPANEL_HOST || '').trim() || null,
+    /* Sidans version i problemrapporten (MES-365): commiten Vercel byggde. null lokalt. */
+    build: (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 12) || null
   });
 }

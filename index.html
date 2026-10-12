@@ -4145,6 +4145,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <button class="btn sm" id="kamRedo" data-mode="redo" title="Go through deck, phone and the untapped card again">Redo setup</button>
           <button class="btn sm" id="pbHelbildDev" title="The phone sends the whole picture to Claude and puts out the cards it sees">✦ Whole table to Claude</button>
           <button class="btn sm ghost dbg" id="pbDiagnos" title="Saves what the phone sees as a file, for troubleshooting">Save diagnostics</button>
+          <button class="btn sm ghost dbg" id="pbRapport" title="Opens the problem report: what you write, the last 10 minutes on this computer and the phone, and the phone's pictures (Ctrl+Alt+R)">Report a problem</button>
           <button class="btn sm ghost dbg" id="pbBordLogg" title="Saves every table the phone sent since the camera was turned on, as a file that can be replayed with dev/dubbletter.cjs --logg">Save table log</button>
         </div>
         <!-- Bildläget (MES-229, MES-244): 4K · 15 är förvalet; 1080p · 30 analyserar
@@ -4418,6 +4419,113 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
 <!-- "Moved by hand" efter ett släpp i Mirror my table (MES-352). Står alltid i sidan, så att skärmläsaren läser
      upp det som läggs i den (visaHandToast). -->
 <div id="handToast" role="status" aria-live="polite"></div>
+<script>
+/* ══ BLOCK: SVARTA LÅDAN (MES-365) ══════════════════════════════════
+   Problemrapporten del A: de senaste tio minuterna av vad som hände på den
+   här sidan, i minnet, så att en bugg går att felsöka EFTER att den hänt.
+   Står först av alla block, så att fel och anrop fångas från början.
+
+   Lådan observerar, den styr ingenting: inget här ändrar vad appen gör,
+   och ett fel i lådan stannar i lådan (allt är inlindat i try). Den tar
+   ingenting från kamerakedjan: fetch-kroken tittar bara på /api och
+   Supabase, och ingen bild passerar här.
+
+   En klocka: varje händelse stämplas med Date.now() på den här sidan.
+   Telefonens låda hämtas till datorn när rapporten fryses, med kanalens
+   uppmätta offset (Rapport, sista blocket), så att allt hamnar på datorns
+   klocka.
+
+   Taket: tio minuter, högst LADA_MAX händelser och LADA_BYTES bytes JSON;
+   det äldsta släpps först. Töms när sidan stängs — inget sparas.
+
+   Händelsernas slag: handling (klick, tangent, drag på datorn), matta
+   (mattans ändringar i fallformatet i dev/mattest/fall.cjs), notis,
+   dialog, fel (onerror, unhandledrejection, console.error/warn), anrop
+   (misslyckade anrop mot /api och Supabase), claude (varje fråga till
+   /api/identify, med svar och tid), kanal (kanalen nere/uppe), lage och
+   spar (telefonens läge och spårens läsningar). Läses av Rapport.frys(). */
+const Lada = (() => {
+  const LADA_MS = 10 * 60 * 1000, LADA_MAX = 8000, LADA_BYTES = 2.5e6;
+  const h = [], storl = [];
+  let bytes = 0, felLyss = null;
+  const kap = (s, n) => { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n) + '…' : s; };
+  function skriv(slag, data) {
+    try {
+      const e = Object.assign({ t: Date.now(), slag }, data || {});
+      let n = JSON.stringify(e).length;
+      if (n > 6000) { for (const k of Object.keys(e)) if (typeof e[k] === 'string' && e[k].length > 600) e[k] = kap(e[k], 600); n = JSON.stringify(e).length; }
+      h.push(e); storl.push(n); bytes += n;
+      while (h.length && (h.length > LADA_MAX || bytes > LADA_BYTES || h[0].t < e.t - LADA_MS)) { h.shift(); bytes -= storl.shift(); }
+      if (slag === 'fel' || (slag === 'anrop' && e.felrapport !== false)) { if (felLyss) felLyss(e); }
+      return e;
+    } catch (x) { return null; }
+  }
+  /* Tio minuter bakåt från nu, som kopior: rapporten fryses när rutan
+     öppnas, och det som händer sedan hör inte till den. */
+  function utdrag(ms) { const grans = Date.now() - (ms || LADA_MS); return h.filter(e => e.t >= grans).map(e => Object.assign({}, e)); }
+  const stat = () => ({ n: h.length, bytes: Math.round(bytes), aldst: h.length ? h[0].t : null });
+
+  /* ── felen ── */
+  const stackKort = s => kap(String(s || '').split('\n').slice(0, 6).join('\n'), 900);
+  window.addEventListener('error', ev => {
+    if (!ev || !ev.message) return;   // en bild som inte laddade är inget kodfel
+    skriv('fel', { kalla: 'onerror', med: kap(ev.message, 400), fil: kap(ev.filename, 120), rad: ev.lineno, kol: ev.colno, stack: stackKort(ev.error && ev.error.stack) });
+  });
+  window.addEventListener('unhandledrejection', ev => {
+    const r = ev && ev.reason;
+    skriv('fel', { kalla: 'unhandledrejection', med: kap(r && r.message ? r.message : r, 400), stack: stackKort(r && r.stack) });
+  });
+  const fmt = a => { try { return a.map(x => x instanceof Error ? x.message : typeof x === 'object' ? kap(JSON.stringify(x), 200) : String(x)).join(' '); } catch (e) { return '?'; } };
+  for (const niva of ['error', 'warn']) {
+    const urs = console[niva];
+    if (typeof urs !== 'function') continue;
+    console[niva] = function () {
+      try { skriv('fel', { kalla: 'console.' + niva, med: kap(fmt(Array.prototype.slice.call(arguments)), 400) }); } catch (e) {}
+      return urs.apply(this, arguments);
+    };
+  }
+
+  /* ── anropen ── Bara /api och Supabase (REST, storage, auth). Ett lyckat
+     Supabase-anrop skrivs inte (de är många och säger inget); ett
+     misslyckat skrivs med status och tid. Varje fråga till Claude
+     (/api/identify) skrivs, med svar och tid. Frågesträngen skrivs aldrig
+     (den bär filter med id:n). */
+  const urFetch = window.fetch;
+  if (typeof urFetch === 'function') {
+    window.fetch = function (inp, init) {
+      let url = '';
+      try { url = typeof inp === 'string' ? inp : (inp && inp.url) || String(inp); } catch (e) {}
+      const api = url.indexOf('/api/') >= 0, sb = /supabase\.(co|in)\//.test(url);
+      if (!api && !sb) return urFetch.apply(this, arguments);
+      const t0 = performance.now(), metod = ((init && init.method) || (inp && inp.method) || 'GET').toUpperCase();
+      let vag = url; try { const u = new URL(url, location.href); vag = (sb ? u.host.split('.')[0].slice(0, 4) + '…' : '') + u.pathname; } catch (e) {}
+      const claude = vag.indexOf('/api/identify') >= 0 && metod === 'POST';
+      let mode = null;
+      if (claude) { try { const b = init && typeof init.body === 'string' ? init.body : ''; const i = b.indexOf('"mode":"'); if (i >= 0) mode = b.slice(i + 8, b.indexOf('"', i + 8)).slice(0, 20); } catch (e) {} }
+      /* Lådans egna anrop (rapporten) blir aldrig en felrapport: ett nät som
+         är nere hade annars rapporterat sig självt i en loop. */
+      const egen = /\/rapporter|rapporter_idag|\/raderingar/.test(vag);
+      const p = urFetch.apply(this, arguments);
+      p.then(r => {
+        const ms = Math.round(performance.now() - t0);
+        if (claude) {
+          r.clone().json().then(j => {
+            const svar = {};
+            for (const k of Object.keys(j || {})) { const v = j[k]; if (v == null || typeof v !== 'object') svar[k] = typeof v === 'string' ? kap(v, 120) : v; }
+            skriv('claude', { mode, status: r.status, ms, svar });
+          }, () => skriv('claude', { mode, status: r.status, ms }));
+          if (!r.ok) skriv('anrop', { metod, vag, status: r.status, ms, felrapport: !egen && r.status >= 500 });
+        } else if (!r.ok) skriv('anrop', { metod, vag, status: r.status, ms, felrapport: !egen && r.status >= 500 });   // 4xx är svar (utloggad, tak, finns inte), inget kodfel
+      }, e => {
+        const ms = Math.round(performance.now() - t0), avbrutet = e && e.name === 'AbortError';
+        skriv(claude ? 'claude' : 'anrop', { metod, vag, mode: mode || undefined, status: 0, ms, fel: kap(e && e.message, 200), tidsgrans: avbrutet || undefined, felrapport: !egen && !avbrutet });
+      });
+      return p;
+    };
+  }
+  return { skriv, utdrag, stat, kap, set felLyss(f) { felLyss = f; } };
+})();
+</script>
 <script>
 /* En canvas att räkna i: dokumentets på huvudtråden, en OffscreenCanvas i
    läsningens räknetråd (LasWorker, MES-221), där document inte finns.
@@ -7039,6 +7147,34 @@ const Moln = (() => {
     return true;
   }
 
+  /* ── Problemrapporten (MES-365, supabase/migrations/20261013090000_rapporter.sql) ──
+     Raden ger koden (R-NNNN, löpnummer från servern) och mappen i hinken;
+     taket (20 rapporter, 50 felrapporter per 24 h) räknas av servern, som
+     vägrar med 'rapport_tak'. Bilder och paket i storage, aldrig i raden. */
+  async function rapportRad(rad) {
+    const s = await klient(); if (!s || !inloggad()) throw new Error('Not signed in');
+    const { data, error } = await s.from('rapporter').insert(rad).select('kod, sokvag').single();
+    if (error) { if (/rapport_tak/.test(error.message || '')) throw Object.assign(new Error('rapport_tak'), { tak: true }); throw new Error(error.message || 'rapporter'); }
+    return data;
+  }
+  async function rapportFil(mapp, namn, blob, typ) {
+    const s = await klient(); if (!s || !inloggad()) throw new Error('Not signed in');
+    const up = await s.storage.from('scans').upload(`${mapp}/${namn}`, blob, { contentType: typ || blob.type || 'application/octet-stream', upsert: false });
+    if (up.error && !/exist|duplicate|409/i.test((up.error.message || '') + ' ' + (up.error.statusCode || ''))) throw up.error;
+  }
+  async function rapportUppdatera(kod, falt) {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    const { error } = await s.from('rapporter').update(falt).eq('kod', kod);
+    return !error;
+  }
+  /* Rapporter de senaste 24 h på serverns klocka; null = vet inte (utloggad, nätet, migrationen saknas). */
+  async function rapporterIdag() {
+    const s = await klient(); if (!s || !inloggad() || saknas.rapporter) return null;
+    const { data, error } = await s.rpc('rapporter_idag');
+    if (error) { if (saknasFel(error)) saknas.rapporter = true; return null; }
+    return typeof data === 'number' ? data : null;
+  }
+
   /* ── Spelupplevelsen (supabase/migrations/20261009120000_spelupplevelse.sql) ──
      Korthändelserna och betyget efter partiet. Saknas tabellerna (migrationen
      inte körd) slutar loggningen tyst och frågan visas aldrig. */
@@ -7076,7 +7212,7 @@ const Moln = (() => {
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt, token,
            VILLKOR_VERSION, villkorGodkand, godkannVillkor,
            skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
-           avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
+           avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, rapportRad, rapportFil, rapportUppdatera, rapporterIdag, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, sparaLekSlv, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
@@ -12971,6 +13107,7 @@ function renderFocus() {
 }
 
 function renderAll(forceGrid) {
+  if (typeof Rapport !== 'undefined') Rapport.mattaDiff();   // svarta lådan (MES-365): mattans ändringar, med tid
   uppdateraLage();
   renderTabs();
   renderBord();
@@ -32726,6 +32863,7 @@ function kamKommando(m) {
   kamDatorSvarade();
   if (m.typ === 'strom') { m.pa ? startaStrom(m.bredd) : stoppaStrom(); return; }
   if (m.typ === 'diagnos') { sandDiagnos(); return; }
+  if (typeof Rapport !== 'undefined' && Rapport.telefonKommando(m)) return;   // problemrapporten (MES-365): frys lådan, ladda upp bilderna, svaret till arket
   if (m.typ === 'insp') { if (DEBUG) InspProv.kommando(m); return; }   // inspelningsprovet (MES-190)
   if (m.typ === 'lek') { byggKamPool(); return; }            // leken ändrades på datorn
   if (m.typ === 'nyref') { Kamera.nyReferens(); return; }    // ta om bilden av tom matta
@@ -36985,6 +37123,7 @@ function kamTogsEmot(m) {
      hellre än att släppas igenom oprövat. */
   const jag = Moln.minId();
   if (!jag || m.av !== jag || m.fran !== 'kamera') return;
+  if (typeof Rapport !== 'undefined' && Rapport.datorTagEmot(m)) return;   // problemrapporten (MES-365): telefonens låda, bilderna klara, telefonens ark
   if (m.typ === 'bild') return kamBild(m);
   if (m.typ === 'bord') {
     if (kamHejVantar && Moln.sandKam('hej')) kamHejVantar = false;   // fotona på de namnlösa korten, igen
@@ -38428,6 +38567,594 @@ async function portalStart() {
   resolveAll();
   matResize();
 })();
+</script>
+<script>
+"use strict";
+/* ══ BLOCK: PROBLEMRAPPORTEN (MES-365, del A av MES-271) ══════════════
+   Specen: design_handoff_rapport/README.md §5 (rutan och lägena) och §9
+   (paketet, uppladdningen, protokollet). Hämtas hem med
+   node dev/rapport/hamta.cjs R-NNNN — se dev/rapport/LÄS-MIG.md.
+
+   Lådan (Lada, första blocket) skriver ner vad som händer. Här:
+   · handlingarna på sidan (klick, tangenter, drag, notiser, dialoger),
+   · mattans ändringar i fallformatet (dev/mattest/fall.cjs: spelar,
+     tar_bort, tappar, otappar, flyttar — plus namn),
+   · telefonens läge och spårens läsningar (bara på telefonen),
+   · paketet som fryses när rutan öppnas, och uppladdningen i tre steg,
+   · rapportrutan med sina fem lägen, och felrapporterna (kalla 'fel').
+
+   Kanalen (kontots egen, kam:<user_id>) bär, i appens form {typ, …}
+   (specens t = typ):
+     dator → telefon  rapport_lada {id, t0}        frys din låda, svara med den
+     telefon → dator  rapport_lada {id, t0, tTel, del, delar, json}
+     dator → telefon  rapport_bilder {kod, sokvag, id}   ladda upp dina bilder
+     telefon → dator  rapport_bilder_klar {kod, antal, fel}
+     telefon → dator  rapport {id, text, tagg}     telefonens ark (del C)
+     dator → telefon  rapport_svar {id, kod} | {id, fel}
+
+   Claude är aldrig ett villkor: inget här frågar Claude, och lådan bara
+   noterar de frågor appen redan ställer. Dold information (MES-305):
+   paketet bär bara min matta, motståndarnas utlagda kort (som alla ser)
+   och aldrig någon annans hand eller bibliotek.
+
+   Bakom ?debug i del A. C lägger flaggan RAPPORT_FOR_ALLA (se rapportPa). */
+const Rapport = (() => {
+  const TAGGAR = [
+    ['forsvann', 'A card disappeared'], ['dok_upp', "A card appeared that I didn't play"], ['kom_aldrig', 'A card never showed up'],
+    ['fel_namn', 'Wrong name'], ['tap', 'Tapped or untapped wrong'], ['langsamt', 'Slow'], ['annat', 'Something else']
+  ];
+  const TAK_RAPPORTER = 20, MAX_TECKEN = 500, MAX_BYTES = 15 * 1024 * 1024;
+  const FEL_DEDUPE_MS = 10 * 60 * 1000, TELEFON_SVAR_MS = 10000, LADA_VANTA_MS = 4000, BILDER_VANTA_MS = 120000;
+  const kap = Lada.kap;
+  const arTelefon = () => typeof kameraEnhet !== 'undefined' && kameraEnhet;
+  /* Ytorna och felrapporterna: ?debug i del A; C lägger RAPPORT_FOR_ALLA bredvid VILLKOR_VERSION. */
+  const rapportPa = () => (typeof DEBUG !== 'undefined' && DEBUG) || (typeof RAPPORT_FOR_ALLA !== 'undefined' && !!RAPPORT_FOR_ALLA);
+  let build = null;
+  try { Moln.konfig().then(k => { build = (k && k.build) || null; }, () => {}); } catch (e) {}
+
+  /* ── Miljön ── */
+  function miljo() {
+    const m = {
+      sida: arTelefon() ? 'telefon' : 'dator', build, url: location.pathname, ua: navigator.userAgent,
+      plattform: (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || null,
+      skarm: { w: screen.width, h: screen.height, dpr: window.devicePixelRatio || 1 }, fonster: { w: innerWidth, h: innerHeight },
+      webgpu: !!navigator.gpu, online: navigator.onLine, debug: typeof DEBUG !== 'undefined' && !!DEBUG,
+      ai: typeof prefs !== 'undefined' ? prefs.aiAuto !== false : null
+    };
+    try {
+      if (spelLage) { m.spel = spelLage.kod || null; m.spelId = spelLage.id || null; const mig = minSpelare(); m.lekId = (mig && mig.lekId) || null; m.lage = mittLage(); }
+      if (arTelefon() && kamLage) {
+        m.spel = kamLage.kod || null; m.spelId = kamLage.id || null;
+        m.kamera = { lage: Kamera.lage || null, bildlage: Kamera.bildlage || null, upplosning: Kamera.upplosning || null };
+        const sp = Kamera.strom && Kamera.strom.getVideoTracks && Kamera.strom.getVideoTracks()[0];
+        if (sp && sp.getSettings) { const s = sp.getSettings(); m.kamera.spar = { w: s.width, h: s.height, fps: s.frameRate, zoom: s.zoom, facing: s.facingMode }; }
+      }
+      if (!arTelefon()) m.kamAnsluten = !!kamAnsluten;
+    } catch (e) {}
+    return m;
+  }
+
+  /* ── Handlingarna (båda sidor) ── Vad som trycktes, aldrig vad som
+     skrevs: i ett textfält noteras bara Enter, Escape och Tab. */
+  let senastRordKort = null, senastHandling = 0;
+  function beskriv(el) {
+    if (!el || !el.closest) return {};
+    const k = el.closest('.card[data-cid], .ofr[data-ofr]');
+    const m = el.closest('button, a, [data-mode], [data-hem], [role=button], label, select, summary, .chip, input, textarea') || el;
+    const o = { mal: m.tagName.toLowerCase() + (m.id ? '#' + m.id : '') };
+    const etikett = m.getAttribute('aria-label') || m.getAttribute('title') || (/^(INPUT|TEXTAREA|SELECT)$/.test(m.tagName) ? '' : m.textContent);
+    if (etikett) o.text = kap(etikett.replace(/\s+/g, ' ').trim(), 60);
+    if (m.dataset && m.dataset.mode) o.mode = m.dataset.mode;
+    if (m.dataset && m.dataset.hem) o.hem = m.dataset.hem;
+    if (k) { o.kort = k.dataset.cid ? k.dataset.cid : 'o:' + k.dataset.ofr; if (!m.id && m === k) o.mal = 'kort'; }
+    const ruta = el.closest('.ov[id], .rapruta, #menu, .kampop');
+    if (ruta) o.i = ruta.id || ruta.className.split(' ')[0];
+    return o;
+  }
+  const iFalt = el => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+  function handling(typ, ev) {
+    const o = Object.assign({ typ }, beskriv(ev.target));
+    if (o.kort && o.kort[0] !== 'o') senastRordKort = o.kort;
+    senastHandling = Date.now();
+    Lada.skriv('handling', o);
+  }
+  document.addEventListener('click', ev => handling('klick', ev), true);
+  document.addEventListener('contextmenu', ev => handling('hogerklick', ev), true);
+  document.addEventListener('dblclick', ev => handling('dubbelklick', ev), true);
+  document.addEventListener('keydown', ev => {
+    const k = ev.key || '';
+    if (iFalt(ev.target) && !/^(Enter|Escape|Tab)$/.test(k)) return;
+    if (/^(Shift|Control|Alt|Meta|CapsLock)$/.test(k)) return;
+    const o = beskriv(ev.target);
+    Lada.skriv('handling', { typ: 'tangent', tangent: (ev.metaKey ? 'Cmd+' : '') + (ev.ctrlKey ? 'Ctrl+' : '') + (ev.altKey ? 'Alt+' : '') + (ev.shiftKey && k.length > 1 ? 'Shift+' : '') + k, mal: o.mal, i: o.i });
+    senastHandling = Date.now();
+  }, true);
+  let drag = null;
+  document.addEventListener('pointerdown', ev => { const k = ev.target && ev.target.closest && ev.target.closest('.card[data-cid]'); drag = k ? { cid: k.dataset.cid, x: ev.clientX, y: ev.clientY } : null; }, true);
+  document.addEventListener('pointerup', ev => {
+    if (!drag) return;
+    const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if (dx * dx + dy * dy > 64) { senastRordKort = drag.cid; senastHandling = Date.now(); Lada.skriv('handling', { typ: 'drag', kort: drag.cid, dx: Math.round(dx), dy: Math.round(dy) }); }
+    drag = null;
+  }, true);
+  addEventListener('online', () => Lada.skriv('kanal', { natet: 'online' }));
+  addEventListener('offline', () => Lada.skriv('kanal', { natet: 'offline' }));
+  document.addEventListener('visibilitychange', () => Lada.skriv('handling', { typ: 'synlig', synlig: document.visibilityState }));
+  /* Notiserna och dialogerna: varje .ov som öppnas eller stängs, och texten i en notis. */
+  function bevakaYtor() {
+    try {
+      const notis = new MutationObserver(lista => { for (const r of lista) for (const n of r.addedNodes) { const t = (n.textContent || '').trim(); if (t) Lada.skriv('notis', { text: kap(t, 160), i: r.target.id }); } });
+      for (const id of ['toast', 'handToast']) { const el = document.getElementById(id); if (el) notis.observe(el, { childList: true, subtree: true }); }
+      const ov = new MutationObserver(lista => {
+        for (const r of lista) {
+          const el = r.target, pa = el.classList.contains('open');
+          if (pa === !!el._ladaOppen) continue;
+          el._ladaOppen = pa;
+          const rub = pa ? (el.querySelector('h1, h2, h3, .pophd, header') || {}).textContent : null;
+          Lada.skriv('dialog', { id: el.id, oppen: pa, rubrik: rub ? kap(rub.replace(/\s+/g, ' ').trim(), 80) : undefined });
+        }
+      });
+      for (const el of document.querySelectorAll('.ov[id], #menu')) { el._ladaOppen = el.classList.contains('open'); ov.observe(el, { attributes: true, attributeFilter: ['class'] }); }
+    } catch (e) {}
+  }
+
+  /* ── Mattan (datorn) ── Mitt bord, jämfört med förra gången: en rad per
+     kort som kom, försvann, tappades, flyttades till en hög eller långt på
+     mattan, eller bytte namn. typ och till som i fall.cjs facit (spelar,
+     tar_bort, tappar, otappar, flyttar). av: spelaren om något trycktes
+     de senaste 1,5 s, annars kameran — en gissning, och märkt som en. */
+  let mattaForra = null, mattaSpel = null;
+  const zonNamn = z => z === 'grav' ? 'graveyard' : z === 'exil' ? 'exile' : 'mattan';
+  function kortNu(c) { let z = 'spell'; try { z = zonAv(c); } catch (e) {} return { n: c.name || null, z, tp: c.tapped ? 1 : 0, x: c.x != null ? Math.round(c.x) : null, y: c.y != null ? Math.round(c.y) : null, s: c.spar != null ? c.spar : null }; }
+  function mattaDiff() {
+    try {
+      if (arTelefon() || !spelLage) { mattaForra = null; return; }
+      const mig = minSpelare(); if (!mig) return;
+      const nu = new Map();
+      for (const c of mig.cards) if (c && c.cid) nu.set(c.cid, kortNu(c));
+      if (!mattaForra || mattaSpel !== spelLage.id) { mattaForra = nu; mattaSpel = spelLage.id; return; }
+      const av = Date.now() - senastHandling < 1500 ? 'spelare' : 'kamera';
+      const rad = (typ, cid, k, x) => Lada.skriv('matta', Object.assign({ typ, kort: k.n, id: cid, spar: k.s != null ? k.s : undefined, av }, x || {}));
+      for (const [cid, k] of nu) {
+        const f = mattaForra.get(cid);
+        if (!f) { rad('spelar', cid, k, { till: zonNamn(k.z), x: k.x, y: k.y }); continue; }
+        if (f.n !== k.n) rad('namn', cid, k, { fran: f.n });
+        if (f.z !== k.z && zonNamn(f.z) !== zonNamn(k.z)) rad('flyttar', cid, k, { till: zonNamn(k.z), fran: zonNamn(f.z) });
+        else if (k.x != null && f.x != null && Math.hypot(k.x - f.x, k.y - f.y) > 40) rad('flyttar', cid, k, { till: 'plats', x: k.x, y: k.y, fx: f.x, fy: f.y });
+        if (f.tp !== k.tp) rad(k.tp ? 'tappar' : 'otappar', cid, k);
+      }
+      for (const [cid, f] of mattaForra) if (!nu.has(cid)) rad('tar_bort', cid, f);
+      mattaForra = nu;
+    } catch (e) {}
+  }
+  /* Mattan vid trycket: mitt bord helt, och motståndarnas utlagda kort (de
+     ser alla vid bordet). Aldrig någons hand eller bibliotek; ett nedvänt
+     kort hos en motståndare utan namn. */
+  function mattaNu() {
+    try {
+      if (!spelLage && !state) return null;
+      const mig = minSpelare();
+      const ut = { mig: mig ? mig.cards.map(c => Object.assign({ id: c.cid }, kortNu(c), { tok: c.tok ? 1 : undefined, hand: c.hand ? 1 : undefined })) : [], andra: [] };
+      if (spelLage) for (const p of state.players) {
+        if (!p || p === mig) continue;
+        ut.andra.push({ spelare: p.name || null, kort: (p.cards || []).filter(c => { try { return paMattan(c) || zonAv(c) === 'grav' || zonAv(c) === 'exil'; } catch (e) { return false; } })
+          .map(c => ({ n: c.flipped ? null : c.name || null, z: (() => { try { return zonAv(c); } catch (e) { return null; } })(), tp: c.tapped ? 1 : 0, x: c.x != null ? Math.round(c.x) : null, y: c.y != null ? Math.round(c.y) : null })) });
+      }
+      return ut;
+    } catch (e) { return null; }
+  }
+
+  /* ── Telefonen: läget och spårens läsningar, en gång i sekunden, bara
+     det som ändrats. Läser Kameras getters — ingen bild, inget steg. ── */
+  let telForraLage = '', telSpar = new Map(), telDatorNere = false;
+  function telefonProv() {
+    try {
+      if (!arTelefon() || !kamLage) { telSpar.clear(); telForraLage = ''; return; }
+      const u = Kamera.upplosning, y = Kamera.yta, b = Kamera.bildlage;
+      const l = { lage: Kamera.lage || null, bildlage: b ? b.lage + (b.fps ? '@' + Math.round(b.fps) : '') + ' ' + b.ana + 'px ' + b.det : null, upplosning: u ? u.w + 'x' + u.h : null, rad: Kamera.rad || null, yta: y ? y.dom || null : null, synlig: document.visibilityState };
+      const sig = JSON.stringify(l);
+      if (sig !== telForraLage) { telForraLage = sig; Lada.skriv('lage', l); }
+      const sedd = new Set();
+      const spar = Kamera.spar || [];
+      for (let i = 0; i < spar.length && i < 80; i++) {
+        const t = spar[i]; if (!t || t.id == null) continue;
+        sedd.add(t.id);
+        const r = { id: t.id, namn: t.namn || null, saker: !!t.saker, varfor: t.varfor || null, tappad: !!t.tappad, tillstand: t.tillstand || null };
+        const s = r.namn + '|' + r.saker + '|' + r.varfor + '|' + r.tappad + '|' + r.tillstand;
+        if (telSpar.get(t.id) !== s) { telSpar.set(t.id, s); Lada.skriv('spar', r); }
+      }
+      for (const id of telSpar.keys()) if (!sedd.has(id)) { telSpar.delete(id); Lada.skriv('spar', { id, borta: true }); }
+      const nere = typeof kamSenastSvar !== 'undefined' && kamSenastSvar > 0 && Date.now() - kamSenastSvar > 10000;
+      if (nere !== telDatorNere) { telDatorNere = nere; Lada.skriv('kanal', { dator: nere ? 'svarar inte' : 'svarar' }); }
+    } catch (e) {}
+  }
+  let datorKamForra = null;
+  setInterval(() => {
+    telefonProv();
+    mattaDiff();
+    try { if (!arTelefon() && spelLage && kamAnsluten !== datorKamForra) { datorKamForra = kamAnsluten; Lada.skriv('kanal', { telefon: kamAnsluten ? 'ansluten' : 'inte ansluten' }); } } catch (e) {}
+  }, 1000);
+
+  /* ── Vyn vid trycket (README §9) ── */
+  function vy() {
+    const v = { zoom: null, pan: null, synlig: null, senastRord: null, lage: null, kamAnsluten: null, skarm: { w: innerWidth, h: innerHeight } };
+    try {
+      const m = /translate\(\s*(-?[\d.]+)px,\s*(-?[\d.]+)px\)\s*scale\(([\d.]+)\)/.exec((gridEl && gridEl._matT) || '');
+      const z = m ? +m[3] : 1;
+      v.zoom = z; v.pan = m ? { x: +m[1], y: +m[2] } : { x: 0, y: 0 };
+      const r = gridEl.getBoundingClientRect(), w = (gridEl.parentElement || document.body).getBoundingClientRect();
+      v.synlig = { x0: Math.round((w.left - r.left) / z), y0: Math.round((w.top - r.top) / z), x1: Math.round((w.right - r.left) / z), y1: Math.round((w.bottom - r.top) / z) };
+      if (senastRordKort) { const mig = minSpelare(), c = mig && mig.cards.find(k => k.cid === senastRordKort); v.senastRord = c ? (c.spar != null ? c.spar : null) : null; v.senastRordKort = senastRordKort; }
+      v.lage = spelLage ? mittLage() : null;
+      v.kamAnsluten = !!kamAnsluten;
+    } catch (e) {}
+    return v;
+  }
+
+  /* ── Bordsloggen (loggaBord) inom tio minuter före trycket, i fallets form ── */
+  function bordsloggUtdrag(nu) {
+    try {
+      const f = bordLoggFil(); if (!f) return null;
+      const start = Date.parse(f.start), grans = (nu - 10 * 60 * 1000 - start) / 1000;
+      return { start, id: f.id, kapad: f.kapad || f.bordLogg[0].s < grans, rader: f.bordLogg.filter(r => r.s >= grans) };
+    } catch (e) { return null; }
+  }
+
+  /* ── Paketet: fryses när rutan öppnas (README §9) ──────────────────── */
+  const vantar = new Map();   // paketets id → { klar(lada), t0, delar }
+  let telefonLyss = new Map(); // id → resolve för rapport_svar (telefonen)
+  function frys() {
+    const nu = Date.now(), id = nu.toString(36) + Math.random().toString(36).slice(2, 6);
+    const p = {
+      v: 1, id, frys: nu, frysIso: new Date(nu).toISOString(), sida: 'dator', miljo: miljo(), vy: vy(),
+      lada: Lada.utdrag(), ladaStat: Lada.stat(), matta: mattaNu(), bordLogg: bordsloggUtdrag(nu),
+      telefon: null, medTelefon: false
+    };
+    mattaDiff();
+    /* Telefonen fryser sin låda i samma ögonblick. Svaret bär telefonens klocka: offset ur rundturen. */
+    let ansluten = false; try { ansluten = !!kamAnsluten; } catch (e) {}
+    if (ansluten && Moln.sandKam('rapport_lada', { id, t0: nu })) {
+      p.medTelefon = true;
+      p.telefonKlar = new Promise(res => {
+        vantar.set(id, { res, t0: nu, delar: [], t1: null });
+        setTimeout(() => { if (vantar.delete(id)) res(null); }, LADA_VANTA_MS);
+      }).then(t => { p.telefon = t || { svarade: false }; return p.telefon; });
+    } else p.telefonKlar = Promise.resolve(null);
+    return p;
+  }
+  /* Telefonens låda på datorns klocka: offset = telefonens klocka − datorns, mitt i rundturen. */
+  function tagEmotLada(m) {
+    const v = vantar.get(m.id); if (!v) return;
+    if (v.t1 == null) v.t1 = Date.now();
+    v.delar[m.del || 0] = m.json || '';
+    if (v.delar.filter(x => x != null).length < (m.delar || 1)) return;
+    vantar.delete(m.id);
+    let j = null; try { j = JSON.parse(v.delar.join('')); } catch (e) { v.res({ svarade: true, fel: 'trasig' }); return; }
+    const rtt = v.t1 - v.t0, offset = Math.round(m.tTel - (v.t0 + v.t1) / 2);
+    for (const e of j.lada || []) { e.tTel = e.t; e.t = e.t - offset; }
+    v.res({ svarade: true, offset, rtt, miljo: j.miljo, lada: j.lada || [], ladaStat: j.ladaStat, kapad: !!j.kapad, frysTel: j.frys });
+  }
+
+  /* ── Telefonen: frys på begäran, ladda upp på begäran ── */
+  const frysta = new Map();   // paketets id → { t, diagnos, bilder }
+  function diagnosFilTelefon() {
+    try {
+      const d = Kamera.diagnosfil(); if (!d) return null;
+      const b64 = arr => { let s = ''; for (let i = 0; i < arr.length; i += 4096) s += String.fromCharCode.apply(null, arr.subarray(i, i + 4096)); return btoa(s); };
+      const gra = f => { const u = new Uint8Array(f.length); for (let i = 0; i < f.length; i++) u[i] = Math.max(0, Math.min(255, Math.round(f[i]))); return u; };
+      /* Samma form som datorns diagnosfil (tagEmotDiagnos): går rakt in i dev/kamerabank.cjs --diagnos. */
+      return { version: 2, tid: new Date().toISOString(), spel: kamLage && kamLage.kod, promptv: null, matt: d.matt, tro: d.tro, dia: d.dia, yta: d.yta, kal: d.kal,
+               spar: d.spar, ref: d.refRa ? b64(gra(d.refRa)) : null, ruta: d.rutaRa ? b64(gra(d.rutaRa)) : null, bild: d.bild, bord: null, fran: 'telefonen, rapport' };
+    } catch (e) { Lada.skriv('fel', { kalla: 'rapport', med: 'diagnosfilen: ' + kap(e && e.message, 200) }); return null; }
+  }
+  function telefonFrys(m) {
+    const nu = Date.now();
+    for (const [k, v] of frysta) if (nu - v.t > 5 * 60 * 1000) frysta.delete(k);
+    /* B (MES-366) fyller Rapport.stillbilder: () → [{ namn, t, blob }], telefonens bilder vid trycket. */
+    let bilder = [];
+    try { bilder = typeof api.stillbilder === 'function' ? (api.stillbilder() || []) : []; } catch (e) {}
+    frysta.set(m.id, { t: nu, diagnos: diagnosFilTelefon(), bilder });
+    /* Kanalen har ett tak per meddelande (~¼ MB) och en takt: lådan går i
+       högst fyra delar à 150 kB, en var 150:e ms. Är den större släpps det
+       äldsta (kapad säger det). tTel är telefonens klocka när svaret går. */
+    let lada = Lada.utdrag(), kapad = false, json = '';
+    for (;;) {
+      json = JSON.stringify({ frys: nu, miljo: miljo(), lada, ladaStat: Lada.stat(), kapad });
+      if (json.length <= 600000 || lada.length < 50) break;
+      lada = lada.slice(Math.floor(lada.length / 5)); kapad = true;
+    }
+    const BIT = 150000, delar = Math.max(1, Math.ceil(json.length / BIT)), tTel = Date.now();
+    for (let i = 0; i < delar; i++) setTimeout(() => Moln.sandKam('rapport_lada', { id: m.id, t0: m.t0, tTel, del: i, delar, json: json.slice(i * BIT, (i + 1) * BIT) }), i * 150);
+  }
+  async function telefonLaddaUpp(m) {
+    const f = frysta.get(m.id) || { diagnos: diagnosFilTelefon(), bilder: [], sen: true };
+    frysta.delete(m.id);
+    let antal = 0, fel = 0, budget = MAX_BYTES;
+    const mapp = String(m.sokvag || '');
+    if (!mapp.startsWith(Moln.minId() + '/rapporter/')) { Moln.sandKam('rapport_bilder_klar', { kod: m.kod, antal: 0, fel: 1 }); return; }
+    if (f.diagnos) {
+      try { const b = new Blob([JSON.stringify(f.diagnos)], { type: 'application/json' }); budget -= b.size; await Moln.rapportFil(mapp, 'telefon-diagnos.json', b); }
+      catch (e) { fel++; Lada.skriv('fel', { kalla: 'rapport', med: 'telefonens diagnosfil: ' + kap(e && e.message, 200) }); }
+    }
+    /* Taket 15 MB: de äldsta stillbilderna släpps först (README §9). */
+    const bilder = (f.bilder || []).slice().sort((a, b) => (b.t || 0) - (a.t || 0)), med = [];
+    for (const b of bilder) { if (!b || !b.blob) continue; if (b.blob.size > budget) continue; budget -= b.blob.size; med.push(b); }
+    for (const b of med) {
+      try { await Moln.rapportFil(mapp + '/bilder', b.namn || ((b.t || Date.now()) + '.jpg'), b.blob, b.blob.type || 'image/jpeg'); antal++; }
+      catch (e) { fel++; }
+    }
+    Moln.sandKam('rapport_bilder_klar', { kod: m.kod, antal, fel, slappta: bilder.length - med.length, sen: f.sen ? 1 : undefined });
+  }
+
+  /* ── Uppladdningen (README §9, tre steg) ──────────────────────────── */
+  async function gz(text) {
+    if (typeof CompressionStream === 'undefined') return null;
+    try { return await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).blob(); } catch (e) { return null; }
+  }
+  const bilderVantar = new Map();   // kod → resolve
+  /* Skickar ett fruset paket. Steg 1: raden och koden. Steg 2: datorns paket.
+     Kvittensen (koden) kommer efter steg 2; steg 3 (telefonens bilder) går
+     i bakgrunden. Kastar { tak } när taket nåtts, annars ett fel.
+     Try again skickar samma paket: finns koden redan görs bara det som återstår. */
+  async function skicka(p, text, tagg, kalla) {
+    await p.telefonKlar;
+    if (!p.kod) {
+      const rad = { game_id: (spelLage && spelLage.id) || null, text: text ? kap(text, MAX_TECKEN) : null, tagg: tagg || null,
+                    vy: p.vy, kalla: kalla || 'rapport', bilder: p.medTelefon && p.telefon && p.telefon.svarade ? null : 'saknas' };
+      const r = await Moln.rapportRad(rad);
+      p.kod = r.kod; p.sokvag = r.sokvag;
+    }
+    if (!p.uppladdat) {
+      const innehall = {
+        kod: p.kod, text: text || null, tagg: tagg || null, kalla: kalla || 'rapport', frys: p.frys, frysIso: p.frysIso, sida: p.sida, vy: p.vy,
+        miljo: p.miljo, lada: p.lada, ladaStat: p.ladaStat, matta: p.matta, bordLogg: p.bordLogg, telefon: p.telefon
+      };
+      let json = JSON.stringify(innehall);
+      /* Taket 15 MB per rapport: bordsloggens äldsta rader släpps först. */
+      while (json.length > MAX_BYTES * 0.8 && innehall.bordLogg && innehall.bordLogg.rader.length > 10) {
+        innehall.bordLogg.rader = innehall.bordLogg.rader.slice(Math.floor(innehall.bordLogg.rader.length / 4)); innehall.bordLogg.kapad = true; json = JSON.stringify(innehall);
+      }
+      const z = await gz(json);
+      const blob = z || new Blob([json], { type: 'application/json' });
+      await Moln.rapportFil(p.sokvag, z ? 'rapport.json.gz' : 'rapport.json', blob, z ? 'application/gzip' : 'application/json');
+      p.uppladdat = true; p.storlek = blob.size;
+      Moln.rapportUppdatera(p.kod, { storlek: p.storlek });
+    }
+    if (p.medTelefon && p.telefon && p.telefon.svarade && !p.bilderBegard) {
+      p.bilderBegard = true;
+      new Promise(res => { bilderVantar.set(p.kod, res); setTimeout(() => { if (bilderVantar.delete(p.kod)) res(null); }, BILDER_VANTA_MS); Moln.sandKam('rapport_bilder', { kod: p.kod, sokvag: p.sokvag, id: p.id }); })
+        .then(s => Moln.rapportUppdatera(p.kod, { bilder: !s ? 'saknas' : s.fel ? 'delvis' : 'klar' }));
+    }
+    Lada.skriv('handling', { typ: 'rapport skickad', kod: p.kod });
+    return p.kod;
+  }
+
+  /* ── Felrapporterna (kalla 'fel', README §6) ── Kodfel och misslyckade
+     anrop, utan spelarens ord och utan bilder. Samma meddelande högst en
+     gång per tio minuter på den här sidan; taket (50/24 h) på servern. */
+  const felSett = new Map();
+  let felKo = Promise.resolve();
+  Lada.felLyss = e => {
+    try {
+      if (!rapportPa()) return;
+      if (e.slag === 'fel' && e.kalla !== 'onerror' && e.kalla !== 'unhandledrejection') return;
+      if (!Moln.inloggad()) return;
+      const med = e.slag === 'anrop' ? `${e.metod} ${e.vag} → ${e.status || e.fel || 'inget svar'}` : String(e.med || '');
+      const nyckel = (e.slag + ':' + med).slice(0, 300), nu = Date.now();
+      if (felSett.has(nyckel) && nu - felSett.get(nyckel) < FEL_DEDUPE_MS) return;
+      felSett.set(nyckel, nu);
+      const senaste = Lada.utdrag(60000).filter(x => x.slag === 'handling' || x.slag === 'anrop' || x.slag === 'fel').slice(-20);
+      const vy = { fel: Object.assign({}, e), sida: arTelefon() ? 'telefon' : 'dator', build, ua: navigator.userAgent, spel: (spelLage && spelLage.kod) || (arTelefon() && kamLage && kamLage.kod) || null, senaste };
+      const gameId = (spelLage && spelLage.id) || (arTelefon() && kamLage && kamLage.id) || null;
+      felKo = felKo.then(() => Moln.rapportRad({ game_id: gameId, text: kap(med, 1000), vy, kalla: 'fel' }).then(r => Lada.skriv('handling', { typ: 'felrapport', kod: r.kod }), () => {}));
+    } catch (x) {}
+  };
+
+  /* ── Kanalen ── */
+  /* Datorn: true = meddelandet var lådans. */
+  function datorTagEmot(m) {
+    if (!m || typeof m.typ !== 'string' || m.typ.indexOf('rapport') !== 0) return false;
+    if (m.typ === 'rapport_lada') { tagEmotLada(m); return true; }
+    if (m.typ === 'rapport_bilder_klar') { const r = bilderVantar.get(m.kod); if (r) { bilderVantar.delete(m.kod); r(m); } return true; }
+    if (m.typ === 'rapport') { telefonensRapport(m); return true; }
+    return true;
+  }
+  /* Telefonens ark (del C): orden och taggen kommer hit; datorn fryser sin
+     låda och telefonens, skickar, och svarar med koden eller felet. */
+  async function telefonensRapport(m) {
+    Lada.skriv('handling', { typ: 'rapport från telefonen', tagg: m.tagg || null });
+    const p = frys();
+    try { const kod = await skicka(p, m.text, m.tagg, 'rapport'); Moln.sandKam('rapport_svar', { id: m.id, kod }); }
+    catch (e) { Moln.sandKam('rapport_svar', { id: m.id, fel: e && e.tak ? 'tak' : 'nat' }); }
+  }
+  /* Telefonen: true = kommandot var lådans. */
+  function telefonKommando(m) {
+    if (!m || typeof m.typ !== 'string' || m.typ.indexOf('rapport') !== 0) return false;
+    if (m.typ === 'rapport_lada') { telefonFrys(m); return true; }
+    if (m.typ === 'rapport_bilder') { telefonLaddaUpp(m); return true; }
+    if (m.typ === 'rapport_svar') { const r = telefonLyss.get(m.id); if (r) { telefonLyss.delete(m.id); r(m); } return true; }
+    return true;
+  }
+  /* Telefonens väg (del C:s ark anropar den): { kod } eller { fel: 'tak' | 'nat' | 'dator' }.
+     Inget svar inom 10 s = Can't reach your computer, orden kvar hos arket. */
+  function franTelefon(text, tagg) {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    return new Promise(res => {
+      if (!Moln.sandKam('rapport', { id, text: text ? kap(text, MAX_TECKEN) : '', tagg: tagg || null })) { res({ fel: 'dator' }); return; }
+      telefonLyss.set(id, m => res(m.kod ? { kod: m.kod } : { fel: m.fel || 'nat' }));
+      setTimeout(() => { if (telefonLyss.delete(id)) res({ fel: 'dator' }); }, TELEFON_SVAR_MS);
+    });
+  }
+  /* ── Rutan (README §5, tavlorna L9-Report*) ──────────────────────── */
+  const IKON = {
+    x: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    ok: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+    copy: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+    bad: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>',
+    klocka: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
+  };
+  const CSS = `
+.rapruta{position:fixed;top:64px;right:16px;width:460px;max-width:calc(100vw - 32px);z-index:400;background:var(--bg2);border:1px solid #2e3747;border-radius:14px;box-shadow:0 22px 48px -14px #000d,0 2px 8px #0008;overflow:hidden;color:var(--txt);font-family:var(--sans)}
+.rapruta[hidden]{display:none}
+.rapruta .hd2{display:flex;align-items:center;gap:10px;padding:12px 10px 8px 20px}
+.rapruta .hd2 h2{margin:0;flex:1;font-size:17px;font-weight:650}
+.rapruta .x{width:40px;height:40px;display:grid;place-items:center;border-radius:9px;color:var(--dim);background:none;border:0;cursor:pointer}
+.rapruta .bd{padding:4px 20px 18px;display:flex;flex-direction:column;gap:14px}
+.rapruta .ft{display:flex;align-items:center;gap:8px;padding:12px 14px 12px 20px;border-top:1px solid var(--line);background:#11161e}
+.rapruta .grow{flex:1}
+.rapruta .lbl{font-size:12.5px;font-weight:600;color:var(--dim);margin-bottom:6px;display:block}
+.rapruta .lbl.stor{font-size:14px;color:var(--txt)}
+.rapruta .rapta{width:100%;box-sizing:border-box;height:88px;padding:10px 12px;border-radius:9px;background:var(--bg);border:1px solid #3a4558;color:var(--txt);font:14px/1.45 var(--sans);resize:none}
+.rapruta .rapta::placeholder{color:#6f7d93}
+.rapruta .rapta:focus{outline:none;border-color:var(--acc)}
+.rapruta .rapta:disabled,.rapruta .chip:disabled{opacity:.6}
+.rapruta .rakna{font-size:12px;color:var(--dim);text-align:right;margin-top:4px}
+.rapruta .chips{display:flex;flex-wrap:wrap;gap:7px}
+.rapruta .chip{display:inline-flex;align-items:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid #3a4558;background:var(--bg3);color:var(--dim);font:600 13px var(--sans);cursor:pointer}
+.rapruta .chip.on{background:#2a2110;border-color:var(--acc);color:#f6c46a}
+.rapruta .note{font-size:12px;color:var(--dim);margin:0;line-height:1.45}
+.rapruta .note a{color:#a9bcff}
+.rapruta .alert{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:10px;font-size:13px;line-height:1.5}
+.rapruta .alert p{margin:0}
+.rapruta .alert svg{flex:none;margin-top:2px}
+.rapruta .alert.bad{background:#2a1215;border:1px solid #6e2f36;color:#f3b3b8}
+.rapruta .alert.warn{background:#251c0c;border:1px solid #6a5124;color:#f6d08f}
+.rapruta .alert b{color:#fff;font-weight:650}
+.rapruta .bar2{height:6px;border-radius:999px;background:var(--bg4);overflow:hidden}
+.rapruta .bar2 i{display:block;height:100%;width:46%;border-radius:999px;background:var(--acc);animation:rapbar 1.4s ease-in-out infinite alternate}
+@keyframes rapbar{from{margin-left:0}to{margin-left:54%}}
+.rapruta .spin{width:15px;height:15px;flex:none;border-radius:50%;border:2.5px solid #1a120544;border-top-color:#1a1205;animation:rapspin .8s linear infinite}
+@keyframes rapspin{to{transform:rotate(360deg)}}
+.rapruta .done{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:26px 10px 8px}
+.rapruta .done .ok{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#173222;color:var(--green)}
+.rapruta .done h3{margin:0;font-size:19px;font-weight:650}
+.rapruta .done p{margin:0}
+.rapruta .code{font:700 15px var(--mono);letter-spacing:.04em;color:var(--txt);background:var(--bg);border:1px solid #3a4558;border-radius:8px;padding:5px 10px}
+.rapruta .dim{color:var(--dim)}
+@media (max-width:720px){.rapruta{top:auto;bottom:0;right:0;left:0;width:auto;max-width:none;border-radius:14px 14px 0 0}}`;
+  let el = null, lage = 'skriv', paket = null, text = '', tagg = null, utanTelefon = false, forsok = 0, kopieradT = null;
+  function bygg() {
+    if (el) return;
+    const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    el = document.createElement('section');
+    el.className = 'rapruta'; el.hidden = true;
+    el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Report a problem');
+    document.body.appendChild(el);
+    el.addEventListener('click', klick);
+    el.addEventListener('input', ev => { if (ev.target.id === 'rapText') { text = ev.target.value.slice(0, MAX_TECKEN); raknare(); } });
+    el.addEventListener('keydown', ev => {
+      if (ev.key === 'Escape') { ev.stopPropagation(); ev.preventDefault(); if (lage !== 'skickar') stang(); return; }
+      if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey) && (lage === 'skriv' || lage === 'fel')) { ev.preventDefault(); ev.stopPropagation(); send(); }
+      ev.stopPropagation();   // mattans tangenter ska inte svara medan man skriver här
+    });
+  }
+  const notText = () => utanTelefon
+    ? "We get your words, what happened on your mat in the last 10 minutes and what was on your screen when you pressed, to fix problems and improve Mesa's card recognition, including training our models."
+    : "We get your words, what your camera saw, what happened on your mat in the last 10 minutes and what was on your screen when you pressed, to fix problems and improve Mesa's card recognition, including training our models.";
+  function raknare() {
+    const r = el && el.querySelector('.rakna'); if (!r) return;
+    r.hidden = text.length < 400; r.textContent = `${text.length} / ${MAX_TECKEN}`;
+  }
+  function rita() {
+    if (!el) return;
+    const las = lage === 'skickar';
+    const hd = `<header class="hd2"><h2>Report a problem</h2><button class="x" type="button" data-rap="stang" aria-label="Close"${las ? ' disabled' : ''}>${IKON.x}</button></header>`;
+    if (lage === 'tak') {
+      el.innerHTML = hd + `<div class="bd"><div class="alert warn">${IKON.klocka}<p><b>You have sent ${TAK_RAPPORTER} reports today.</b> That is the most for one day. You can send more tomorrow.</p></div></div>` +
+        `<footer class="ft"><span class="grow"></span><button class="btn" type="button" data-rap="stang">Close</button></footer>`;
+      return;
+    }
+    if (lage === 'skickad') {
+      el.innerHTML = hd + `<div class="bd"><div class="done"><span class="ok">${IKON.ok}</span><h3>Report sent</h3>` +
+        `<div style="display:flex;align-items:center;gap:8px"><span class="code" id="rapKod">${esc(paket.kod)}</span><button class="btn sm" type="button" data-rap="kopiera">${IKON.copy}<span>${kopieradT ? 'Copied' : 'Copy'}</span></button></div>` +
+        `<p class="dim">Thanks. If you write to us about it, mention this code.</p></div></div>` +
+        `<footer class="ft"><button class="btn ghost" type="button" data-rap="ny">Report something else</button><span class="grow"></span><button class="btn prim" type="button" data-rap="stang">Done</button></footer>`;
+      return;
+    }
+    const varning = lage === 'fel'
+      ? `<div class="alert bad">${IKON.bad}<p><b>Couldn't send the report.</b> Check your internet connection and try again. Your words are kept until you close this box.</p></div>`
+      : utanTelefon ? `<div class="alert warn">${IKON.bad}<p><b>Your phone isn't connected.</b> The report is sent from this computer, without the phone's pictures.</p></div>` : '';
+    const chips = TAGGAR.map(([k, t]) => `<button class="chip${tagg === k ? ' on' : ''}" type="button" data-tagg="${k}" aria-pressed="${tagg === k}"${las ? ' disabled' : ''}>${esc(t)}</button>`).join('');
+    const mitt = las ? `<div class="bar2" role="progressbar" aria-label="Sending"><i></i></div><p class="note">Sending. This takes a few seconds.</p>`
+      : `<p class="note">${notText()} <a href="privacy.html" target="_blank" rel="noopener">More</a></p>`;
+    const fot = las ? `<span class="grow"></span><button class="btn ghost" type="button" data-rap="avbryt">Cancel</button><button class="btn prim" type="button" disabled><span class="spin"></span>Sending</button>`
+      : `<span class="grow"></span><button class="btn ghost" type="button" data-rap="stang">Cancel</button><button class="btn prim" type="button" data-rap="skicka">${lage === 'fel' ? 'Try again' : 'Send report'}</button>`;
+    el.innerHTML = hd + `<div class="bd">${varning}<div><label class="lbl stor" for="rapText">What happened?</label>` +
+      `<textarea class="rapta" id="rapText" maxlength="${MAX_TECKEN}" rows="3" placeholder="For example: a minute ago I played an Island, a second one showed up next to it and then went away"${las ? ' disabled' : ''}></textarea><div class="rakna" hidden></div></div>` +
+      `<div><span class="lbl">Or pick what it looks like</span><div class="chips">${chips}</div></div>${mitt}</div><footer class="ft">${fot}</footer>`;
+    const ta = el.querySelector('#rapText'); ta.value = text; raknare();
+  }
+  function klick(ev) {
+    const t = ev.target.closest('[data-rap], [data-tagg]'); if (!t || t.disabled) return;
+    if (t.dataset.tagg) { tagg = tagg === t.dataset.tagg ? null : t.dataset.tagg; for (const c of el.querySelectorAll('.chip')) { const on = c.dataset.tagg === tagg; c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); } return; }
+    const g = t.dataset.rap;
+    if (g === 'stang') stang();
+    else if (g === 'avbryt') { forsok++; stang(); }
+    else if (g === 'skicka') send();
+    else if (g === 'ny') oppna({ ny: true });
+    else if (g === 'kopiera') {
+      const kod = paket && paket.kod; if (!kod) return;
+      (navigator.clipboard ? navigator.clipboard.writeText(kod) : Promise.reject()).catch(() => {
+        const r = document.createRange(), k = el.querySelector('#rapKod'); if (k) { r.selectNodeContents(k); const s = getSelection(); s.removeAllRanges(); s.addRange(r); try { document.execCommand('copy'); } catch (e) {} }
+      });
+      clearTimeout(kopieradT); kopieradT = setTimeout(() => { kopieradT = null; const b = el.querySelector('[data-rap="kopiera"] span'); if (b) b.textContent = 'Copy'; }, 2000);
+      const b = t.querySelector('span'); if (b) b.textContent = 'Copied';
+    }
+  }
+  async function send() {
+    if (!paket || lage === 'skickar') return;
+    const mitt = ++forsok;
+    lage = 'skickar'; rita();
+    try {
+      await skicka(paket, text.trim(), tagg, 'rapport');
+      if (mitt !== forsok) return;
+      lage = 'skickad'; rita();
+      const d = el.querySelector('[data-rap="stang"].btn'); if (d) d.focus();
+    } catch (e) {
+      if (mitt !== forsok) return;
+      Lada.skriv('handling', { typ: 'rapport misslyckades', tak: !!(e && e.tak), fel: kap(e && e.message, 120) });
+      lage = e && e.tak ? 'tak' : 'fel'; rita();
+    }
+  }
+  function stang() {
+    if (!el || el.hidden) return;
+    el.hidden = true; forsok++; paket = null; text = ''; tagg = null; lage = 'skriv';
+    Lada.skriv('dialog', { id: 'rapruta', oppen: false });
+  }
+  /* Öppnar rutan (C kopplar sin knapp i toppraden hit). Paketet fryses NU,
+     inte vid Send. Taket kollas när rutan öppnas, före skrivandet. */
+  async function oppna(opt) {
+    bygg();
+    if (!el.hidden && lage === 'skickar') return;   // ett tryck till mitt i skickandet startar inget nytt
+    const ny = !!(opt && opt.ny);
+    forsok++;
+    paket = frys(); text = ''; tagg = null; lage = 'skriv';
+    let ansl = false; try { ansl = !!kamAnsluten; } catch (e) {}
+    utanTelefon = !ansl;
+    Lada.skriv('dialog', { id: 'rapruta', oppen: true, ny });
+    el.hidden = false; rita();
+    const ta = el.querySelector('#rapText'); if (ta) ta.focus();
+    const mitt = forsok;
+    const n = await Moln.rapporterIdag().catch(() => null);
+    if (mitt === forsok && n != null && n >= TAK_RAPPORTER && lage === 'skriv') { lage = 'tak'; rita(); }
+  }
+
+  /* Datorns tangent med ?debug: Ctrl+Alt+R (C lägger knappen för alla). */
+  addEventListener('keydown', ev => {
+    if (!rapportPa() || arTelefon() || !ev.ctrlKey || !ev.altKey || ev.code !== 'KeyR') return;
+    ev.preventDefault(); ev.stopPropagation(); oppna();
+  }, true);
+  const knapp = document.getElementById('pbRapport');
+  if (knapp) knapp.onclick = () => oppna();
+  bevakaYtor();
+
+  const api = { oppna, stang, frys, skicka, franTelefon, datorTagEmot, telefonKommando, mattaDiff, miljo, vy,
+                get lage() { return lage; }, get oppen() { return !!(el && !el.hidden); }, get paket() { return paket; },
+                stillbilder: null, TAGGAR };
+  return api;
+})();
+/* Rapportrutans öppnare för C (toppraden) och Developer-lådan. */
+function oppnaRapportRuta(opt) { return Rapport.oppna(opt); }
 </script>
 </body>
 </html>
