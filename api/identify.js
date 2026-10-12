@@ -88,7 +88,9 @@ const MODEL_KORT  = process.env.ANTHROPIC_MODEL_CARD || 'claude-sonnet-5';
    namn i den ena, trots att den läste hela bordet 1–7 s snabbare. Mätningen
    på beskärningarna nedan (2026-09-10) talade för Sonnet; den på hela
    kedjan gjorde det inte. Sätt ANTHROPIC_MODEL_KAMERA bara efter en ny
-   sådan mätning. */
+   sådan mätning. 2026-10-12 (MES-327): satt till claude-sonnet-5-5 i
+   produktionen — golden med Claude 100/119 för båda, Sonnet 0 säkra fel
+   mot Opus 5:s 1 (fall 18), ~0,5 mot ~1,2 cent per beskärning. */
 const MODEL_KAMERA = process.env.ANTHROPIC_MODEL_KAMERA || MODEL;
 /* Höjs när promterna eller lägena ändras. Utan den gick det inte att skilja
    "modellen svarade så här" från "deployen hade inte hunnit ut" — det kostade
