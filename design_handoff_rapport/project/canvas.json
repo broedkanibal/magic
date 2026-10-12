@@ -216,6 +216,31 @@
       "h": 1060,
       "title": "R3 · Pick it from what happened",
       "page": "p6"
+    },
+    "MarkAny.dc.html": {
+      "x": 0,
+      "y": 1900,
+      "w": 1120,
+      "h": 1240,
+      "title": "S1 · One problem, mark any cards · proposal (try it)",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "MarkFilled.dc.html": {
+      "x": 1200,
+      "y": 1900,
+      "w": 1120,
+      "h": 1240,
+      "title": "S2 · Filled in: you played 1, Mesa made 2 and 3",
+      "page": "p6"
+    },
+    "ReaderView.dc.html": {
+      "x": 2400,
+      "y": 1900,
+      "w": 820,
+      "h": 860,
+      "title": "S3 · What you read in the report",
+      "page": "p6"
     }
   },
   "order": [
@@ -240,7 +265,10 @@
     "Privacy.dc.html",
     "TapWhat.dc.html",
     "Rewind.dc.html",
-    "Happened.dc.html"
+    "Happened.dc.html",
+    "MarkAny.dc.html",
+    "MarkFilled.dc.html",
+    "ReaderView.dc.html"
   ],
   "notes": {
     "t1": {
@@ -255,7 +283,7 @@
       "x": 0,
       "y": 900,
       "w": 1120,
-      "text": "New on A and B: the second box, Share pictures of cards I correct. Never ticked from the start, and not needed to continue: only the terms box unlocks the button. Asked once per account; after that it lives in Settings. On A the fine print adds \"and any errors\". On B a short What's new box says why the terms changed.",
+      "text": "New on A and B: the second box, Share pictures of cards I correct. Never ticked from the start, and not needed to continue: only the terms box unlocks the button. Asked once per account; after that it lives in Settings. The fine print is new: To find and fix problems, Mesa notes how the app is used and any errors. No ads, and no pictures unless you choose. On B a short What's new box says why the terms changed.",
       "fill": "gray",
       "page": "p1"
     },
@@ -360,6 +388,30 @@
       "y": 1160,
       "w": 820,
       "text": "R3 wins: no pictures to search; a list of what Mesa did, with your own fixes marked. Tap the line that went wrong. Very exact for the reader. Loses: a card that never showed up is not in the list (needs the camera picture below), and a list is harder to scan than a picture during a game.",
+      "fill": "gray",
+      "page": "p6"
+    },
+    "t6b": {
+      "x": 0,
+      "y": 1600,
+      "text": "New version: one problem, mark any cards",
+      "kind": "title1",
+      "maxW": 3220,
+      "page": "p6"
+    },
+    "s1": {
+      "x": 0,
+      "y": 3240,
+      "w": 1120,
+      "text": "S1: three steps, same order every time. 1 What went wrong (one category). 2 Which cards: tap any number, in the camera picture and on the mat, each picture on its own; numbers follow the order you tap. The strip picks the moment. 3 Anything to add, where the numbers can be used. One report is one problem; several problems are several reports (Report something else after sending). Nothing is linked between the pictures and nothing is asked per card, so there are no special cases. Only Wrong name asks one more thing: what the card is called.",
+      "fill": "orange",
+      "page": "p6"
+    },
+    "s3": {
+      "x": 2400,
+      "y": 2860,
+      "w": 820,
+      "text": "S3 is not something the player sees. It is the top of LÄS-MIG.md that dev/rapport/hamta.cjs writes (MES-365): category, the moment, every mark with its track and what Mesa did with it, the note, and the events around the moment. The marks turn the player's numbers into track ids, so the note can't be misread.",
       "fill": "gray",
       "page": "p6"
     }

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>S2 · Filled in: one card played, two duplicates</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#a9bcff}a:hover{color:#c6d3ff}
+</style>
+</helmet>
+<div class="ab" style="width: 1120px; height: 1240px; padding: 30px 30px; background: #070a0e">
+  <section class="pop" aria-label="Report a problem">
+    <header class="hd2">
+      <h2>Report a problem</h2>
+      <button class="x" type="button" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </header>
+    <div class="bd" style="gap: 18px">
+      <div>
+        <span class="lbl"><span class="num" style="display: inline-block; margin-right: 8px; width: 19px; height: 19px; line-height: 19px; font-size: 11px; background: var(--bg4); color: var(--txt)">1</span>What went wrong?</span>
+        <div class="chips">
+          <button class="chip" type="button">Wrong name</button>
+          <button class="chip" type="button">Didn't show up</button>
+          <button class="chip on" type="button" aria-pressed="true">Shouldn't be there</button>
+          <button class="chip" type="button">Tapped wrong</button>
+          <button class="chip" type="button">Wrong place</button>
+          <button class="chip" type="button">Slow</button>
+          <button class="chip" type="button">Something else</button>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <span class="lbl" style="margin: 0"><span class="num" style="display: inline-block; margin-right: 8px; width: 19px; height: 19px; line-height: 19px; font-size: 11px; background: var(--bg4); color: var(--txt)">2</span>Which cards? <span style="font-weight: 400">Tap every card it is about, in the camera picture or on your mat. Tap again to unmark. (optional)</span></span>
+        <div class="strip">
+          <button class="frame" type="button"><span class="mini"><i class="island" style="left: 10%; top: 20%"></i></span>4 min ago</button>
+          <button class="frame" type="button"><span class="mini"><i class="island" style="left: 10%; top: 20%"></i><i class="mtn" style="left: 46%; top: 20%"></i></span>2 min ago</button>
+          <button class="frame" type="button"><span class="mini"><i class="island" style="left: 10%; top: 20%"></i><i class="mtn" style="left: 46%; top: 20%"></i><i class="forest" style="left: 72%; top: 48%"></i></span>1 min ago</button>
+          <button class="frame on" type="button" aria-pressed="true"><span class="mini"><i class="island" style="left: 10%; top: 20%"></i><i class="island" style="left: 28%; top: 20%"></i><i class="island" style="left: 28%; top: 52%"></i><i class="mtn" style="left: 46%; top: 20%"></i><i class="forest" style="left: 72%; top: 48%"></i></span>40 s ago</button>
+          <button class="frame" type="button"><span class="mini"><i class="island" style="left: 10%; top: 20%"></i><i class="mtn" style="left: 46%; top: 20%"></i><i class="forest" style="left: 72%; top: 48%"></i></span>Now</button>
+        </div>
+        <div class="pair">
+          <div class="pane">
+            <p class="ph">What the camera saw · 40 s ago</p>
+            <div class="snap">
+              <div class="cd island" style="left: 13%; top: 29%; transform: rotate(-3deg)"></div>
+              <div class="cd" style="left: 31%; top: 26%; --art: #3b3446"></div>
+              <div class="cd mtn" style="left: 49%; top: 30%; transform: rotate(-1deg)"></div>
+              <div class="cd sorc" style="left: 69%; top: 52%; transform: rotate(4deg)"></div>
+              <button class="tgt sel" type="button" aria-label="Marked 1" style="left: 30%; top: 22%; width: 13%; height: 44%"><span class="pin">1</span></button>
+            </div>
+          </div>
+          <div class="pane">
+            <p class="ph">Your mat · 40 s ago</p>
+            <div class="matv">
+              <div class="tile island" style="left: 10%; top: 12%"><span class="tn">Island</span></div>
+              <div class="tile island" style="left: 28%; top: 12%"><span class="tn">Island</span></div>
+              <div class="tile island" style="left: 28%; top: 50%"><span class="tn">Island</span></div>
+              <div class="tile mtn" style="left: 46%; top: 12%"><span class="tn">Mountain</span></div>
+              <div class="tile forest" style="left: 72%; top: 46%"><span class="tn">Forest</span></div>
+              <button class="tgt sel" type="button" aria-label="Marked 2" style="left: 27%; top: 9%; width: 16%; height: 50%"><span class="pin">2</span></button>
+              <button class="tgt sel" type="button" aria-label="Marked 3" style="left: 27%; top: 47%; width: 16%; height: 50%"><span class="pin">3</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <span class="lbl" style="margin: 0"><span class="num" style="display: inline-block; margin-right: 8px; width: 19px; height: 19px; line-height: 19px; font-size: 11px; background: var(--bg4); color: var(--txt)">3</span>Anything to add? <span style="font-weight: 400">(optional)</span></span>
+        <input class="inp" type="text" value="When I played 1, the two Islands 2 and 3 appeared" aria-label="Anything to add?">
+      </div>
+
+      <div class="what">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+        <p><b>What we get:</b> these two pictures, what your camera saw and what happened on your mat in the last 10 minutes. We use it to fix problems and improve Mesa's card recognition, including training our models. <a href="https://magic-mauve-xi.vercel.app/privacy.html">More</a></p>
+      </div>
+    </div>
+    <footer class="ft">
+      <span class="note">Shouldn't be there · 3 cards marked</span>
+      <span class="grow"></span>
+      <button class="btn ghost" type="button">Cancel</button>
+      <button class="btn prim" type="button">Send report</button>
+    </footer>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1120,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

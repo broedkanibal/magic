@@ -102,7 +102,7 @@ pekade spåret och *Just now / Earlier* överst i `LÄS-MIG.md`, före tidslinje
 - Under rutan (A, B): *Optional. You can change it any time in Settings.*
 - I Settings, av: *Off. Nothing is kept when you correct a card.* På: *On since 12 Oct 2026.*
 
-**Finstilt på A och B** (ändrat): *Mesa records how you use the app and any errors, linked to your account, to find and fix problems.* — tillägget är *and any errors* (felrapporterna).
+**Finstilt på A och B** (Jesper 2026-10-12): *To find and fix problems, Mesa notes how the app is used and any errors. No ads, and no pictures unless you choose.* Ligger inte i bildrutan: den är ett samtycke, användningsloggen är berättigat intresse.
 
 **What's new på B:** *You can send us a problem report with pictures, and choose whether to share pictures of cards you correct.*
 
@@ -185,3 +185,20 @@ Svar på frågan om felet finns kvar vid trycket: ofta inte. Fel namn och saknad
 tills spelaren rättar, men dubbletter, flimmer och fart är borta, och spelaren rättar ofta innan
 den rapporterar. Därför förslaget R2, och därför *It happened: Just now / Earlier* i G2 ersätts av
 remsan.
+
+### Ny version på sida 6: ett problem, markera vilka kort som helst (S1–S3)
+
+Jesper: att en markering i kameran också markerar mattan är förvirrande, och en händelse kan
+gälla flera kort (ett spelat på bordet, två dubbletter på mattan). Enkelt för spelaren, och utan
+specialfall. R1–R3 ligger kvar ovanför.
+
+| Tavla | Vad |
+|---|---|
+| **S1** · förslag (provbar) | tre steg i samma ordning: **1** vad gick fel (en kategori) · **2** vilka kort: tryck på hur många som helst, i kamerabilden och på mattan, varje bild för sig; siffrorna följer trycken, remsan väljer ögonblicket · **3** något att lägga till, där siffrorna kan användas (*When I played 1, 2 and 3 appeared*) |
+| S2 | S1 ifylld med dubblettfallet |
+| S3 | det du läser: överst i `LÄS-MIG.md` (MES-365) — kategori, ögonblick, varje markering med sitt spår och vad Mesa gjorde, texten, händelserna runt ögonblicket |
+
+Reglerna som håller det enkelt: **en rapport = ett problem** (fler problem = fler rapporter;
+kvittensen har *Report something else*). Ingenting kopplas mellan bilderna och ingenting frågas
+per kort. Bara *Wrong name* frågar en sak till: vad kortet heter. Allt utom att trycka
+*Send report* är valfritt.
