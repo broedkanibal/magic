@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Report · sending</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#a9bcff}a:hover{color:#c6d3ff}
+</style>
+</helmet>
+<div class="ab" style="width: 520px; height: 700px; padding: 30px 30px; background: #070a0e">
+  <section class="pop" aria-label="Report a problem">
+    <header class="hd2">
+      <h2>Report a problem</h2>
+      <button class="x" type="button" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </header>
+    <div class="bd">
+      <div>
+        <label class="lbl" for="t1">What went wrong?</label>
+        <input class="inp" id="t1" type="text" value="It put Island where I played Swamp, twice" disabled>
+      </div>
+      <div>
+        <span class="lbl">What kind of problem</span>
+        <div class="chips">
+          <button class="chip on" type="button" disabled>Wrong card</button>
+          <button class="chip" type="button" disabled>Can't see the card</button>
+          <button class="chip" type="button" disabled>Slow</button>
+          <button class="chip" type="button" disabled>Flicker</button>
+          <button class="chip" type="button" disabled>Other</button>
+        </div>
+      </div>
+      <div class="what">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+        <p><b>Sends the last 10 minutes of this game,</b> with pictures from your phone's camera, to fix problems and improve Mesa's card recognition, including training our models. <a href="https://magic-mauve-xi.vercel.app/privacy.html">What's in a report</a></p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 7px">
+        <div class="bar2" role="progressbar" aria-label="Sending"><i></i></div>
+        <p class="note">Sending. You can keep playing; this box can be closed.</p>
+      </div>
+    </div>
+    <footer class="ft">
+      <span class="grow"></span>
+      <button class="btn ghost" type="button">Cancel</button>
+      <button class="btn prim" type="button" disabled><span class="spin"></span>Sending</button>
+    </footer>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":520,"height":700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Report sent</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+</style>
+</helmet>
+<div class="ab" style="width: 520px; height: 700px; padding: 30px 30px; background: #070a0e; display: flex; flex-direction: column; gap: 26px">
+  <section class="pop" aria-label="Report a problem">
+    <header class="hd2">
+      <h2>Report a problem</h2>
+      <button class="x" type="button" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </header>
+    <div class="bd">
+      <div class="done">
+        <span class="ok"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+        <h3>Report <span class="code">R-0412</span> sent</h3>
+        <p class="dim">Thanks. If you write to us about it, mention R-0412.</p>
+      </div>
+    </div>
+    <footer class="ft">
+      <button class="btn ghost" type="button">Copy code</button>
+      <span class="grow"></span>
+      <button class="btn prim" type="button">Done</button>
+    </footer>
+  </section>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap"><b>If the box was closed while sending</b></p>
+    <div class="toast" style="position: static; align-self: flex-start">
+      <span class="ok" style="width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: #173222; color: #57c785"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+      <span>Report <b>R-0412</b> sent</span>
+      <button class="btn link" type="button" style="font-size: 13px">Copy code</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":520,"height":700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-12T12:00:00Z" },
+  "title": "Mesa Problem Report",
+  "launch": { "view": "canvas", "page": "p3" },
+  "pages": [
+    { "id": "p1", "name": "1 · Account" },
+    { "id": "p2", "name": "2 · Settings" },
+    { "id": "p3", "name": "3 · The button" },
+    { "id": "p4", "name": "4 · The report" },
+    { "id": "p5", "name": "5 · privacy.html" }
+  ],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 520, "h": 800, "title": "A · Create your account (try it)", "page": "p1", "is_interactive": true },
+    "Gate.dc.html": { "x": 600, "y": 0, "w": 520, "h": 840, "title": "B · Before you continue (existing accounts)", "page": "p1" },
+
+    "HomeMenu.dc.html": { "x": 0, "y": 0, "w": 520, "h": 420, "title": "C · Home menu gets Settings", "page": "p2" },
+    "Settings.dc.html": { "x": 600, "y": 0, "w": 520, "h": 660, "title": "D · Settings (try it: switch, delete)", "page": "p2", "is_interactive": true },
+    "DeleteAsk.dc.html": { "x": 1200, "y": 0, "w": 520, "h": 660, "title": "E · Delete, asked once", "page": "p2" },
+    "Deleted.dc.html": { "x": 1800, "y": 0, "w": 520, "h": 660, "title": "F · After delete", "page": "p2" },
+
+    "BtnMenu.dc.html": { "x": 0, "y": 0, "w": 1060, "h": 660, "title": "V1 · In the menu and the camera panel · proposal", "page": "p3" },
+    "BtnBar.dc.html": { "x": 1140, "y": 0, "w": 1060, "h": 660, "title": "V2 · Always in the top bar", "page": "p3" },
+    "BtnMoment.dc.html": { "x": 2280, "y": 0, "w": 1060, "h": 660, "title": "V3 · Offered when something was fixed", "page": "p3" },
+
+    "Report.dc.html": { "x": 0, "y": 0, "w": 520, "h": 700, "title": "G · Report a problem (try it: tag, Send)", "page": "p4", "is_interactive": true },
+    "Sending.dc.html": { "x": 600, "y": 0, "w": 520, "h": 700, "title": "H · Sending", "page": "p4" },
+    "Sent.dc.html": { "x": 1200, "y": 0, "w": 520, "h": 700, "title": "I · Sent: Report R-0412", "page": "p4" },
+    "Failed.dc.html": { "x": 1800, "y": 0, "w": 520, "h": 700, "title": "J · Couldn't send (no network)", "page": "p4" },
+    "Limit.dc.html": { "x": 2400, "y": 0, "w": 520, "h": 700, "title": "K · Today's limit reached", "page": "p4" },
+    "NoPhone.dc.html": { "x": 3000, "y": 0, "w": 520, "h": 700, "title": "L · Phone not connected", "page": "p4" },
+    "PhoneSheet.dc.html": { "x": 0, "y": 820, "w": 440, "h": 840, "title": "M · On the phone", "page": "p4" },
+    "PhoneSent.dc.html": { "x": 520, "y": 820, "w": 440, "h": 840, "title": "N · On the phone: sent by the computer", "page": "p4" },
+    "PhoneAlone.dc.html": { "x": 1040, "y": 820, "w": 440, "h": 840, "title": "O · On the phone: computer out of reach", "page": "p4" },
+
+    "Privacy.dc.html": { "x": 0, "y": 0, "w": 940, "h": 3000, "title": "P · privacy.html, draft with changes marked", "page": "p5" }
+  },
+  "order": [
+    "Main.dc.html", "Gate.dc.html",
+    "HomeMenu.dc.html", "Settings.dc.html", "DeleteAsk.dc.html", "Deleted.dc.html",
+    "BtnMenu.dc.html", "BtnBar.dc.html", "BtnMoment.dc.html",
+    "Report.dc.html", "Sending.dc.html", "Sent.dc.html", "Failed.dc.html", "Limit.dc.html", "NoPhone.dc.html",
+    "PhoneSheet.dc.html", "PhoneSent.dc.html", "PhoneAlone.dc.html",
+    "Privacy.dc.html"
+  ],
+  "notes": {
+    "t1": { "x": 0, "y": -300, "text": "Account: one unticked box for pictures", "kind": "title1", "maxW": 1120, "page": "p1" },
+    "n1": { "x": 0, "y": 900, "w": 1120, "text": "New on A and B: the second box, Share pictures of cards I correct. Never ticked from the start, and not needed to continue: only the terms box unlocks the button. Asked once per account; after that it lives in Settings. On A the fine print adds \"and any errors\". On B a short What's new box says why the terms changed.", "fill": "gray", "page": "p1" },
+
+    "t2": { "x": 0, "y": -300, "text": "Settings: the switch and Delete", "kind": "title1", "maxW": 2320, "page": "p2" },
+    "n2": { "x": 0, "y": 760, "w": 1120, "text": "Settings is new: Home's menu had only Sign out. The switch saves at once, with no Save button. Off means nothing new is kept from that moment. Delete removes every report and picture the player has sent, whatever the switch says, and leaves the switch as it is. No green toast: the result is written in place (F).", "fill": "gray", "page": "p2" },
+
+    "t3": { "x": 0, "y": -300, "text": "Where the button sits, and what it is called", "kind": "title1", "maxW": 3340, "page": "p3" },
+    "v1": { "x": 0, "y": 760, "w": 1060, "text": "V1 wins: nothing new on screen. It sits where people look for help (the menu) and where camera trouble shows (the panel). Loses: two clicks, and a player who never opens either won't find it.", "fill": "orange", "page": "p3" },
+    "v2": { "x": 1140, "y": 760, "w": 1060, "text": "V2 wins: one click, always in sight, so every player learns it exists. Loses: one more control on a crowded bar for something rare; it invites reports for everything; on the phone a floating button can be hit while placing the phone.", "fill": "gray", "page": "p3" },
+    "v3": { "x": 2280, "y": 760, "w": 1060, "text": "V3 wins: it asks right after the player fixed something, while the 10 minutes still hold the problem. Loses: it shows up on routine fixes and can nag, it misses problems the player never fixed, so it still needs V1's menu item.", "fill": "gray", "page": "p3" },
+
+    "t4": { "x": 0, "y": -300, "text": "The report: a note, a tag, one sentence, Send", "kind": "title1", "maxW": 3520, "page": "p4" },
+    "n4": { "x": 1560, "y": 820, "w": 900, "text": "Nothing is required: Send works with no note and no tag, because the 10 minutes are the report. One tag at a time; tap again to clear. The sentence about what is sent changes when the phone is gone (L) and on the phone (M). The phone never sends by itself: a tap there asks the computer to send the same package (N), and says so when it can't (O). The code is a receipt the player needs, not an ok toast.", "fill": "gray", "page": "p4" },
+
+    "n5": { "x": 1020, "y": 0, "w": 620, "text": "The table the prompt calls section 4 is section 2 in today's privacy.html (section 4 is transfers). The draft changes sections 2, 3, 5, 6 and 7, and the version line. Anthropic is not changed: no new way sends pictures to Claude. Legal basis per row and the sentence about trained models are for Jesper to approve.", "fill": "orange", "page": "p5" }
+  },
+  "designSystems": []
+}

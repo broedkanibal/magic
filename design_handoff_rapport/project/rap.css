@@ -1,0 +1,178 @@
+/* Mesa Problem Report: the report button, the report box, the picture setting and the
+   privacy draft. Colors and type are the app's (index.html :root), as in Mesa Camera Panel.
+   Amber = needs you or the proposal, green = fine, red = failed or delete. */
+:root{
+  --bg:#0d1015;--bg2:#141922;--bg3:#1b2230;--bg4:#232c3c;--line:#28313f;--ram:#333e50;
+  --txt:#e7ecf4;--dim:#93a1b6;--dim2:#7d8aa0;
+  --acc:#f0a52a;--blue:#6b8cff;--red:#e2606a;--green:#57c785;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,sans-serif;
+}
+body{margin:0;background:#0a0d12}
+.ab{position:relative;box-sizing:border-box;overflow:hidden;background:#0a0d12;color:var(--txt);font:14px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+.ab *{box-sizing:border-box}
+:where(.ab) button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0;margin:0}
+:where(.ab) p{margin:0}
+.grow{flex:1}
+.dim{color:var(--dim)}
+.note{font-size:12.5px;color:var(--dim)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;padding:0 15px;border-radius:9px;background:var(--bg4);border:1px solid #3a4558;color:var(--txt);font-size:13.5px;font-weight:600;white-space:nowrap}
+.btn.sm{height:34px;padding:0 12px;font-size:13px}
+.btn.prim{background:var(--acc);border-color:var(--acc);color:#1a1205}
+.btn.ghost{background:none;border-color:transparent;color:var(--dim)}
+.btn.danger{background:#2a1215;border-color:#6e2f36;color:#f0a0a6}
+.btn.dangerfill{background:#c94a55;border-color:#c94a55;color:#fff}
+.btn.link{height:auto;padding:0;background:none;border:0;color:#a9bcff;font-weight:600}
+.btn.wide{width:100%}
+.btn[disabled]{opacity:.45;cursor:default}
+.x{width:40px;height:40px;display:grid;place-items:center;border-radius:9px;color:var(--dim)}
+
+/* The start screen card (Create your account, the terms gate) */
+.portalbg{background:radial-gradient(900px 600px at 50% -10%,#1b2433,var(--bg) 60%);display:flex;align-items:center;justify-content:center;padding:28px}
+.portalkort{width:420px;display:flex;flex-direction:column;gap:14px;padding:26px;border-radius:16px;background:#131924;border:1px solid #35415450;box-shadow:0 30px 80px -24px #000,0 0 0 1px #ffffff08}
+.marke{display:flex;align-items:center;gap:11px}
+.marke > div{display:flex;flex-direction:column;line-height:1.25}
+.marke b{font:700 17px var(--sans)}
+.marke span{font:11.5px var(--sans);color:var(--dim2)}
+.villkor{display:flex;gap:10px;align-items:flex-start;font:12.5px/1.5 var(--sans);color:var(--dim);cursor:pointer}
+.villkor input{flex:none;width:17px;height:17px;margin:1px 0 0;accent-color:var(--acc);cursor:pointer}
+.villkor a{color:var(--txt);text-decoration:underline;text-underline-offset:2px}
+.villkor b{color:var(--txt);font-weight:600}
+.villkor small{display:block;margin-top:3px;font-size:11.5px;color:var(--dim2)}
+.fin{font:11.5px/1.55 var(--sans);color:var(--dim2)}
+.fin a{color:inherit}
+.notis{display:flex;flex-direction:column;gap:3px;padding:11px 13px;border-radius:10px;background:#e8b33a14;border:1px solid #e8b33a40;font-size:12.5px;color:var(--dim)}
+.notis b{font-weight:600;color:var(--acc)}
+.google{display:flex;align-items:center;justify-content:center;gap:9px;height:44px;border-radius:10px;background:var(--acc);color:#1a1205;font-weight:650;font-size:14px}
+.google[disabled]{opacity:.45}
+.bytrad{font-size:11.5px;color:var(--dim2);text-align:center}
+.bytrad u{color:var(--txt)}
+
+/* The app's top bars */
+.bar{display:flex;align-items:center;gap:10px;height:52px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.brand{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 10px;border-radius:9px;font-weight:700;font-size:14px}
+.brand.open{background:var(--bg4)}
+.who{font-size:12.5px;color:var(--dim)}
+.vr{width:1px;height:22px;background:var(--line)}
+.pill{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 13px;border-radius:999px;font-size:13.5px;font-weight:600;border:1px solid #2f6a46;background:#11241a;color:#8fe0ae}
+.pill .led{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.iconbtn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:9px;border:1px solid #3a4558;background:var(--bg3);color:var(--txt);font-size:13px;font-weight:600}
+.iconbtn.hl{outline:2px solid var(--acc);outline-offset:2px}
+
+/* Menus (the game menu and Home's menu) */
+.menu{position:absolute;z-index:20;width:236px;padding:5px;background:#151b25;border:1px solid #333e50;border-radius:10px;box-shadow:0 22px 48px -14px #000d;display:flex;flex-direction:column;gap:1px}
+.menu button{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:6px;font-size:12.8px;color:var(--dim);text-align:left}
+.menu button svg{flex:none;color:var(--dim2)}
+.menu button.on{background:var(--bg4);color:var(--txt)}
+.menu button.hl{background:#2a2110;color:#f6c46a;box-shadow:inset 0 0 0 1px #6a5124}
+.menu button.hl svg{color:var(--acc)}
+.menu button.danger{color:#ff9099}
+.menu .hd{padding:7px 9px 3px;font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--dim2)}
+.menu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.menu .kbd{margin-left:auto;font:600 10.5px var(--mono);color:var(--dim2)}
+
+/* The mat behind */
+.mat{position:absolute;inset:52px 0 0 0;background:radial-gradient(700px 400px at 40% 40%,#1a2130,#0f131b)}
+.mcard{position:absolute;width:62px;height:86px;border-radius:5px;background:#161616;box-shadow:0 3px 8px #000a}
+.mcard::before{content:"";position:absolute;left:6px;right:6px;top:14px;height:34px;background:var(--art,#5a6b7d)}
+.mcard::after{content:"";position:absolute;left:6px;right:6px;top:52px;bottom:7px;background:#cfc6b2;opacity:.8}
+.island{--art:#3f6f9a}.mtn{--art:#8a4a3a}.sorc{--art:#5b4d7a}.forest{--art:#4f7046}
+.toast{position:absolute;z-index:6;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;background:#151b25;border:1px solid #333e50;box-shadow:0 14px 30px -10px #000c;font-size:13px}
+
+/* Popovers and dialogs */
+.pop{background:var(--bg2);border:1px solid var(--ram);border-radius:14px;box-shadow:0 22px 48px -14px #000d,0 2px 8px #0008;overflow:hidden}
+.hd2{display:flex;align-items:center;gap:10px;padding:12px 10px 8px 20px}
+.hd2 h2{margin:0;flex:1;font-size:17px;font-weight:650;letter-spacing:-.005em}
+.bd{padding:4px 20px 18px;display:flex;flex-direction:column;gap:14px}
+.ft{display:flex;align-items:center;gap:8px;padding:12px 14px 12px 20px;border-top:1px solid var(--line);background:#11161e}
+.ft.lite{background:none;border-top:0;padding-top:4px}
+.scrim{position:absolute;inset:0;background:#05070acc;z-index:10}
+
+/* The camera panel, small, for the button variants */
+.cam{position:relative;aspect-ratio:16/9;border-radius:10px;overflow:hidden;border:1px solid #000;background:repeating-linear-gradient(176deg,#3d2616 0 9px,#45291a 9px 14px,#37210f 14px 23px,#3f2717 23px 30px)}
+.cd{position:absolute;width:11%;aspect-ratio:63/88;border-radius:3px;box-shadow:0 2px 5px #000a;background:linear-gradient(#d6cdb9,#d6cdb9) 50% 7%/80% 7% no-repeat,#161616}
+.cd::before{content:"";position:absolute;left:10%;right:10%;top:17%;height:38%;background:var(--art,#5a6b7d)}
+.st{display:flex;gap:11px;align-items:flex-start;font-size:13.5px}
+.st .ic{flex:none;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#173222;color:var(--green)}
+.st .sub{margin-top:3px;color:var(--dim);font-size:13px}
+.row{display:flex;align-items:center;gap:12px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--dim)}
+
+/* The report box */
+.lbl{font-size:12.5px;font-weight:600;color:var(--dim);margin-bottom:6px;display:block}
+.inp{width:100%;height:42px;padding:0 12px;border-radius:9px;background:var(--bg);border:1px solid #3a4558;color:var(--txt);font:14px var(--sans)}
+.inp::placeholder{color:#6f7d93}
+.inp:focus{outline:none;border-color:var(--acc)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{display:inline-flex;align-items:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid #3a4558;background:var(--bg3);color:var(--dim);font-size:13px;font-weight:600}
+.chip.on{background:#2a2110;border-color:var(--acc);color:#f6c46a}
+.chips.big .chip{height:44px;padding:0 16px;font-size:14.5px}
+.what{display:flex;gap:11px;padding:12px 13px;border-radius:10px;background:var(--bg3);border:1px solid var(--line);font-size:13px;color:var(--dim);line-height:1.5}
+.what svg{flex:none;margin-top:2px;color:var(--dim2)}
+.what b{color:var(--txt);font-weight:600}
+.what a{color:#a9bcff;font-weight:600;text-decoration:none}
+.alert{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:10px;font-size:13px;line-height:1.5}
+.alert svg{flex:none;margin-top:2px}
+.alert.bad{background:#2a1215;border:1px solid #6e2f36;color:#f3b3b8}
+.alert.warn{background:#251c0c;border:1px solid #6a5124;color:#f6d08f}
+.alert b{color:#fff;font-weight:650}
+.bar2{height:6px;border-radius:999px;background:var(--bg4);overflow:hidden}
+.bar2 i{display:block;height:100%;width:46%;border-radius:999px;background:var(--acc)}
+.spin{width:15px;height:15px;flex:none;border-radius:50%;border:2.5px solid #1a120544;border-top-color:#1a1205}
+.done{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:26px 10px 8px}
+.done .ok{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#173222;color:var(--green)}
+.done h3{margin:0;font-size:19px;font-weight:650}
+.code{font:700 15px var(--mono);letter-spacing:.04em;color:var(--txt);background:var(--bg);border:1px solid #3a4558;border-radius:8px;padding:5px 10px}
+
+/* Settings */
+.set{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--line)}
+.set:first-child{border-top:0;padding-top:4px}
+.set .t{font-size:14px;font-weight:600}
+.set .s{margin-top:4px;font-size:12.8px;color:var(--dim);line-height:1.5}
+.set .m{margin-top:6px;font-size:12px;color:var(--dim2)}
+.secth{font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--dim2);font-weight:600;margin-top:6px}
+.switch{position:relative;flex:none;width:42px;height:26px;border-radius:999px;background:#3a4558;margin-top:1px}
+.switch::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#cfd6e2;transition:left .15s}
+.switch.on{background:var(--acc)}
+.switch.on::after{left:19px;background:#1a1205}
+
+/* The phone (it stands above the table; the screen shows the camera) */
+.phone{position:relative;width:300px;height:600px;border-radius:38px;border:10px solid #1c222c;background:#000;overflow:hidden;box-shadow:0 20px 50px -18px #000}
+.phone.full{width:390px;height:780px;border-width:12px;border-radius:46px}
+.feed{position:absolute;inset:0;background:repeating-linear-gradient(176deg,#3d2616 0 9px,#45291a 9px 14px,#37210f 14px 23px,#3f2717 23px 30px)}
+.feed .cd{width:22%}
+.ptop{position:absolute;left:0;right:0;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:30px 12px 12px;background:linear-gradient(#000c,#0000);color:#e6ecf5;font-size:12.5px}
+.ptop b{font-weight:600;font-size:13px}
+.prick{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px #5fbf7f22;flex:none}
+.pbot{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;flex-direction:column;gap:9px;padding:16px 14px 22px;background:linear-gradient(#0000,#000d 40%)}
+.pbot .s1{font-weight:600;font-size:15px;color:#fff}
+.pbot .s2{font-size:12px;color:#b9c6d8}
+.pknappar{display:flex;gap:8px}
+.pknappar .btn{flex:1;height:36px;font-size:12.5px;padding:0 8px}
+.ghostdark{background:#0d1015aa;border-color:#ffffff22;color:#e6ecf5}
+.fab{position:absolute;right:14px;bottom:150px;z-index:3;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:#0d1015d0;border:1px solid #ffffff2a;color:#f6c46a}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:5;padding:10px 18px 26px;border-radius:22px 22px 0 0;background:var(--bg2);border-top:1px solid var(--ram);display:flex;flex-direction:column;gap:14px}
+.grab{width:40px;height:5px;border-radius:999px;background:#3a4558;align-self:center}
+.sheet h2{margin:0;font-size:18px;font-weight:650}
+.phonescrim{position:absolute;inset:0;z-index:4;background:#000a}
+
+/* Labels on the canvas boards: which surface, which variant */
+.cap{display:flex;align-items:baseline;gap:10px;font-size:12px;color:var(--dim2);letter-spacing:.3px}
+.cap b{font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:var(--dim)}
+
+/* The privacy draft */
+.doc{background:var(--bg);color:var(--txt);font:15px/1.7 var(--sans);padding:32px 40px 72px}
+.doc h1{font-size:26px;margin:0 0 4px}
+.doc h2{font-size:17px;margin:30px 0 6px}
+.doc p,.doc li{color:var(--dim);margin:0 0 10px}
+.doc .meta{font-size:13px;color:var(--dim)}
+.doc table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0 12px}
+.doc th,.doc td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;color:var(--dim)}
+.doc th{color:var(--txt);background:#131924}
+.doc tr.newrow td{background:#57c78510}
+.doc ins{text-decoration:none;background:#57c78526;color:#c9f1d8;border-bottom:1px solid #57c78588;padding:0 2px;border-radius:3px}
+.doc del{color:#f0a0a6;text-decoration:line-through;text-decoration-color:#e2606acc;background:#e2606a14;padding:0 2px;border-radius:3px}
+.doc .same{opacity:.55}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:12px 14px;margin:0 0 22px;border-radius:10px;background:#131924;border:1px solid var(--line);font-size:13px;color:var(--dim)}
+.legend b{color:var(--txt)}
