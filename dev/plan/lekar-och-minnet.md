@@ -95,6 +95,21 @@ fortfarande kännas igen, och "Name this card" ska nästan aldrig synas.
 | B6 | Motståndare utan konto: samma flöde, världen och sedan Claude. |
 | B7 | Kameran startad mitt i ett parti, med kort som redan är täckta: Claude eller spelaren, ingen specialbyggnad. |
 
+## Jespers beslut 2026-10-11
+
+| # | Beslut |
+|---|---|
+| B4 | **Bekräftad:** Claude som lärare för nya kort, med svaren från G1 och G3 i handen (0 säkra fel med kontrollen mot Scryfall-bilden). |
+| B6 | **Förtydligad:** alla spelare har konto. Raden gäller en motståndare *vars kort Mesa aldrig sett*: samma flöde, världen och sedan Claude. |
+| B8 | **"Lära sig medan man spelar" är en del av Private beta**, inte något efter: bygget i fyra etapper (*Föreslagen ordning*) hör till betan. |
+| B9 | **D2 = variant B, "Framkallas i takt"** (MES-362): kortet läggs ned vid släppet, fotot klarnar medan det läses, och Claude-gränsen är 5 s. |
+| B10 | Krymp världen (MES-363) byggs inte: färg- och lagligt-filter höjer inte första försöket. |
+
+Öppet efter G3: kontrollen stoppar 31–33 % av Claudes rätta svar. Förslag, ej beslutat: Claudes stoppade
+namn visas som förslag i Name this card. Det Claude lär ut kan, när det är kontrollerat eller bekräftat av
+spelaren, bli träningsmaterial för bildmodellen och remsan, och ORB kan minnas spelarens egen tryckning
+(lärda bilder sänkte bildmodellen en gång, MES-232, så det måste mätas). Kräver en rad i villkoren.
+
 ## Mätningar (görs först, avgör allt annat)
 
 | # | Fråga | Hur |
