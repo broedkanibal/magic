@@ -128,6 +128,8 @@ return {
   set vand(v) { kamVand = v; },
   set oppstart(v) { oppPagar = !!v; },
   get spar() { return senasteSpar; },
+  /* Bordsloggen (loggaBord): raden som den sparas, och loggen (MES-369: flaggan avskuren följer med). */
+  logga: m => loggaBord(m), get bordLogg() { return kamBordLogg; },
   get kort() { return state.players[0].cards; },
   get pending() { return state.players[0].pending; },
   get chip() { return { kamSer, kamLast, kamTot }; },
@@ -3327,7 +3329,7 @@ prov('KA2 (scen B) kant utan att något kort väntar: ett kort som verkligen lyf
   klocka.t += 150; stam([], 'kort');
   assert.ok(iHanden(k), 'till handen när telefonen ser hela bordet igen och väntan är över');
 });
-prov('KA3 (granskningen av e50baab) kanten håller bara kortet vars spår dog strax innan den började, och högst KANT_MAX: ett kort som lyfts medan kanten står går till handen som vanligt', () => {
+prov('KA3 (granskningen av e50baab, MES-369) kanten håller bara kortet vars spår dog strax innan den började, utan tak: ett kort som lyfts medan kanten står går till handen som vanligt', () => {
   stam([klar(1, 'Island', { sen: 0, ...PORT }), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
   const island = app.kort.find(c => c.name === 'Island'), mountain = app.kort.find(c => c.name === 'Mountain');
   klocka.t += 150; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })]);                 // Islandet lyfts: spåret dör
@@ -3336,10 +3338,10 @@ prov('KA3 (granskningen av e50baab) kanten håller bara kortet vars spår dog st
   klocka.t += 20000; stam([], 'kant');                                                // 20 s in i kanten tas Mountain upp
   tid(klocka.t + 8000);
   assert.ok(app.kort.includes(island) && island.borta, 'Islandet hålls av kanten'); assert.ok(iHanden(mountain), 'Mountain gick inte till handen fast det lyftes långt efter att kanten började');
-  tid(kantStart + 59000);
-  assert.ok(app.kort.includes(island), 'Islandet hålls kvar strax före taket');
   tid(kantStart + 61000);
-  assert.ok(iHanden(island), 'taket: efter KANT_MAX går Islandet till handen fast kanten står (timern, telefonen tyst)');
+  assert.ok(app.kort.includes(island) && app.handRad.every(h => h.cid !== island.cid), 'ingen klocka (MES-369): Islandet ligger kvar efter 60 s medan kanten står (timern, telefonen tyst)');
+  klocka.t = kantStart + 540000; stam([], 'kant');
+  assert.ok(app.kort.includes(island), 'Islandet ligger kvar efter 9 minuter i kanten');
 });
 prov('KA4 (granskningen av e50baab) Match the camera tar bort ett kort vars spår dött också medan telefonen säger kant', () => {
   stam([klar(1, 'Island', { sen: 0, ...PORT }), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
@@ -3349,6 +3351,97 @@ prov('KA4 (granskningen av e50baab) Match the camera tar bort ett kort vars spå
   assert.ok(app.kort.includes(island) && island.borta, 'hålls av kanten utan Match');
   const r = app.matcha();
   assert.ok(iHanden(island), 'Match tog inte bort kortet under kant'); assert.equal(r.bort, 1);
+});
+/* ── KANTEN UTAN KLOCKA (MES-369, Jespers beslut 2026-10-12) ─────────────────────────
+   Telefonen skickar ett kort som redan stått i bordet kvar när dess låda når bildkanten, med flaggan avskuren.
+   Datorn låter kortet ligga orört så länge spåret lever, och när spåret dör gäller de vanliga reglerna. En
+   telefon utan flaggan (äldre version) får reserven kantHaller — utan tak. Passet 2026-10-11: Expel vid
+   överkanten, fasen 'kant' i 9 minuter, till handen vid 715 s av KANT_MAX. */
+/* Kortet vilar nära överkanten (VID). Telefonens rad för det vid kanten: lådan har vuxit över kortet förbi
+   överkanten, spåret läses om, och den klippta lådan ser liggande ut — allt det är osäkert och ska inte röra kortet. */
+const VID = box(0.40, 0.03, 0.063, 0.088), KANTLADA = box(0.385, 0, 0.11, 0.13);
+const avskuren = (id, rest) => Object.assign({ id, tillstand: 'ny', namn: null, saker: false, gissning: 'Relic Sloth', tappad: true, sen: 0, kortlik: true, vilar: false, skymd: false, avskuren: true, vx: 0.44, vy: 0.065 }, KANTLADA, rest);
+prov('KA5 (MES-369) ett kort vars spår står kvar med flaggan avskuren i 9 minuter ligger kvar orört: inte till handen, inte flyttat, inte vridet, samma namn', () => {
+  stam([klar(1, 'Expel', { sen: 0, ...VID }), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  const k = app.kort.find(c => c.name === 'Expel');
+  const kam0 = JSON.stringify(k.kam), tap0 = !!k.tapped;
+  klocka.t += 150; stam([avskuren(1), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  for (let i = 0; i < 180; i++) { klocka.t += 3000; stam([avskuren(1, i % 2 ? { tillstand: 'okand', gissning: 'Brainstorm' } : {}), klar(2, 'Mountain', { sen: 0, ...LANGT })]); }   // hjärtslaget var tredje sekund i 9 minuter
+  tid(klocka.t + 8000);
+  assert.ok(app.kort.includes(k), 'gick till handen'); assert.equal(app.handRad.length, 0);
+  assert.equal(k.spar, 1, 'bindningen släpptes'); assert.ok(!k.borta, 'står som borta');
+  assert.equal(JSON.stringify(k.kam), kam0, 'flyttat till kantens låda'); assert.equal(!!k.tapped, tap0, 'vridet efter den klippta lådan');
+  assert.equal(k.name, 'Expel'); assert.equal(app.kort.length, 2, 'ett nytt kort'); assert.equal(app.pending.length, 0, 'en granskning'); assert.equal(app.ofr.length, 0, 'ett oframkallat kort');
+  klocka.t += 3000; stam([klar(1, 'Expel', { sen: 0, ...VID }), klar(2, 'Mountain', { sen: 0, ...LANGT })]);   // armen går: kortet syns helt igen
+  assert.ok(app.kort.includes(k) && k.spar === 1 && JSON.stringify(k.kam) === kam0, 'efteråt som förut');
+});
+prov('KA6 (MES-369) spåret med flaggan dör och platsen syns tom: kortet går till handen som vid varje annat lyft', () => {
+  stam([klar(1, 'Expel', { sen: 0, ...VID }), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  const k = app.kort.find(c => c.name === 'Expel');
+  for (let i = 0; i < 10; i++) { klocka.t += 3000; stam([avskuren(1), klar(2, 'Mountain', { sen: 0, ...LANGT })]); }
+  klocka.t += 150; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })]);                // spåret dör: kortet togs upp
+  assert.ok(app.kort.includes(k), 'inte i nåden');
+  tid(klocka.t + 8000);
+  assert.ok(iHanden(k), 'till handen när spåret dött och platsen syns tom');
+});
+prov('KA7 (MES-369) ett annat kort lyfts medan ett kort vid kanten ligger kvar med flaggan: det kortet går till handen, kortet vid kanten ligger kvar', () => {
+  stam([klar(1, 'Expel', { sen: 0, ...VID }), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  const expel = app.kort.find(c => c.name === 'Expel'), mountain = app.kort.find(c => c.name === 'Mountain');
+  klocka.t += 3000; stam([avskuren(1), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  klocka.t += 20000; stam([avskuren(1)]);                                             // Mountain tas upp
+  tid(klocka.t + 8000);
+  assert.ok(iHanden(mountain), 'Mountain gick inte till handen');
+  for (let i = 0; i < 5; i++) { klocka.t += 3000; stam([avskuren(1)]); }
+  tid(klocka.t + 8000);
+  assert.ok(app.kort.includes(expel) && expel.spar === 1 && !expel.borta, 'Expel rördes');
+});
+prov('KA8 (MES-369) äldre telefon utan flaggan: fasen kant i 9 minuter håller kortet vars spår dog strax innan — ingen flytt efter 60 s; när fasen slutar gäller de vanliga reglerna', () => {
+  stam([klar(1, 'Expel', { sen: 0, ...VID }), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  const k = app.kort.find(c => c.name === 'Expel'), kam0 = JSON.stringify(k.kam);
+  klocka.t += 150; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })]);                 // spåret filtreras ur bordet (äldre telefon): det ser ut att dö
+  klocka.t += 4000; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })], 'kant');
+  const kantStart = klocka.t;
+  tid(kantStart + 61000);
+  assert.ok(app.kort.includes(k) && app.handRad.length === 0, 'till handen efter 60 s (klockan)');
+  for (let t = kantStart + 63000; t <= kantStart + 540000; t += 3000) { klocka.t = t; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })], 'kant'); }
+  tid(klocka.t + 8000);
+  assert.ok(app.kort.includes(k) && JSON.stringify(k.kam) === kam0, 'rördes under 9 minuter i kanten');
+  klocka.t += 3000; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })], 'kort');       // telefonen ser hela bordet igen
+  tid(klocka.t + 8000);
+  assert.ok(iHanden(k), 'de vanliga reglerna när kanten slutar: platsen tom, kortet till handen');
+});
+prov('KA9 (MES-369) ett oframkallat kort (inget namn än) vars spår flaggas vid kanten ligger kvar; dör spåret går det efter nåden som förut', () => {
+  stam([ovila(1)]);
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), ['1']);
+  for (let i = 0; i < 20; i++) { klocka.t += 3000; stam([avskuren(1, { tillstand: 'okand' })]); }
+  tid(klocka.t + 3000);
+  assert.deepEqual(ofrSlag(), ['1'], 'det oframkallade kortet försvann vid kanten'); assert.equal(app.kort.length, 0); assert.equal(app.pending.length, 0);
+  stam([]);
+  tid(klocka.t + 3000);
+  assert.deepEqual(ofrSlag(), [], 'borta efter nåden när spåret dött');
+});
+prov('KA10 (MES-369) bordsloggen bär flaggan, och uppspelningen av den ger samma bord', () => {
+  stam([klar(1, 'Expel', { sen: 0, ...VID })]);
+  const k = app.kort[0], kam0 = JSON.stringify(k.kam);
+  const m = { fas: 'kort', spar: [avskuren(1)] };
+  app.logga(m);
+  const r = app.bordLogg.rader[app.bordLogg.rader.length - 1];
+  assert.equal(r.spar[0].avskuren, true, 'flaggan saknas i loggen');
+  const igen = JSON.parse(JSON.stringify(r.spar));
+  klocka.t += 3000; stam(igen);
+  tid(klocka.t + 8000);
+  assert.ok(app.kort.includes(k) && JSON.stringify(k.kam) === kam0, 'uppspelad rad rörde kortet');
+});
+prov('KA11 (MES-369, MES-343) ett kort som skjuts ut ur bilden: lådan med flaggan blir mindre och lämnar viloplatsen — dör spåret vid kanten ligger kortet kvar orört (urBild)', () => {
+  stam([klar(1, 'Expel', { sen: 0, ...VID })]);
+  const k = app.kort[0];
+  klocka.t += 300; stam([avskuren(1, { ...box(0.40, 0, 0.063, 0.06), tillstand: 'klar', namn: 'Expel', saker: true, tappad: false })]);   // en tredjedel utanför
+  klocka.t += 300; stam([avskuren(1, { ...box(0.40, 0, 0.063, 0.025), tillstand: 'klar', namn: 'Expel', saker: true, tappad: false })]);
+  klocka.t += 150; stam([]);
+  klocka.t += 3100; stam([]);
+  tid(klocka.t + 8000);
+  assert.ok(app.kort.includes(k) && k.borta, 'kvar, väntar'); assert.equal(app.handRad.length, 0);
 });
 prov('FL3b (scen A) högen upphäver inte en flytt förrän spåret lästs: läsningen säger kortets eget säkra namn — kortet ligger kvar på nya platsen', () => {
   stamG([klar(1, 'Expel', { sen: 0, ...PORT })], hog(0));

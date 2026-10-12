@@ -2736,6 +2736,94 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     nystart(); namnSvar = forraSvar;
   }
 
+  // ── KK: ett kort på mattan står kvar i bordet när dess ruta når bildkanten (MES-369) ──
+  /* Jespers parti 2026-10-11 (bordsloggen pass-2026-10-11-2006, 650,8 s): ett okänt kort hade legat stilla
+     i översta raden i 40 s när dess ruta växte uppåt mot bildens överkant — något kom in över det. Spåret
+     lästes om (okand → ny), försvann ur bordet till datorn, telefonen stod i 'kant' i 9 minuter och datorn
+     flyttade kortet till handen efter 60 s. Nu: ett kort som stått i bordet står kvar där, med flaggan
+     avskuren medan lådan nuddar kanten, och en ruta som växer mot kanten runt ett stilla kort är ingen
+     flytt (inget nytt kort, ingen omläsning). Ett NYTT kort över kanten väntar som förut (MES-359).
+     Detektorns lådor matas in som i appen (steg(…, det)), klippta mot bilden som detektor.js gör. */
+  {
+    const forraSvar = namnSvar, forraDet = ctx.window.Detektor;
+    ctx.window.Detektor = { para: kort => kort.map(b => Object.assign({}, b, { remsa: null, ur: 'lada', klass: b.klass || 'kort' })) };
+    const V = 8, klippV = (v, hi) => Math.max(0, Math.min(hi, v));
+    const lada = (x, y, w, h) => ({ x0: klippV(x * V, W * V), y0: klippV(y * V, H * V), x1: klippV((x + w) * V, W * V), y1: klippV((y + h) * V, H * V), poang: 0.9, klass: 'kort' });
+    const det = lador => ({ lador: { kort: lador, remsor: [] }, ruta: { x: 0, y: 0, w: W * V, h: H * V } });
+    const rutaK = async (ritar, lador) => {
+      nu += TAKT; const g = matta(W, H, 100, 3, lcg(3000 + nu));
+      for (const r of ritar) r(g);
+      Kamera.steg(g, nu, H, undefined, V, det(lador));
+      await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+    };
+    /* Kortet ritat klippt mot bildens kanter (kamerabankens kort() klipper inte). */
+    const kortKlipp = (x, y, w = 30, h = 42) => g => { for (let yy = Math.max(0, y); yy < Math.min(H, y + h); yy++) for (let xx = Math.max(0, x); xx < Math.min(W, x + w); xx++) g[yy * W + xx] = kortPixel(xx - x, yy - y, w, h, 180); };
+    const K = { x: 100, y: 6, w: 30, h: 42 };
+    const kortK = kortKlipp(K.x, K.y), ladaK = lada(K.x, K.y, K.w, K.h);
+    const arm = y1 => g => { for (let y = 0; y < y1; y++) for (let x = 94; x < 136; x++) g[y * W + x] = 60; };   // något mörkt som kommer in över överkanten
+    const rad = id => bord.find(b => b.id === id);
+    const tecken = r => r ? (r.avskuren ? 'f' : 'r') : '-';   // f = i bordet med flaggan, r = i bordet utan, - = saknas
+    const osaker = () => ({ namn: 'Plains', sid: 's1', saker: false, cands: [{ name: 'Plains', sid: 's1', score: 0.4 }] });
+    const aldrig = () => new Promise(() => {});   // läsningen svarar inte: kortet står stilla utan namn
+    const saker = forraSvar;
+    /* Kortet ligger stilla i 4,5 s, sedan växer rutan mot överkanten i steg (vaxt: [rutor, armens djup, låda]),
+       och till sist går armen och kortet ligger som förut. */
+    const scen = async (svar, vaxt) => {
+      nystart(); namnSvar = svar;
+      for (let i = 0; i < 6; i++) await rutaK([], []);
+      for (let i = 0; i < 30; i++) await rutaK([kortK], [ladaK]);
+      const t0 = Kamera.spar.find(t => t.tillstand !== 'skrap');
+      const id = t0 ? t0.id : -1, fore = { st: t0 && t0.tillstand, namn: t0 && t0.namn, i: tecken(rad(id)) };
+      const under = [];
+      for (const [n, djup, L] of vaxt) for (let i = 0; i < n; i++) { await rutaK([kortK, arm(djup)], [L]); under.push(tecken(rad(id))); }
+      const t1 = Kamera.spar.find(t => t.id === id);
+      const mitt = { st: t1 && t1.tillstand, namn: t1 && t1.namn, box: t1 && JSON.stringify(t1.box) };
+      for (let i = 0; i < 12; i++) await rutaK([kortK], [ladaK]);
+      const t2 = Kamera.spar.find(t => t.id === id);
+      return { id, fore, under: under.join(''), mitt, efter: tecken(rad(id)), slut: { st: t2 && t2.tillstand, namn: t2 && t2.namn }, kant: Kamera.kant, spar: Kamera.spar.filter(t => t.tillstand !== 'skrap').length };
+    };
+    /* Rutan växer i två steg, som i passet: först nästan till kanten, sedan förbi den (klippt till 0). */
+    const VAXT = [[2, 4, lada(96, 1, 34, 44)], [30, 26, lada(94, -6, 42, 54)]];
+    const vidKanten = u => u.length > 20 && !u.includes('-') && /f{20}$/.test(u);
+    // KK1: okänt kort (okand)
+    let r = await scen(osaker, VAXT);
+    check(`KK1 okänt kort, rutan växer förbi överkanten i 4,5 s: före ${r.fore.st} ${r.fore.i}; i bordet under tiden ${r.under}; tillståndet ${r.mitt.st} ${r.mitt.namn}; efteråt ${r.efter} ${r.slut.st}; panelen säger kant ${r.kant}, spår ${r.spar}`,
+          r.fore.st === 'okand' && r.fore.i === 'r' && vidKanten(r.under) && r.mitt.st === 'okand' && r.mitt.namn === 'Plains' && r.efter === 'r' && r.slut.st === 'okand' && r.kant === 0 && r.spar === 1, r.mitt.box);
+    // KK2: utan namn (läsningen har inte svarat)
+    r = await scen(aldrig, VAXT);
+    check(`KK2 kort utan namn (läsningen svarar inte), samma växt: före ${r.fore.st} ${r.fore.i}; i bordet ${r.under}; tillståndet ${r.mitt.st}; efteråt ${r.efter}; kant ${r.kant}, spår ${r.spar}`,
+          r.fore.st === 'stilla' && r.fore.i === 'r' && vidKanten(r.under) && r.mitt.st === 'stilla' && r.efter === 'r' && r.kant === 0 && r.spar === 1, r.mitt.box);
+    // KK3: med namn — lådan når kanten utan att växa ihop med armen (ett namngivet kort håller sin egen låda när den växer, "vuxen")
+    r = await scen(saker, [[30, 4, lada(100, -1, 30, 49)]]);
+    check(`KK3 kort med namn vars låda når överkanten: före ${r.fore.st} ${r.fore.namn} ${r.fore.i}; i bordet ${r.under}; ${r.mitt.st} ${r.mitt.namn}; efteråt ${r.efter}; kant ${r.kant}`,
+          r.fore.st === 'klar' && r.fore.i === 'r' && vidKanten(r.under) && r.mitt.st === 'klar' && r.mitt.namn === 'Plains' && r.efter === 'r' && r.kant === 0, r.mitt.box);
+    // KK4: kortet vid kanten tas bort på riktigt — spåret dör och lämnar bordet (datorn: de vanliga reglerna)
+    {
+      nystart(); namnSvar = osaker;
+      for (let i = 0; i < 6; i++) await rutaK([], []);
+      for (let i = 0; i < 30; i++) await rutaK([kortK], [ladaK]);
+      const id = (Kamera.spar.find(t => t.tillstand !== 'skrap') || { id: -1 }).id;
+      for (const [n, djup, L] of VAXT) for (let i = 0; i < n; i++) await rutaK([kortK, arm(djup)], [L]);
+      const vid = tecken(rad(id));
+      for (let i = 0; i < 12; i++) await rutaK([], []);
+      check(`KK4 kortet vid kanten tas bort: med flaggan ${vid}, efter 1,8 s utan kort ${tecken(rad(id))}, ${bord.length} i bordet`, vid === 'f' && !rad(id) && bord.length === 0);
+    }
+    // KK5: ett NYTT kort över kanten står inte i bordet och läses inte förrän det syns helt (MES-359 oförändrat)
+    {
+      nystart(); namnSvar = saker;
+      for (let i = 0; i < 6; i++) await rutaK([], []);
+      for (let i = 0; i < 15; i++) await rutaK([kortKlipp(100, -17)], [lada(100, -17, 30, 42)]);
+      const ute = { bord: bord.length, las: identifieringar, kant: Kamera.kant };
+      let y = -17;
+      for (let i = 0; i < 9; i++) { y = Math.min(10, y + 3); await rutaK([kortKlipp(100, y)], [lada(100, y, 30, 42)]); }
+      for (let i = 0; i < 12; i++) await rutaK([kortKlipp(100, 10)], [lada(100, 10, 30, 42)]);
+      check(`KK5 nytt kort över överkanten i 2,2 s: ${ute.bord} i bordet, ${ute.las} läsningar, kant ${ute.kant}; inskjutet: ${bord.length} i bordet ${bord[0] && bord[0].namn} flagga ${bord[0] && bord[0].avskuren}`,
+            ute.bord === 0 && ute.las === 0 && ute.kant === 1 && bord.length === 1 && bord[0].namn === 'Plains' && !bord[0].avskuren);
+    }
+    ctx.window.Detektor = forraDet;
+    nystart(); namnSvar = forraSvar;
+  }
+
   console.log([...ok, ...fel].join('\n'));
   console.log(`\n${ok.length} OK, ${fel.length} FEL`);
   process.exit(fel.length ? 1 : 0);
