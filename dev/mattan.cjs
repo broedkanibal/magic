@@ -948,26 +948,37 @@ const PROV = async () => {
     tagEmotFoto({ spar: 42, b64: FOTO });
     r.push(S(42, null, 0.42, 0.25));
     avstamBord(r, false);
-    ok('namnet dröjer: ingenting syns direkt', !ofrEl(42) && !gridEl.querySelector('.plats'), '');
-    await vanta(420);
-    ok('… inte heller efter 0,4 s', !ofrEl(42), '');
-    await vanta(200);
+    /* I1 (MES-349, byggt i MES-362): kortet läggs ned vid släppet, inte efter 0,5 s. */
     const o = ofrEl(42);
+    const tal = f => { const m = /blur\(([\d.]+)px\) saturate\(([\d.]+)\) brightness\(([\d.]+)\)/.exec(f || ''); return m ? { b: +m[1], s: +m[2], l: +m[3] } : null; };
+    const sudd0 = o && tal(getComputedStyle(o.querySelector('.ofsudd')).filter);
+    ok('namnet dröjer: ett oframkallat kort direkt vid släppet, i samma avstämning (I1, MES-362)', !!o && !gridEl.querySelector('.plats'), o ? 'finns' : 'inget');
     const ram = o && o.querySelector(':scope > .ofram'), skarp0 = ram && ram.querySelector('.oskarp');
-    ok('efter 0,5 s: ett oframkallat kort, utan namn, med kamerans foto helt suddigt (Claude läser, läge 1)', !!o && o.classList.contains('ofr') && !o.matches('.card') && !!o.querySelector('.ofram .ofsudd') && !ram.classList.contains('skarp') && !!skarp0 && getComputedStyle(skarp0).display === 'none' && !/Fencing|Llanowar|Forest/.test(o.outerHTML),
+    ok('vid släppet: ett oframkallat kort, utan namn, med kamerans foto helt suddigt (Claude läser, läge 1)', !!o && o.classList.contains('ofr') && !o.matches('.card') && !!o.querySelector('.ofram .ofsudd') && !ram.classList.contains('skarp') && !!skarp0 && getComputedStyle(skarp0).display === 'none' && !/Fencing|Llanowar|Forest/.test(o.outerHTML),
       o ? o.className + ' · ' + o.getAttribute('aria-label') : 'inget');
     const rs = ram && getComputedStyle(ram), ts = o && getComputedStyle(o.querySelector('.ofsudd')).transform;
     ok('… i Mesas egen ram (4 px #121417), fotot förstorat 1,18 (läge 1, MES-351)', !!rs && rs.borderTopWidth === '4px' && rs.borderTopColor === 'rgb(18, 20, 23)' && /^matrix\(1\.18, 0, 0, 1\.18/.test(ts || ''), rs ? `${rs.borderTopWidth} ${rs.borderTopColor} · ${ts}` : '');
     ok('… inte klickbart, ingen text, ingen etikett, ingen knapp', !o.classList.contains('fraga') && !o.textContent.trim() && !gridEl.querySelector(':scope > [data-ofr="42"]:not(.ofr)'), '');
     ok('… och det läggs ned (opacitet, skala)', !!o && kf(o, 'opacity') && kf(o, 'scale'), o ? anim(o) : '');
-    const sudd = o && getComputedStyle(o.querySelector('.ofsudd')).filter;
-    ok('hela fotot är suddigt, 12 px (sida 3, Suddighet Mellan), saturate .7 brightness .85 (MES-351)', /blur\(12px\) saturate\(0\.7\) brightness\(0\.85\)/.test(sudd || ''), sudd);
+    ok('vid släppet är hela fotot suddigt: 12 px, saturate .62, brightness .80 (variant B:s början, MES-362)', !!sudd0 && sudd0.b >= 11.5 && sudd0.s <= 0.65 && sudd0.l <= 0.82, JSON.stringify(sudd0));
+    const sEl42 = o && o.querySelector('.ofsudd');
     await vanta(500);
+    /* Variant B (MES-362): fotot klarnar medan kortet läses, 1 − e^(−t/1800 ms) — efter ~0,5 s är suddet ~10 px. */
+    const sudd5 = sEl42 && tal(getComputedStyle(sEl42).filter), glans5 = o && +getComputedStyle(o.querySelector('.oglans')).opacity;
+    ok('variant B: efter ~0,5 s har fotot börjat klarna (suddet 8–11,5 px, mättnad och ljus upp, glansen ned)', !!sudd5 && sudd5.b < 11.5 && sudd5.b > 8 && sudd5.s > sudd0.s && sudd5.l > sudd0.l && glans5 < 0.55 && glans5 > 0.4, `${JSON.stringify(sudd5)} glans ${glans5}`);
+    const tid42 = sEl42 && (sEl42.getAnimations().find(a => a.animationName === 'ofrB') || {}).currentTime;
+    renderAll(true);
+    const sEl42b = ofrEl(42) && ofrEl(42).querySelector('.ofsudd'), tid42b = sEl42b && (sEl42b.getAnimations().find(a => a.animationName === 'ofrB') || {}).currentTime;
+    ok('… en omritning startar inte om kurvan: samma element, animationen fortsätter', sEl42b === sEl42 && tid42 > 300 && tid42b >= tid42, `${sEl42b === sEl42 ? 'samma' : 'nytt'} element, ${Math.round(tid42)} → ${Math.round(tid42b)} ms`);
+    const sudd42 = sEl42b && getComputedStyle(sEl42b).filter;
     r[1] = S(42, 'Fencing Ace', 0.42, 0.25);
     avstamBord(r, false);
     const kF = mig.cards.find(c => c.spar === 42), eF = kF && els().get(kF.cid);
     ok('namnet kommer: kortet tar över det oframkallade kortets element', !!eF && eF === o && !ofrEl(42) && eF.matches('.card[data-cid]'), eF ? (eF === o ? 'samma element' : 'nytt element') : 'inget kort');
     const lager = eF && eF.querySelector(':scope > .ofram');
+    const fr42 = lager && lager.querySelector('.ofsudd'), fk42 = fr42 ? fr42.getAnimations().filter(a => !a.animationName).map(a => a.effect.getKeyframes()[0].filter) : [];
+    const fk42b = tal(fk42[fk42.length - 1]);
+    ok('… framkallningen börjar där fotot står (variant B), inte från fullt sudd igen', !!fk42b && fk42b.b < 11.5 && Math.abs(fk42b.b - tal(sudd42).b) < 1.5, `${fk42[fk42.length - 1]} (stod ${sudd42})`);
     ok('… och framkallas: fotot tonas bort på 300 ms', !!lager && lager.getAnimations().some(a => a.playState === 'running' && a.effect.getTiming().duration === 300), lager ? lager.getAnimations().map(a => a.effect.getTiming().duration).join(',') : 'inga lager');
     await vanta(400);
     ok('… efter 300 ms syns kortet, fotot är borta', !!lager && +getComputedStyle(lager).opacity === 0, lager ? getComputedStyle(lager).opacity : '');
@@ -980,6 +991,8 @@ const PROV = async () => {
     const u = ofrEl(43), mark = gridEl.querySelector(':scope > .ofrmark[data-ofr="43"]'), etik43 = gridEl.querySelector(':scope > .ofretik[data-ofr="43"]');   // egna element i brädet (MES-346, MES-351)
     ok('aldrig något namn: oframkallat med "NOT IDENTIFIED" och "Enter name", utan kamerans gissning', !!u && !!mark && !!etik43 && mark.textContent === 'Enter name' && mark.getAttribute('aria-label') === 'Enter the name of this card' && etik43.textContent === 'NOT IDENTIFIED' && mark.dataset.pend === u.dataset.pend && etik43.dataset.pend === u.dataset.pend && !/Serra/.test(u.outerHTML + mark.outerHTML + etik43.outerHTML), u ? u.textContent : 'inget');
     const ram43 = u && u.querySelector(':scope > .ofram'), sk43 = ram43 && ram43.querySelector('.oskarp'), mask43 = sk43 ? getComputedStyle(sk43).maskImage || getComputedStyle(sk43).webkitMaskImage : '';
+    const sudd43 = ram43 && tal(getComputedStyle(ram43.querySelector('.ofsudd')).filter), glans43 = ram43 && +getComputedStyle(ram43.querySelector('.oglans')).opacity;
+    ok('spelaren behövs (variant B): fotot har gått resten av kurvan på 300 ms — 3,5 px, mättnad .98, ljus .97, glansen .25', !!sudd43 && Math.abs(sudd43.b - 3.5) < 0.05 && Math.abs(sudd43.s - 0.98) < 0.005 && Math.abs(sudd43.l - 0.97) < 0.005 && Math.abs(glans43 - 0.25) < 0.01, `${JSON.stringify(sudd43)} glans ${glans43}`);
     ok('… med skarp mitt som tonas in på 300 ms (läge 2)', !!ram43 && ram43.classList.contains('skarp') && getComputedStyle(sk43).display === 'block' && /radial-gradient/.test(mask43) && getComputedStyle(sk43).animationDuration === '0.3s', `${ram43 ? ram43.className : 'ingen ram'} · ${mask43.slice(0, 60)}`);
     /* Provets fönster är litet: vid fit är kortet under 120 px och etiketten dold (läge 6). Zooma in på kortet. */
     const zoomPa = async (el, z) => { const w = gridWrap.getBoundingClientRect(), q = el.getBoundingClientRect(); matZoomMot(z, q.left + q.width / 2 - w.left, q.top + q.height / 2 - w.top); await vanta(400); };
@@ -1005,6 +1018,8 @@ const PROV = async () => {
     state.players = [mig, oppO]; state.active = mig.id; bord.valt = 'all'; renderAll(true);
     fjarrBord({ game_id: spelLage.id, user_id: oppO.id, version: 2, kort: [{ cid: 'n1', flipped: 1, x: 40, y: 60, z: 1 }].concat(delat) });
     const oo = document.querySelectorAll('#oppMattor .ofr');
+    const ooS = oo[0] && oo[0].querySelector('.ofsudd'), ooG = oo[0] && oo[0].querySelector('.oglans');
+    ok('motståndarens lilla bild blir aldrig skarp: egen kurva ned till ~6 px, glansen står still (MES-362)', !!ooS && getComputedStyle(ooS).animationName === 'ofrBopp' && getComputedStyle(ooG).animationName === 'none' && !oo[0].querySelector('.ofram.skarp'), ooS ? `${getComputedStyle(ooS).animationName} · ${getComputedStyle(ooG).animationName}` : 'inget');
     ok('motståndaren ser det oframkallade kortet (den lilla bilden), och inget för hens nedvända kort', oo.length === 1 && oppO.cards.length === 1 && !!oo[0].querySelector('.ofram .ofoto') && !oo[0].querySelector('.ofrmark, .oskarp') && !document.querySelector('#oppMattor .ofretik'), `${oo.length} oframkallade, ${oppO.cards.length} kort`);
     state.players = spelare0; renderAll(true);
     /* Etiketten, knappen och kortet öppnar rutan, med riktiga klick: lassot fick inte ta dem (pekarfångsten). */
@@ -1046,8 +1061,10 @@ const PROV = async () => {
     tagEmotFoto({ spar: 45, b64: FOTO });
     r.push(S(45, null, 0.42, 0.6));
     avstamBord(r, false);
+    const oL = ofrEl(45), aO = oL ? anim(oL) : '';   // vid släppet (MES-362): toningen in går nu, inte efter 0,5 s
     await vanta(600);
-    const oL = ofrEl(45), aO = oL ? anim(oL) : '';
+    const sL = oL && oL.querySelector('.ofsudd'), suddL = sL && getComputedStyle(sL).filter;
+    ok('minskad rörelse: fotot klarnar inte, stilla sudd som förut (12 px, saturate .7, brightness .85)', !!sL && getComputedStyle(sL).animationName === 'none' && /blur\(12px\) saturate\(0\.7\) brightness\(0\.85\)/.test(suddL || ''), `${sL ? getComputedStyle(sL).animationName : ''} · ${suddL}`);
     r[r.length - 1] = S(45, 'Serra Angel', 0.42, 0.6);
     avstamBord(r, false);
     const lL = oL && oL.querySelector(':scope > .ofram'), eas = lL ? lL.getAnimations().map(a => a.effect.getTiming().easing).join(',') : '';

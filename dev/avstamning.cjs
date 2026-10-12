@@ -885,26 +885,22 @@ prov('A13 datorns egna anrop medan auto är på räknas i en egen bok, med serve
 const ovila = (id, rest) => Object.assign({ id, tillstand: 'ny', kortlik: true, vilar: true, sen: 0 }, PORT, rest);
 const ofrSlag = () => app.ofr.map(p => `${p.spar}${p.pend ? '#' : ''}${p.overTak ? '+' + p.namn : ''}`);
 const FOTO = 'data:image/jpeg;base64,AAAA';
-prov('O1 namnet dröjer: inget syns före 0,5 s, sedan ett oframkallat kort — på millisekunden, utan ny rapport', () => {
+prov('O1 (I1, MES-362) namnet dröjer: det oframkallade kortet läggs ned VID släppet, i samma avstämning — inte efter 0,5 s', () => {
   const t0 = klocka.t;
   stam([ovila(1)]);
-  assert.deepEqual(ofrSlag(), []);
-  klocka.t = t0 + 400; stam([ovila(1)]);
-  assert.deepEqual(ofrSlag(), [], 'för tidigt');
-  tid(t0 + 700);                                            // telefonen tyst: timern lägger ned det
-  assert.deepEqual(ofrSlag(), ['1']);
-  assert.equal(app.ofr[0].lagd, t0 + 500, 'lades ned 0,5 s efter släppet');
+  assert.deepEqual(ofrSlag(), ['1'], 'vid släppet');
+  assert.equal(app.ofr[0].lagd, t0, 'lades ned vid släppet'); assert.equal(app.ofr[0].vila, t0);
   assert.equal(app.kort.length, 0); assert.equal(app.pending.length, 0);
   assert.equal(app.ofr[0].namn, null, 'aldrig ett namn');
+  tid(t0 + 700);
+  assert.deepEqual(ofrSlag(), ['1'], 'ligger kvar');
 });
-prov('O1b släppet är när kortet först ligger still: ett kort som bärs i en sekund får sitt halva sekund därifrån', () => {
+prov('O1b släppet är när kortet först ligger still: ett kort som bärs i en sekund får sitt när det läggs ned, inte förr', () => {
   const t0 = klocka.t;
   for (let t = t0; t <= t0 + 1000; t += 200) { klocka.t = t; stam([ovila(1, { vilar: false })]); }
+  assert.deepEqual(ofrSlag(), [], 'inte medan det bärs');
   klocka.t = t0 + 1100; stam([ovila(1)]);                    // läggs ned
-  tid(t0 + 1500);
-  assert.deepEqual(ofrSlag(), [], 'räknat från när spåret sågs');
-  tid(t0 + 1700);
-  assert.deepEqual(ofrSlag(), ['1']); assert.equal(app.ofr[0].vila, t0 + 1100);
+  assert.deepEqual(ofrSlag(), ['1']); assert.equal(app.ofr[0].vila, t0 + 1100); assert.equal(app.ofr[0].lagd, t0 + 1100);
 });
 prov('O2 namnet kommer: kortet skapas och tar över det oframkallade kortets element (ofrFran); posten går', () => {
   stam([ovila(1)]);
@@ -914,12 +910,17 @@ prov('O2 namnet kommer: kortet skapas och tar över det oframkallade kortets ele
   assert.equal(app.kort.length, 1); assert.deepEqual(ofrSlag(), []);
   assert.equal(app.kort[0].ofrFran && app.kort[0].ofrFran.nyckel, 'o:1');
 });
-prov('O3 namnet i tid (före 0,5 s): kortet direkt, aldrig något oframkallat', () => {
+prov('O3 (MES-362) namnet strax efter släppet, under nedläggningen: kortet tar över det oframkallade kortets element (inget blink); namnet i samma rapport som släppet: kortet direkt', () => {
   const t0 = klocka.t;
   stam([ovila(1)]);
+  assert.deepEqual(ofrSlag(), ['1']);
   klocka.t = t0 + 300; stam([klar(1, 'Swamp', { kortlik: true, vilar: true, sen: 0, ...PORT })]);
   tid(t0 + 2000);
-  assert.equal(app.kort.length, 1); assert.deepEqual(ofrSlag(), []); assert.ok(!app.kort[0].ofrFran);
+  assert.equal(app.kort.length, 1); assert.deepEqual(ofrSlag(), []);
+  assert.equal(app.kort[0].ofrFran && app.kort[0].ofrFran.nyckel, 'o:1', 'samma element: framkallas medan det läggs ned');
+  stam([klar(1, 'Swamp', { kortlik: true, vilar: true, sen: 0, ...PORT }), klar(2, 'Forest', { kortlik: true, vilar: true, sen: 0, ...LANGT })]);
+  assert.equal(app.kort.length, 2); assert.deepEqual(ofrSlag(), [], 'läst redan vid släppet: inget oframkallat');
+  assert.ok(!app.kort[1].ofrFran);
 });
 prov('O4 en hand, något som rör sig eller ligger skymt ger aldrig ett oframkallat kort', () => {
   const t0 = klocka.t;
@@ -957,12 +958,41 @@ prov('O7 ett kort i väntan bärs till spåret (MES-341): inget oframkallat kort
   klocka.t += 200; stam([]);                                 // lyfts
   const t0 = klocka.t + 300;
   klocka.t = t0; stam([ovila(2, LANGT)]);                      // läggs ned på en ny plats, oläst
+  assert.deepEqual(ofrSlag(), [], 'vid släppet (MES-362: ingen tröskel som döljer det)');
   tid(t0 + 600);
   assert.deepEqual(ofrSlag(), [], 'oframkallat medan flytten avgörs');
   klocka.t = t0 + 650; stam([ovila(2, { tillstand: 'stilla', ...LANGT })]);   // telefonen bestämmer sig för att läsa: kortet bärs dit
   assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, 2);
   tid(t0 + 2000);
   assert.deepEqual(ofrSlag(), []);
+});
+prov('O7b (MES-362) ett kort i väntan flyttas mellan två rapporter (det gamla spåret dör i samma rapport som det nya ligger still): inget oframkallat kort vid släppet', () => {
+  stam([klar(1, 'Mirran Bardiche', { sen: 10, ...PORT })]);
+  const t0 = klocka.t + 300;
+  klocka.t = t0; stam([ovila(2, LANGT)]);                      // lyft och nedlagt på en gång
+  assert.deepEqual(ofrSlag(), [], 'vid släppet');
+  klocka.t = t0 + 200; stam([ovila(2, { tillstand: 'stilla', ...LANGT })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, 2);
+  tid(t0 + 2000);
+  assert.deepEqual(ofrSlag(), []);
+});
+prov('O7c (MES-362) ett nytt spår på ett kort vars spår lever, utan relation: väntar 0,5 s som förut (OFR_TROSKEL_TACKT) — ett tappat kort får inget oframkallat kort', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 300, ...PORT }), ovila(2, { tappad: true, ...LAND_ })]);
+  assert.deepEqual(ofrSlag(), [], 'täcker ett levande kort: väntar');
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 450, ...PORT }), klar(2, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
+  tid(klocka.t + 1000);
+  assert.equal(app.kort.length, 1); assert.deepEqual(ofrSlag(), []);
+});
+prov('O23 (MES-362) Claude svarar efter gränsen (PROVA_MS): kortet som står som NOT IDENTIFIED framkallas med namnet', () => {
+  stam([ovila(1, { tillstand: 'okand', provas: true, cands: [{ name: 'Swamp', score: 0.4 }] })]);   // frågan är ute
+  assert.deepEqual(ofrSlag(), ['1'], 'vid släppet, utan post medan Claude läser');
+  klocka.t += 5100; stam([ovila(1, { tillstand: 'okand', cands: [{ name: 'Swamp', score: 0.4 }] })]);   // gränsen: provas släppt
+  assert.equal(app.pending.length, 1); assert.deepEqual(ofrSlag(), ['1#'], 'NOT IDENTIFIED');
+  klocka.t += 2000; stam([klar(1, 'Swamp', { kortlik: true, vilar: true, sen: 0, varfor: 'ai', ...PORT })]);   // det sena svaret
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].name, 'Swamp');
+  assert.equal(app.kort[0].ofrFran && app.kort[0].ofrFran.nyckel, 'o:1', 'tar över elementet och framkallas');
+  assert.equal(app.pending.length, 0); assert.deepEqual(ofrSlag(), []);
 });
 prov('O8 ett exemplar för mycket: oframkallat med frågan, och det säkra namnet', () => {
   app.lek = new Map([['Sol Ring', 1]]);
@@ -1102,6 +1132,22 @@ prov('O22 (MES-346, granskningen T2) två lådor på SAMMA kort: en låda inne i
   tid(klocka.t + 600);
   assert.deepEqual(ofrSlag(), [], 'ett oframkallat kort ovanpå kortet');
 });
+/* MES-362 (granskningen): väntan på 0,5 s (OFR_TROSKEL_TACKT) gäller också ett spår som täcker ett OFRAMKALLAT kort —
+   ett oläst kort och ett kort i NOT IDENTIFIED — inte bara ett kort på mattan. Utan det gav en andra låda en kort stund
+   (300 ms) på kortet ett andra oframkallat kort ovanpå (["1","9"]) som stod kvar i nåden (OFR_NAD). */
+for (const [vad, rest, slag] of [['oläst', {}, '1'], ['i NOT IDENTIFIED', { tillstand: 'okand', cands: [{ name: 'Swamp', score: 0.4 }] }, '1#']]) {
+  prov(`O24 (MES-362, granskningen) en andra låda en kort stund på ett oframkallat kort (${vad}): inget andra oframkallat kort ovanpå`, () => {
+    const DEL = box(PORT.x, PORT.y + 0.03, 0.063, 0.058);                           // en bit av samma kort
+    stam([ovila(1, rest)]);
+    assert.deepEqual(ofrSlag(), [slag], 'vid släppet');
+    klocka.t += 150; stam([ovila(1, rest), ovila(9, DEL)]);                         // en andra låda på kortet
+    assert.deepEqual(ofrSlag(), [slag], 'en andra låda på kortet');
+    klocka.t += 300; stam([ovila(1, rest)]);                                        // borta efter 300 ms
+    assert.deepEqual(ofrSlag(), [slag], 'när lådan gått');
+    tid(klocka.t + 1500);
+    assert.deepEqual(ofrSlag(), [slag], 'efter nåden');
+  });
+}
 prov('O11 namnet kommer på ett spår som fötts om bredvid: kortet tar över, ingen post blir kvar bredvid', () => {
   stam([ovila(1)]);
   tid(klocka.t + 600);

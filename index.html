@@ -1987,6 +1987,27 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .ofram > .ofoto{transform:scale(1.18)}
 .ofram.vand > .ofoto{transform:rotate(180deg) scale(1.18)}
 .ofram > .ofsudd{filter:blur(12px) saturate(.7) brightness(.85)}
+/* MES-362, variant B "Framkallas i takt" (designytan "Mesa Reading Mark", rita()): medan kortet läses klarnar fotot
+   sakta från släppet, e = 1 − e^(−t/1800 ms) — suddet 12 → 3,5 px, mättnad .62 → .98, ljus .80 → .97, glansen
+   .55 → .25. Kurvan är tretton punkter över 7,2 s (e = 0,98 vid slutet), linjärt mellan dem, och står sedan kvar.
+   Elementet behåller sitt läge vid omritningar (matBarn byter inte .ofsudd), så animationen startar inte om; ett
+   element som skapas om långt efter släppet ställs på postens tid (ofrTakt). Spelaren behövs (.skarp): resten av
+   kurvan på 300 ms (ofrTakt). Namnet kommer: framkallningen (matFramkalla) börjar där kurvan står. Motståndaren
+   (.opp, den lilla 22 × 31-bilden) blir aldrig skarp: suddet går ned till ~6 px, glansen står still. Avviker
+   medvetet från tavlan (rita() visar motståndaren 16 → 10 px; ofrBopp går 12 → 6,1 px): samma startsudd som mitt
+   kort, så att ett kort ser likadant ut i släppet på båda borden, och eftersom motståndaren aldrig får se kortet
+   skarpt (det är mitt kort, och namnet är inte känt) behövs ingen marginal uppåt — 6 px på 22 px bredd är redan
+   oläsligt. ofrTakt rör inte motståndarens element: skapas det om börjar kurvan om från 12 px. Minskad
+   rörelse: ingen animation, stilla sudd som förut. */
+@media (prefers-reduced-motion:no-preference){
+  .ofram > .ofsudd{animation:ofrB 7.2s linear forwards}
+  .ofram.opp > .ofsudd{animation-name:ofrBopp}
+  .ofram > .oglans{animation:ofrBglans 7.2s linear forwards}
+  .ofram.opp > .oglans{animation:none}
+}
+@keyframes ofrB{0%{filter:blur(12px) saturate(.62) brightness(.8)}4.167%{filter:blur(10.695px) saturate(.675) brightness(.826)}8.333%{filter:blur(9.591px) saturate(.722) brightness(.848)}12.5%{filter:blur(8.656px) saturate(.762) brightness(.867)}16.667%{filter:blur(7.864px) saturate(.795) brightness(.883)}22.222%{filter:blur(6.994px) saturate(.832) brightness(.9)}27.778%{filter:blur(6.298px) saturate(.861) brightness(.914)}34.722%{filter:blur(5.619px) saturate(.89) brightness(.928)}41.667%{filter:blur(5.105px) saturate(.912) brightness(.938)}50%{filter:blur(4.65px) saturate(.931) brightness(.947)}61.111%{filter:blur(4.238px) saturate(.949) brightness(.955)}75%{filter:blur(3.923px) saturate(.962) brightness(.962)}100%{filter:blur(3.656px) saturate(.973) brightness(.967)}}
+@keyframes ofrBopp{0%{filter:blur(12px) saturate(.62) brightness(.8)}4.167%{filter:blur(11.079px) saturate(.675) brightness(.826)}8.333%{filter:blur(10.299px) saturate(.722) brightness(.848)}12.5%{filter:blur(9.639px) saturate(.762) brightness(.867)}16.667%{filter:blur(9.081px) saturate(.795) brightness(.883)}22.222%{filter:blur(8.467px) saturate(.832) brightness(.9)}27.778%{filter:blur(7.975px) saturate(.861) brightness(.914)}34.722%{filter:blur(7.496px) saturate(.89) brightness(.928)}41.667%{filter:blur(7.133px) saturate(.912) brightness(.938)}50%{filter:blur(6.812px) saturate(.931) brightness(.947)}61.111%{filter:blur(6.521px) saturate(.949) brightness(.955)}75%{filter:blur(6.299px) saturate(.962) brightness(.962)}100%{filter:blur(6.11px) saturate(.973) brightness(.967)}}
+@keyframes ofrBglans{0%{opacity:.55}4.167%{opacity:.504}8.333%{opacity:.465}12.5%{opacity:.432}16.667%{opacity:.404}22.222%{opacity:.373}27.778%{opacity:.349}34.722%{opacity:.325}41.667%{opacity:.307}50%{opacity:.291}61.111%{opacity:.276}75%{opacity:.265}100%{opacity:.255}}
 .ofram > .oskarp{display:none;-webkit-mask-image:radial-gradient(ellipse 62% 52% at 50% 42%,#000 45%,transparent 100%);mask-image:radial-gradient(ellipse 62% 52% at 50% 42%,#000 45%,transparent 100%)}
 /* Masken vrids med fotot: i ett foto som vänts ett halvt varv ligger kortets mitt (42 % uppifrån) på 58 %. */
 .ofram.vand > .oskarp{-webkit-mask-image:radial-gradient(ellipse 62% 52% at 50% 58%,#000 45%,transparent 100%);mask-image:radial-gradient(ellipse 62% 52% at 50% 58%,#000 45%,transparent 100%)}
@@ -8604,7 +8625,7 @@ function ofrLager(foto, motstandare, skarp) {
   if (!foto || !OFR_BILD.test(foto)) return '';
   const u = `background-image:url(${foto})`, vand = !motstandare && ofrVand() ? ' vand' : '';   // motståndarens lilla bild är redan vänd (ofrLiten)
   const s = motstandare ? '' : `<i class="ofoto oskarp" style="${u}"></i>`;
-  return `<span class="ofram${vand}${s && skarp ? ' skarp' : ''}" aria-hidden="true"><i class="ofoto ofsudd" style="${u}"></i>${s}<i class="oglans"></i></span>`;
+  return `<span class="ofram${motstandare ? ' opp' : ''}${vand}${s && skarp ? ' skarp' : ''}" aria-hidden="true"><i class="ofoto ofsudd" style="${u}"></i>${s}<i class="oglans"></i></span>`;
 }
 /* Ett oframkallat kort på mattan (MES-344): samma storlek och plats som kortet det blir (ofrPos), inget
    namn och ingen kortbild — bara kamerans foto. Står det i granskningen bär det "NOT IDENTIFIED" och
@@ -9114,18 +9135,54 @@ function matRing(el, A, fran, lugn) {
    lyft (1,015 vid 150 ms, INOUT) hoppas över om kortet redan rör sig (det läggs ned just nu), och den gröna
    ringen kommer 300–1000 ms. Minskad rörelse: toningen (LIN) och den gröna kanten. */
 const ofrFilter = b => `blur(${(OFR_SUDD * (0.35 + 0.65 * b)).toFixed(2)}px) saturate(.7) brightness(.85)`;   // .ofsudd (MES-351)
+/* Var fotot står just nu (MES-362, variant B: det klarnar medan kortet läses) — framkallningen börjar där, inte
+   från det fulla suddet; annars hoppade ett foto som hunnit klarna tillbaka till 12 px i början av framkallningen. */
+function ofrFotoLage(s, g) {
+  let f = '', o = NaN;
+  try { if (s) f = getComputedStyle(s).filter; if (g) o = parseFloat(getComputedStyle(g).opacity); } catch (e) {}
+  return { filter: f && f !== 'none' ? f : ofrFilter(1), glans: Number.isFinite(o) ? o : 0.55 };
+}
 function matFramkalla(el, ring) {
   const A = el._matA || (el._matA = {});
   const lugn = matLugn(), e = lugn ? 'linear' : 'ease-out';
   const lager = el.querySelector(':scope > .ofram');
   if (lager) {
     lager.animate([{ offset: 0, opacity: 1 }, { offset: 0.375, opacity: 1 }, { offset: 1, opacity: 0 }], { duration: 300, easing: e, fill: 'forwards' });
-    const s = lager.querySelector(':scope > .ofsudd'), g = lager.querySelector(':scope > .oglans');
-    if (s) s.animate([{ filter: ofrFilter(1) }, { filter: ofrFilter(0) }], { duration: 300, easing: e, fill: 'forwards' });
-    if (g) g.animate([{ opacity: 0.55 }, { opacity: 0 }], { duration: 300, easing: e, fill: 'forwards' });
+    const s = lager.querySelector(':scope > .ofsudd'), g = lager.querySelector(':scope > .oglans'), n = ofrFotoLage(s, g);
+    if (s) s.animate([{ filter: n.filter }, { filter: ofrFilter(0) }], { duration: 300, easing: e, fill: 'forwards' });
+    if (g) g.animate([{ opacity: n.glans }, { opacity: 0 }], { duration: 300, easing: e, fill: 'forwards' });
   }
   if (!lugn && !matKor(A.lyft)) A.lyft = el.animate([{ offset: 0, scale: '1', easing: 'ease-in-out' }, { offset: 0.5, scale: '1.015', easing: 'ease-in-out' }, { offset: 1, scale: '1' }], { duration: 300 });
   if (ring) matRing(el, A, 300, lugn);
+}
+/* Variant B (MES-362): fotot i ett oframkallat kort klarnar i takt med läsningen (CSS:en vid .ofram > .ofsudd).
+   Två saker CSS:en inte kan själv, för mina oframkallade kort efter varje omritning:
+   1. Ett element som skapats om långt efter att kortet lades ned (en ny vy, ett brädbyte) ställs på postens tid,
+      så att kurvan inte börjar om från fullt sudd. Elementen som finns kvar rörs inte (matBarn byter inte .ofsudd).
+   2. Spelaren behövs (.skarp, posten finns): fotot går resten av kurvan på 300 ms, från där det står, och stannar
+      klart (3,5 px). Den skarpa mitten tonas in av CSS:en (.oskarp) som förut.
+   Ingen timer: en kontroll per omritning, och varje element hanteras en gång per läge. Minskad rörelse: inget. */
+const OFR_B_KLAR = 'blur(3.5px) saturate(.98) brightness(.97)', OFR_B_GLANS = 0.25;
+function ofrTakt(beh) {
+  if (!beh || matLugn()) return;
+  const nu = Date.now();
+  for (const lager of beh.querySelectorAll('.ofr[data-ofr]:not(.opp) > .ofram')) {
+    const s = lager.querySelector(':scope > .ofsudd'), g = lager.querySelector(':scope > .oglans');
+    if (!s) continue;
+    if (!s._ofrT) {
+      s._ofrT = 1;
+      const p = ofrMinne.get(+lager.parentElement.dataset.ofr), sedan = p && p.lagd ? nu - p.lagd : 0;
+      if (sedan > 150 && typeof s.getAnimations === 'function') {
+        for (const el of [s, g]) if (el) for (const a of el.getAnimations()) if (a.animationName === 'ofrB' || a.animationName === 'ofrBglans') { try { a.currentTime = sedan; } catch (e) {} }
+      }
+    }
+    if (lager.classList.contains('skarp') && !s._ofrSkarp) {
+      s._ofrSkarp = 1;
+      const n = ofrFotoLage(s, g);
+      s.animate([{ filter: n.filter }, { filter: OFR_B_KLAR }], { duration: 300, easing: 'ease-out', fill: 'forwards' });
+      if (g) g.animate([{ opacity: n.glans }, { opacity: OFR_B_GLANS }], { duration: 300, easing: 'ease-out', fill: 'forwards' });
+    }
+  }
 }
 /* Det yttre elementets style-attribut i HTML:en, och resten av HTML:en utan
    det. Skiljer sig bara style (ett kort som flyttats) skrivs lägena direkt,
@@ -9556,6 +9613,7 @@ function renderGrid(force) {
   const vyMal = tr ? vyAv(+tr[1], +tr[2], +tr[3]) : null, vyNu = mx ? vyAv(+mx[2], +mx[3], +mx[1]) : vyMal;
   const vy = v.vp.riktig && vyMal && vyNu ? { x0: Math.max(vyMal.x0, vyNu.x0), y0: Math.max(vyMal.y0, vyNu.y0), x1: Math.min(vyMal.x1, vyNu.x1), y1: Math.min(vyMal.y1, vyNu.y1) } : null;
   matSynk(gridEl, poster, { animera, vy });
+  ofrTakt(gridEl);
   ofrMarkLagg();
   if (DEBUG) ritaKedja();
 
@@ -26109,7 +26167,12 @@ const Kamera = (() => {
   const HELBILD_ANDRAD = 0.01;      // andel bildpunkter som avviker mer än avvikelsen från rutan Claude senast såg: ett kort täcker 2–4 % av rutan, bruset efter suddningen inget — utgångsvärde, inte uppmätt på ett riktigt bord
   const HELBILD_NARA = 0.25;        // Claudes läge räknas som ett eget spår med samma namn inom dess låda vuxen en fjärdedel åt varje håll — samma mått som datorns avstämning (SAMMA_KORT_NARA)
   const HELBILD_ROR = 0.003;        // …och mot förra rutan: mer än så är rörelse, och stillhetstimern börjar om
-  const PROVA_MS = 15000;           // längsta väntan på Claudes svar om en beskärning innan den lokala domen gäller — samma 15 s som helbilden väntar in en obesvarad fråga
+  /* Claude-gränsen (MES-362): så länge väntar datorn på Claudes svar om en beskärning innan den lokala domen gäller och
+     kortet går till spelaren (NOT IDENTIFIED, "Enter name"). Var 15 s; claude_fragor i kameraläget (61 frågor): median
+     2,6 s, p90 4,3 s, max 7,2 s. Ett svar som kommer efter gränsen används ändå (svarAI: provas är släppt, men aiFragad
+     står kvar) — kortet som redan står som NOT IDENTIFIED framkallas då med namnet. */
+  const PROVA_MS = 5000;
+  const HELBILD_PROVA_MS = 15000;   // helbilden räknar en obesvarad beskärningsfråga som obesvarad så länge (oförändrat 15 s; helbilden är av, HELBILD_AUTO)
   let helbildSedan = 0;             // när villkoret började gälla, 0 = gäller inte just nu
   let helbildPagar = false;         // en fråga är på väg
   let helbildSist = 0;              // när den senaste skickades (0 = ingen än)
@@ -30091,8 +30154,8 @@ const Kamera = (() => {
       if (t.tillstand === 'klar' && t.saker && t.namn && !(t.ts && t.ts.namn)) stampla(t, 'namn', 'okand');
     }
     /* Kamerans foto av ett nytt kort (MES-344, framkallningen): en gång per spår, när det först ligger
-       still som ett kort (kortlikt, vilar, inte skymt) utan namn — samma villkor som datorns släpp. Dröjer
-       namnet mer än en halv sekund lägger datorn ned ett oframkallat kort med fotot suddigt, och läsningen
+       still som ett kort (kortlikt, vilar, inte skymt) utan namn — samma villkor som datorns släpp. Där lägger
+       datorn ned ett oframkallat kort med fotot suddigt (vid släppet sedan MES-362), och läsningen
        (stillaMs) kommer först efter det: fotot måste vara där innan. Bara när någon tar emot det (cb.foto):
        golden, bänken och kamerabänken kör samma väg som förut, utan beskärning. Läsningens beskärning
        (beskar) rörs inte. Före bordet, så att fotot finns när datorn ser spåret. */
@@ -31222,9 +31285,9 @@ const Kamera = (() => {
     helbildForra = g;
     const egna = spar.filter(t => t.tillstand !== 'skrap' && !arHelbild(t));
     if (egna.length && !(yta && yta.dom !== 'lugn')) { helbildSedan = 0; return; }
-    /* Beskärningens fråga till servern räknas som obesvarad i PROVA_MS: ett
+    /* Beskärningens fråga till servern räknas som obesvarad i HELBILD_PROVA_MS: ett
        svar som aldrig kommer (nätet) får inte hålla helbilden borta. */
-    const svarade = lasande === 0 && egna.every(t => (t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand') && !(t.aiFragad && !t.ai && nu - (t.aiFragadNar || 0) < PROVA_MS));
+    const svarade = lasande === 0 && egna.every(t => (t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand') && !(t.aiFragad && !t.ai && nu - (t.aiFragadNar || 0) < HELBILD_PROVA_MS));
     const nytt = egenSignatur() !== helbildSig || !helbildBild || andelOver(g, helbildBild, T.utseende) > HELBILD_ANDRAD;
     if (!svarade || !nytt || ror > HELBILD_ROR) { helbildSedan = 0; return; }
     if (!helbildSedan) { helbildSedan = nu; return; }
@@ -32304,7 +32367,7 @@ function kamLekTak(namn) { const n = kamLekAntal ? kamLekAntal.get(norm(namn)) :
    Det lokala svaret går först, och frågan till servern går i bakgrunden
    (Kamera.identifiera håller ett lås, och ett svar tar 1,5–6 s). Medan den
    är ute prövas spåret: datorn väntar med granskningen tills svaret kommit
-   eller PROVA_MS (15 s) gått. Claudes "inget kort" gör spåret till skräp —
+   eller PROVA_MS (5 s sedan MES-362) gått. Claudes "inget kort" gör spåret till skräp —
    en bit av bordet ska inte bli en granskningspost (MES-29). Uteblir
    svaret gäller den lokala domen, och ett osäkert kort går till
    granskningen som förut. Beskärningen (720 px bred)
@@ -33424,7 +33487,7 @@ function autoRemsaModell(spar, mig, extra) {
 /* ── Framkallningen (MES-344) ─────────────────────────────────────────
    Jespers beslut 2026-10-06 (dev/plan/spegelmattan-principer.md, Utspel; designytans sida 3, scenerna
    "Lägg ut ett kort" och "Ett kort utan namn"): ett nytt kort syns på mattan först med sitt namn. Dröjer
-   namnet mer än OFR_TROSKEL efter släppet läggs ett OFRAMKALLAT kort ned på platsen — Magic-ramen skarp,
+   namnet läggs ett OFRAMKALLAT kort ned på platsen (vid släppet sedan MES-362, OFR_TROSKEL = 0) — Magic-ramen skarp,
    de ytor som är unika för kortet (namn, bild, typrad, text, P/T) kamerans foto suddigt — och när namnet
    kommer skärps ytorna, 300 ms, i samma element (ofrFran: kortet som skapas tar över det oframkallade
    kortets element, så att inget blinkar och en nedläggning som pågår fortsätter). Får kortet aldrig något
@@ -33443,7 +33506,19 @@ function autoRemsaModell(spar, mig, extra) {
    telefonen bestämt sig för att läsa spåret) får inget oframkallat kort förrän det avgjorts — annars
    blinkade ett oframkallat kort förbi på den nya platsen innan kortet bars dit. Ren nog att provas i
    dev/avstamning.cjs (ofrSteg, ofrLista). */
-const OFR_TROSKEL = 500;   // ms från släppet: namnet dröjer (sida 3, Tweaks "Tröskel", förvalet 0,5 s)
+/* I1 (MES-349, byggt i MES-362): kortet läggs ned VID släppet, inte efter 0,5 s — målet är att något syns på rätt
+   plats i median inom 0,1 s. Nästan varje kort går alltså från suddigt till skarpt; ett namn som kommer under
+   nedläggningen (0–400 ms) framkallas i samma element medan kortet läggs ned (ofrFran, matFramkalla), utan blink.
+   Ett kort i väntan som flyttas får ändå inget oframkallat kort på den nya platsen: det är flyttKan, kortSettIgen
+   och spoke som håller det borta, inte tröskeln. Värdet finns kvar som spak (> 0 = vänta så länge efter släppet). */
+const OFR_TROSKEL = 0;     // ms från släppet till det oframkallade kortet (var 500 till MES-362)
+/* …utom där ett kort på mattan ligger, med sitt spår i livet: ett nytt spår som täcker ett levande korts plats
+   (SAMMA_KORT_TACKNING) utan att telefonen sett det ena ligga över det andra (ofrSkilda) kan vara samma kort sett
+   två gånger — en andra låda på kortet, en hög som tappas och föds om, ett kort som tappas — och det avgörs först
+   när det gamla spåret dött (kortSettIgen) eller telefonen sett relationen. Där väntar det som förut, 0,5 s. Utan
+   väntan låg ett oframkallat kort kvar ovanpå kortet (avstamning.cjs O17, O22). Ett nytt kort som telefonen sett
+   ligga över (ett land på en hög, O16) läggs ned vid släppet. */
+const OFR_TROSKEL_TACKT = 500;
 const OFR_SUDD = 12;       // px i brädet: hur suddigt kamerans foto är i de unika ytorna (sida 3, "Suddighet", förvalet Mellan)
 const OFR_NAD = 1200;      // ms: ett oframkallat kort vars spår dött väntar så länge på ett spår som föds om på samma plats
 const OFR_FRAN_MS = 1500;  // ms: så länge bär ett nytt kort fotot det framkallades ur (lagren är osynliga efter 300 ms)
@@ -33626,7 +33701,14 @@ function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas) {
     return !ofrSkilda(k.spar, t.id) && fodd >= (k.borta || nu) - FLYTT_FORE && lamnatPlatsen(k);
   };
   for (const [id, p] of [...ofrMinne]) if (synliga.has(p.spar) && spoke(spar.find(t => t.id === p.spar))) { ofrMinne.delete(id); andrat = true; }
-  /* Nya: ett löst spår som ligger still som ett kort, OFR_TROSKEL efter släppet, utan namn — eller med
+  /* Ett spår som täcker ett kort vars spår lever (OFR_TROSKEL_TACKT): samma kort sett två gånger, eller ett nytt?
+     Kortet är ett kort på mattan eller ett oframkallat kort (oläst eller i NOT IDENTIFIED) — postens spår läses när
+     frågan ställs, så att en post som lagts ned i samma avstämning räknas. Utan posterna gav en andra låda en kort
+     stund på ett oframkallat kort ett andra ovanpå, som stod kvar i nåden (granskningen av MES-362, avstamning.cjs O24). */
+  const levandeSpar = ids => ids.map(id => id != null && synliga.has(id) ? spar.find(u => u.id === id) : null).filter(u => u && u.w != null && u.h != null && !franHelbild(u));
+  const levande = levandeSpar(mig.cards.map(c => c.spar));
+  const tackerKort = t => levande.concat(levandeSpar([...ofrMinne.values()].map(p => p.spar))).some(u => u.id !== t.id && tackning(u, t) >= SAMMA_KORT_TACKNING && !ofrSkilda(u.id, t.id));
+  /* Nya: ett löst spår som ligger still som ett kort, från släppet (OFR_TROSKEL), utan namn — eller med
      antalets fråga. Inte ett spår spelaren hoppat över eller tagit bort, inte ett som kan vara ett kort
      i väntan som flyttats hit (det avgörs när telefonen läst det), och inte ett som ligger där ett kort i
      väntan ligger. */
@@ -33637,7 +33719,8 @@ function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas) {
     if (!ofrSomKort(t)) continue;
     if (vantaLas && vantaLas(t)) continue;   // läsningen avgör (avstamBord: leken ska läggas ned)
     const v = ofrVila.get(t.id);
-    if (nu - v < OFR_TROSKEL) { ofrFrister.push(v + OFR_TROSKEL); continue; }
+    const troskel = Math.max(OFR_TROSKEL, tackerKort(t) ? OFR_TROSKEL_TACKT : 0);
+    if (nu - v < troskel) { ofrFrister.push(v + troskel); continue; }
     if (flyttKan && flyttKan(t)) continue;
     if (kortSettIgen(t)) continue;
     if (spoke(t)) continue;
@@ -35065,8 +35148,8 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   for (const t of spar) if (t.w != null && t.h != null && !franHelbild(t)) platsMinne.set(t.id, { x: t.x, y: t.y, w: t.w, h: t.h, sist: nu });
   for (const [id, e] of platsMinne) if (nu - e.sist > FLYTT_VILA) platsMinne.delete(id);
   for (const g of fysiska) if (g.vantar) frister.push(flyttVantan.get(g.spar[0].id) + DUBBLETT_VANTA);
-  /* Framkallningen (MES-344): det oframkallade kortet läggs ned när namnet dröjt OFR_TROSKEL — på
-     millisekunden, inte vid nästa rapport (telefonen är tyst när kortet ligger still). */
+  /* Framkallningen (MES-344): det oframkallade kortet läggs ned vid släppet (OFR_TROSKEL, 0 sedan MES-362) — med en
+     tröskel över 0 på millisekunden, inte vid nästa rapport (telefonen är tyst när kortet ligger still). */
   const tider = frister.map(t => t + 100).concat(ofrFrister);
   if (tider.length) lyftT = setTimeout(() => avstamBord(senasteRa), Math.max(0, Math.min(...tider) - nu));
   lugnDod = new Map();   // avstämningen har tagit varje spår som dog (lugnt läge)

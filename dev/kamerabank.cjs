@@ -1224,16 +1224,23 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     t = await ettOkant();
     Kamera.svarAI(t.id, null, { fel: 502 });
     check(`W14 inget svar (502): ${fmt(t)}, ai.fel ${t.ai && t.ai.fel}`, t.tillstand === 'okand' && t.provas === false && !!t.ai && t.ai.fel === 502);
-    /* W15: svaret kommer aldrig — efter PROVA_MS (15 s) släpps provet, och
-       signaturen gör det till en rapport. */
+    /* W15: svaret kommer inte i tid — efter PROVA_MS (5 s sedan MES-362, var 15 s) släpps provet, och
+       signaturen gör det till en rapport: kortet går till spelaren (NOT IDENTIFIED). */
     t = await ettOkant();
     Kamera.rapportera();
     const fore15 = iBord(t).provas;
-    for (let i = 0; i < 93; i++) await rutaTra({}, ETT);       // 14 s
+    for (let i = 0; i < 27; i++) await rutaTra({}, ETT);       // 4 s
     const mitt15 = iBord(t).provas;
-    for (let i = 0; i < 14; i++) await rutaTra({}, ETT);       // 16 s
-    check(`W15 svaret kommer aldrig: prövas ${fore15} → 14 s ${mitt15} → 16 s ${t.provas}, bordet ${iBord(t).provas}, ${fmt(t)}`,
+    for (let i = 0; i < 13; i++) await rutaTra({}, ETT);       // 6 s
+    check(`W15 svaret kommer inte i tid: prövas ${fore15} → 4 s ${mitt15} → 6 s ${t.provas}, bordet ${iBord(t).provas}, ${fmt(t)}`,
           fore15 === true && mitt15 === true && t.provas === false && iBord(t).provas === false && t.tillstand === 'okand');
+    /* W15b: det sena svaret (efter gränsen) används ändå — namnet kommer, och kortet framkallas på datorn
+       (avstamning.cjs O23). Ingen ny fråga: frågan som gick ut är den som svarar. */
+    const fr15b = identifieringar;
+    Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: true, sakerhet: 'hog', x: 0.5, y: 0.5 }], { antal: 1 });
+    for (let i = 0; i < 3; i++) await rutaTra({}, ETT);
+    check(`W15b sent svar efter PROVA_MS: ${fmt(t)}, bordet ${iBord(t).tillstand} ${iBord(t).namn}, lästes om ${identifieringar - fr15b}`,
+          t.tillstand === 'klar' && t.namn === 'Plains' && iBord(t).tillstand === 'klar' && iBord(t).namn === 'Plains' && identifieringar === fr15b);
     /* W16: ett lokalt säkert spår rörs inte av "inget kort". */
     namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
     nystart(); await refTra();

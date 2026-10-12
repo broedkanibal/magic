@@ -22,7 +22,7 @@ utan att gå till Linear. Uppdatera båda när något ändras.
 **Målen sattes om med Jesper 2026-10-08 och ägs av MES-349** ("Mirror my table upplevs instant och
 accurate"), där kraven och de ribbor som sätts efter nästa mätning står. Framkallningen (MES-344,
 `dev/plan/spegelmattan-principer.md` *Utspel*) ändras därmed: det suddiga kortet läggs ned direkt
-vid släppet, inte efter 0,5 s. *Släppet* är telefonens första rapport där kortet ligger still som
+vid släppet, inte efter 0,5 s (byggt i MES-362, 2026-10-11). *Släppet* är telefonens första rapport där kortet ligger still som
 ett kort (`kortlik`, `vilar`). Det tidigare målet "slutläget rätt i 99 fall av 100" ersattes av
 "hela händelsen rätt", med ribban satt ur mätningen.
 
