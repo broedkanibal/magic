@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#a9bcff}a:hover{color:#c6d3ff}
+</style>
+</helmet>
+<div class="ab" style="width: 520px; height: 660px; padding: 30px 30px; background: #070a0e">
+  <section class="pop" aria-label="Settings">
+    <header class="hd2">
+      <h2>Settings</h2>
+      <button class="x" type="button" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </header>
+    <div class="bd" style="gap: 0">
+      <p class="secth">Pictures</p>
+      <div class="set" style="border-top: 0">
+        <div class="grow">
+          <p class="t">Share pictures of cards I correct</p>
+          <p class="s">When you fix a card's name, Mesa keeps the picture of that card to fix problems and improve its card recognition, including training our models.</p>
+          <sc-if value="{{on}}" hint-placeholder-val="{{ false }}"><p class="m">On since 12 Oct 2026.</p></sc-if>
+          <sc-if value="{{off}}" hint-placeholder-val="{{ true }}"><p class="m">Off. Nothing is kept when you correct a card.</p></sc-if>
+        </div>
+        <button class="{{switchCls}}" type="button" role="switch" aria-checked="{{on}}" aria-label="Share pictures of cards I correct" onClick="{{flip}}"></button>
+      </div>
+
+      <p class="secth" style="margin-top: 14px">What you have sent</p>
+      <div class="set" style="border-top: 0">
+        <div class="grow">
+          <sc-if value="{{has}}" hint-placeholder-val="{{ true }}">
+            <p class="t">3 reports and 41 card pictures</p>
+            <p class="s">Reports you send are always your own choice, one at a time, whatever the switch says.</p>
+          </sc-if>
+          <sc-if value="{{gone}}" hint-placeholder-val="{{ false }}">
+            <p class="t">Nothing you sent is stored in Mesa</p>
+            <p class="s">Your reports and pictures were deleted.</p>
+          </sc-if>
+        </div>
+      </div>
+
+      <sc-if value="{{idle}}" hint-placeholder-val="{{ true }}">
+        <button class="btn danger" type="button" onClick="{{ask}}" style="align-self: flex-start">Delete my reports and pictures</button>
+      </sc-if>
+      <sc-if value="{{asking}}" hint-placeholder-val="{{ false }}">
+        <div class="alert bad" style="flex-direction: column; gap: 10px">
+          <p><b>Delete 3 reports and 41 card pictures?</b> They are deleted from Mesa right away. Pictures already used to train a model can't be taken out of that model.</p>
+          <div style="display: flex; gap: 8px">
+            <button class="btn sm dangerfill" type="button" onClick="{{del}}">Delete</button>
+            <button class="btn sm ghost" type="button" onClick="{{cancel}}">Cancel</button>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{gone}}" hint-placeholder-val="{{ false }}">
+        <button class="btn danger" type="button" disabled style="align-self: flex-start">Delete my reports and pictures</button>
+      </sc-if>
+
+      <p class="note" style="margin-top: 16px"><a href="https://magic-mauve-xi.vercel.app/privacy.html">Privacy Policy</a></p>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":520,"height":660}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { on: false, step: 'idle' };
+  }
+  renderVals() {
+    const s = this.state;
+    return {
+      on: s.on,
+      off: !s.on,
+      switchCls: s.on ? 'switch on' : 'switch',
+      flip: () => this.setState({ on: !s.on }),
+      idle: s.step === 'idle',
+      asking: s.step === 'ask',
+      has: s.step !== 'gone',
+      gone: s.step === 'gone',
+      ask: () => this.setState({ step: 'ask' }),
+      cancel: () => this.setState({ step: 'idle' }),
+      del: () => this.setState({ step: 'gone' })
+    };
+  }
+}
+</script>
+</body>
+</html>

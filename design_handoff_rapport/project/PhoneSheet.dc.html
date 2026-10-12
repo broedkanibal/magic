@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Report on the phone</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#a9bcff}a:hover{color:#c6d3ff}
+</style>
+</helmet>
+<div class="ab" style="width: 440px; height: 840px; padding: 30px 25px; background: #070a0e">
+  <div class="phone full">
+    <div class="feed">
+      <div class="cd island" style="left: 16%; top: 22%; transform: rotate(-3deg)"></div>
+      <div class="cd sorc" style="left: 42%; top: 19%"></div>
+      <div class="cd mtn" style="left: 66%; top: 23%"></div>
+    </div>
+    <div class="ptop">
+      <span class="prick"></span><b>K7QX</b><span class="grow"></span>
+      <button class="btn sm ghostdark" type="button" style="height: 30px; padding: 0 9px; font-size: 12px">Disconnect</button>
+    </div>
+    <div class="phonescrim"></div>
+    <div class="sheet">
+      <span class="grab"></span>
+      <h2>Report a problem</h2>
+      <div class="chips big">
+        <button class="chip on" type="button">Wrong card</button>
+        <button class="chip" type="button">Can't see the card</button>
+        <button class="chip" type="button">Slow</button>
+        <button class="chip" type="button">Flicker</button>
+        <button class="chip" type="button">Other</button>
+      </div>
+      <div>
+        <label class="lbl" for="pt">What went wrong? <span style="font-weight: 400">(optional)</span></label>
+        <input class="inp" id="pt" type="text" placeholder="A few words" style="height: 46px">
+      </div>
+      <div class="what" style="font-size: 13.5px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+        <p><b>Your computer sends the last 10 minutes of this game,</b> with pictures from this phone, to fix problems and improve Mesa's card recognition, including training our models. <a href="https://magic-mauve-xi.vercel.app/privacy.html">What's in a report</a></p>
+      </div>
+      <div style="display: flex; gap: 10px">
+        <button class="btn ghost" type="button" style="flex: 1; height: 48px">Cancel</button>
+        <button class="btn prim" type="button" style="flex: 2; height: 48px">Send report</button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":440,"height":840}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

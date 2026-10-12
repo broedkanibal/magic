@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Before you continue</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#e7ecf4}a:hover{color:#ffffff}
+</style>
+</helmet>
+<div class="ab portalbg" style="width: 520px; height: 840px">
+  <div class="portalkort">
+    <div class="marke">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"></path><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"></path></svg>
+      <div><b>Before you continue</b><span>Our terms are new. Please read and agree.</span></div>
+    </div>
+
+    <div class="notis">
+      <b>What's new</b>
+      <span>You can send us a problem report with pictures, and choose whether to share pictures of cards you correct.</span>
+    </div>
+
+    <label class="villkor">
+      <input type="checkbox">
+      <span>I agree to the <a href="https://magic-mauve-xi.vercel.app/terms.html">Terms and Conditions</a> and have read the <a href="https://magic-mauve-xi.vercel.app/privacy.html">Privacy Policy</a>.</span>
+    </label>
+
+    <label class="villkor">
+      <input type="checkbox">
+      <span><b>Share pictures of cards I correct.</b> When you fix a card's name, Mesa keeps the picture of that card to fix problems and improve its card recognition, including training our models.<small>Optional. You can change it any time in Settings.</small></span>
+    </label>
+
+    <p class="fin">Mesa records how you use the app and any errors, linked to your account, to find and fix problems. <a href="https://magic-mauve-xi.vercel.app/privacy.html">What and why</a></p>
+
+    <button class="btn prim" type="button" disabled style="height: 44px">Agree and continue</button>
+    <button class="btn ghost" type="button">Sign out</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":520,"height":840}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
