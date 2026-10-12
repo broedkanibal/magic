@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>W1 · Say what first, then show it</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#a9bcff}a:hover{color:#c6d3ff}
+</style>
+</helmet>
+<div class="ab" style="width: 1360px; height: 980px; padding: 24px 30px; background: #070a0e">
+  <div class="story">
+    <span class="tagx">Simulation</span>
+    <span>{{storyTxt}}</span>
+    <span class="grow"></span>
+    <sc-if value="{{canNext}}" hint-placeholder-val="{{ true }}"><button class="btn sm" type="button" onClick="{{nextG}}">{{nextTxt}}</button></sc-if>
+    <button class="btn sm ghost" type="button" onClick="{{restart}}">Start over</button>
+  </div>
+
+  <div class="app" style="height: 840px">
+    <header class="bar">
+      <span class="brand"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"></path><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"></path></svg>Mesa</span>
+      <span class="grow"></span>
+      <button class="iconbtn" type="button" onClick="{{openRep}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1-7 0a5 5 0 0 0-7 0z"></path><path d="M5 21v-7"></path></svg>Report a problem</button>
+      <span class="pill"><span class="led"></span>Camera · {{nCards}} cards</span>
+    </header>
+    <div class="field">
+      <sc-for list="{{live}}" as="t" hint-placeholder-count="4">
+        <div class="{{t.cls}}" style="{{t.style}}"><span class="tn">{{t.n}}</span></div>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{open}}" hint-placeholder-val="{{ false }}">
+      <div class="modalwrap">
+        <section class="pop" aria-label="Report a problem" style="{{popStyle}}">
+          <header class="hd2">
+            <h2>{{title}}</h2>
+            <span class="note" style="margin-right: 6px">{{stepTxt}}</span>
+            <button class="x" type="button" aria-label="Close" onClick="{{cancel}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+          </header>
+
+          <sc-if value="{{sWhat}}" hint-placeholder-val="{{ true }}">
+            <div class="bd">
+              <div class="bigchoice">
+                <sc-for list="{{tags}}" as="x" hint-placeholder-count="7">
+                  <button class="{{x.cls}}" type="button" onClick="{{x.pick}}">{{x.label}}<span>{{x.d}}</span></button>
+                </sc-for>
+              </div>
+            </div>
+            <footer class="ft"><span class="note">Tap one to go on</span><span class="grow"></span><button class="btn ghost" type="button" onClick="{{cancel}}">Cancel</button></footer>
+          </sc-if>
+
+          <sc-if value="{{sSugg}}" hint-placeholder-val="{{ false }}">
+            <div class="bd">
+              <div class="sugg">
+                <div class="matv" style="width: 380px; flex: none">
+                  <sc-for list="{{suggTiles}}" as="t" hint-placeholder-count="4">
+                    <div class="{{t.cls}}" style="{{t.style}}"><span class="tn">{{t.n}}</span></div>
+                  </sc-for>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px">
+                  <p class="ph">Mesa thinks it was this</p>
+                  <p style="font-size: 15.5px; line-height: 1.5"><b>{{suggTxt}}</b></p>
+                  <p class="dim" style="font-size: 13px">The ringed card is the one Mesa means.</p>
+                </div>
+              </div>
+            </div>
+            <footer class="ft">
+              <button class="btn ghost" type="button" onClick="{{toWhat}}">Back</button>
+              <span class="grow"></span>
+              <button class="btn" type="button" onClick="{{toShow}}">No, let me show you</button>
+              <button class="btn prim" type="button" onClick="{{acceptSugg}}">Yes, that's it</button>
+            </footer>
+          </sc-if>
+
+          <sc-if value="{{sShow}}" hint-placeholder-val="{{ false }}">
+            <div class="bd" style="gap: 12px">
+              <p style="font-size: 14.5px">{{showTxt}}</p>
+              <div class="tl" style="position: static; height: auto; padding: 0; border: 0; background: none">
+                <div class="row2">
+                  <sc-for list="{{stops}}" as="s" hint-placeholder-count="5">
+                    <button class="{{s.cls}}" type="button" onClick="{{s.pick}}"><b>{{s.t}}</b>{{s.e}}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <div class="pair">
+                <div class="pane">
+                  <p class="ph">Your mat · {{when}}</p>
+                  <div class="matv">
+                    <sc-for list="{{mini}}" as="t" hint-placeholder-count="4">
+                      <button class="{{t.cls}}" type="button" style="{{t.style}}" aria-label="{{t.n}}" onClick="{{t.pick}}"><span class="tn">{{t.n}}</span><sc-if value="{{t.on}}" hint-placeholder-val="{{ false }}"><span class="pin">{{t.num}}</span></sc-if></button>
+                    </sc-for>
+                  </div>
+                </div>
+                <div class="pane">
+                  <p class="ph">What the camera saw · {{when}}</p>
+                  <div class="snap">
+                    <sc-for list="{{cams}}" as="c" hint-placeholder-count="4">
+                      <button class="{{c.cls}}" type="button" style="{{c.style}}" aria-label="{{c.n}} in the camera" onClick="{{c.pick}}"><sc-if value="{{c.on}}" hint-placeholder-val="{{ false }}"><span class="pin">{{c.num}}</span></sc-if></button>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <footer class="ft"><button class="btn ghost" type="button" onClick="{{toWhat}}">Back</button><span class="note" style="margin-left: 6px">{{markTxt}}</span><span class="grow"></span><button class="btn prim" type="button" onClick="{{toSend}}">Next</button></footer>
+          </sc-if>
+
+          <sc-if value="{{sSend}}" hint-placeholder-val="{{ false }}">
+            <div class="bd">
+              <div style="padding: 14px; border-radius: 10px; background: var(--bg3); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px">
+                <p class="ph">Your report</p>
+                <p style="font-size: 15px; line-height: 1.5">{{summary}}</p>
+              </div>
+              <sc-if value="{{isName}}" hint-placeholder-val="{{ false }}"><input class="inp" type="text" placeholder="What is the card called? Search for it" aria-label="What is the card called?"></sc-if>
+              <sc-if value="{{noteClosed}}" hint-placeholder-val="{{ true }}"><button class="btn link" type="button" onClick="{{openNote}}" style="align-self: flex-start; font-size: 13.5px">+ Add a note</button></sc-if>
+              <sc-if value="{{noteOpen}}" hint-placeholder-val="{{ false }}"><input class="inp" type="text" placeholder="Only what the report doesn't say" aria-label="Note"></sc-if>
+              <div class="what"><p><b>What we get:</b> the moment you picked, what your camera saw and what happened on your mat in the last 10 minutes. We use it to fix problems and improve Mesa's card recognition, including training our models. <a href="https://magic-mauve-xi.vercel.app/privacy.html">More</a></p></div>
+            </div>
+            <footer class="ft"><button class="btn ghost" type="button" onClick="{{backFromSend}}">Back</button><span class="grow"></span><button class="btn prim" type="button" onClick="{{send}}">Send report</button></footer>
+          </sc-if>
+
+          <sc-if value="{{sSent}}" hint-placeholder-val="{{ false }}">
+            <div class="bd">
+              <div class="done">
+                <span class="ok"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+                <h3>Report sent</h3>
+                <div style="display: flex; align-items: center; gap: 8px"><span class="code">R-0412</span><button class="btn sm" type="button">Copy</button></div>
+                <p class="dim">Thanks. If you write to us about it, mention this code.</p>
+              </div>
+            </div>
+            <footer class="ft"><button class="btn ghost" type="button" onClick="{{openRep}}">Report something else</button><span class="grow"></span><button class="btn prim" type="button" onClick="{{cancel}}">Done</button></footer>
+          </sc-if>
+        </section>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":980}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { g: 0, step: null, fr: 4, marks: [], cat: null, note: false, viaSugg: false };
+  }
+  renderVals() {
+    const SUGGEST = false;
+    const s = this.state;
+    const T = { A: { n: 'Island', a: 'island', x: 200, y: 160, mx: 12, my: 12, cx: 14, cy: 24 }, M: { n: 'Mountain', a: 'mtn', x: 420, y: 160, mx: 40, my: 12, cx: 46, cy: 24 },
+      F: { n: 'Forest', a: 'forest', x: 600, y: 330, mx: 62, my: 50, cx: 66, cy: 56 }, B: { n: 'Island', a: 'island', x: 310, y: 160, mx: 26, my: 12, cx: 30, cy: 24 },
+      C: { n: 'Island', a: 'island', x: 310, y: 330, mx: 26, my: 50 } };
+    const FR = [['3 min ago', 'Mountain showed up', 'AM'], ['1 min ago', 'Forest showed up', 'AMF'], ['45 s ago', 'Island showed up', 'AMFB'],
+      ['40 s ago', 'Island showed up', 'AMFBC'], ['30 s ago', 'Island went away (now)', 'AMFB']];
+    const G = [1, 2, 3, 4];
+    const ST = ['You are playing. Press Next to play a card.', 'You played Island. Mesa puts it on the mat.', 'Mesa shows the Island twice.', 'The extra Island went away by itself. Now press Report a problem in the top bar.'];
+    const NX = ['Next: play Island', 'Next: Mesa makes a mistake', 'Next: the mistake goes away'];
+    const L = { name: ['Wrong name', 'A card has the wrong name'], missing: ["Didn’t show up", 'A card on your table isn’t on the mat'],
+      extra: ["Shouldn’t be there", 'A card on the mat isn’t on your table'], tap: ['Tapped wrong', 'Tapped or untapped by mistake'],
+      place: ['Wrong place', 'Moved, or went to the wrong pile'], slow: ['Slow', 'A card took too long to show up'], else: ['Something else', 'Anything else'] };
+    const SH = { name: 'Find the card with the wrong name, and tap it on the mat.', missing: 'Tap the card in the camera picture that never showed up on your mat.',
+      extra: 'Find when the extra card was on your mat, and tap it.', tap: 'Tap the card that is tapped wrong.', place: 'Find when it moved, and tap it.',
+      slow: 'Tap the card that was slow, if you can.', else: 'Tap any card it is about, if it helps.' };
+    const fi = s.step === 'show' || s.step === 'send' || s.step === 'sugg' ? s.fr : G[s.g];
+    const ids = FR[fi][2].split('');
+    const mark = (id) => { const i = s.marks.indexOf(id); this.setState({ marks: i >= 0 ? s.marks.filter((m) => m !== id) : s.marks.concat(id) }); };
+    const nums = (p) => s.marks.map((m, i) => [m, i + 1]).filter((x) => x[0][0] === p).map((x) => x[1]);
+    const list = (a) => a.length < 2 ? String(a[0]) : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+    const om = nums('m'), oc = nums('c'), parts = [];
+    if (om.length) parts.push('on your mat ' + list(om));
+    if (oc.length) parts.push('in the camera ' + list(oc));
+    const sug = s.cat === 'extra' ? { fr: 3, mk: 'mC', txt: '40 s ago an Island showed up on your mat, and went away again 10 s later.' }
+      : { fr: 2, mk: 'mB', txt: '45 s ago Island showed up on your mat. It was the last thing that happened before you pressed.' };
+    const pick = (k) => {
+      if (SUGGEST) this.setState({ cat: k, step: 'sugg', fr: (k === 'extra' ? 3 : 2), marks: [] });
+      else this.setState({ cat: k, step: 'show', fr: 4, marks: [] });
+    };
+    const titles = { what: 'What went wrong?', sugg: 'Is this it?', show: 'Show it', send: 'Check and send', sent: 'Report a problem' };
+    const steps = SUGGEST ? { what: 'Step 1 of 3', sugg: 'Step 2 of 3', show: 'Step 2 of 3', send: 'Step 3 of 3' } : { what: 'Step 1 of 3', show: 'Step 2 of 3', send: 'Step 3 of 3' };
+    return {
+      storyTxt: s.step ? 'You are reporting. Try different answers, or Start over.' : ST[s.g],
+      canNext: !s.step && s.g < 3, nextTxt: NX[s.g] || '',
+      nextG: () => this.setState({ g: Math.min(3, s.g + 1) }),
+      restart: () => this.setState({ g: 0, step: null, fr: 4, marks: [], cat: null, note: false, viaSugg: false }),
+      nCards: FR[G[s.g]][2].replace('C', '').length,
+      live: FR[G[s.g]][2].split('').map((k) => ({ n: T[k].n, cls: 'tile ' + T[k].a, style: 'left: ' + T[k].x + 'px; top: ' + T[k].y + 'px; width: 92px' })),
+      open: !!s.step,
+      popStyle: s.step === 'show' ? 'width: 1080px' : s.step === 'sugg' ? 'width: 800px' : 'width: 640px',
+      title: titles[s.step] || '', stepTxt: steps[s.step] || '',
+      sWhat: s.step === 'what', sSugg: s.step === 'sugg', sShow: s.step === 'show', sSend: s.step === 'send', sSent: s.step === 'sent',
+      tags: Object.keys(L).map((k) => ({ label: L[k][0], d: L[k][1], cls: s.cat === k ? 'on' : '', pick: () => pick(k) })),
+      suggTiles: FR[sug.fr][2].split('').map((k) => ({ n: T[k].n, cls: 'tile ' + T[k].a + ('m' + k === sug.mk ? ' mk' : ''), style: 'left: ' + T[k].mx + '%; top: ' + T[k].my + '%; width: 12%' })),
+      suggTxt: sug.txt,
+      acceptSugg: () => this.setState({ step: 'send', fr: sug.fr, marks: [sug.mk], viaSugg: true }),
+      showTxt: s.cat ? SH[s.cat] : '',
+      stops: FR.map((f, i) => ({ t: f[0], e: f[1], cls: s.fr === i ? 'stop on' : 'stop', pick: () => this.setState({ fr: i, marks: [] }) })),
+      when: FR[fi][0],
+      mini: ids.map((k) => { const id = 'm' + k, i = s.marks.indexOf(id); return { n: T[k].n, on: i >= 0, num: i + 1, cls: 'tile ' + T[k].a + (i >= 0 ? ' mk' : ''), style: 'left: ' + T[k].mx + '%; top: ' + T[k].my + '%; width: 12%', pick: () => mark(id) }; }),
+      cams: ids.filter((k) => k !== 'C').map((k) => { const id = 'c' + k, i = s.marks.indexOf(id); return { n: T[k].n, on: i >= 0, num: i + 1, cls: 'cd ' + T[k].a + (i >= 0 ? ' mk' : ''), style: 'left: ' + T[k].cx + '%; top: ' + T[k].cy + '%; width: 11%', pick: () => mark(id) }; }),
+      markTxt: s.marks.length ? s.marks.length + (s.marks.length === 1 ? ' card marked' : ' cards marked') : 'No cards marked. You can go on without.',
+      summary: (s.cat ? L[s.cat][0] : '') + ', ' + FR[s.fr][0] + '. ' + (parts.length ? 'Marked ' + parts.join(', ') + '.' : 'No cards marked.'),
+      isName: s.cat === 'name',
+      noteOpen: s.note, noteClosed: !s.note, openNote: () => this.setState({ note: true }),
+      openRep: () => this.setState({ step: 'what', fr: 4, marks: [], cat: null, note: false, viaSugg: false }),
+      toWhat: () => this.setState({ step: 'what' }),
+      toShow: () => this.setState({ step: 'show', fr: 4, marks: [] }),
+      toSend: () => this.setState({ step: 'send', viaSugg: false }),
+      backFromSend: () => this.setState({ step: s.viaSugg ? 'sugg' : 'show' }),
+      cancel: () => this.setState({ step: null }),
+      send: () => this.setState({ step: 'sent' })
+    };
+  }
+}
+</script>
+</body>
+</html>

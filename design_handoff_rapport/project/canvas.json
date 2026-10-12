@@ -7,7 +7,7 @@
   "title": "Mesa Problem Report",
   "launch": {
     "view": "canvas",
-    "page": "p6"
+    "page": "p7"
   },
   "pages": [
     {
@@ -33,6 +33,10 @@
     {
       "id": "p6",
       "name": "6 · Pointing at what went wrong"
+    },
+    {
+      "id": "p7",
+      "name": "7 · The whole flow, simulated"
     }
   ],
   "boards": {
@@ -268,6 +272,33 @@
       "title": "T3 · Step 2 filled in: the report written from your choices (try it)",
       "page": "p6",
       "is_interactive": true
+    },
+    "WholeWhatFirst.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1360,
+      "h": 980,
+      "title": "W1 · Say what first, then show it · proposal (play it)",
+      "page": "p7",
+      "is_interactive": true
+    },
+    "WholeOnMat.dc.html": {
+      "x": 1440,
+      "y": 0,
+      "w": 1360,
+      "h": 980,
+      "title": "W2 · Report on the mat itself (play it)",
+      "page": "p7",
+      "is_interactive": true
+    },
+    "WholeSuggest.dc.html": {
+      "x": 2880,
+      "y": 0,
+      "w": 1360,
+      "h": 980,
+      "title": "W3 · Say what, Mesa suggests where (play it)",
+      "page": "p7",
+      "is_interactive": true
     }
   },
   "order": [
@@ -298,7 +329,10 @@
     "ReaderView.dc.html",
     "Flow.dc.html",
     "FlowMarked.dc.html",
-    "FlowSay.dc.html"
+    "FlowSay.dc.html",
+    "WholeWhatFirst.dc.html",
+    "WholeOnMat.dc.html",
+    "WholeSuggest.dc.html"
   ],
   "notes": {
     "t1": {
@@ -460,6 +494,46 @@
       "text": "T1 in two steps. Step 1: pick the moment in the strip; the mat and the camera picture below follow it, so you look for the moment where the cards were wrong. Then tap the cards, on the mat, in the camera, or both. Step 2: what went wrong, and Your report: a sentence Mesa writes from your choices (category, moment, which numbers on the mat and in the camera). It only repeats what you picked and is not editable, so it can never put words in your mouth. The note is closed (+ Add a note) and is only for what the report doesn't say. A report with no note is still clear: the choices carry the meaning.",
       "fill": "orange",
       "page": "p6"
+    },
+    "t7": {
+      "x": 0,
+      "y": -300,
+      "text": "The whole flow: playing, the mistake, the report",
+      "kind": "title1",
+      "maxW": 4240,
+      "page": "p7"
+    },
+    "w0": {
+      "x": 0,
+      "y": -160,
+      "w": 1360,
+      "text": "Each board starts in a game. Press Next in the dashed bar: you play Island, Mesa shows it twice, the extra one goes away by itself. Then press Report a problem in the top bar and report it. Start over to try again with other answers.",
+      "fill": "gray",
+      "page": "p7"
+    },
+    "w1": {
+      "x": 0,
+      "y": 1080,
+      "w": 1360,
+      "text": "W1: a dialog in three steps. 1 What went wrong, as seven big buttons with a line each (\"A card on the mat isn't on your table\"), so the names never need explaining. 2 Show it: the instruction follows the answer, then the list of changes on your mat, and the mat and camera at the moment you pick. 3 Your report, written from your choices, and Send. Wins: the order people think in, one question per screen. Loses: three steps, and the pictures are small copies of the mat.",
+      "fill": "orange",
+      "page": "p7"
+    },
+    "w2": {
+      "x": 1440,
+      "y": 1080,
+      "w": 1360,
+      "text": "W2: no dialog. The mat itself goes back in time, with a timeline of every change under it and the camera picture in the corner. You tap the cards on the real mat. A side panel asks what went wrong and writes your report. Wins: you recreate the mistake exactly where you saw it. Loses: the game is hidden while you report, and it is the biggest thing to build.",
+      "fill": "gray",
+      "page": "p7"
+    },
+    "w3": {
+      "x": 2880,
+      "y": 1080,
+      "w": 1360,
+      "text": "W3: like W1, but after the answer Mesa shows the moment it thinks you mean, with the card ringed (here: the Island that came and went). Yes sends it in two taps; No opens Show it from W1. Wins: fastest when Mesa guesses right. Loses: a wrong guess that people accept without looking makes a wrong report; needs a rule for what Mesa suggests per answer.",
+      "fill": "gray",
+      "page": "p7"
     }
   },
   "designSystems": []

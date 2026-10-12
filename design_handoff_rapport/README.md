@@ -214,3 +214,15 @@ Jesper: ordningen ska vara tiden först (där korten låg fel), sedan korten; fr
 | **2 av 2** | *What went wrong?* (en kategori; *Wrong name* frågar vad kortet heter). **Your report**: en mening Mesa skriver av valen — kategori, ögonblick, vilka siffror på mattan och i kameran. Den upprepar bara valen och går inte att ändra, så den lägger aldrig ord i spelarens mun. *+ Add a note* är stängd och bara för det rapporten inte säger |
 
 En rapport utan text är ändå tydlig: valen bär betydelsen. T2 och T3 är T1 med stegen ifyllda.
+
+### Sida 7: hela flödet simulerat (W1–W3)
+
+Jesper: ordningen i T kändes onaturlig; det naturliga är att först säga vad som gick fel. Varje
+tavla börjar mitt i ett spel: *Next* i den streckade raden spelar Island, Mesa visar den två
+gånger, den extra försvinner av sig själv — sedan *Report a problem* i toppraden.
+
+| Tavla | Ordning | Vinner | Förlorar |
+|---|---|---|---|
+| **W1** · förslag | dialog i tre steg: **vad** (sju stora knappar med en rad var, t.ex. *A card on the mat isn't on your table*) → **visa** (instruktionen följer svaret; listan över ändringar på mattan; mattan och kameran i det valda ögonblicket; tryck på korten) → **kolla och skicka** (rapporten skriven av valen) | den ordning man tänker; en fråga per skärm; kategorinamnen förklaras på knappen | tre steg; bilderna är små kopior av mattan |
+| W2 | ingen dialog: mattan själv går tillbaka i tiden, tidslinjen med varje ändring under den, kameran i hörnet, en sidopanel frågar vad och skriver rapporten | man återskapar felet precis där man såg det | spelet är dolt medan man rapporterar; störst att bygga |
+| W3 | som W1, men efter svaret visar Mesa det ögonblick den tror att man menar, med kortet ringat. *Yes* skickar på två tryck, *No* öppnar W1:s visa-steg | snabbast när Mesa gissar rätt | en fel gissning som godtas utan att titta blir en fel rapport; kräver en regel per svar för vad Mesa föreslår |
