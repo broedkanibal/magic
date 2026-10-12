@@ -222,7 +222,7 @@
       "y": 1900,
       "w": 1120,
       "h": 1240,
-      "title": "S1 · One problem, mark any cards · proposal (try it)",
+      "title": "S1 · One problem, mark any cards (try it)",
       "page": "p6",
       "is_interactive": true
     },
@@ -241,6 +241,33 @@
       "h": 860,
       "title": "S3 · What you read in the report",
       "page": "p6"
+    },
+    "Flow.dc.html": {
+      "x": 0,
+      "y": 3900,
+      "w": 1120,
+      "h": 1080,
+      "title": "T1 · Find the moment, mark the cards, then say what · proposal (try it)",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "FlowMarked.dc.html": {
+      "x": 1200,
+      "y": 3900,
+      "w": 1120,
+      "h": 1080,
+      "title": "T2 · Step 1 filled in: 40 s ago, three cards marked (try it)",
+      "page": "p6",
+      "is_interactive": true
+    },
+    "FlowSay.dc.html": {
+      "x": 2400,
+      "y": 3900,
+      "w": 1120,
+      "h": 1080,
+      "title": "T3 · Step 2 filled in: the report written from your choices (try it)",
+      "page": "p6",
+      "is_interactive": true
     }
   },
   "order": [
@@ -268,7 +295,10 @@
     "Happened.dc.html",
     "MarkAny.dc.html",
     "MarkFilled.dc.html",
-    "ReaderView.dc.html"
+    "ReaderView.dc.html",
+    "Flow.dc.html",
+    "FlowMarked.dc.html",
+    "FlowSay.dc.html"
   ],
   "notes": {
     "t1": {
@@ -413,6 +443,22 @@
       "w": 820,
       "text": "S3 is not something the player sees. It is the top of LÄS-MIG.md that dev/rapport/hamta.cjs writes (MES-365): category, the moment, every mark with its track and what Mesa did with it, the note, and the events around the moment. The marks turn the player's numbers into track ids, so the note can't be misread.",
       "fill": "gray",
+      "page": "p6"
+    },
+    "t6c": {
+      "x": 0,
+      "y": 3600,
+      "text": "Third version: find it, mark it, then say what",
+      "kind": "title1",
+      "maxW": 3520,
+      "page": "p6"
+    },
+    "tn": {
+      "x": 0,
+      "y": 5080,
+      "w": 1120,
+      "text": "T1 in two steps. Step 1: pick the moment in the strip; the mat and the camera picture below follow it, so you look for the moment where the cards were wrong. Then tap the cards, on the mat, in the camera, or both. Step 2: what went wrong, and Your report: a sentence Mesa writes from your choices (category, moment, which numbers on the mat and in the camera). It only repeats what you picked and is not editable, so it can never put words in your mouth. The note is closed (+ Add a note) and is only for what the report doesn't say. A report with no note is still clear: the choices carry the meaning.",
+      "fill": "orange",
       "page": "p6"
     }
   },

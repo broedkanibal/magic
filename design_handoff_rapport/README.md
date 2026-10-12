@@ -202,3 +202,15 @@ Reglerna som håller det enkelt: **en rapport = ett problem** (fler problem = fl
 kvittensen har *Report something else*). Ingenting kopplas mellan bilderna och ingenting frågas
 per kort. Bara *Wrong name* frågar en sak till: vad kortet heter. Allt utom att trycka
 *Send report* är valfritt.
+
+### Tredje versionen på sida 6: hitta ögonblicket, markera, säg vad (T1–T3)
+
+Jesper: ordningen ska vara tiden först (där korten låg fel), sedan korten; fritext som är valfri
+är svår att tolka, men en förifylld textruta blir lätt fel.
+
+| Steg | Vad |
+|---|---|
+| **1 av 2** | välj ögonblicket i remsan (förval *Now*). Mattan och kamerabilden under följer det valda ögonblicket. Tryck på korten, på mattan, i kameran eller båda; siffror i tryckordning |
+| **2 av 2** | *What went wrong?* (en kategori; *Wrong name* frågar vad kortet heter). **Your report**: en mening Mesa skriver av valen — kategori, ögonblick, vilka siffror på mattan och i kameran. Den upprepar bara valen och går inte att ändra, så den lägger aldrig ord i spelarens mun. *+ Add a note* är stängd och bara för det rapporten inte säger |
+
+En rapport utan text är ändå tydlig: valen bär betydelsen. T2 och T3 är T1 med stegen ifyllda.
