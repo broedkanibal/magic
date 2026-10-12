@@ -130,7 +130,8 @@ return {
   get spar() { return senasteSpar; },
   /* Bordsloggen (loggaBord): raden som den sparas, och loggen (MES-369: flaggan avskuren följer med). */
   logga: m => loggaBord(m), get bordLogg() { return kamBordLogg; },
-  set flaggar(v) { kamFlaggar = !!v; },   // telefonen skickar flaggan avskuren (bordets kantFlagga)
+  set flaggar(v) { kamFlaggar = !!v; },
+  set bildRor(v) { kamBildRor = v; },   // telefonens "något rör sig i bilden" (bordets ror); null = en äldre telefon   // telefonen skickar flaggan avskuren (bordets kantFlagga)
   get kort() { return state.players[0].cards; },
   get pending() { return state.players[0].pending; },
   get chip() { return { kamSer, kamLast, kamTot }; },
@@ -179,7 +180,7 @@ return {
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
      hör till spelet, inte nollställningen — de sätts om här, som när man
      lämnar spelet. */
-  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; handRad = []; kamFas = ''; kamGrund = 20; lekTal = new Map(); typRad = new Map(); kamFlaggar = false; delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false;
+  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; handRad = []; kamFas = ''; kamGrund = 20; lekTal = new Map(); typRad = new Map(); kamFlaggar = false; kamBildRor = null; gravRorNu = false; delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false;
     gravFlode = false; gravSpeglar = false; kamVand = 0; kamSpegel = false; gravLage = null; gravSedda = new Map(); gravOmstart = 0; delete state.players[0].bibHog; }
 };`)({ now: () => klocka.t }, setTimeoutV, clearTimeoutV);
 
@@ -3589,6 +3590,102 @@ prov('GA2 (granskningen av e50baab) en gissad flytt på ett spår som aldrig lä
   klocka.t += 150; stam([]);
   assert.ok(k.flyttFran === undefined && Math.abs(k.kam.x - mitt(PORT)) < 1e-9, 'tillbaka där det låg: spåret lästes aldrig');
   assert.ok(iHanden(k), 'väntan räknas från det första försvinnandet (V2sparDor), långt över nåden: till handen');
+});
+
+/* ── 2026-10-12: kortet syns vid släppet, och ett lyft kort går till handen när förflyttningen lämnat bilden ──
+   Jespers parti efter natten 2026-10-12: "det dyker upp ett kort inom 0,1–0,3 s" och "det ska tas bort direkt upp på
+   hand så fort en förflyttning ut ur bild gjorts". */
+const bekr = (id, b, rest) => Object.assign({ id, tillstand: 'ny', namn: null, saker: false, tappad: false, sen: 0, kortlik: true, vilar: false, bekr: true, skymd: false }, b, rest);
+prov('SL1 ett bekräftat kort (två detektorrutor med korts form) får sitt oframkallade kort i samma rapport, utan att vila', () => {
+  stam([bekr(1, PORT)]);
+  assert.deepEqual(ofrSlag(), ['1']);
+});
+prov('SL2 en enda kortlik låda (inte bekräftad, vilar inte) ger inget: ett kort mitt i luften (passet 475,1 s)', () => {
+  stam([bekr(1, PORT, { bekr: false })]);
+  klocka.t += 200; stam([bekr(1, PORT, { bekr: false, sen: 200 })]);
+  klocka.t += 250; stam([]);
+  tid(klocka.t + 2000);
+  assert.deepEqual(ofrSlag(), []);
+});
+prov('SL3 en andra låda på ett oläst kort ger inget andra oframkallat kort, också när telefonen säger att den ligger över (passet 467,2 s)', () => {
+  const DEL = box(PORT.x + 0.01, PORT.y + 0.02, 0.063, 0.088);
+  stam([bekr(1, PORT)]);
+  klocka.t += 150; stam([bekr(1, PORT, { under: [2] }), bekr(2, DEL)]);
+  klocka.t += 600; stam([bekr(1, PORT, { under: [2] }), bekr(2, DEL)]);
+  assert.deepEqual(ofrSlag(), ['1']);
+});
+prov('SL4 ett kort som lyfts (spåret lever men detektorn har inte sett det på LYFT_MS) och läggs ned bredvid: inget oframkallat kort där, kortet flyttar dit', () => {
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 400; stam([klar(1, 'Swamp', { sen: 400, ...PORT }), bekr(2, NY_PLATS)]);   // det nya spåret föds innan det gamla dömts borta
+  assert.deepEqual(ofrSlag(), [], 'medan kortet lyfts');
+  klocka.t += 150; stam([bekr(2, NY_PLATS)]);
+  assert.deepEqual(ofrSlag(), [], 'gamla spåret dött: flytten avgörs av läsningen');
+  klocka.t += 800; stam([klar(2, 'Swamp', { sen: 0, kortlik: true, vilar: true, ...NY_PLATS })]);
+  assert.deepEqual(ofrSlag(), []); assert.equal(app.kort.length, 1); assert.equal(k.spar, 2, 'samma kort, flyttat');
+  assert.ok(Math.abs(k.kam.x - mitt(NY_PLATS)) < 1e-9);
+});
+prov('SL5 ett kort som bara blinkar (sen under LYFT_MS) håller inte ett nytt kort borta', () => {
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
+  klocka.t += 150; stam([klar(1, 'Swamp', { sen: 200, ...PORT }), bekr(2, LANGT)]);
+  assert.deepEqual(ofrSlag(), ['2']);
+});
+prov('TH1 bilden är lugn när spåret dör: kortet går till handen efter den korta nåden, inte efter väntan', () => {
+  app.bildRor = false;
+  stam([klar(1, 'Expel', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  tid(klocka.t + 400);
+  assert.ok(app.kort.includes(k), 'inom nåden');
+  tid(klocka.t + 300);
+  assert.ok(iHanden(k), 'till handen 0,7 s efter att spåret dog');
+});
+prov('TH2 bilden rör sig (förflyttningen pågår): kortet väntar; när bilden blivit lugn går det till handen — och aldrig längre än väntan', () => {
+  app.bildRor = true;
+  stam([klar(1, 'Expel', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  tid(klocka.t + 1000); stam([]);
+  assert.ok(app.kort.includes(k), 'medan bilden rör sig');
+  app.bildRor = false; klocka.t += 150; stam([]);
+  assert.ok(iHanden(k), 'bilden lugn: till handen');
+  app.nollstall(); app.bildRor = true;
+  stam([klar(1, 'Expel', { sen: 0, ...PORT })]);
+  const k2 = app.kort[0];
+  klocka.t += 150; stam([]);
+  for (let i = 0; i < 25; i++) { klocka.t += 150; stam([]); }   // 3,75 s, bilden rör sig hela tiden
+  assert.ok(iHanden(k2), 'efter väntan (BORTA_NAD) som förut');
+});
+prov('TH3 graveyard-högen har rörts och inte dömts: kortet väntar på högens dom och går dit, inte via handen', () => {
+  app.bildRor = false;
+  stamG([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })], hog(0));
+  const k = app.kort[0];
+  klocka.t += 150; stamG([], Object.assign(hog(0), { ror: true }));
+  klocka.t += 1000; stamG([], Object.assign(hog(0), { ror: true }));
+  assert.ok(app.kort.includes(k) && !k.zon, 'väntar på högen'); assert.equal(app.handRad.length, 0);
+  klocka.t += 900; stamG([], hog(1));
+  assert.equal(k.zon, 'grav'); assert.ok(k.gravAuto); assert.equal(app.handRad.length, 0);
+});
+prov('TH4 ett nytt oläst kort som kan vara det flyttade håller kortet kvar, också en rapport där lådan inte är kortlik', () => {
+  app.bildRor = false;
+  stam([klar(1, 'Mountain', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([bekr(2, NY_PLATS)]);
+  klocka.t += 300; stam([bekr(2, NY_PLATS, { tillstand: 'stilla', kortlik: false, bekr: false })]);
+  tid(klocka.t + 700); stam([bekr(2, NY_PLATS, { tillstand: 'stilla', kortlik: false, bekr: false })]);
+  assert.ok(app.kort.includes(k), 'inte till handen'); assert.equal(app.handRad.length, 0);
+  klocka.t += 300; stam([klar(2, 'Mountain', { sen: 0, kortlik: true, vilar: true, ...NY_PLATS })]);
+  assert.equal(k.spar, 2); assert.equal(app.kort.length, 1);
+});
+prov('TH5 en hand i bilden (ett spår utan korts form som rör sig) håller kortet kvar medan bilden annars är lugn', () => {
+  app.bildRor = false;
+  stam([klar(1, 'Expel', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([hand(9, LANGT)]);
+  tid(klocka.t + 1000); stam([hand(9, LANGT)]);
+  assert.ok(app.kort.includes(k), 'handen syns');
+  klocka.t += 150; stam([]);
+  assert.ok(iHanden(k), 'handen ute ur bild: till handen');
 });
 
 console.log([...ok, ...fel].join('\n'));
