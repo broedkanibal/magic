@@ -7,7 +7,7 @@
   "title": "Mesa Problem Report",
   "launch": {
     "view": "canvas",
-    "page": "p8"
+    "page": "p9"
   },
   "pages": [
     {
@@ -41,6 +41,10 @@
     {
       "id": "p8",
       "name": "8 · Simple report"
+    },
+    {
+      "id": "p9",
+      "name": "9 · Latest, all screens"
     }
   ],
   "boards": {
@@ -402,6 +406,153 @@
       "h": 840,
       "title": "Y7 · On the phone: computer out of reach",
       "page": "p8"
+    },
+    "L9-Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 520,
+      "h": 800,
+      "title": "Account · Create your account (try it)",
+      "page": "p9",
+      "is_interactive": true
+    },
+    "L9-Gate.dc.html": {
+      "x": 600,
+      "y": 0,
+      "w": 520,
+      "h": 840,
+      "title": "Account · Before you continue (existing accounts)",
+      "page": "p9"
+    },
+    "L9-HomeMenu.dc.html": {
+      "x": 1300,
+      "y": 0,
+      "w": 520,
+      "h": 420,
+      "title": "Settings · Home menu",
+      "page": "p9"
+    },
+    "L9-Settings.dc.html": {
+      "x": 1900,
+      "y": 0,
+      "w": 520,
+      "h": 660,
+      "title": "Settings · switch and delete (try it)",
+      "page": "p9",
+      "is_interactive": true
+    },
+    "L9-DeleteAsk.dc.html": {
+      "x": 2500,
+      "y": 0,
+      "w": 520,
+      "h": 660,
+      "title": "Settings · delete, asked once",
+      "page": "p9"
+    },
+    "L9-Deleted.dc.html": {
+      "x": 3100,
+      "y": 0,
+      "w": 520,
+      "h": 660,
+      "title": "Settings · after delete",
+      "page": "p9"
+    },
+    "L9-BtnBar.dc.html": {
+      "x": 0,
+      "y": 1300,
+      "w": 1060,
+      "h": 660,
+      "title": "The button · always in the top bar, also on the phone",
+      "page": "p9"
+    },
+    "L9-Simple.dc.html": {
+      "x": 1140,
+      "y": 1300,
+      "w": 1360,
+      "h": 980,
+      "title": "Report · in the game (play it)",
+      "page": "p9",
+      "is_interactive": true
+    },
+    "L9-SimplePhone.dc.html": {
+      "x": 2580,
+      "y": 1300,
+      "w": 440,
+      "h": 840,
+      "title": "Report · on the phone",
+      "page": "p9"
+    },
+    "L9-ReportSending.dc.html": {
+      "x": 0,
+      "y": 2700,
+      "w": 520,
+      "h": 720,
+      "title": "Report · sending",
+      "page": "p9"
+    },
+    "L9-ReportSent.dc.html": {
+      "x": 600,
+      "y": 2700,
+      "w": 520,
+      "h": 720,
+      "title": "Report · sent",
+      "page": "p9"
+    },
+    "L9-ReportFailed.dc.html": {
+      "x": 1200,
+      "y": 2700,
+      "w": 520,
+      "h": 720,
+      "title": "Report · couldn't send",
+      "page": "p9"
+    },
+    "L9-ReportLimit.dc.html": {
+      "x": 1800,
+      "y": 2700,
+      "w": 520,
+      "h": 420,
+      "title": "Report · today's limit",
+      "page": "p9"
+    },
+    "L9-ReportNoPhone.dc.html": {
+      "x": 2400,
+      "y": 2700,
+      "w": 520,
+      "h": 760,
+      "title": "Report · phone not connected",
+      "page": "p9"
+    },
+    "L9-PhoneReportSent.dc.html": {
+      "x": 3000,
+      "y": 2700,
+      "w": 440,
+      "h": 840,
+      "title": "Report · phone: sent by the computer",
+      "page": "p9"
+    },
+    "L9-PhoneReportAlone.dc.html": {
+      "x": 3520,
+      "y": 2700,
+      "w": 440,
+      "h": 840,
+      "title": "Report · phone: computer out of reach",
+      "page": "p9"
+    },
+    "L9-SimpleReader.dc.html": {
+      "x": 0,
+      "y": 4000,
+      "w": 900,
+      "h": 1000,
+      "title": "Reading a report · what you and AI read",
+      "page": "p9"
+    },
+    "L9-Privacy.dc.html": {
+      "x": 980,
+      "y": 4000,
+      "w": 940,
+      "h": 3000,
+      "title": "privacy.html · draft with changes marked",
+      "page": "p9"
     }
   },
   "order": [
@@ -447,7 +598,25 @@
     "ReportLimit.dc.html",
     "ReportNoPhone.dc.html",
     "PhoneReportSent.dc.html",
-    "PhoneReportAlone.dc.html"
+    "PhoneReportAlone.dc.html",
+    "L9-Main.dc.html",
+    "L9-Gate.dc.html",
+    "L9-HomeMenu.dc.html",
+    "L9-Settings.dc.html",
+    "L9-DeleteAsk.dc.html",
+    "L9-Deleted.dc.html",
+    "L9-BtnBar.dc.html",
+    "L9-Simple.dc.html",
+    "L9-SimplePhone.dc.html",
+    "L9-ReportSending.dc.html",
+    "L9-ReportSent.dc.html",
+    "L9-ReportFailed.dc.html",
+    "L9-ReportLimit.dc.html",
+    "L9-ReportNoPhone.dc.html",
+    "L9-PhoneReportSent.dc.html",
+    "L9-PhoneReportAlone.dc.html",
+    "L9-SimpleReader.dc.html",
+    "L9-Privacy.dc.html"
   ],
   "notes": {
     "t1": {
@@ -721,6 +890,46 @@
       "text": "Same box as X1 in every state: your words, quick picks, Send. The box stays open while it sends (a few seconds). The receipt shows the code with its own Copy button and Done alone. If sending fails, your words are kept until the box is closed. The limit shows as soon as the box opens. Without the phone the report goes from the computer, without the phone's pictures. The phone never sends by itself; X4 is its box, Y6 and Y7 its receipt and its error. Replaces G to O on page 4.",
       "fill": "orange",
       "page": "p8"
+    },
+    "l1": {
+      "x": 0,
+      "y": -300,
+      "text": "Account and settings",
+      "kind": "title1",
+      "maxW": 3620,
+      "page": "p9"
+    },
+    "l2": {
+      "x": 0,
+      "y": 1000,
+      "text": "The button and the report",
+      "kind": "title1",
+      "maxW": 3020,
+      "page": "p9"
+    },
+    "l3": {
+      "x": 0,
+      "y": 2400,
+      "text": "The report: every state",
+      "kind": "title1",
+      "maxW": 3960,
+      "page": "p9"
+    },
+    "l4": {
+      "x": 0,
+      "y": 3700,
+      "text": "Reading a report, and the privacy text",
+      "kind": "title1",
+      "maxW": 1920,
+      "page": "p9"
+    },
+    "l0": {
+      "x": 2000,
+      "y": 4000,
+      "w": 700,
+      "text": "The latest of every screen, copied from the pages where it was decided: account and settings from pages 1 and 2, the button from page 3 (V2), the report box from page 8 (X1) with its states Y1 to Y7, the reader view (X3) and privacy.html from page 5. The privacy draft now also names what was on your screen when you pressed. Pages 1 to 8 stay as the history.",
+      "fill": "orange",
+      "page": "p9"
     }
   },
   "designSystems": []

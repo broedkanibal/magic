@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>X1 · Simple report, in the game</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#a9bcff}a:hover{color:#c6d3ff}
+</style>
+</helmet>
+<div class="ab" style="width: 1360px; height: 980px; padding: 24px 30px; background: #070a0e">
+  <div class="story">
+    <span class="tagx">Simulation</span>
+    <span>{{storyTxt}}</span>
+    <span class="grow"></span>
+    <sc-if value="{{canNext}}" hint-placeholder-val="{{ true }}"><button class="btn sm" type="button" onClick="{{nextG}}">{{nextTxt}}</button></sc-if>
+    <button class="btn sm" type="button" onClick="{{toggleZoom}}">{{zoomTxt}}</button>
+    <button class="btn sm ghost" type="button" onClick="{{restart}}">Start over</button>
+  </div>
+
+  <div class="app" style="height: 840px">
+    <header class="bar">
+      <span class="brand"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"></path><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"></path></svg>Mesa</span>
+      <span class="grow"></span>
+      <button class="iconbtn" type="button" onClick="{{openRep}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1-7 0a5 5 0 0 0-7 0z"></path><path d="M5 21v-7"></path></svg>Report a problem</button>
+      <span class="pill"><span class="led"></span>Camera · {{nCards}} cards</span>
+    </header>
+
+    <div class="field">
+      <div class="zoomwrap" style="{{zoomStyle}}">
+        <sc-for list="{{live}}" as="t" hint-placeholder-count="4">
+          <div class="{{t.cls}}" style="{{t.style}}"><span class="tn">{{t.n}}</span></div>
+        </sc-for>
+        <sc-if value="{{hasPin}}" hint-placeholder-val="{{ false }}">
+          <div class="mpin" style="{{pinStyle}}"><span>Here</span></div>
+        </sc-if>
+        <sc-if value="{{pointing}}" hint-placeholder-val="{{ false }}">
+          <div class="cellgrid" role="group" aria-label="Tap where it happened">
+            <sc-for list="{{cells}}" as="c" hint-placeholder-count="20">
+              <button type="button" aria-label="{{c.aria}}" onClick="{{c.pick}}"></button>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <sc-if value="{{pointing}}" hint-placeholder-val="{{ false }}">
+      <div class="pointbar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
+        <span><b>Tap where it happened on your mat.</b> If the card is gone, tap where it was. You can zoom and scroll first.</span>
+        <span class="grow"></span>
+        <button class="btn sm" type="button" onClick="{{stopPoint}}">Cancel</button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{boxOpen}}" hint-placeholder-val="{{ false }}">
+      <section class="pop repbox" aria-label="Report a problem">
+        <header class="hd2">
+          <h2>Report a problem</h2>
+          <button class="x" type="button" aria-label="Close" onClick="{{cancel}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+        </header>
+
+        <sc-if value="{{form}}" hint-placeholder-val="{{ true }}">
+          <div class="bd" style="gap: 14px">
+            <div>
+              <label class="lbl" for="what" style="font-size: 14px; color: var(--txt)">What happened?</label>
+              <textarea class="ta" id="what" placeholder="For example: a minute ago I played an Island, a second one showed up next to it and then went away"></textarea>
+            </div>
+            <div>
+              <span class="lbl">Or pick what it looks like</span>
+              <div class="chips">
+                <sc-for list="{{tags}}" as="x" hint-placeholder-count="7">
+                  <button class="{{x.cls}}" type="button" aria-pressed="{{x.on}}" onClick="{{x.pick}}">{{x.label}}</button>
+                </sc-for>
+              </div>
+            </div>
+            <p class="note" style="font-size: 12px">We get your words, what your camera saw, what happened on your mat in the last 10 minutes and what was on your screen when you pressed, to fix problems and improve Mesa's card recognition, including training our models. <a href="https://magic-mauve-xi.vercel.app/privacy.html">More</a></p>
+          </div>
+          <footer class="ft">
+            <span class="grow"></span>
+            <button class="btn ghost" type="button" onClick="{{cancel}}">Cancel</button>
+            <button class="btn prim" type="button" onClick="{{send}}">Send report</button>
+          </footer>
+        </sc-if>
+
+        <sc-if value="{{sent}}" hint-placeholder-val="{{ false }}">
+          <div class="bd">
+            <div class="done">
+              <span class="ok"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+              <h3>Report sent</h3>
+              <div style="display: flex; align-items: center; gap: 8px"><span class="code">R-0412</span><button class="btn sm" type="button">Copy</button></div>
+              <p class="dim">Thanks. If you write to us about it, mention this code.</p>
+            </div>
+          </div>
+          <footer class="ft"><button class="btn ghost" type="button" onClick="{{openRep}}">Report something else</button><span class="grow"></span><button class="btn prim" type="button" onClick="{{cancel}}">Done</button></footer>
+        </sc-if>
+      </section>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":980}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { g: 0, mode: 'play', tag: null, when: 0, pin: null, zoom: false };
+  }
+  renderVals() {
+    const s = this.state;
+    const T = { A: { n: 'Island', a: 'island', x: 200, y: 160 }, M: { n: 'Mountain', a: 'mtn', x: 420, y: 160 },
+      F: { n: 'Forest', a: 'forest', x: 600, y: 330 }, B: { n: 'Island', a: 'island', x: 310, y: 160 }, C: { n: 'Island', a: 'island', x: 310, y: 330 } };
+    const FR = ['AMF', 'AMFB', 'AMFBC', 'AMFB'];
+    const ST = ['You are playing. Press Next to play a card.', 'You played Island. Mesa puts it on the mat.', 'Mesa shows the Island twice.', 'The extra Island went away by itself. Now press Report a problem in the top bar.'];
+    const NX = ['Next: play Island', 'Next: Mesa makes a mistake', 'Next: the mistake goes away'];
+    const TAGS = ['A card disappeared', "A card appeared that I didn’t play", 'A card never showed up', 'Wrong name', 'Tapped or untapped wrong', 'Slow', 'Something else'];
+    const W = ['Just now', 'About a minute ago', 'Earlier'];
+    const cells = [];
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 13; c++) {
+      cells.push({ aria: 'Row ' + (r + 1) + ', column ' + (c + 1),
+        pick: () => this.setState({ pin: { x: c * 100 + 50, y: r * 98 + 49 }, mode: 'form' }) });
+    }
+    const box = s.mode === 'form' || s.mode === 'sent';
+    return {
+      storyTxt: s.mode === 'play' ? ST[s.g] : s.mode === 'point' ? 'Tap a spot on the mat. Try zooming in first.' : 'You are reporting. Try it, or Start over.',
+      canNext: s.mode === 'play' && s.g < 3, nextTxt: NX[s.g] || '',
+      nextG: () => this.setState({ g: Math.min(3, s.g + 1) }),
+      zoomTxt: s.zoom ? 'Zoom out' : 'Zoom in',
+      toggleZoom: () => this.setState({ zoom: !s.zoom }),
+      zoomStyle: s.zoom ? 'transform: scale(1.7) translate(-120px, -70px)' : 'transform: none',
+      restart: () => this.setState({ g: 0, mode: 'play', tag: null, when: 0, pin: null, zoom: false }),
+      nCards: FR[s.g].replace('C', '').length,
+      live: FR[s.g].split('').map((k) => ({ n: T[k].n, cls: 'tile ' + T[k].a, style: 'left: ' + T[k].x + 'px; top: ' + T[k].y + 'px; width: 92px' })),
+      hasPin: !!s.pin, noPin: !s.pin,
+      pinStyle: s.pin ? 'left: ' + s.pin.x + 'px; top: ' + s.pin.y + 'px' : '',
+      pointing: s.mode === 'point', cells,
+      boxOpen: box, form: s.mode === 'form', sent: s.mode === 'sent',
+      tags: TAGS.map((label) => ({ label, on: s.tag === label, cls: s.tag === label ? 'chip on' : 'chip', pick: () => this.setState({ tag: s.tag === label ? null : label }) })),
+      whens: W.map((label, i) => ({ label, cls: s.when === i ? 'on' : '', pick: () => this.setState({ when: i }) })),
+      openRep: () => this.setState({ mode: 'form', tag: null, when: 0, pin: null }),
+      startPoint: () => this.setState({ mode: 'point' }),
+      stopPoint: () => this.setState({ mode: 'form' }),
+      removePin: () => this.setState({ pin: null }),
+      cancel: () => this.setState({ mode: 'play', pin: null }),
+      send: () => this.setState({ mode: 'sent' })
+    };
+  }
+}
+</script>
+</body>
+</html>

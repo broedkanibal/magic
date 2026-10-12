@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Delete, asked once</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+a{color:#a9bcff}a:hover{color:#c6d3ff}
+</style>
+</helmet>
+<div class="ab" style="width: 520px; height: 660px; padding: 30px 30px; background: #070a0e">
+  <section class="pop" aria-label="Settings">
+    <header class="hd2">
+      <h2>Settings</h2>
+      <button class="x" type="button" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </header>
+    <div class="bd" style="gap: 0">
+      <p class="secth">Pictures</p>
+      <div class="set" style="border-top: 0">
+        <div class="grow">
+          <p class="t">Share pictures of cards I correct</p>
+          <p class="s">When you fix a card's name, Mesa keeps the picture of that card to fix problems and improve its card recognition, including training our models.</p>
+          <p class="m">On since 12 Oct 2026.</p>
+        </div>
+        <button class="switch on" type="button" role="switch" aria-checked="true" aria-label="Share pictures of cards I correct"></button>
+      </div>
+
+      <p class="secth" style="margin-top: 14px">What you have sent</p>
+      <div class="set" style="border-top: 0">
+        <div class="grow">
+          <p class="t">3 reports and 41 card pictures</p>
+          <p class="s">Reports you send are always your own choice, one at a time, whatever the switch says.</p>
+        </div>
+      </div>
+
+      <div class="alert bad" style="flex-direction: column; gap: 10px">
+        <p><b>Delete 3 reports and 41 card pictures?</b> They are deleted from Mesa right away. Pictures already used to train a model can't be taken out of that model.</p>
+        <div style="display: flex; gap: 8px">
+          <button class="btn sm dangerfill" type="button">Delete</button>
+          <button class="btn sm ghost" type="button">Cancel</button>
+        </div>
+      </div>
+
+      <p class="note" style="margin-top: 16px"><a href="https://magic-mauve-xi.vercel.app/privacy.html">Privacy Policy</a></p>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":520,"height":660}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

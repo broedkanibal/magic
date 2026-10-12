@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>X3 · Det du och AI läser</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0d12}
+</style>
+</helmet>
+<div class="ab" style="width: 900px; height: 1000px; padding: 30px 30px; background: #070a0e">
+  <div style="border: 1px solid var(--line); border-radius: 12px; background: #0b0f15; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; font: 13px/1.6 var(--mono); color: var(--dim)">
+    <p style="font: 600 11px var(--sans); letter-spacing: .8px; text-transform: uppercase; color: var(--dim2)">dev/diagnos/rapporter/R-0412/LÄS-MIG.md</p>
+
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <p style="color: var(--txt); font: 700 15px var(--sans)">1 · Det spelaren sa</p>
+      <p style="color: #f6c46a; font: 15px/1.5 var(--sans)">"I played an Island and a second one showed up next to it, then went away"</p>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 2px 14px">
+        <span>Snabbval</span><span style="color: var(--txt)">A card appeared that I didn't play</span>
+        <span>Tryckt</span><span style="color: var(--txt)">21:14:07</span>
+        <span>Vyn vid trycket</span><span style="color: var(--txt)">zoom 1,7 · mattan (120, 70) till (880, 520) syntes · senast rört: Island (310, 160)</span>
+        <span>Spel</span><span style="color: var(--txt)">K7QX · Jesper · Mirror my table</span>
+      </div>
+    </div>
+
+    <div style="border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 4px">
+      <p style="color: var(--txt); font: 700 15px var(--sans)">2 · Mesas logg inom vyn, 90 s före trycket</p>
+      <p>21:13:22 · spår 14 syns i kameran, hand över bordet</p>
+      <p>21:13:25 · spår 14 → <b style="color: var(--txt)">Island</b> lagd på mattan (310, 160)</p>
+      <p style="color: #f6d08f">21:13:26 · spår 17 → <b>Island</b> lagd på mattan (310, 330)</p>
+      <p style="color: #f6d08f">21:13:40 · spår 17 borta från mattan</p>
+      <p>Inget annat ändrades inom vyn.</p>
+    </div>
+
+    <div style="border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 4px">
+      <p style="color: var(--txt); font: 700 15px var(--sans)">3 · Det som stämmer med spelarens ord</p>
+      <p>Snabbvalet <i>A card appeared that I didn't play</i> och orden <i>a second one showed up next to it</i> passar spår 17: lagt 1 s efter spår 14, samma namn, borta efter 14 s. Kameran såg aldrig ett andra kort där.</p>
+      <p style="color: var(--dim2)">Skrivs av hamta.cjs ur loggen: händelser inom vyn och de senaste 90 s, som passar snabbvalet. Inget gissat.</p>
+    </div>
+
+    <div style="border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 4px">
+      <p style="color: var(--txt); font: 700 15px var(--sans)">Filer</p>
+      <p>matta-tryck.png (vyn som spelaren såg) · kamera-21-13-26.jpg · kamera-21-13-40.jpg · rapport.json · diagnos.json</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":900,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

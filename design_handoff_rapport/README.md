@@ -274,3 +274,11 @@ sekunder), Y2 kvittens (koden med *Copy*, *Done* ensam, *Report something else*)
 (orden ligger kvar tills rutan stängs, *Try again*), Y4 dagens tak (visas när rutan öppnas),
 Y5 telefonen inte ansluten (skickas från datorn utan telefonens bilder), Y6–Y7 telefonens
 kvittens och fel. X4 är telefonens ruta; *Report a problem* sitter i telefonens topprad.
+
+## Sida 9: det senaste av varje vy (2026-10-13)
+
+Sida 9 *Latest, all screens* samlar den senaste versionen av varje vy, kopierad från sidan där
+den beslutades: konto och inställningar (sida 1–2), knappen V2 (sida 3, nu utan förslagsmarkering),
+rapportrutan X1 med lägena Y1–Y7 och telefonens ruta (sida 8), läsarens vy X3 och privacy-utkastet
+(sida 5, som nu också nämner vad som syntes på skärmen vid trycket). Filerna heter `L9-*.dc.html`.
+**Det är sida 9 som gäller**; sida 1–8 är historiken.
