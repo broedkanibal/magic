@@ -32949,7 +32949,12 @@ let losKort = new Map();        // cid → när kortet först sågs obundet i et
 /* Kanten (MES-343, kantHaller i avstamBord): telefonens fas 'kant' ("A card is partly outside the picture") håller ett
    kort i väntan kvar på mattan — bara kortet vars spår dog strax innan kanten började, och högst KANT_MAX. En minut
    räcker för ett kort som lämnas vid kanten medan bannern står (38 s i passet 2026-10-11), och ett kort som i själva
-   verket gått till handen ligger inte kvar i minuter (granskningen av e50baab: 'kant' stod 549 s i samma pass). */
+   verket gått till handen ligger inte kvar i minuter (granskningen av e50baab: 'kant' stod 549 s i samma pass).
+   Taket är ett val, inte en mätning: ett kort som ligger kvar vid kanten längre än så går till handen (Expel vid
+   överkanten 655 s–slutet i samma pass, till handen vid 715 s). Kanten går inte att binda till en plats på datorn,
+   för telefonen skickar ingen: det avskurna spåret filtreras ur bordet (rapportera: spar.filter(!avskuren)) och
+   fasen 'kant' bär varken låda eller sida. Ska kortet hållas så länge kanten ligger DÄR det dog behöver telefonen
+   skicka kantspårets låda (mätt 2026-10-12). */
 const KANT_MAX = 60000;
 let kantSedan = 0;              // när fasen 'kant' började (Date.now()); 0 = inte i kant
 /* Raderna som gått ut tas bort; sant när något togs bort. */
