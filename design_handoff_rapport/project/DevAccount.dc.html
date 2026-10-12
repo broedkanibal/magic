@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>Spec 1 · Konto och inställningar</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0d1015}
+a{color:#f0a52a}a:hover{color:#ffc25a}
+</style>
+</helmet>
+<div class="ab doc spec" style="width: 1000px; min-height: 2000px">
+<h1>Spec 1 · Konto och inställningar</h1>
+<p class="meta">MES-367 · dev ready 2026-10-13 · samma text som design_handoff_rapport/README.md</p>
+<p>Designytan: <b>"Mesa Problem Report"</b>, <a href="https://claude.ai/artifact/NSTD99GSH8WUUkFbgAHyQz">https://claude.ai/artifact/NSTD99GSH8WUUkFbgAHyQz</a>. <b>Sida 10 (Dev ready)</b> är spec-tavlorna, <b>sida 9 (Latest)</b> är bilderna. Sida 1–8 är historik och gäller inte; hur vi kom hit står i <code>HISTORIK.md</code>. Tavlornas källor: <code>project/L9-*.dc.html</code>.</p>
+<p>Jespers beslut 2026-10-12–13. Bygget förutsätter <b>A (MES-365)</b> — svarta lådan, felfångsten, uppladdningen, <code>rapporter</code>-tabellen, <code>hamta.cjs</code>/<code>lista.cjs</code> — och <b>B (MES-366)</b> — stillbilderna och de tysta rättelserna. C bygger spelarens ytor ovanpå dem, inte en egen väg.</p><h2>Grundregler</h2>
+<table><tr><th>Regel</th><th>Vad</th></tr><tr><td>Samtycket</td><td>Felrapporter utan bilder: inget val. <b>Rapporten: trycket</b> på <i>Send report</i>, inga kryssrutor. <b>Rättade kort med bild: en inställning, av från början</b> (<code>user_metadata.improve_pictures</code>)</td></tr><tr><td>Ett syfte</td><td><i>to fix problems and improve Mesa's card recognition, including training our models</i></td></tr><tr><td>Inställningen</td><td>gäller bara det som sparas utan tryck. En rapport följer den aldrig. Saknas fältet = av. Läses i ögonblicket en bild ska sparas; av = ingenting sparas, inte heller lokalt</td></tr><tr><td>Spelaren utreder inte</td><td>rutan frågar bara vad spelaren såg. Tid, vy, mattans logg och stillbilder sparas automatiskt; läsaren (<code>hamta.cjs</code>, uppspelaren, Claude Code vid skrivbordet) kopplar ihop dem</td></tr><tr><td>Claude</td><td>aldrig ett villkor, ingen ny väg skickar något till Claude. Systemprompten rörs inte</td></tr><tr><td>Texter</td><td>engelska, utan tankstreck i synliga texter, exakt som nedan</td></tr></table>
+<h2>1 · Create your account (tavla <i>Account · Create your account</i>)</h2>
+<p>Kortet på startsidan, <code>#startKort</code> (<code>index.html</code> ~3511). Ordning uppifrån:</p>
+<ol><li>Villkorsrutan som i dag (<code>#villkorBox</code>). <b>Den ensam</b> låser upp <i>Sign up with Google</i>.</li><li><b>Ny ruta</b>, aldrig ibockad från början, <code>id="bildBox"</code>:</li><li>fet: <b>Share pictures of cards I correct.</b></li><li>text: <i>When you fix a card's name, Mesa keeps the picture of that card to fix problems and improve its card recognition, including training our models.</i></li><li>liten rad: <i>Optional. You can change it any time in Settings.</i></li><li>Finstilt (<code>#villkorFin</code>) <b>ersätts</b> med: <i>To find and fix problems, Mesa notes how the app is used and any errors. No ads, and no pictures unless you choose.</i> + länken <i>What and why</i> (privacy.html).</li></ol>
+<p><b>Sparas:</b> valet följer med Google-rundturen som villkoret (<code>sthv.villkor</code> i sessionStorage, ~38235): lägg <code>sthv.bilder</code> = <code>'1'</code>/<code>'0'</code>. Efter rundturen (~38293), i samma <code>updateUser</code> som <code>godkannVillkor</code>: <code>improve_pictures: true|false</code>, <code>improve_pictures_at: ISO-tid</code>. Vid <i>Sign in</i> (befintligt konto) visas rutan inte.</p>
+<h2>2 · Before you continue (tavla <i>Account · Before you continue</i>)</h2>
+<p>Spärren för befintliga konton när <code>VILLKOR_VERSION</code> höjs (<code>visaStartLage('sparr')</code>, ~38190).</p>
+<ul><li>Under rubriken: en ruta (<code>.portalnotis</code>-stil): <b>What's new</b> · <i>You can send us a problem report with pictures, and choose whether to share pictures of cards you correct.</i></li><li>Villkorsrutan, sedan <b>samma bildruta</b> som i 1. Saknar kontot <code>improve_pictures</code>: oibockad. Finns fältet: visar dess värde.</li><li>Samma nya finstilta rad.</li><li><i>Agree and continue</i> låses bara av villkorsrutan. Ett tryck sparar <code>terms_version</code> <b>och</b> <code>improve_pictures(_at)</code> i en <code>updateUser</code>.</li></ul>
+<h2>3 · Settings (tavlorna <i>Settings · …</i>)</h2>
+<p><b>Home-menyn</b> (<code>.lsmeny</code>, ~3559): ny rad <b>Settings</b> (kugghjulsikon) ovanför <i>Sign out</i>, <code>data-hem="installningar"</code>. Öppnar en dialog <b>Settings</b> (samma <code>.pop</code>-stil som rapportrutan):</p>
+<table><tr><th>Del</th><th>Innehåll</th></tr><tr><td>Rubrik <b>PICTURES</b></td><td>växel <b>Share pictures of cards I correct</b> med texten från 1. Under: av → <i>Off. Nothing is kept when you correct a card.</i> · på → <i>On since 12 Oct 2026.</i> (datumet ur <code>improve_pictures_at</code>). <b>Sparar direkt</b>, ingen Save</td></tr><tr><td>Rubrik <b>WHAT YOU HAVE SENT</b></td><td><i>3 reports and 41 card pictures</i> (antal ur <code>rapporter</code> för <code>user_id = jag</code>, <code>kalla</code> rapport resp. rattelse) · <i>Reports you send are always your own choice, one at a time, whatever the switch says.</i></td></tr><tr><td>Knapp</td><td><b>Delete my reports and pictures</b> (röd kontur). Tryck → frågan i rutan: <b><i>Delete 3 reports and 41 card pictures?</i></b> <i>They are deleted from Mesa right away. Pictures already used to train a model can't be taken out of that model.</i> · <b>Delete</b> / <b>Cancel</b></td></tr><tr><td>Efter</td><td>✓ <b><i>Nothing you sent is stored in Mesa</i></b> · <i>3 reports and 41 card pictures were deleted. The switch is still on: new corrections are kept from now on.</i> (sista meningen bara om växeln är på). Knappen grå. Ingen grön notis</td></tr><tr><td>Fot</td><td>länk <i>Privacy Policy</i></td></tr></table>
+<p><b>Delete</b> tar bort spelarens rader i <code>rapporter</code> (alla <code>kalla</code>) och filerna under <code>scans/&lt;uid&gt;/rapporter/</code> och rättelsernas sökväg. Växeln rörs inte. Inget nytt sparas av knappen.</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1000,"height":2000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

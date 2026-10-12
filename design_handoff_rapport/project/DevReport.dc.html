@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>Spec 2 · Knappen och rapporten</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0d1015}
+a{color:#f0a52a}a:hover{color:#ffc25a}
+</style>
+</helmet>
+<div class="ab doc spec" style="width: 1000px; min-height: 2000px">
+<h1>Spec 2 · Knappen och rapporten</h1>
+<p class="meta">MES-367 · dev ready 2026-10-13 · samma text som design_handoff_rapport/README.md</p>
+<h2>4 · Knappen (tavla <i>The button</i>)</h2>
+<table><tr><th>Var</th><th>Hur</th></tr><tr><td>Datorn, i ett spel</td><td>toppraden, till vänster om kamerapillret, <code>iconbtn</code> med flagg-ikon och texten <b>Report a problem</b>. Syns i alla lägen av spelet. <b>Bara i ett spel</b> — inte på Home eller lekens sida</td></tr><tr><td>Telefonen (kameravyn)</td><td>toppraden <code>.kamtopp</code>, bredvid <i>Disconnect</i>: liten knapp <b>Report a problem</b></td></tr></table>
+<p>Knappen ersätter A:s knapp i Developer-lådan (den kan stå kvar där också). Den syns för alla först när flaggan <code>RAPPORT_FOR_ALLA</code> är på (se <i>Go-live</i>); innan dess bara med <code>?debug</code>.</p>
+<h2>5 · Rapportrutan (tavla <i>Report · in the game</i>, spelbar)</h2>
+<p>En <code>.pop</code>-ruta, 460 px bred, under knappen till höger. <b>Täcker inte hela mattan</b>; spelet syns bakom.</p>
+<ol><li>Rubrik <b>Report a problem</b> + stäng-kryss.</li><li><b>What happened?</b> (etikett 14 px, ljus) — textfält, 3 rader, <b>får fokus när rutan öppnas</b>. Platshållare: <i>For example: a minute ago I played an Island, a second one showed up next to it and then went away</i></li><li><b>Or pick what it looks like</b> — snabbval, ett åt gången, tryck igen tar bort. Ändrar aldrig rutans innehåll:</li></ol>
+<table><tr><th>Text</th><th><code>tagg</code></th></tr><tr><td>A card disappeared</td><td><code>forsvann</code></td></tr><tr><td>A card appeared that I didn't play</td><td><code>dok_upp</code></td></tr><tr><td>A card never showed up</td><td><code>kom_aldrig</code></td></tr><tr><td>Wrong name</td><td><code>fel_namn</code></td></tr><tr><td>Tapped or untapped wrong</td><td><code>tap</code></td></tr><tr><td>Slow</td><td><code>langsamt</code></td></tr><tr><td>Something else</td><td><code>annat</code></td></tr></table>
+<ol start="4"><li>Liten text: <i>We get your words, what your camera saw, what happened on your mat in the last 10 minutes and what was on your screen when you pressed, to fix problems and improve Mesa's card recognition, including training our models.</i> + <i>More</i> (privacy.html)</li><li>Fot: <b>Cancel</b> · <b>Send report</b> (alltid aktiv; inget krävs).</li></ol>
+<p><b>Sparas automatiskt vid trycket på knappen</b> (inte vid Send): tiden, <b>vyn</b> — zoom, den del av mattan som syntes (mattans koordinater), kortet spelaren senast rörde (spår-id) — och A:s låda + B:s stillbilder. Raden får <code>text</code>, <code>tagg</code>, <code>vy</code> (jsonb), <code>kalla = 'rapport'</code>.</p>
+<h3>Lägena (tavlorna <i>Report · …</i>)</h3>
+<table><tr><th>Läge</th><th>Visas</th></tr><tr><td><b>Sending</b></td><td>fälten låsta, stapel + <i>Sending. This takes a few seconds.</i> · <i>Cancel</i> · knappen <i>Sending</i> med snurra. Rutan står öppen</td></tr><tr><td><b>Sent</b></td><td>✓ <b><i>Report sent</i></b> · koden <code>R-0412</code> med egen knapp <b>Copy</b> bredvid · <i>Thanks. If you write to us about it, mention this code.</i> · fot: <i>Report something else</i> (vänster) · <b>Done</b> (ensam, höger). Det är en kvittens med kod, inte en grön ok-notis</td></tr><tr><td><b>Couldn't send</b></td><td>röd rad överst: <b><i>Couldn't send the report.</i></b> <i>Check your internet connection and try again. Your words are kept until you close this box.</i> · fälten kvar · <b>Try again</b></td></tr><tr><td><b>Today's limit</b> (20/konto/dygn, från A)</td><td>visas <b>när rutan öppnas</b>, före skrivandet: <b><i>You have sent 20 reports today.</i></b> <i>That is the most for one day. You can send more tomorrow.</i> · bara <b>Close</b></td></tr><tr><td><b>Phone not connected</b></td><td>gul rad: <b><i>Your phone isn't connected.</i></b> <i>The report is sent from this computer, without the phone's pictures.</i> · den lilla texten utan <i>what your camera saw</i> · <i>Send report</i> fungerar</td></tr></table>
+<h3>Telefonen (tavlorna <i>Report · on the phone</i>, <i>phone: …</i>)</h3>
+<ul><li><i>Report a problem</i> öppnar ett ark nerifrån: <b>Report a problem</b>, textfältet (<i>What happened?</i>), samma snabbval (större), <b>Send report</b> (hel bredd).</li><li><b>Telefonen skickar aldrig själv</b>: arket skickar orden + taggen till datorn i kanalen, datorn tar sin låda, hämtar telefonens stillbilder och laddar upp samma paket.</li><li>Kvittens på telefonen: ✓ <b><i>Report sent</i></b> · <code>R-0412</code> · <i>Your computer sent it. If you write to us about it, mention this code.</i> · <b>Done</b>.</li><li>Når inte datorn (pricken röd): <b><i>Can't reach your computer.</i></b> <i>Reports are sent from the computer. Your words are kept here: try again when the dot at the top is green, or use Report a problem on the computer.</i> · textfältet kvar · <b>Close</b> / <b>Try again</b>.</li></ul>
+<h2>6 · Automatiska felrapporter för alla</h2>
+<p>A:s felfångst (kodfel, misslyckade anrop, inga bilder) skickas för alla spelare som rader med <code>kalla = 'fel'</code>, med A:s tak. Ingen ruta, inget val (berättigat intresse; privacy.html säger det). Slås på med samma flagga.</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1000,"height":2000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

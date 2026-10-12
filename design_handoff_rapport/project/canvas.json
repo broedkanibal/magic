@@ -7,7 +7,7 @@
   "title": "Mesa Problem Report",
   "launch": {
     "view": "canvas",
-    "page": "p9"
+    "page": "p10"
   },
   "pages": [
     {
@@ -45,6 +45,10 @@
     {
       "id": "p9",
       "name": "9 · Latest, all screens"
+    },
+    {
+      "id": "p10",
+      "name": "10 · Dev ready"
     }
   ],
   "boards": {
@@ -553,6 +557,30 @@
       "h": 3000,
       "title": "privacy.html · draft with changes marked",
       "page": "p9"
+    },
+    "DevAccount.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1000,
+      "h": 2000,
+      "title": "Spec 1 · Grundregler, konto, villkorsspärren, Settings",
+      "page": "p10"
+    },
+    "DevReport.dc.html": {
+      "x": 1080,
+      "y": 0,
+      "w": 1000,
+      "h": 2000,
+      "title": "Spec 2 · Knappen, rapportrutan och lägena, telefonen, felrapporterna",
+      "page": "p10"
+    },
+    "DevGolive.dc.html": {
+      "x": 2160,
+      "y": 0,
+      "w": 1000,
+      "h": 2000,
+      "title": "Spec 3 · Läsa rapporterna, privacy.html, go-live med platshållare, proven",
+      "page": "p10"
     }
   },
   "order": [
@@ -616,7 +644,10 @@
     "L9-PhoneReportSent.dc.html",
     "L9-PhoneReportAlone.dc.html",
     "L9-SimpleReader.dc.html",
-    "L9-Privacy.dc.html"
+    "L9-Privacy.dc.html",
+    "DevAccount.dc.html",
+    "DevReport.dc.html",
+    "DevGolive.dc.html"
   ],
   "notes": {
     "t1": {
@@ -930,6 +961,22 @@
       "text": "The latest of every screen, copied from the pages where it was decided: account and settings from pages 1 and 2, the button from page 3 (V2), the report box from page 8 (X1) with its states Y1 to Y7, the reader view (X3) and privacy.html from page 5. The privacy draft now also names what was on your screen when you pressed. Pages 1 to 8 stay as the history.",
       "fill": "orange",
       "page": "p9"
+    },
+    "t10": {
+      "x": 0,
+      "y": -300,
+      "text": "Dev ready: specen, samma text som README",
+      "kind": "title1",
+      "maxW": 3160,
+      "page": "p10"
+    },
+    "d0": {
+      "x": 0,
+      "y": 2120,
+      "w": 1000,
+      "text": "Bilderna är sida 9. Byggs i natt enligt dev/plan/prompt-2026-10-13-natt-rapporten.md, efter A (MES-365) och B (MES-366). Allt bakom flaggan RAPPORT_FOR_ALLA; privacy.html och terms.html med platshållarna [CONTROLLER NAME] och [CONTACT EMAIL] ligger på grenen mes-367-golive som Jesper fyller i och slår ihop. Ingen spelare ser en text med platshållare.",
+      "fill": "orange",
+      "page": "p10"
     }
   },
   "designSystems": []
