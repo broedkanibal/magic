@@ -28354,7 +28354,9 @@ const Kamera = (() => {
              en glidning gav en per ruta. Datorn läser läget ur rapporten
              (k.kam, MODE-3/5). */
           bast.stillaN = (bast.stillaN || 0) + 1;
-          if (bast.tillstand !== 'klar' && bast.stillaN >= R(2) && (bast.vilaX == null || Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY) > 3 * stillaPxNu())) sattVila(bast, f.area);
+          /* Medan rutan vuxit mot kanten (vaxtKant, MES-369) står viloplatsen kvar: annars blev den uppvuxna lådan
+             kortets viloplats, och när armen gick räknades kortet som flyttat (granskningen av MES-369). */
+          if (bast.tillstand !== 'klar' && !bast.vaxtKant && bast.stillaN >= R(2) && (bast.vilaX == null || Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY) > 3 * stillaPxNu())) sattVila(bast, f.area);
           /* Tap-läget döms bara i rutor där kortet ligger stilla: medan det
              flyttas är vinkeln handens (se fodSpar), och ett kort som redan
              är bundet på datorn behåller sin senaste dom tills det landat.
@@ -28391,7 +28393,7 @@ const Kamera = (() => {
           const d = bast.vilaX == null ? Infinity : Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY);
           const avv = Math.abs(1 - f.area / (bast.vilaArea || f.area));
           bast.helN = avv <= LAGE_HEL ? 0 : (ror > stillaPxNu() ? 1 : (bast.helN || 0) + 1);
-          if (d > 3 * stillaPxNu() && (avv <= LAGE_HEL || (bast.helN >= R(LAGE_TALAMOD) && d > 0.75 * avv * bast.lang))) sattVila(bast, f.area);
+          if (d > 3 * stillaPxNu() && !bast.vaxtKant && (avv <= LAGE_HEL || (bast.helN >= R(LAGE_TALAMOD) && d > 0.75 * avv * bast.lang))) sattVila(bast, f.area);
         }
       } else if (fodNya && !iLek(f)) {   // lekens egen ruta (MES-334 steg 3): inga nya spår på leken — men spår som redan fanns där matchas som vanligt, annars blev de stående (golden 07: ett Plains som plockats bort "låg kvar" med fel namn)
         /* Diagnos (MES-83): varför föddes spåret — närmaste lediga spår och
@@ -29842,17 +29844,17 @@ const Kamera = (() => {
          tidiga läsningen av Valkyrie's Sword låg 6 px från viloläget, och en
          knuff på 0,13 kortbredder åtta sekunder senare räknades som 0,19. */
       if (t.spekTidig && nu - t.stillaFran >= T.stillaMs) { t.spekTidig = false; if (t.tillstand === 'klar' && t.regionNar === nu) { t.ram = finLada(t.box, senasteG0, t); sattVila(t, t.areaNu); } }
-      if (t.tillstand === 'stilla' && !t.namn && !t.fragad && t.spek && t.spek.svar && !avskuren(t) && bekraftaSpek(t)) continue;
-      if (t.tillstand === 'stilla' && !t.namn && !t.fragad && !t.laser && !(t.igen > nu) && farLasas(t) && !avskuren(t)) { identifiera(t, nu); startad = true; break; }   // ett kort vid bildkanten läses först när det syns helt (MES-359)
+      if (t.tillstand === 'stilla' && !t.namn && !t.fragad && t.spek && t.spek.svar && !avskuren(t) && !t.vaxtKant && bekraftaSpek(t)) continue;
+      if (t.tillstand === 'stilla' && !t.namn && !t.fragad && !t.laser && !(t.igen > nu) && farLasas(t) && !avskuren(t) && !t.vaxtKant) { identifiera(t, nu); startad = true; break; }   // ett kort vid bildkanten läses först när det syns helt (MES-359), och inte medan något vuxit in över det från kanten (MES-369)
     }
     /* …och är ingen stilla att läsa: ett spår som ännu väntar men har stått
        formstilla läses tidigt (K4). De stillas läsning går alltid först. */
-    if (!startad && !spar.some(q => q.tillstand === 'stilla' && !q.namn && !q.fragad && !q.laser && !(q.igen > nu) && !avskuren(q))) {
+    if (!startad && !spar.some(q => q.tillstand === 'stilla' && !q.namn && !q.fragad && !q.laser && !(q.igen > nu) && !avskuren(q) && !q.vaxtKant)) {
       const stilla3 = q => (q.formN || 0) >= R(SPEK_RUTOR);
       const helRuta = q => !!T.luft && kortlik(q) && !q.skymd && q.regionNar === nu;   // MES-227: första rutan med ett korts mått, oskymt. Provat och backat: också bordets första kort (formstilla i två rutor, utan kortreferens) — 09 0,6 → 0,55 s och 12 1,35 → 1,2 s, men en falsk tap-flipp i 11 (Swamp-halvan fick namn en ruta tidigare, med handens vinkel)
       const t = spar.find(q => q.tillstand === 'ny' && !q.namn && !q.fragad && !q.laser
                                && (!q.spek ? (stilla3(q) || helRuta(q)) : (q.spek.miss && q.spek.luft && stilla3(q)))
-                               && (q.spekN || 0) < (T.luft ? SPEK_MAX_LUFT : SPEK_MAX) && !(q.igen > nu) && !arHelbild(q) && farLasas(q) && !avskuren(q));
+                               && (q.spekN || 0) < (T.luft ? SPEK_MAX_LUFT : SPEK_MAX) && !(q.igen > nu) && !arHelbild(q) && farLasas(q) && !avskuren(q) && !q.vaxtKant);
       if (t) { if (latens && !(t.ts && t.ts.stilla)) stampla(t, 'stilla'); spekulera(t, nu, !stilla3(t)); }
     }
     ta('lasning');   // den synkrona delen av en läsning som startades i steget: ram, beskärning, Matcher + ORB
@@ -31060,7 +31062,7 @@ const Kamera = (() => {
          datorn 0,45–0,6 s före stillaMs. Läget är ännu preliminärt — kortet
          har stått formstilla i två rutor, inte vilat — och mäts om när
          spåret legat stilla i stillaMs (spekTidig, se steg). */
-      if (t.spek.svar && !avskuren(t) && bekraftaSpek(t)) { t.spekTidig = true; rapportera(); }
+      if (t.spek.svar && !avskuren(t) && !t.vaxtKant && bekraftaSpek(t)) { t.spekTidig = true; rapportera(); }
     } catch (e) { if (t.spek === vantar) t.spek = { miss: true }; }
     finally { lasande--; t.laser = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(nuRiktig() - t0)); }
   }
@@ -31899,6 +31901,7 @@ function bordExtra(extra) {
            grav: extra && extra.grav !== undefined ? extra.grav : Kamera.grav,   // högvakten (MES-85); null utan ruta
            riktning: extra && extra.riktning !== undefined ? extra.riktning : Kamera.riktning,   // mattans vridning ur korten (MES-359); null tills avgjord — saknas nyckeln är telefonen äldre
            lek: extra && extra.lek !== undefined ? extra.lek : Kamera.lek,       // leken utan uppstart (MES-334 steg 3); null innan vakten gått — saknas nyckeln är telefonen äldre
+           kantFlagga: 1,   // telefonen skickar ett kort vid bildkanten kvar med flaggan avskuren (MES-369) — saknas nyckeln är telefonen äldre, och datorn tar reserven (kantHaller)
            bok: kamAiBokLage(),   // kostnadsboken (kamAiBokfor): datorn räknar skillnaden sedan auto slogs på
            ai: !!prefs.aiAuto,    // telefonens AI-brytare: datorn skickar sin om de skiljer sig (aiJamforTelefonen)
            /* Latensmätningen (MES-215, bara ?debug): spår som släppts sedan förra rapporten, rutans tid och när rapporten skickas — telefonens klocka. */
@@ -33041,6 +33044,7 @@ let losKort = new Map();        // cid → när kortet först sågs obundet i et
    när dess låda når kanten (kantRader i avstamBord), och inget kort flyttas av en klocka (KANT_MAX, 60 s, är borta —
    Expel vid överkanten gick till handen vid 715 s i passet 2026-10-11 fast det låg kvar). */
 let kantSedan = 0;              // när fasen 'kant' började (Date.now()); 0 = inte i kant
+let kamFlaggar = false;         // telefonen skickar flaggan avskuren (bordets kantFlagga, MES-369); false för en äldre telefon och för uppspelade loggar
 /* Raderna som gått ut tas bort; sant när något togs bort. */
 function handRadStada(nu) {
   const n = handRad.length;
@@ -33355,9 +33359,9 @@ function bindTillbaka(k, q) {
   if (q.tappad != null) k.tapped = q.tappad ? 1 : 0;
   k.ny = Date.now();
 }
-function tvivelSteg(spar, cards, nu) {
+function tvivelSteg(spar, cards, nu, kvar) {
   let andrat = false;
-  const finns = new Set(spar.map(t => t.id));
+  const finns = new Set(spar.map(t => t.id).concat(kvar ? [...kvar] : []));   // kvar: korten vid kanten (MES-369) finns
   for (const m of [sparSen, sparAter, tvivel]) for (const id of [...m.keys()]) if (!finns.has(id)) m.delete(id);
   const ut = [];
   for (const t of spar) {
@@ -34362,9 +34366,10 @@ let lugnT = null;
 function lugnGlom() { lugnForra = null; lugnFodd = new Map(); lugnHand = new Map(); lugnDod = new Map(); lugnFrys = 0; clearTimeout(lugnT); lugnT = null; }
 /* Ett steg per bord, före avstämningen. true = mattan står fryst, och avstamBord tar inte bordet. tvinga: Match.
    bundna: spåren som bär ett kort på mattan. */
-function lugnSteg(spar, nu, tvinga, bundna) {
+function lugnSteg(spar, nu, tvinga, bundna, kvar) {
   const lador = spar.filter(t => t.w != null && t.h != null && !franHelbild(t));
   const nuSpar = new Map(lador.map(t => [t.id, t]));
+  if (kvar && lugnForra) for (const id of kvar) if (lugnForra.has(id) && !nuSpar.has(id)) nuSpar.set(id, lugnForra.get(id));   // ett kort vid kanten (MES-369) lever och står still
   for (const t of lador) if (!lugnFodd.has(t.id)) lugnFodd.set(t.id, nu);
   const etablerat = id => bundna.has(id) && nu - (lugnFodd.has(id) ? lugnFodd.get(id) : nu) >= LUGN_ALDER;
   if (lugnForra) {
@@ -34470,8 +34475,10 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      inte borta och går inte till handen — men lådan säger inte var det ligger eller hur det är vridet, så raden
      används inte till något: ingen flytt, ingen tap, inget namn, inget nytt kort, ingen hand i närheten
      (osäkert betyder orört). Dör spåret går kortet vidare som vid varje annat lyft (handzonen, tom plats). */
-  const kantRader = spar.filter(t => t.avskuren);
-  if (kantRader.length) spar = spar.filter(t => !t.avskuren);
+  /* Bara ett spår som datorn har ett kort eller ett oframkallat kort för: en flaggad rad utan något på mattan (ett kort som
+     burits in och lagts delvis utanför bilden, sett helt på vägen) stäms av som förut — annars kom det aldrig på mattan. */
+  const kantRader = spar.filter(t => t.avskuren && t.id != null && (mig.cards.some(c => c.spar === t.id) || [...ofrMinne.values()].some(p => p.spar === t.id)));
+  if (kantRader.length) spar = spar.filter(t => !kantRader.includes(t));
   const kantIds = new Set(kantRader.map(t => t.id));
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
@@ -34500,7 +34507,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   }
   /* Lugnt läge (MES-357): för mycket rör sig, och mattan står still tills bordet lagt sig. Spåren som föds medan
      den står räknas från när de syntes, som utan frysning. */
-  if (lugnSteg(spar, nu, matchar, lugnPaMattan(mig))) {
+  if (lugnSteg(spar, nu, matchar, lugnPaMattan(mig), kantIds)) {
     for (const t of spar) if (!sparSedd.has(t.id)) sparSedd.set(t.id, nu);
     uppdateraPbStatus(); return;
   }
@@ -34508,7 +34515,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   /* Handzonen (handNara) läser bordet FÖRE tvivelSteg: ett spår som tvivlas på (Pharika's Chosen på
      svärdet, VN11) ligger ändå där som ett kort, och det kortet under det är täckt, inte i en hand. */
   const sparRa = spar;
-  const tv = tvivelSteg(spar, mig.cards, nu);
+  const tv = tvivelSteg(spar, mig.cards, nu, kantIds);
   spar = tv.spar;
   let andrat = tv.andrat;
   mig.pending = mig.pending || [];
@@ -35221,10 +35228,11 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      upp under tiden hade legat kvar på mattan i minuter (granskningen av e50baab). Aldrig under Match the camera:
      Match tar bort ett kort vars spår dött också under 'kant' (MES-357).
      Det här är reserven för en telefon utan flaggan avskuren (MES-369): en ny telefon tappar aldrig ett kort som står
-     i bordet (kantRader ovan), och fasen 'kant' gäller då bara ett nytt kort. Utan tak (Jespers beslut 2026-10-12:
+     i bordet (kantRader ovan), och fasen 'kant' gäller då bara ett nytt kort — den säger det (kantFlagga i bordet,
+     kamFlaggar), och då håller kanten inget kort. Utan tak (Jespers beslut 2026-10-12:
      inget kort flyttas av en klocka) — kortet hålls så länge fasen är 'kant', och när den slutar gäller de vanliga
      reglerna. Förut gick det till handen efter KANT_MAX (60 s) fast spelaren inte gjort något. */
-  const kantHaller = borta => !matchar && kamFas === 'kant' && !!kantSedan && borta != null && borta - kantSedan <= SLAPP_MS && kantSedan - borta <= LOS_MS;
+  const kantHaller = borta => !matchar && !kamFlaggar && kamFas === 'kant' && !!kantSedan && borta != null && borta - kantSedan <= SLAPP_MS && kantSedan - borta <= LOS_MS;
   const orort = k => namnAnnanstans(k) || olastSpar(k) || tacktAvKort(k) || urBild(k) || kantHaller(k.borta);
   /* Fall 8 (MES-343): tre eller fler spår som dog inom SAMTIDIGT_MS utan att korten setts igen är telefonen
      som knuffats eller ljuset som slagit om (MES-103). Ingenting på mattan ändras: bindningarna släpps, och
@@ -36925,6 +36933,7 @@ function kamTogsEmot(m) {
        Före fasbytets retur, och bara medan auto är på — som bordet självt. */
     if (m.bok && prefs.autoLage !== false) autoSumBok(m.bok);
     aiJamforTelefonen(m.ai);   // telefonen följer datorns AI-brytare
+    kamFlaggar = m.kantFlagga === 1;   // telefonen skickar flaggan avskuren (MES-369): fasen 'kant' gäller då bara ett nytt kort, och reserven kantHaller behövs inte
     /* Ett fasbyte bär ingen kortlista. Gjorde det det, med en tom lista,
        tonade det ned hela bordet hos en dator som missat nollställningen. */
     if (m.barafas) { gravFasByte(m.fas || ''); kamFas = m.fas || ''; if (m.yta) kamYta = m.yta; kamRad = m.rad || ''; renderMode(); uppdateraPbStatus(); return; }

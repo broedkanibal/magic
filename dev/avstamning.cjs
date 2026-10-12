@@ -130,6 +130,7 @@ return {
   get spar() { return senasteSpar; },
   /* Bordsloggen (loggaBord): raden som den sparas, och loggen (MES-369: flaggan avskuren följer med). */
   logga: m => loggaBord(m), get bordLogg() { return kamBordLogg; },
+  set flaggar(v) { kamFlaggar = !!v; },   // telefonen skickar flaggan avskuren (bordets kantFlagga)
   get kort() { return state.players[0].cards; },
   get pending() { return state.players[0].pending; },
   get chip() { return { kamSer, kamLast, kamTot }; },
@@ -178,7 +179,7 @@ return {
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
      hör till spelet, inte nollställningen — de sätts om här, som när man
      lämnar spelet. */
-  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; handRad = []; kamFas = ''; kamGrund = 20; lekTal = new Map(); typRad = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false;
+  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; handRad = []; kamFas = ''; kamGrund = 20; lekTal = new Map(); typRad = new Map(); kamFlaggar = false; delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false;
     gravFlode = false; gravSpeglar = false; kamVand = 0; kamSpegel = false; gravLage = null; gravSedda = new Map(); gravOmstart = 0; delete state.players[0].bibHog; }
 };`)({ now: () => klocka.t }, setTimeoutV, clearTimeoutV);
 
@@ -3442,6 +3443,22 @@ prov('KA11 (MES-369, MES-343) ett kort som skjuts ut ur bilden: lådan med flagg
   klocka.t += 3100; stam([]);
   tid(klocka.t + 8000);
   assert.ok(app.kort.includes(k) && k.borta, 'kvar, väntar'); assert.equal(app.handRad.length, 0);
+});
+prov('KA12 (MES-369, granskningen) en telefon som skickar flaggan: fasen kant gäller ett nytt kort och håller inget kort — ett kort som lyfts strax innan går till handen som vanligt', () => {
+  app.flaggar = true;
+  stam([klar(1, 'Island', { sen: 0, ...PORT }), klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  const k = app.kort.find(c => c.name === 'Island');
+  klocka.t += 150; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })]);                 // Islandet tas upp till handen
+  klocka.t += 2400; stam([klar(2, 'Mountain', { sen: 0, ...LANGT })], 'kant');        // ett NYTT kort läggs halvt utanför bilden
+  tid(klocka.t + 8000);
+  assert.ok(iHanden(k), 'Islandet hölls av kanten fast telefonen skickar flaggan');
+});
+prov('KA13 (MES-369, granskningen) en flaggad rad som inget kort på mattan hör till stäms av som förut: ett kort som burits in och lagts delvis utanför bilden kommer på mattan', () => {
+  stam([klar(2, 'Mountain', { sen: 0, ...LANGT })]);
+  klocka.t += 150; stam([klar(2, 'Mountain', { sen: 0, ...LANGT }), { id: 3, tillstand: 'ny', sen: 0, kortlik: true, vilar: false, ...box(0.40, 0.2, 0.063, 0.088) }]);   // bärs in, syns helt
+  klocka.t += 600; stam([klar(2, 'Mountain', { sen: 0, ...LANGT }), avskuren(3, { tillstand: 'klar', namn: 'Expel', saker: true, tappad: false, vilar: true, ...box(0.40, 0, 0.063, 0.06) })]);
+  tid(klocka.t + 3000);
+  assert.ok(app.kort.some(c => c.name === 'Expel' && c.spar === 3), 'Expel kom aldrig på mattan');
 });
 prov('FL3b (scen A) högen upphäver inte en flytt förrän spåret lästs: läsningen säger kortets eget säkra namn — kortet ligger kvar på nya platsen', () => {
   stamG([klar(1, 'Expel', { sen: 0, ...PORT })], hog(0));

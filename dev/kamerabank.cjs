@@ -2764,35 +2764,43 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const rad = id => bord.find(b => b.id === id);
     const tecken = r => r ? (r.avskuren ? 'f' : 'r') : '-';   // f = i bordet med flaggan, r = i bordet utan, - = saknas
     const osaker = () => ({ namn: 'Plains', sid: 's1', saker: false, cands: [{ name: 'Plains', sid: 's1', score: 0.4 }] });
-    const aldrig = () => new Promise(() => {});   // läsningen svarar inte: kortet står stilla utan namn
-    const saker = forraSvar;
+    let slapp = null;
+    const aldrig = () => new Promise(r => { slapp = r; });   // läsningen svarar inte: kortet står stilla utan namn (slapp släpper den efteråt — annars väntar telefonens läsning för alltid)
+    const saker = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
     /* Kortet ligger stilla i 4,5 s, sedan växer rutan mot överkanten i steg (vaxt: [rutor, armens djup, låda]),
        och till sist går armen och kortet ligger som förut. */
-    const scen = async (svar, vaxt) => {
+    const scen = async (svar, vaxt, kk = kortK, kl = ladaK) => {
       nystart(); namnSvar = svar;
       for (let i = 0; i < 6; i++) await rutaK([], []);
-      for (let i = 0; i < 30; i++) await rutaK([kortK], [ladaK]);
+      for (let i = 0; i < 30; i++) await rutaK([kk], [kl]);
       const t0 = Kamera.spar.find(t => t.tillstand !== 'skrap');
       const id = t0 ? t0.id : -1, fore = { st: t0 && t0.tillstand, namn: t0 && t0.namn, i: tecken(rad(id)) };
-      const under = [];
-      for (const [n, djup, L] of vaxt) for (let i = 0; i < n; i++) { await rutaK([kortK, arm(djup)], [L]); under.push(tecken(rad(id))); }
+      const under = [], las0 = identifieringar;
+      for (const [n, djup, L] of vaxt) for (let i = 0; i < n; i++) { await rutaK([kk, arm(djup)], [L]); under.push(tecken(rad(id))); }
       const t1 = Kamera.spar.find(t => t.id === id);
-      const mitt = { st: t1 && t1.tillstand, namn: t1 && t1.namn, box: t1 && JSON.stringify(t1.box) };
-      for (let i = 0; i < 12; i++) await rutaK([kortK], [ladaK]);
+      const mitt = { st: t1 && t1.tillstand, namn: t1 && t1.namn, box: t1 && JSON.stringify(t1.box), las: identifieringar - las0 };
+      for (let i = 0; i < 12; i++) await rutaK([kk], [kl]);
       const t2 = Kamera.spar.find(t => t.id === id);
-      return { id, fore, under: under.join(''), mitt, efter: tecken(rad(id)), slut: { st: t2 && t2.tillstand, namn: t2 && t2.namn }, kant: Kamera.kant, spar: Kamera.spar.filter(t => t.tillstand !== 'skrap').length };
+      return { id, fore, under: under.join(''), mitt, las: identifieringar - las0, efter: tecken(rad(id)), slut: { st: t2 && t2.tillstand, namn: t2 && t2.namn }, kant: Kamera.kant, spar: Kamera.spar.filter(t => t.tillstand !== 'skrap').length };
     };
     /* Rutan växer i två steg, som i passet: först nästan till kanten, sedan förbi den (klippt till 0). */
     const VAXT = [[2, 4, lada(96, 1, 34, 44)], [30, 26, lada(94, -6, 42, 54)]];
     const vidKanten = u => u.length > 20 && !u.includes('-') && /f{20}$/.test(u);
     // KK1: okänt kort (okand)
     let r = await scen(osaker, VAXT);
-    check(`KK1 okänt kort, rutan växer förbi överkanten i 4,5 s: före ${r.fore.st} ${r.fore.i}; i bordet under tiden ${r.under}; tillståndet ${r.mitt.st} ${r.mitt.namn}; efteråt ${r.efter} ${r.slut.st}; panelen säger kant ${r.kant}, spår ${r.spar}`,
-          r.fore.st === 'okand' && r.fore.i === 'r' && vidKanten(r.under) && r.mitt.st === 'okand' && r.mitt.namn === 'Plains' && r.efter === 'r' && r.slut.st === 'okand' && r.kant === 0 && r.spar === 1, r.mitt.box);
+    check(`KK1 okänt kort, rutan växer förbi överkanten i 4,5 s: före ${r.fore.st} ${r.fore.i}; i bordet under tiden ${r.under}; tillståndet ${r.mitt.st} ${r.mitt.namn}; efteråt ${r.efter} ${r.slut.st}; omläsningar ${r.las}; panelen säger kant ${r.kant}, spår ${r.spar}`,
+          r.fore.st === 'okand' && r.fore.i === 'r' && vidKanten(r.under) && r.mitt.st === 'okand' && r.mitt.namn === 'Plains' && r.efter === 'r' && r.slut.st === 'okand' && r.las === 0 && r.kant === 0 && r.spar === 1, r.mitt.box);
+    /* KK1b (granskningen): kortet ligger en bit längre ned, så att den uppvuxna lådans mitt ligger 6 px från kortets
+       — mer än viloplatsens tre stillaPx. Armen ligger still i 4,5 s: viloplatsen får inte flytta till den uppvuxna
+       lådan, annars räknades kortet som flyttat när armen gick, och det okända kortet lästes om. */
+    r = await scen(osaker, [[2, 6, lada(96, 3, 34, 52)], [30, 30, lada(95, -4, 38, 58)]], kortKlipp(100, 12), lada(100, 12, 30, 42));
+    check(`KK1b okänt kort längre ned, lådans mitt flyttar 6 px när armen kommer: före ${r.fore.st}; i bordet ${r.under}; ${r.mitt.st}; efteråt ${r.efter} ${r.slut.st}; omläsningar ${r.las}`,
+          r.fore.st === 'okand' && vidKanten(r.under) && r.mitt.st === 'okand' && r.efter === 'r' && r.slut.st === 'okand' && r.las === 0, r.mitt.box);
     // KK2: utan namn (läsningen har inte svarat)
     r = await scen(aldrig, VAXT);
-    check(`KK2 kort utan namn (läsningen svarar inte), samma växt: före ${r.fore.st} ${r.fore.i}; i bordet ${r.under}; tillståndet ${r.mitt.st}; efteråt ${r.efter}; kant ${r.kant}, spår ${r.spar}`,
-          r.fore.st === 'stilla' && r.fore.i === 'r' && vidKanten(r.under) && r.mitt.st === 'stilla' && r.efter === 'r' && r.kant === 0 && r.spar === 1, r.mitt.box);
+    check(`KK2 kort utan namn (läsningen svarar inte), samma växt: före ${r.fore.st} ${r.fore.i}; i bordet ${r.under}; tillståndet ${r.mitt.st}; efteråt ${r.efter}; nya läsningar ${r.las}; kant ${r.kant}, spår ${r.spar}`,
+          r.fore.st === 'stilla' && r.fore.i === 'r' && vidKanten(r.under) && r.mitt.st === 'stilla' && r.efter === 'r' && r.las === 0 && r.kant === 0 && r.spar === 1, r.mitt.box);
+    if (slapp) { slapp(null); slapp = null; await new Promise(r => setImmediate(r)); }
     // KK3: med namn — lådan når kanten utan att växa ihop med armen (ett namngivet kort håller sin egen låda när den växer, "vuxen")
     r = await scen(saker, [[30, 4, lada(100, -1, 30, 49)]]);
     check(`KK3 kort med namn vars låda når överkanten: före ${r.fore.st} ${r.fore.namn} ${r.fore.i}; i bordet ${r.under}; ${r.mitt.st} ${r.mitt.namn}; efteråt ${r.efter}; kant ${r.kant}`,
