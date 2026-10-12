@@ -175,6 +175,18 @@ golden-körningar i kö.
   `sleep` + "prova igen" mot `pgrep`. Är datorn upptagen: orkestreraren
   startar golden när den förra är klar (den får ett meddelande då), och
   agenter som stöter på en upptagen dator rapporterar och avslutas.
+- **Golden i kö körs med `dev/golden/ko.sh`**, aldrig med en egen
+  vänteloop: `TMPDIR=<varm profil> sh dev/golden/ko.sh <rot> <ut-mapp>
+  <namn> <port> [argument]` kör satserna (01–06 · 07–12 · 13–15 · 16–18)
+  efter varandra och väntar på andra ko.sh mot samma profil. Natten
+  2026-10-12 stod kön still i sex timmar: den väntade med `pgrep -f
+  <profilens sökväg>`, och de egna väntande skalen bar samma sökväg på sin
+  kommandorad — kontrollen hittade sig själv. ko.sh spärrar profilen med
+  ett lås som bär ägarens pid, räknar bara en process som *heter* Google
+  Chrome, ger upp efter 30 min med vad som höll profilen (kod 5), och kör
+  bara om kod 2 — kod 1 är ett resultat (SÄMRE), inte ett fel. Köar du två
+  ko.sh i följd: `sh ko.sh … ; sh ko.sh …` i ett och samma
+  bakgrundskommando, inte en väntan på den förra.
 
 ## Så slås en gren ihop (orkestreraren, sekventiellt)
 
