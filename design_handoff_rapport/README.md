@@ -247,3 +247,11 @@ Telefonen (X4): samma ruta; *Where?* är ett tryck i kamerabilden, som är telef
 tiden (det är där "showed up / went away" hör hemma), sedan händelserna som stämmer med
 snabbvalet, och bilderna. Läses som det är av en människa eller av Claude Code vid skrivbordet —
 aldrig i spelet, så "Claude aldrig ett villkor" rörs inte.
+
+**Ändrat 2026-10-13 (Jesper):** *Where?* och *When?* är strukna. Att peka är förvirrande när
+kortet redan är borta, och *About a minute ago / Earlier* är för grovt för att göra skillnad.
+I stället sparas automatiskt: **tiden för trycket** och **vad spelaren hade på skärmen** (zoom,
+den del av mattan som syntes, kortet spelaren senast rörde). Läsarens vy söker i loggen inom
+den vyn de senaste 90 s. Tid hör hemma i spelarens egna ord, och exempeltexten visar det
+(*a minute ago I played an Island…*). Rutan är nu: egna ord, valfritt snabbval, Send.
+X2 (att peka) ligger kvar som struken.
