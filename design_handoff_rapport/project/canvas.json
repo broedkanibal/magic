@@ -7,7 +7,7 @@
   "title": "Mesa Problem Report",
   "launch": {
     "view": "canvas",
-    "page": "p7"
+    "page": "p8"
   },
   "pages": [
     {
@@ -37,6 +37,10 @@
     {
       "id": "p7",
       "name": "7 · The whole flow, simulated"
+    },
+    {
+      "id": "p8",
+      "name": "8 · Simple report"
     }
   ],
   "boards": {
@@ -299,6 +303,40 @@
       "title": "W3 · Say what, Mesa suggests where (play it)",
       "page": "p7",
       "is_interactive": true
+    },
+    "Simple.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1360,
+      "h": 980,
+      "title": "X1 · Simple report in the game · proposal (play it)",
+      "page": "p8",
+      "is_interactive": true
+    },
+    "SimplePoint.dc.html": {
+      "x": 1440,
+      "y": 0,
+      "w": 1360,
+      "h": 980,
+      "title": "X2 · Pointing: zoomed in, the card already gone (try it)",
+      "page": "p8",
+      "is_interactive": true
+    },
+    "SimpleReader.dc.html": {
+      "x": 2880,
+      "y": 0,
+      "w": 900,
+      "h": 1000,
+      "title": "X3 · What you and AI read",
+      "page": "p8"
+    },
+    "SimplePhone.dc.html": {
+      "x": 3860,
+      "y": 0,
+      "w": 440,
+      "h": 840,
+      "title": "X4 · On the phone",
+      "page": "p8"
     }
   },
   "order": [
@@ -332,7 +370,11 @@
     "FlowSay.dc.html",
     "WholeWhatFirst.dc.html",
     "WholeOnMat.dc.html",
-    "WholeSuggest.dc.html"
+    "WholeSuggest.dc.html",
+    "Simple.dc.html",
+    "SimplePoint.dc.html",
+    "SimpleReader.dc.html",
+    "SimplePhone.dc.html"
   ],
   "notes": {
     "t1": {
@@ -534,6 +576,46 @@
       "text": "W3: like W1, but after the answer Mesa shows the moment it thinks you mean, with the card ringed (here: the Island that came and went). Yes sends it in two taps; No opens Show it from W1. Wins: fastest when Mesa guesses right. Loses: a wrong guess that people accept without looking makes a wrong report; needs a rule for what Mesa suggests per answer.",
       "fill": "gray",
       "page": "p7"
+    },
+    "t8": {
+      "x": 0,
+      "y": -300,
+      "text": "Simple report: say what you saw, point where",
+      "kind": "title1",
+      "maxW": 4300,
+      "page": "p8"
+    },
+    "x0": {
+      "x": 0,
+      "y": -160,
+      "w": 1360,
+      "text": "Play X1: Next three times (you play Island, Mesa shows it twice, the extra one goes away), then Report a problem. Zoom in works before and while you point.",
+      "fill": "gray",
+      "page": "p8"
+    },
+    "x1": {
+      "x": 0,
+      "y": 1080,
+      "w": 1360,
+      "text": "One box, on top of the game, not over the whole mat. Your own words first and biggest. Quick picks below, written as what you see, and they never change the box. Where? is optional: the box steps aside and you tap the spot on your real mat, with your own zoom and the other players in view. If the card is gone, tap where it was. When? Just now, About a minute ago or Earlier. Nothing is required except Send. No timeline, no camera picture, no summary written for you.",
+      "fill": "orange",
+      "page": "p8"
+    },
+    "x3": {
+      "x": 2880,
+      "y": 1100,
+      "w": 900,
+      "text": "The work happens at the desk, not in the game. hamta.cjs puts the player's words on top, then Mesa's log near the pin and the time (this is where showed up and went away belong), then the matching events and the pictures. A person or Claude Code reads it as it is.",
+      "fill": "gray",
+      "page": "p8"
+    },
+    "x4": {
+      "x": 3860,
+      "y": 940,
+      "w": 440,
+      "text": "On the phone the screen is the camera picture, so Where? is a tap on the camera picture. Same words, same quick picks.",
+      "fill": "gray",
+      "page": "p8"
     }
   },
   "designSystems": []

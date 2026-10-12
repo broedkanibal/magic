@@ -226,3 +226,24 @@ gånger, den extra försvinner av sig själv — sedan *Report a problem* i topp
 | **W1** · förslag | dialog i tre steg: **vad** (sju stora knappar med en rad var, t.ex. *A card on the mat isn't on your table*) → **visa** (instruktionen följer svaret; listan över ändringar på mattan; mattan och kameran i det valda ögonblicket; tryck på korten) → **kolla och skicka** (rapporten skriven av valen) | den ordning man tänker; en fråga per skärm; kategorinamnen förklaras på knappen | tre steg; bilderna är små kopior av mattan |
 | W2 | ingen dialog: mattan själv går tillbaka i tiden, tidslinjen med varje ändring under den, kameran i hörnet, en sidopanel frågar vad och skriver rapporten | man återskapar felet precis där man såg det | spelet är dolt medan man rapporterar; störst att bygga |
 | W3 | som W1, men efter svaret visar Mesa det ögonblick den tror att man menar, med kortet ringat. *Yes* skickar på två tryck, *No* öppnar W1:s visa-steg | snabbast när Mesa gissar rätt | en fel gissning som godtas utan att titta blir en fel rapport; kräver en regel per svar för vad Mesa föreslår |
+
+### Sida 8: enkel rapport — säg vad du såg, peka var (X1–X4) · förslag
+
+Jesper: W1 var hoppig och svår att förstå, W2 kändes naturlig men är svår i praktiken (flera
+spelare, zoom, kameran som täcker). Omtanken: **spelaren ska inte göra utredningen.** Mesa har
+redan allt i de 10 minuterna; spelaren säger bara det vi inte kan veta.
+
+| Del | Vad |
+|---|---|
+| **What happened?** | ett stort textfält först, med fokus. Huvudsaken |
+| Snabbval | valfria, skrivna som det spelaren ser: *A card disappeared* · *A card appeared that I didn't play* · *A card never showed up* · *Wrong name* · *Tapped or untapped wrong* · *Slow* · *Something else*. De ändrar aldrig rutan |
+| **Where?** (valfritt) | *Point at it on your mat*: rutan kliver undan, spelaren trycker på platsen på sin riktiga matta, med sin zoom och de andra spelarna i bild. Är kortet borta: tryck där det var. En nål på en plats, inte ett val av kort |
+| **When?** | *Just now* (förval) · *About a minute ago* · *Earlier* |
+| Send | bara det krävs. Ingen tidslinje, ingen kamerabild, ingen sammanfattning skriven åt spelaren |
+
+Telefonen (X4): samma ruta; *Where?* är ett tryck i kamerabilden, som är telefonens skärm.
+
+**Läsarens vy (X3):** `hamta.cjs` lägger spelarens ord överst, sedan Mesas logg nära nålen och
+tiden (det är där "showed up / went away" hör hemma), sedan händelserna som stämmer med
+snabbvalet, och bilderna. Läses som det är av en människa eller av Claude Code vid skrivbordet —
+aldrig i spelet, så "Claude aldrig ett villkor" rörs inte.
