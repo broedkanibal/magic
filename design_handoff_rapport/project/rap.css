@@ -274,3 +274,21 @@ body{margin:0;background:#0a0d12}
 .ta{width:100%;height:88px;padding:10px 12px;border-radius:9px;background:var(--bg);border:1px solid #3a4558;color:var(--txt);font:14px/1.45 var(--sans);resize:none}
 .ta::placeholder{color:#6f7d93}
 .ta:focus{outline:none;border-color:var(--acc)}
+
+/* Page 8, X5: which cards, with suggestions */
+.tokbox{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:44px;padding:6px 8px;border-radius:9px;background:var(--bg);border:1px solid #3a4558}
+.tokbox input{flex:1;min-width:140px;height:30px;border:0;background:none;color:var(--txt);font:14px var(--sans);outline:none}
+.tokbox input::placeholder{color:#6f7d93}
+.tok{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 4px 0 10px;border-radius:7px;background:#2a2110;border:1px solid #6a5124;color:#f6d08f;font-size:13px;font-weight:600;white-space:nowrap}
+.tok small{color:#c9a96a;font-weight:500}
+.tok .rm{width:22px;height:22px;display:grid;place-items:center;border-radius:5px;color:#c9a96a}
+.slist{border:1px solid var(--line);border-radius:9px;background:#11161e;padding:4px;display:flex;flex-direction:column}
+.slist .gh{padding:6px 8px 3px;font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--dim2);font-weight:600}
+.slist button{display:flex;width:100%;align-items:center;gap:10px;padding:6px 8px;border-radius:6px;text-align:left;font-size:13.5px;color:var(--txt)}
+.slist button:hover{background:var(--bg3)}
+.slist button small{margin-left:auto;color:var(--dim2);font-size:12px}
+.slist .sw{width:14px;height:19px;border-radius:2px;flex:none;background:var(--art,#5a6b7d);box-shadow:0 0 0 2px #161616}
+.pairrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.slot{display:inline-flex;align-items:center;min-width:120px;height:36px;padding:0 10px;border-radius:8px;border:1px dashed #4a5870;color:var(--dim2);font-size:13px}
+.slot.act{border:1px solid var(--acc);color:#f6c46a}
+.slot.full{border:1px solid #6a5124;background:#2a2110;color:#f6d08f;font-weight:600}

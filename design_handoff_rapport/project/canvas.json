@@ -309,7 +309,7 @@
       "y": 0,
       "w": 1360,
       "h": 980,
-      "title": "X1 · Simple report in the game · proposal (play it)",
+      "title": "X1 · Simple report in the game (play it)",
       "page": "p8",
       "is_interactive": true
     },
@@ -337,6 +337,15 @@
       "h": 840,
       "title": "X4 · On the phone",
       "page": "p8"
+    },
+    "SimpleCards.dc.html": {
+      "x": 0,
+      "y": 1650,
+      "w": 1360,
+      "h": 980,
+      "title": "X5 · X1 + which cards, with suggestions · proposal (try it)",
+      "page": "p8",
+      "is_interactive": true
     }
   },
   "order": [
@@ -374,7 +383,8 @@
     "Simple.dc.html",
     "SimplePoint.dc.html",
     "SimpleReader.dc.html",
-    "SimplePhone.dc.html"
+    "SimplePhone.dc.html",
+    "SimpleCards.dc.html"
   ],
   "notes": {
     "t1": {
@@ -615,6 +625,22 @@
       "w": 440,
       "text": "On the phone: the same words and quick picks, then Send. Nothing to point at.",
       "fill": "gray",
+      "page": "p8"
+    },
+    "t8b": {
+      "x": 0,
+      "y": 1350,
+      "text": "Which cards: a field that follows the quick pick",
+      "kind": "title1",
+      "maxW": 4300,
+      "page": "p8"
+    },
+    "x5": {
+      "x": 0,
+      "y": 2730,
+      "w": 1360,
+      "text": "X5 opens already in the report with A card appeared that I didn't play picked; try other quick picks. A field shows under the quick picks, its label follows the pick (Which card disappeared?). Several cards: each becomes a small token with a cross. Suggestions in order: cards that were on your mat in the last 10 minutes, with a short hint (left the mat 30 s ago) so two Islands can be told apart and the reader knows which one; then your deck; typing searches all cards. A card never showed up suggests your deck first. Wrong name is a pair, Mesa showed and it is, with + Another card. Everything stays optional.",
+      "fill": "orange",
       "page": "p8"
     }
   },

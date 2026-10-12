@@ -255,3 +255,11 @@ den del av mattan som syntes, kortet spelaren senast rörde). Läsarens vy söke
 den vyn de senaste 90 s. Tid hör hemma i spelarens egna ord, och exempeltexten visar det
 (*a minute ago I played an Island…*). Rutan är nu: egna ord, valfritt snabbval, Send.
 X2 (att peka) ligger kvar som struken.
+
+**X5 (2026-10-13): vilka kort** · förslag. Väljer spelaren ett snabbval kommer ett valfritt fält
+under det, med en rubrik som följer valet (*Which card disappeared?*). Flera kort går bra: varje
+kort blir en bricka med ett kryss. Förslagen kommer i den här ordningen: kort som varit på mattan
+de senaste 10 minuterna, med en ledtråd (*left the mat 30 s ago*) så att två Islands går att
+skilja och läsaren vet vilket spår det är; sedan leken; och när man skriver, alla kort.
+*A card never showed up* föreslår leken först. *Wrong name* är ett par, *Mesa showed* → *it is*,
+med *+ Another card*.
