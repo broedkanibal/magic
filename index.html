@@ -33896,9 +33896,9 @@ function loggaBord(m) {
   if (!kamBordLogg || kamBordLogg.pass !== p.start) kamBordLogg = { pass: p.start, start: nu, rader: [], kapad: false };
   /* grav: högvaktens räknare (gravTaEmot) — utan den kan uppspelningen inte visa att ett kort gick till graveyard,
      eller att högen upphävde en flytt (passet 2026-10-11: Expel mot graveyard och tillbaka syntes inte i loggen).
-     spar är raderna som telefonen skickade dem, med flaggan avskuren på ett kort vid bildkanten (MES-369): uppspelningen
-     stämmer av dem som appen gjorde. */
-  kamBordLogg.rader.push({ s: Math.round(nu - kamBordLogg.start) / 1000, fas: m.fas || null, nollstall: !!m.nollstall, grund: m.grund === undefined ? undefined : m.grund, spar: m.spar || [], grav: m.grav === undefined ? undefined : m.grav });
+     spar är raderna som telefonen skickade dem, med flaggan avskuren på ett kort vid bildkanten (MES-369), och kantFlagga
+     säger att telefonen flaggar (kamFlaggar): uppspelningen kan stämma av dem som appen gjorde. */
+  kamBordLogg.rader.push({ s: Math.round(nu - kamBordLogg.start) / 1000, fas: m.fas || null, nollstall: !!m.nollstall, grund: m.grund === undefined ? undefined : m.grund, spar: m.spar || [], grav: m.grav === undefined ? undefined : m.grav, kantFlagga: m.kantFlagga === 1 ? 1 : undefined });
   if (kamBordLogg.rader.length > BORDLOGG_MAX) { kamBordLogg.rader.shift(); kamBordLogg.kapad = true; }
 }
 function bordLoggFil() {

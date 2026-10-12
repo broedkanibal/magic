@@ -3425,10 +3425,11 @@ prov('KA9 (MES-369) ett oframkallat kort (inget namn än) vars spår flaggas vid
 prov('KA10 (MES-369) bordsloggen bär flaggan, och uppspelningen av den ger samma bord', () => {
   stam([klar(1, 'Expel', { sen: 0, ...VID })]);
   const k = app.kort[0], kam0 = JSON.stringify(k.kam);
-  const m = { fas: 'kort', spar: [avskuren(1)] };
+  const m = { fas: 'kort', spar: [avskuren(1)], kantFlagga: 1 };
   app.logga(m);
   const r = app.bordLogg.rader[app.bordLogg.rader.length - 1];
   assert.equal(r.spar[0].avskuren, true, 'flaggan saknas i loggen');
+  assert.equal(r.kantFlagga, 1, 'telefonens kantFlagga saknas i loggen');
   const igen = JSON.parse(JSON.stringify(r.spar));
   klocka.t += 3000; stam(igen);
   tid(klocka.t + 8000);
