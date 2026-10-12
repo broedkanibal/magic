@@ -32,9 +32,10 @@ import * as Vakt from './_vakt.js';
    skriven. Loggen skrivs efter svaret, och utan waitUntil får Vercel stänga
    funktionen så fort svaret gått: 59 av 122 kamerafrågor 2–11 okt 2026 fick
    aldrig modell, kostnad eller svarstid i loggen. Utanför Vercel (attrappen,
-   golden) finns paketet kanske inte — då är det ett nollsteg. */
-let waitUntil = () => {};
-try { ({ waitUntil } = await import('@vercel/functions')); } catch (e) {}
+   golden) är den ett nollsteg. Statisk import: Vercel gör om filen till
+   CommonJS, och där finns ingen await på toppnivå (12 okt: 500 på varje
+   anrop i en minut). */
+import { waitUntil } from '@vercel/functions';
 
 /* Varje fråga till Anthropic går genom den här klassen. Den är SDK:ns egen
    klient — lägena nedan skapar sina klienter precis som förut, med
