@@ -57,7 +57,8 @@ Spärren för befintliga konton när `VILLKOR_VERSION` höjs (`visaStartLage('sp
 | Fot | länk *Privacy Policy* |
 
 **Delete** tar bort spelarens rader i `rapporter` (alla `kalla`) och filerna under `scans/<uid>/rapporter/`
-och rättelsernas sökväg. Växeln rörs inte. Inget nytt sparas av knappen.
+och rättelsernas sökväg. Växeln rörs inte. Inget nytt sparas av knappen. Kopiorna i repot: se §9.
+Inget skickat: *Nothing sent yet* och knappen grå.
 
 ## 4 · Knappen (tavla *The button*)
 
@@ -114,8 +115,8 @@ Raden får `text`, `tagg`, `vy` (jsonb), `kalla = 'rapport'`.
 ## 6 · Automatiska felrapporter för alla
 
 A:s felfångst (kodfel, misslyckade anrop, inga bilder) skickas för alla spelare som rader med
-`kalla = 'fel'`, med A:s tak. Ingen ruta, inget val (berättigat intresse; privacy.html säger det).
-Slås på med samma flagga.
+`kalla = 'fel'`, med ett eget tak (§9). Ingen ruta, inget val (berättigat intresse; privacy.html säger det).
+Slås på med samma flagga. Spelarens ord eller bilder följer aldrig med en felrapport.
 
 ## 7 · Läsa rapporterna (tavla *Reading a report*)
 
@@ -139,11 +140,69 @@ Texten på tavlan, med **platshållarna `[CONTROLLER NAME]` och `[CONTACT EMAIL]
 `[NAME / COMPANY AND ADDRESS]`. Tillägg mot tavlan: i avsnitt 6 meningen ***We may write to you about a
 report you sent.*** Samma platshållare i `terms.html` (rad 27–28). Ny versionsrad `[DATE]` = dagen för go-live.
 
+## 9 · Kantfall och detaljer för bygget
+
+**Paketet fryses när knappen trycks**, inte vid *Send*: tiden, vyn, A:s låda och B:s stillbilder tas när
+rutan öppnas. *Try again* skickar samma paket. *Cancel* och ny öppning = nytt paket.
+
+**`vy` (jsonb):** `{ zoom, pan: {x, y}, synlig: {x0, y0, x1, y1} (mattans koordinater), senastRord: spårId|null,
+lage: 'bord'|'utan', kamAnsluten: bool, skarm: {w, h} }`.
+
+**Uppladdningen, tre steg (A äger protokollet, B och C använder det):**
+1. Datorn skapar raden i `rapporter` och får koden (`R-NNNN`, löpnummer från servern).
+2. Datorn laddar upp sitt paket (låda, bordslogg, mattans ändringar, miljö) till `scans/<uid>/rapporter/<kod>/`.
+3. Datorn skickar `{t:'rapport_bilder', kod}` i kanalen; **telefonen laddar upp sina stillbilder själv** till
+   `…/<kod>/bilder/` (per-uid-policyn finns) och svarar `{t:'rapport_bilder_klar', kod, antal}`.
+
+Kvittensen på datorn kommer efter steg 2. Telefonens bilder går i bakgrunden: telefonen visar en liten rad
+*Sending pictures, 12 of 40* tills klart. Raden får `bilder: 'klar'|'delvis'|'saknas'` (`saknas` när
+telefonen inte är ansluten). Taket 15 MB per rapport (A): äldsta stillbilder släpps först.
+
+**Telefonens egen rapport:** arket skickar `{t:'rapport', text, tagg}`; datorn gör steg 1–2 och svarar
+`{t:'rapport_svar', kod}` eller `{t:'rapport_svar', fel}`; sedan steg 3 som ovan. Inget svar inom 10 s →
+*Can't reach your computer*, orden kvar. Dator och telefon kan rapportera oberoende; två tryck = två rader.
+
+**Tak:** 20 rapporter per konto och rullande 24 h, räknat på servern (`kalla = 'rapport'`). Felrapporter:
+50 per konto och 24 h, och samma felmeddelande högst en gång per 10 min per sida (dedupe i lådan).
+
+**Flera spelare och dold information (MES-305):** rapporten innehåller bara det den som trycker ser: sin
+matta med motståndarnas utlagda kort (synliga för alla), den egna handen som antal, aldrig någon annans
+hand eller bibliotek. Stillbilder bara från den egna telefonen.
+
+**Digital table (ingen kamera):** knappen finns; rutan visar *Phone not connected*-raden; paketet är datorns.
+
+**Klockan:** datorn stämplar allt på sin klocka; telefonens händelser bär telefonens tid plus kanalens
+uppmätta offset (A:s DoD 1, "på en klocka"). Fyra klockor var problemet 2026-10-11.
+
+**Tangenter och text:** Esc stänger rutan (inte medan den skickar). Enter i textfältet = ny rad,
+Cmd/Ctrl+Enter = *Send*. Högst 500 tecken, räknare syns från 400. Snabbvalet är valfritt och ett åt gången.
+
+**Knapparna:** *Copy* visar *Copied* i 2 s. *Report something else* öppnar en tom ruta med nytt paket.
+*Done* stänger. Rutan är `position: fixed` under knappen, 460 px; under 720 px bredd hel bredd nedtill.
+Kameran och mattan fortsätter under rutan. Lämnar spelaren spelet medan det skickar förloras rapporten
+(ingen kö byggs nu).
+
+**Delete och kopiorna i repot:** D:s `till-fall.cjs` skriver rapportkoden i varje fall det skapar (Mat test,
+bänk, material). Delete hämtar först spelarens koder med `anvandning` in (test, traning) och skriver dem i
+tabellen `raderingar (kod, raderad_at)` (inga personuppgifter), sedan raderas rader och filer.
+`lista.cjs --raderade` visar koderna så att Jesper tar bort kopiorna i repot för hand; privacy-texten
+säger att testfall och träning raderas när spelaren raderar, så det är ett löfte att hålla.
+
+**RLS (A):** `rapporter`: insert, select och delete för `user_id = auth.uid()`, service role allt.
+`raderingar`: insert för inloggad, select bara service role. Storage: policyn `scans_*` per uid finns.
+
+**Flaggan:** `const RAPPORT_FOR_ALLA = false;` bredvid `VILLKOR_VERSION`. `DEBUG || RAPPORT_FOR_ALLA` visar
+ytorna. Med flaggan av: ingen bildruta på konto och spärr, inga felrapporter skickas (kodfel loggas till
+konsolen som i dag), knappen bara med `?debug`.
+
+**Samma kort på telefonen:** start- och spärrkortet är samma `index.html`; bildrutan ser likadan ut där.
+**Inställningen:** C:s Settings och B:s växel i Developer-lådan läser och skriver samma fält.
+
 ## Go-live: ingen spelare ser en text med platshållare
 
 | Var | Vad |
 |---|---|
-| **main** (nattbygget) | allt i 1–7 bakom flaggan `RAPPORT_FOR_ALLA = false`: rutorna i A och B, Settings, knappen, rutan och felrapporterna syns bara med `?debug`. privacy.html och `VILLKOR_VERSION` **orörda** |
+| **main** (nattbygget) | allt i 1–9 bakom flaggan `RAPPORT_FOR_ALLA = false`: rutorna i A och B, Settings, knappen, rutan och felrapporterna syns bara med `?debug`. privacy.html och `VILLKOR_VERSION` **orörda** |
 | **grenen `mes-367-golive`** (pushad, inte ihopslagen) | en commit: ny privacy.html och terms.html med platshållarna, `VILLKOR_VERSION` höjd, `RAPPORT_FOR_ALLA = true` |
 | **Jesper** | fyller i namn och e-post på grenen (eller säger dem till en session), godkänner texten, och slår ihop. Då får alla konton *Before you continue* |
 
@@ -154,7 +213,9 @@ report you sent.*** Samma platshållare i `terms.html` (rad 27–28). Ny version
 3. Inställningen av: ingen rättelse med bild sparas, inte heller lokalt. På → sparas. Av igen → slutar direkt.
 4. *Delete my reports and pictures* lämnar inget i tabellen eller storage.
 5. Rutan på 1 och 2: aldrig förbockad, låser aldrig knappen, valet hamnar i `user_metadata`.
-6. Rapportrutan: alla fem lägena nås (nät av, tak via en provräknare, telefonen bortkopplad).
+6. Rapportrutan: alla fem lägena nås (nät av, tak via en provräknare, telefonen bortkopplad). Telefonens bilder: `bilder` blir `klar`, `delvis` (nätet bryts mitt i) och `saknas` (ingen telefon).
+6b. Två spelare i samma spel: den enes rapport innehåller aldrig den andres hand (prov med två konton).
+6c. `raderingar` får koderna för fall som gjorts av raderade rapporter (gör ett fall med `till-fall.cjs`, radera, kör `lista.cjs --raderade`).
 7. `dev/kolla.sh` grön, Mat test oförändrat, golden inte sämre om telefonkoden rörts (0 fel namn), allt även med Claude av.
 8. Fristående granskning före merge och efter varje rättelse; varje tavla på sida 9 provad mot bygget, också det som **inte** ska synas (inga kryssrutor i rapportrutan, ingen förbockad ruta, ingen grön notis).
 

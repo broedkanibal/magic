@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>Spec 4 · Kantfall och detaljer för bygget</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rap.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0d1015}
+a{color:#f0a52a}a:hover{color:#ffc25a}
+</style>
+</helmet>
+<div class="ab doc spec" style="width: 1000px; min-height: 2000px">
+<h1>Spec 4 · Kantfall och detaljer för bygget</h1>
+<p class="meta">MES-367 · dev ready 2026-10-13 · samma text som design_handoff_rapport/README.md</p>
+<h2>9 · Kantfall och detaljer för bygget</h2>
+<p><b>Paketet fryses när knappen trycks</b>, inte vid <i>Send</i>: tiden, vyn, A:s låda och B:s stillbilder tas när rutan öppnas. <i>Try again</i> skickar samma paket. <i>Cancel</i> och ny öppning = nytt paket.</p>
+<p><b><code>vy</code> (jsonb):</b> <code>{ zoom, pan: {x, y}, synlig: {x0, y0, x1, y1} (mattans koordinater), senastRord: spårId|null, lage: 'bord'|'utan', kamAnsluten: bool, skarm: {w, h} }</code>.</p>
+<p><b>Uppladdningen, tre steg (A äger protokollet, B och C använder det):</b></p>
+<ol><li>Datorn skapar raden i <code>rapporter</code> och får koden (<code>R-NNNN</code>, löpnummer från servern).</li><li>Datorn laddar upp sitt paket (låda, bordslogg, mattans ändringar, miljö) till <code>scans/&lt;uid&gt;/rapporter/&lt;kod&gt;/</code>.</li><li>Datorn skickar <code>{t:'rapport_bilder', kod}</code> i kanalen; <b>telefonen laddar upp sina stillbilder själv</b> till <code>…/&lt;kod&gt;/bilder/</code> (per-uid-policyn finns) och svarar <code>{t:'rapport_bilder_klar', kod, antal}</code>.</li></ol>
+<p>Kvittensen på datorn kommer efter steg 2. Telefonens bilder går i bakgrunden: telefonen visar en liten rad <i>Sending pictures, 12 of 40</i> tills klart. Raden får <code>bilder: 'klar'|'delvis'|'saknas'</code> (<code>saknas</code> när telefonen inte är ansluten). Taket 15 MB per rapport (A): äldsta stillbilder släpps först.</p>
+<p><b>Telefonens egen rapport:</b> arket skickar <code>{t:'rapport', text, tagg}</code>; datorn gör steg 1–2 och svarar <code>{t:'rapport_svar', kod}</code> eller <code>{t:'rapport_svar', fel}</code>; sedan steg 3 som ovan. Inget svar inom 10 s → <i>Can't reach your computer</i>, orden kvar. Dator och telefon kan rapportera oberoende; två tryck = två rader.</p>
+<p><b>Tak:</b> 20 rapporter per konto och rullande 24 h, räknat på servern (<code>kalla = 'rapport'</code>). Felrapporter: 50 per konto och 24 h, och samma felmeddelande högst en gång per 10 min per sida (dedupe i lådan).</p>
+<p><b>Flera spelare och dold information (MES-305):</b> rapporten innehåller bara det den som trycker ser: sin matta med motståndarnas utlagda kort (synliga för alla), den egna handen som antal, aldrig någon annans hand eller bibliotek. Stillbilder bara från den egna telefonen.</p>
+<p><b>Digital table (ingen kamera):</b> knappen finns; rutan visar <i>Phone not connected</i>-raden; paketet är datorns.</p>
+<p><b>Klockan:</b> datorn stämplar allt på sin klocka; telefonens händelser bär telefonens tid plus kanalens uppmätta offset (A:s DoD 1, "på en klocka"). Fyra klockor var problemet 2026-10-11.</p>
+<p><b>Tangenter och text:</b> Esc stänger rutan (inte medan den skickar). Enter i textfältet = ny rad, Cmd/Ctrl+Enter = <i>Send</i>. Högst 500 tecken, räknare syns från 400. Snabbvalet är valfritt och ett åt gången.</p>
+<p><b>Knapparna:</b> <i>Copy</i> visar <i>Copied</i> i 2 s. <i>Report something else</i> öppnar en tom ruta med nytt paket. <i>Done</i> stänger. Rutan är <code>position: fixed</code> under knappen, 460 px; under 720 px bredd hel bredd nedtill. Kameran och mattan fortsätter under rutan. Lämnar spelaren spelet medan det skickar förloras rapporten (ingen kö byggs nu).</p>
+<p><b>Delete och kopiorna i repot:</b> D:s <code>till-fall.cjs</code> skriver rapportkoden i varje fall det skapar (Mat test, bänk, material). Delete hämtar först spelarens koder med <code>anvandning</code> in (test, traning) och skriver dem i tabellen <code>raderingar (kod, raderad_at)</code> (inga personuppgifter), sedan raderas rader och filer. <code>lista.cjs --raderade</code> visar koderna så att Jesper tar bort kopiorna i repot för hand; privacy-texten säger att testfall och träning raderas när spelaren raderar, så det är ett löfte att hålla.</p>
+<p><b>RLS (A):</b> <code>rapporter</code>: insert, select och delete för <code>user_id = auth.uid()</code>, service role allt. <code>raderingar</code>: insert för inloggad, select bara service role. Storage: policyn <code>scans_*</code> per uid finns.</p>
+<p><b>Flaggan:</b> <code>const RAPPORT_FOR_ALLA = false;</code> bredvid <code>VILLKOR_VERSION</code>. <code>DEBUG || RAPPORT_FOR_ALLA</code> visar ytorna. Med flaggan av: ingen bildruta på konto och spärr, inga felrapporter skickas (kodfel loggas till konsolen som i dag), knappen bara med <code>?debug</code>.</p>
+<p><b>Samma kort på telefonen:</b> start- och spärrkortet är samma <code>index.html</code>; bildrutan ser likadan ut där. <b>Inställningen:</b> C:s Settings och B:s växel i Developer-lådan läser och skriver samma fält.</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1000,"height":2000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

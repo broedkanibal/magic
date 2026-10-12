@@ -1,3 +1,5 @@
+> **Ersatt 2026-10-13** av `prompt-2026-10-13-natt-rapporten.md`, som är fristående. Den här filen är historik; kör den inte.
+
 # Prompt 2026-10-12: problemrapporten — svart låda, stillbilder och vägen till ett testfall (MES-271 A, B, D)
 
 **Modell: Opus 5.5, effort high.** Orkestrerande session; byggarna är `mesa-bygg` (Opus) i egna worktrees. Ny
