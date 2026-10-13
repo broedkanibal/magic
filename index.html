@@ -39952,7 +39952,7 @@ function ritaRapportKnapp() {
    saker, bild, ruta, maskade, kontext, bordet } — kontraktet med del D
    (till-fall.cjs --bank). ruta = beskärningens låda i analysbilden
    (andelar + bild {w,h}), maskade = de lådor som målades grå (med spår),
-   och kontext.jpg = ringens bild av bordet med rutan inritad — så att
+   och kontext.jpg = ett utsnitt runt kortet ur ringens bild, med rutan inritad — så att
    facit säger vilket kort i en hög som rättades (dev/rapport/LÄS-MIG.md). BARA när
    kontots user_metadata.improve_pictures === true, läst från servern i det
    ögonblicket (Moln.bildInstallning); av eller saknas = ingenting, inte
@@ -40159,7 +40159,7 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
      Tidsgränsen (granskningen av 6c3fea8): beskärningens lådor ritas bara i en bild högst KONTEXT_DT_MS från
      beskärningen (dt = ringbildens t − beskärningens t, båda telefonens klocka). Längre bort: ingen kontext, och
      skälet följer med i svaret — en låda ur en annan tid i en bild av ett bord som hunnit ändras är ett falskt facit. */
-  const KONTEXT_DT_MS = 2000, KONTEXT_MAX = 480;
+  const KONTEXT_DT_MS = 2000, KONTEXT_UTAN_MS = 10000, KONTEXT_MAX = 480;   // utan beskärning: ringbilden högst 10 s gammal (granskningen av 931419e)
   /* Utsnittet runt en ruta (andelar) i en bild Wb × Hb px: rutan + en rutas bredd/höjd åt varje håll, inom bilden. */
   function kontextUtsnitt(r, Wb, Hb) {
     const x0 = Math.max(0, Math.floor((r.x - r.w) * Wb)), y0 = Math.max(0, Math.floor((r.y - r.h) * Hb));
@@ -40175,8 +40175,9 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
       if (!bast || (f ? Math.abs(b.t - f.t) < Math.abs(bast.t - f.t) : b.t > bast.t)) bast = b;
     }
     if (!bast) return { blob: null, skal: 'spåret finns inte i ringens bilder', dt: null };
-    const dt = f ? bast.t - f.t : null;
-    if (dt != null && Math.abs(dt) > KONTEXT_DT_MS) return { blob: null, skal: `ringens närmaste bild med spåret är ${(dt / 1000).toFixed(1)} s från beskärningen (gränsen ±${KONTEXT_DT_MS / 1000} s)`, dt };
+    /* dt = ringbildens tid − beskärningens (telefonens klocka); utan beskärning: − nu, alltså bildens ålder. */
+    const dt = f ? bast.t - f.t : bast.t - Date.now(), grans = f ? KONTEXT_DT_MS : KONTEXT_UTAN_MS;
+    if (Math.abs(dt) > grans) return { blob: null, skal: f ? `ringens närmaste bild med spåret är ${(dt / 1000).toFixed(1)} s från beskärningen (gränsen ±${grans / 1000} s)` : `ringens senaste bild med spåret är ${(-dt / 1000).toFixed(1)} s gammal (gränsen ${grans / 1000} s)`, dt };
     if (typeof createImageBitmap !== 'function') return { blob: null, skal: 'createImageBitmap saknas', dt };
     const bm = await createImageBitmap(bast.blob);
     const egen = bast.spar.find(s => s.id === sparId);
@@ -40338,7 +40339,7 @@ var Rattelse = (() => {   // var: se Rapport
     }
     /* Var kortet låg (uppföljning av MES-366/368): telefonens beskärning bär sin egen låda och de grå lådorna
        (kalla 'beskarning', exakt det bilden är); datorns kopia får bara bordets ruta, och maskade null = okänt.
-       kontext = telefonens kontext.jpg (ringens bild med rutan inritad), null när telefonen inte gjorde någon. */
+       kontext = telefonens kontext.jpg (utsnitt runt kortet ur ringens bild, rutan inritad), null när telefonen inte gjorde någon. */
     const fran = bild === 'telefon' && s.ruta;
     const ruta = fran ? Object.assign({}, s.ruta, { kalla: 'beskarning', t: s.tBesk || null }) : bordet.ruta;
     const maskade = fran ? (s.maskade || null) : null;

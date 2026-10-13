@@ -209,7 +209,7 @@ const rutaText = q => `x ${tal(q.x)} y ${tal(q.y)} w ${tal(q.w)} h ${tal(q.h)}`;
    (tBesk). Aldrig mot rättelsens t, som är datorns klocka. null = okänt. */
 function kontextAlder(j) {
   const k = j && j.kontext; if (!k) return null;
-  if (k.dt != null) return k.dt;
+  if (k.dt != null) return k.dt;   // utan beskärning: bildens ålder (negativ) på telefonens klocka
   return k.t != null && j.ruta && j.ruta.kalla === 'beskarning' && j.ruta.t != null ? k.t - j.ruta.t : null;
 }
 function rattelsePlats(j, harKontext) {
@@ -218,7 +218,7 @@ function rattelsePlats(j, harKontext) {
   return [
     `| Ruta | ${r ? `${rutaText(r)} (andelar${r.bild ? ` av ${r.bild.w}×${r.bild.h}` : ''}; ur ${r.kalla === 'beskarning' ? 'läsningens beskärning — exakt' : r.kalla === 'bordet' ? 'bordet på datorn — så gott det går' : r.kalla || '?'})` : 'saknas (äldre rättelse: bara bilden säger vilket kort)'} |`,
     `| Maskade | ${m ? (m.length ? m.map(q => `spår ${q.spar != null ? q.spar : '?'}${q.x != null ? ` (${rutaText(q)})` : ''}`).join(', ') + ' — målade grå i beskärningen (de ligger ÖVER kortet)' : 'inga (inget kort ovanpå)') : 'okänt'} |`,
-    `| Kontext | ${harKontext ? '`kontext.jpg`: utsnitt runt kortet, spårets ruta röd och de maskade grå' + (k && k.utsnitt ? ` (utsnittet ${rutaText(k.utsnitt)} av ringbilden)` : ' (äldre: hela bordet)') + (kontextAlder(j) != null ? ` (ringens bild ${(kontextAlder(j) / 1000).toFixed(1)} s från beskärningen)` : '') : 'saknas' + (j.kontextSkal ? ` — ${j.kontextSkal}` : '')} |`
+    `| Kontext | ${harKontext ? '`kontext.jpg`: utsnitt runt kortet, spårets ruta röd och de maskade grå' + (k && k.utsnitt ? ` (utsnittet ${rutaText(k.utsnitt)} av ringbilden)` : k ? ' (äldre: hela bordet)' : ' (kom efter telefonens svar: läget okänt)') + (kontextAlder(j) != null ? ` (ringens bild ${(kontextAlder(j) / 1000).toFixed(1)} s från beskärningen)` : '') : 'saknas' + (j.kontextSkal ? ` — ${j.kontextSkal}` : '')} |`
   ];
 }
 
