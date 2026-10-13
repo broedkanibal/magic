@@ -6282,11 +6282,11 @@ const Moln = (() => {
      sidornas huvud: ändras texten på ett sätt som spelaren ska godkänna på
      nytt, höjs den här och alla får frågan vid nästa besök. Godkännandet
      sparas i kontots user_metadata, så att det följer kontot mellan enheter. */
-  const VILLKOR_VERSION = '2026-10-09';
+  const VILLKOR_VERSION = '[DATE]';
   /* Problemrapporten för alla (MES-367, design_handoff_rapport/README.md Go-live). false: rapportknappen,
      telefonens ark, Settings, bildrutan på konto och spärr och felrapporterna syns och skickas bara med
      ?debug. Sätts till true på go-live-grenen ihop med en ny VILLKOR_VERSION och nya privacy/terms. */
-  const RAPPORT_FOR_ALLA = false;
+  const RAPPORT_FOR_ALLA = true;
   function villkorGodkand() {
     const m = session && session.user && session.user.user_metadata;
     return !!m && m.terms_version === VILLKOR_VERSION;

@@ -25,10 +25,10 @@
 <main>
   <a class="back" href="/">← Back to Mesa</a>
   <h1>Privacy Policy</h1>
-  <p class="meta">Version 2026-10-09 · Mesa private beta</p>
+  <p class="meta">Version [DATE] · Mesa private beta</p>
 
   <h2>1. Who is responsible</h2>
-  <p><b>[NAME / COMPANY AND ADDRESS]</b> is the controller of your personal data in Mesa. Contact:
+  <p><b>[CONTROLLER NAME]</b> is the controller of your personal data in Mesa. Contact:
     <b>[CONTACT EMAIL]</b>.</p>
 
   <h2>2. What we collect, and why</h2>
@@ -39,23 +39,39 @@
     <tr><td><b>Your content:</b> decks, games, table state, camera set-up, which cards are where</td>
       <td>To run the game and share it with the people you play with</td><td>Contract (art. 6.1 b)</td></tr>
     <tr><td><b>Card images for AI help:</b> a cropped image of a card (sometimes a photo of the table) when Mesa cannot name it on your device</td>
-      <td>To identify the card. The image is sent to our server and on to the AI service; we do not store the image</td>
+      <td>To identify the card. The image is sent to our server and on to the AI service; we do not store the image, unless it is part of a report you send or a card you correct with Share pictures of cards I correct turned on (below)</td>
       <td>Contract (art. 6.1 b)</td></tr>
     <tr><td><b>Usage events, linked to your account:</b> for example that you created or joined a game, how many cards were played,
       when Mesa named a card and when you corrected it, how long it took, and how you rated the camera</td>
       <td>To measure how well Mesa works and to find and fix problems. We do not use it for advertising</td>
       <td>Legitimate interest (art. 6.1 f): improving a product we run. You can object, see section 7</td></tr>
+    <tr><td><b>Error reports, linked to your account:</b> when something fails in Mesa on your computer or phone, the error message,
+      which request failed and when, your browser, device and Mesa version. No pictures</td>
+      <td>To find and fix problems</td>
+      <td>Legitimate interest (art. 6.1 f): keeping a product we run working. You can object, see section 7</td></tr>
+    <tr><td><b>Problem reports you send:</b> when you press Send report, the last 10 minutes of the game on your computer and phone:
+      what you did, which cards the camera saw and how Mesa named them, pictures from your phone's camera, any errors, what was on
+      your screen when you pressed, your words and the quick pick you chose, your browser and device. The pictures show your table
+      and anything else the camera sees</td>
+      <td>To fix problems and improve Mesa's card recognition, including training our models</td>
+      <td>Consent (art. 6.1 a): nothing is sent until you press Send report, one report at a time</td></tr>
+    <tr><td><b>Pictures of cards you correct:</b> only if you turn on Share pictures of cards I correct. When you fix a card's name,
+      the picture of that card and the name you gave it. Off unless you turn it on</td>
+      <td>To fix problems and improve Mesa's card recognition, including training our models</td>
+      <td>Consent (art. 6.1 a): you can turn it off at any time in Settings</td></tr>
     <tr><td><b>Technical data:</b> basic request logs from our hosting, and a count of your questions to the AI service (to apply a monthly limit)</td>
       <td>Security, stability and cost control</td><td>Legitimate interest (art. 6.1 f)</td></tr>
   </table></div>
   <p>Mesa does not use advertising or tracking cookies. Usage events are sent without your IP address being stored
     for analytics, and without an analytics cookie.</p>
+  <p>Training our models means using pictures to teach the software in Mesa that finds and names cards. A trained model
+    does not contain your name or account. Problem reports and pictures are never sent to the AI service to train it.</p>
 
   <h2>3. Who receives your data</h2>
   <p>We use these companies to run Mesa. Each handles data for us under a data processing agreement.</p>
   <div class="tabell"><table>
     <tr><th>Company</th><th>What for</th><th>Where</th></tr>
-    <tr><td>Supabase</td><td>Database and sign-in</td><td>EU (Stockholm)</td></tr>
+    <tr><td>Supabase</td><td>Database, sign-in and storage of reports and pictures</td><td>EU (Stockholm)</td></tr>
     <tr><td>Vercel</td><td>Hosting and server functions</td><td>Global network</td></tr>
     <tr><td>Google</td><td>"Continue with Google" sign-in</td><td>Per Google's own terms</td></tr>
     <tr><td>Anthropic (Claude)</td><td>AI help to identify a card from a cropped image</td><td>USA</td></tr>
@@ -71,16 +87,26 @@
 
   <h2>5. How long we keep it</h2>
   <p>Your account, content and usage events are kept for as long as you have an account. When you ask us to delete your
-    account, we delete your account and content and ask Mixpanel to delete your events. The count of AI questions is
-    kept without any link to you. Images sent for AI help are not stored by us.</p>
+    account, we delete your account and content, your reports and pictures, and ask Mixpanel to delete your events. The count of
+    AI questions is kept without any link to you. Images sent for AI help are not stored by us unless they are part of a
+    report or a correction, as in section 2.</p>
+  <p>Problem reports, error reports and pictures of cards you correct are deleted after 90 days, unless we have used them
+    to fix a problem or to improve card recognition: as a test case that checks a problem stays fixed, or to train a
+    model. Those are kept until you delete them or your account.</p>
+  <p>Pictures already used to train a model can't be taken out of that model. When you delete them, they are deleted
+    from Mesa, and no new model is trained on them.</p>
 
   <h2>6. Your rights</h2>
   <p>You can ask us for a copy of your data, to correct it, to delete it, to restrict how we use it, or to move it to
     another service. Write to <b>[CONTACT EMAIL]</b>; we answer within one month.</p>
+  <p>You can also do two things yourself, in Settings on Home. Delete my reports and pictures deletes every report and
+    picture you have sent. Turning off Share pictures of cards I correct stops new pictures from being kept from that
+    moment; it does not delete the ones already kept.</p>
+  <p>We may write to you about a report you sent.</p>
 
-  <h2>7. Objecting to usage events</h2>
-  <p>You can object to us recording usage events at any time, without giving a reason. Write to
-    <b>[CONTACT EMAIL]</b> and we stop sending events for your account and delete the ones we have.</p>
+  <h2>7. Objecting to usage events and error reports</h2>
+  <p>You can object to us recording usage events and error reports at any time, without giving a reason. Write to
+    <b>[CONTACT EMAIL]</b> and we stop sending events and error reports for your account and delete the ones we have.</p>
 
   <h2>8. Complaints</h2>
   <p>If you think we handle your data wrongly, you can complain to the Swedish Authority for Privacy Protection
