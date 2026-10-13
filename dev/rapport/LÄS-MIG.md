@@ -24,6 +24,7 @@ Spelarens yta: `design_handoff_rapport/README.md` (§5 rutan, §9 detaljerna).
 
 | Kommando | Gör |
 |---|---|
+| `node dev/rapport/granska.cjs` | **granskningssidan för de tysta rättelserna** på http://127.0.0.1:8279 — se *Granska rättelserna* nedan |
 | `node dev/rapport/lista.cjs` | de senaste 50 rapporterna: kod, när, vem (namn och e-post ur kontot), tagg, text, anvandning, bilder |
 | `… --nya` | bara de som inte sorterats (`anvandning` null) |
 | `… --alla` | också felrapporter (`kalla = 'fel'`) och rättelser (`'rattelse'`, del B) |
@@ -193,6 +194,26 @@ går ett fall ur läsningens beskärning ändå (varning, ingen kontext); ett ut
 | Knappen | `#rapportKnapp` i spelets topprad, vänster om kamerapillret (`ritaRapportKnapp`, från renderMode): i ett spel, alla lägen, aldrig på telefonen. Öppnar A:s ruta |
 | Telefonen | `#kamRapport` bredvid Disconnect → `TelefonArk` (ark nerifrån) → `Rapport.franTelefon`; kvittensen med koden, *Can't reach your computer* efter 10 s, `tak`, `nat`, `av` |
 | Prov | `node dev/rapport/prov-c.cjs [--bilder <mapp>]` (steg i `dev/kolla.sh`): appens egna Moln-funktioner mot en attrapp av supabase-js (`fake-supabase.mjs`) med RLS-reglerna; allt annat nät stängt |
+
+## Granska rättelserna (`granska.cjs`)
+
+De tysta rättelserna på en sida, i stället för `lista.cjs --rattelser` + `hamta.cjs` + `till-fall.cjs` för hand.
+
+```
+node dev/rapport/granska.cjs          # http://127.0.0.1:8279 (--port för en annan)
+```
+
+| Del | Vad |
+|---|---|
+| Listan | varje rättelse grupperad per parti: telefonens beskärning, Scryfalls bild av det rätta namnet, gissning → rätt namn, händelse, domskäl. Flikar: Osorterade, Träning, Prov, Slängda, Alla. Klick på beskärningen = beskärningen och Scryfall-bilden stora bredvid varandra |
+| Valen | **Träning** = `till-fall.cjs <kod> --traning`, **Prov** = `till-fall.cjs <kod> --bank`, **Släng** = `satt.cjs <kod> slangd`. Samma verktyg, samma spärr: ett parti är träning eller prov, aldrig båda, och knappen som spärren skulle vägra är grå i förväg. *Alla osorterade → Träning* per parti |
+| Rätt namn | spelarens namn kan vara fel: skriv om det i fältet. Det prövas mot Scryfall (exakt namn, versaler spelar ingen roll) och går till `till-fall.cjs` som `--bild beskarning.jpg --ratt <namn>`; rattelse.json lämnas orörd |
+| Träningen | räkningen ur `dataset.py rakna` (alla märkta pass + rättelserna i träning), **Bygg dataset** → `~/Library/Caches/mesa/ds-riktiga-v<N>-<datum>/` med Kaggle-metadata och `prompt.md`: prompten till en ny session som laddar upp, tränar v<N> på Kaggle och mäter mot grinden i CLAUDE.md. Sidan laddar aldrig upp och startar ingen Kaggle-körning själv |
+
+Rättelserna hämtas till `dev/diagnos/rapporter/<kod>/` (som `hamta.cjs`) och Scryfalls bilder cachas i
+`~/Library/Caches/mesa/granska-scryfall/`. Servern lyssnar bara på 127.0.0.1 och vägrar en annan Host eller en
+POST från en annan sajt; service role-nyckeln lämnar aldrig servern. Golden-lekens namn kan sorteras som träning
+men `dataset.py` tar inte med dem (sidan säger det), och vart femte namn är valideringens (mäter, tränas inte).
 
 ## Från rapport till något som mäter (del D, MES-368)
 

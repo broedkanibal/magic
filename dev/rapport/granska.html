@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Granska rättelser</title>
+<style>
+:root {
+  --bg: #f6f5f2; --yta: #ffffff; --yta2: #efede8; --text: #1d1c1a; --svag: #6b6862; --linje: #dedbd4;
+  --accent: #2f5d8a; --tran: #2e7d4f; --tran-bg: #e3f2e8; --test: #7a4fa3; --test-bg: #efe6f7;
+  --slang: #8a8580; --slang-bg: #ecebe8; --fel: #b3261e; --fel-bg: #fbe9e7; --varn: #8a5a00; --varn-bg: #fff3d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161615; --yta: #201f1d; --yta2: #2a2926; --text: #ecebe7; --svag: #a09d96; --linje: #3a3834;
+    --accent: #7fb0e0; --tran: #6cc58e; --tran-bg: #1c3326; --test: #c19be6; --test-bg: #2e2340;
+    --slang: #a09d96; --slang-bg: #2a2926; --fel: #f28b82; --fel-bg: #3d1f1c; --varn: #f0c060; --varn-bg: #3a2f14;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--linje); padding: 14px 20px 0; }
+@media (max-width: 640px) { header { position: static; padding: 14px 16px 0; } }
+h1 { font-size: 18px; margin: 0 0 4px; }
+.under { color: var(--svag); margin: 0 0 12px; max-width: 900px; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav button { border: 0; background: none; color: var(--svag); padding: 8px 12px; font: inherit; cursor: pointer; border-bottom: 2px solid transparent; }
+nav button[aria-pressed="true"] { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+nav .n { color: var(--svag); font-weight: 400; margin-left: 4px; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; padding: 20px; align-items: start; }
+@media (max-width: 1000px) { main { grid-template-columns: 1fr; padding: 16px; } }
+.parti { background: var(--yta); border: 1px solid var(--linje); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+.parti > .huvud { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--yta2); flex-wrap: wrap; }
+.parti > .huvud b { font-size: 13px; }
+.parti > .huvud .svag { color: var(--svag); font-size: 12px; }
+.rad { display: grid; grid-template-columns: 170px 130px minmax(0, 1fr); gap: 16px; padding: 14px; border-top: 1px solid var(--linje); }
+.rad:first-of-type { border-top: 0; }
+@media (max-width: 640px) { .rad { grid-template-columns: 1fr 1fr; } .rad .info { grid-column: 1 / -1; } }
+.bild { position: relative; }
+.bild img { width: 100%; border-radius: 6px; display: block; background: var(--yta2); cursor: zoom-in; }
+.bild .etikett { font-size: 11px; color: var(--svag); margin-top: 4px; }
+.ingen { aspect-ratio: 63/88; border-radius: 6px; background: var(--yta2); display: grid; place-items: center; color: var(--svag); font-size: 12px; text-align: center; padding: 8px; }
+.info { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.namnrad { font-size: 15px; }
+.namnrad .gissn { color: var(--svag); }
+.namnrad .pil { color: var(--svag); margin: 0 6px; }
+.namnrad .ratt { font-weight: 600; }
+.lika { font-size: 12px; color: var(--svag); }
+.meta { font-size: 12px; color: var(--svag); display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.falt { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.falt label { font-size: 12px; color: var(--svag); }
+.falt input { font: inherit; padding: 6px 8px; border: 1px solid var(--linje); border-radius: 6px; background: var(--yta); color: var(--text); min-width: 0; flex: 1 1 200px; }
+.knappar { display: flex; gap: 8px; flex-wrap: wrap; }
+button.val { font: inherit; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--linje); background: var(--yta); color: var(--text); cursor: pointer; }
+button.val:hover:not(:disabled) { border-color: var(--svag); }
+button.val:disabled { opacity: .45; cursor: default; }
+button.val.tran { border-color: var(--tran); color: var(--tran); }
+button.val.tran:hover:not(:disabled) { background: var(--tran-bg); }
+button.val.test { border-color: var(--test); color: var(--test); }
+button.val.test:hover:not(:disabled) { background: var(--test-bg); }
+button.liten { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--linje); background: var(--yta); color: var(--text); cursor: pointer; }
+.status { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+.status.traning { background: var(--tran-bg); color: var(--tran); }
+.status.test { background: var(--test-bg); color: var(--test); }
+.status.slangd, .status.fix { background: var(--slang-bg); color: var(--slang); }
+.status.osorterad { background: var(--yta2); color: var(--svag); }
+.not { font-size: 12px; padding: 6px 10px; border-radius: 6px; white-space: pre-wrap; word-break: break-word; }
+.not.fel { background: var(--fel-bg); color: var(--fel); }
+.not.varn { background: var(--varn-bg); color: var(--varn); }
+.not.ok { background: var(--tran-bg); color: var(--tran); }
+aside { position: sticky; top: 112px; background: var(--yta); border: 1px solid var(--linje); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 1000px) { aside { position: static; } }
+aside h2 { font-size: 15px; margin: 0; }
+aside p { margin: 0; color: var(--svag); font-size: 13px; }
+.tal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tal div { background: var(--yta2); border-radius: 8px; padding: 8px 10px; }
+.tal b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.tal span { font-size: 11px; color: var(--svag); }
+ol.steg { margin: 0; padding-left: 20px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+button.stor { font: inherit; font-weight: 600; padding: 9px 14px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+button.stor:disabled { opacity: .5; cursor: default; }
+details { font-size: 12px; }
+details summary { cursor: pointer; color: var(--svag); }
+pre { background: var(--yta2); border-radius: 6px; padding: 8px; overflow: auto; font-size: 11px; max-height: 320px; white-space: pre-wrap; margin: 6px 0 0; }
+table.ds { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.ds td, table.ds th { text-align: left; padding: 4px 6px; border-top: 1px solid var(--linje); }
+table.ds th { color: var(--svag); font-weight: 500; }
+.tom { padding: 40px 20px; text-align: center; color: var(--svag); background: var(--yta); border: 1px dashed var(--linje); border-radius: 10px; }
+.zoom { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: none; place-items: center; z-index: 20; cursor: zoom-out; padding: 20px; }
+.zoom.pa { display: grid; }
+.zoom img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+.zoom .par { display: flex; gap: 16px; max-height: 100%; max-width: 100%; }
+.zoom .par img { max-height: 90vh; max-width: 48vw; }
+code { font-size: 12px; background: var(--yta2); padding: 1px 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Granska rättelser</h1>
+  <p class="under">Rättelserna spelarna gjort med <i>Share pictures of cards I correct</i> på. Kontrollera att beskärningen och det rätta namnet stämmer, och välj <b>Träning</b> (bildmodellen lär sig av kortet), <b>Prov</b> (bänken mäter modellen mot det) eller <b>Släng</b>. Valet går inte att ändra efteråt, och ett parti hamnar aldrig både i träning och prov.</p>
+  <nav id="flikar"></nav>
+</header>
+<main>
+  <section id="lista"><div class="tom">Hämtar rättelserna …</div></section>
+  <aside id="traning">
+    <h2>Träningen</h2>
+    <p>Hämtar läget …</p>
+  </aside>
+</main>
+<div class="zoom" id="zoom"></div>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const HANDELSE = { namnbyte: 'Namnbyte', name_this_card: 'Name this card', borttaget: 'Borttaget kort' };
+const STATUS = { traning: 'Träning', test: 'Prov', slangd: 'Slängd', fix: 'Fix' };
+const FLIKAR = [
+  { id: 'nya', namn: 'Osorterade', f: r => !r.anvandning },
+  { id: 'traning', namn: 'Träning', f: r => r.anvandning === 'traning' },
+  { id: 'test', namn: 'Prov', f: r => r.anvandning === 'test' },
+  { id: 'slangd', namn: 'Slängda', f: r => r.anvandning === 'slangd' || r.anvandning === 'fix' },
+  { id: 'alla', namn: 'Alla', f: () => true }
+];
+let rader = [], flik = 'nya';
+try { flik = localStorage.getItem('granska-flik') || 'nya'; } catch (e) {}
+const noter = new Map();   // kod → { typ, text } efter ett val
+const skrivet = new Map();   // kod → det som står i namnfältet: överlever att listan ritas om efter varje val
+let upptagen = 0;            // > 0: ett val pågår, alla knappar är låsta (servern tar dem ändå ett i taget)
+const namnFor = r => (skrivet.has(r.kod) ? skrivet.get(r.kod) : r.ratt || '').trim();
+
+async function hamta(u, opt) {
+  const r = await fetch(u, opt);
+  const t = await r.text();
+  try { return JSON.parse(t); } catch (e) { throw new Error(t.slice(0, 200)); }
+}
+const nar = iso => new Date(iso).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
+
+function ritaFlikar() {
+  $('#flikar').innerHTML = FLIKAR.map(f => `<button data-flik="${f.id}" aria-pressed="${f.id === flik}">${f.namn}<span class="n">${rader.filter(f.f).length}</span></button>`).join('');
+}
+function parti(r) { return r.game_id || (r.spelkod ? 'kod:' + r.spelkod : 'utan:' + r.kod); }
+
+function ritaLista() {
+  ritaFlikar();
+  const F = FLIKAR.find(f => f.id === flik) || FLIKAR[0];
+  const synliga = rader.filter(F.f);
+  if (!synliga.length) {
+    $('#lista').innerHTML = `<div class="tom">${rader.length ? 'Inget här.' : 'Inga rättelser än. De kommer när någon med <i>Share pictures of cards I correct</i> på byter namn på ett kort, använder Name this card eller tar bort ett kamerakort.'}</div>`;
+    return;
+  }
+  const grupper = new Map();
+  for (const r of synliga) { const p = parti(r); if (!grupper.has(p)) grupper.set(p, []); grupper.get(p).push(r); }
+  $('#lista').innerHTML = [...grupper.entries()].map(([p, rr]) => {
+    const alla = rader.filter(x => parti(x) === p);
+    const sidor = new Set(alla.map(x => x.anvandning).filter(a => a === 'traning' || a === 'test'));
+    const osort = rr.filter(x => !x.anvandning && namnFor(x) && x.harBild);
+    const kod = rr.find(x => x.spelkod);
+    const rubrik = kod ? `Parti ${esc(kod.spelkod)}` : p.startsWith('utan:') ? 'Utan parti' : 'Parti';
+    const sida = sidor.size ? ` · partiet är <b>${[...sidor].map(s => STATUS[s]).join(' + ')}</b>` : '';
+    return `<div class="parti">
+      <div class="huvud"><div><b>${rubrik}</b> <span class="svag">${esc(nar(rr[rr.length - 1].nar))} · ${alla.length} rättelse${alla.length === 1 ? '' : 'r'} · ${esc(rr[0].vem)}${sida}</span></div>
+        ${osort.length > 1 && !sidor.has('test') ? `<button class="liten" ${upptagen ? 'disabled' : ''} data-alla="${esc(p)}">Alla ${osort.length} osorterade → Träning</button>` : ''}</div>
+      ${rr.map(radHtml).join('')}
+    </div>`;
+  }).join('');
+}
+
+function radHtml(r) {
+  const andrad = r.sattNamn && r.sattNamn !== r.ratt;
+  const visatNamn = r.sattNamn || r.ratt;
+  const bild = r.harBild ? `<img src="/api/bild/${esc(r.kod)}" alt="Beskärningen" data-zoom="${esc(r.kod)}" loading="lazy">` : '<div class="ingen">Beskärningen saknas</div>';
+  const ref = visatNamn ? `<img src="/api/kort?namn=${encodeURIComponent(visatNamn)}" alt="${esc(visatNamn)} hos Scryfall" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ingen',textContent:'Ingen bild hos Scryfall'}))">` : '<div class="ingen">Inget rätt namn</div>';
+  const gissningOlik = r.gissning && r.gissning !== r.ratt;
+  const status = r.anvandning ? `<span class="status ${r.anvandning}">${STATUS[r.anvandning] || r.anvandning}</span>` : '<span class="status osorterad">Osorterad</span>';
+  const kanSortera = !r.anvandning;
+  const kanNamn = r.harBild;
+  /* Spärren per parti, i förväg: ett parti är träning eller prov, aldrig båda (sparr.cjs säger samma sak). */
+  const sidor = new Set(rader.filter(x => parti(x) === parti(r) && x.kod !== r.kod).map(x => x.anvandning));
+  const lastTran = sidor.has('test'), lastTest = sidor.has('traning');
+  const not = noter.get(r.kod);
+  const varningar = [];
+  if (r.handelse === 'borttaget' && !r.ratt && !r.anvandning) varningar.push('Borttaget kort utan namn: inget att lära bildmodellen. Skriv namnet om det var ett riktigt kort, annars Släng.');
+  if (r.utanfor) varningar.push('Golden-lekens namn: står i träningen men dataset.py tar inte med det (golden ska mäta osedda kort).');
+  if (andrad) varningar.push(`${r.anvandning === 'test' ? 'Mäts' : 'Tränas'} som ${r.sattNamn} (ändrat från spelarens ${r.ratt || 'namnlösa'}).`);
+  return `<div class="rad" data-kod="${esc(r.kod)}">
+    <div class="bild">${bild}<div class="etikett">Telefonens beskärning${r.kalla === 'dator' ? ' (datorns kopia)' : ''}</div></div>
+    <div class="bild">${ref}<div class="etikett">${visatNamn ? esc(visatNamn) + ' hos Scryfall' : ''}</div></div>
+    <div class="info">
+      <div class="namnrad">${r.gissning ? `<span class="gissn">${esc(r.gissning)}</span>` : '<span class="gissn">(inget namn)</span>'}<span class="pil">→</span><span class="ratt">${visatNamn ? esc(visatNamn) : '(borttaget)'}</span> ${status}</div>
+      ${r.gissning && !gissningOlik ? '<div class="lika">Telefonens gissning var rätt, men osäker — spelaren bekräftade den.</div>' : ''}
+      <div class="meta"><span>${esc(r.kod)}</span><span>${esc(HANDELSE[r.handelse] || r.handelse || '–')}</span><span>${[r.saker == null ? '' : r.saker ? 'säker' : 'osäker', r.varfor && r.varfor !== 'osäker' ? esc(r.varfor) : ''].filter(Boolean).join(' · ')}</span><span>${esc(nar(r.nar))}</span>${r.val ? '<span title="Vart femte kortnamn hålls utanför träningen och används för att mäta modellen på kort den aldrig sett">valideringens namn: mäter, tränas inte</span>' : ''}</div>
+      ${varningar.map(v => `<div class="not varn">${esc(v)}</div>`).join('')}
+      ${kanSortera ? `<div class="falt"><label for="n-${esc(r.kod)}">Rätt namn</label><input id="n-${esc(r.kod)}" value="${esc(namnFor(r))}" data-namn="${esc(r.kod)}" placeholder="Kortets engelska namn" ${kanNamn ? '' : 'disabled'} autocomplete="off" spellcheck="false"></div>
+      <div class="knappar">
+        <button class="val tran" data-val="traning" ${kanNamn && !lastTran && !upptagen ? '' : 'disabled'}>Träning</button>
+        <button class="val test" data-val="test" ${kanNamn && !lastTest && !upptagen ? '' : 'disabled'}>Prov</button>
+        <button class="val" data-val="slangd" ${upptagen ? 'disabled' : ''}>Släng</button>
+      </div>
+      ${lastTran || lastTest ? `<div class="lika">Partiet är redan ${lastTest ? 'träning, så Prov' : 'prov, så Träning'} går inte — ett prov ur samma parti skulle mäta att modellen minns partiet.</div>` : ''}` : ''}
+      ${not ? `<div class="not ${not.typ}">${esc(not.text)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+async function laddaLista() {
+  try { rader = await hamta('/api/lista'); ritaLista(); }
+  catch (e) { $('#lista').innerHTML = `<div class="tom">Kunde inte hämta rättelserna: ${esc(e.message)}</div>`; }
+}
+
+async function sortera(kod, val) {
+  const r = rader.find(x => x.kod === kod);
+  const ratt = r ? namnFor(r) : '';
+  if (val !== 'slangd' && !ratt) { noter.set(kod, { typ: 'fel', text: 'Skriv kortets namn först.' }); ritaLista(); return; }
+  upptagen++; ritaLista();
+  const knapp = document.querySelector(`.rad[data-kod="${CSS.escape(kod)}"] button[data-val="${val}"]`);
+  if (knapp) knapp.textContent = '…';
+  try {
+    const s = await hamta('/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod, val, ratt }) });
+    if (s.ok) { const v = varnRader(s.text); if (v) noter.set(kod, { typ: 'varn', text: v }); else noter.delete(kod); skrivet.delete(kod); }
+    else noter.set(kod, { typ: s.sparr ? 'varn' : 'fel', text: (s.sparr ? 'Spärren sa nej — ingenting är skrivet.\n' : '') + s.text });
+  } catch (e) { noter.set(kod, { typ: 'fel', text: e.message }); }
+  upptagen--;
+  await laddaLista(); laddaTraning();
+}
+/* Efter ett lyckat val syns det på märket; verktygets text visas bara när den varnar. */
+const varnRader = t => String(t || '').split('\n').filter(l => /VARNING/.test(l)).join('\n');
+
+async function allaTillTraning(p) {
+  const rr = rader.filter(x => parti(x) === p && !x.anvandning && namnFor(x) && x.harBild);
+  upptagen++;   // hela partiet i ett svep: inget annat val emellan
+  try { for (const r of rr) await sortera(r.kod, 'traning'); } finally { upptagen--; ritaLista(); }
+}
+
+/* ── träningen ── */
+async function laddaTraning() {
+  let T;
+  try { T = await hamta('/api/traning'); } catch (e) { $('#traning').innerHTML = `<h2>Träningen</h2><p>${esc(e.message)}</p>`; return; }
+  const iTabell = rader.filter(r => r.anvandning === 'traning').length;
+  const summa = (T.rakna.match(/Namn totalt[^\n]*/) || [''])[0];
+  const fran = T.rakna.split('\n').filter(l => l.startsWith('| rapporter-traning-mesa'));
+  const rattUtsnitt = fran.reduce((s, l) => s + (+l.split('|')[4] || 0), 0);   // kolumnen utsnitt
+  const ds = T.dataset;
+  $('#traning').innerHTML = `<h2>Träningen</h2>
+    <div class="tal">
+      <div><b>${iTabell}</b><span>rättelser i träning</span></div>
+      <div><b>${rattUtsnitt}</b><span>av dem i datasetet</span></div>
+      <div><b>v${T.version}</b><span>nästa modell</span></div>
+    </div>
+    <p>${esc(summa)}${summa ? ' — alla märkta inspelningar plus rättelserna.' : ''}</p>
+    ${T.lokala < iTabell ? `<div class="not varn">${iTabell - T.lokala} rättelse(r) står som träning i tabellen men finns inte i den här mappens träningsmaterial (en annan dator eller worktree?).</div>` : ''}
+    ${!T.raknaOk ? `<div class="not fel">dataset.py rakna sa nej:\n${esc(T.rakna.slice(-600))}</div>` : ''}
+    <ol class="steg">
+      <li><b>Bygg dataset</b> — samlar allt till en mapp i <code>~/Library/Caches/mesa/</code> (lokalt, några sekunder).</li>
+      <li><b>Kopiera prompten</b> till en ny Claude-session: den laddar upp till Kaggle, tränar v${T.version} (~3 h) och mäter mot grinden.</li>
+      <li>Modellen går in i appen först efter ditt ja, med 0 säkra fel namn i golden.</li>
+    </ol>
+    ${T.raknaOk && !rattUtsnitt ? `<div class="not varn">Inga rättelser i datasetet än: v${T.version} skulle tränas på samma material som v4.</div>` : ''}
+    <button class="stor" id="bygg" ${T.raknaOk ? '' : 'disabled'}>Bygg dataset för v${T.version}</button>
+    <div id="byggut"></div>
+    ${ds.length ? `<details ${ds[0].prompt ? 'open' : ''}><summary>Byggda dataset (${ds.length})</summary>
+      <table class="ds"><tr><th>Mapp</th><th>Utsnitt</th><th>Rättelser</th><th></th></tr>
+      ${ds.map(d => `<tr><td title="${esc(d.skapad || '')}">${esc(d.namn)}</td><td>${d.utsnitt ?? '–'}</td><td>${d.rattelser ?? '–'}</td><td>${d.prompt ? `<button class="liten" data-prompt="${esc(d.namn)}">Kopiera prompt</button>` : ''}</td></tr>`).join('')}
+      </table></details>` : ''}
+    <details><summary>Hela räkningen (dataset.py rakna)</summary><pre>${esc(T.rakna)}</pre></details>`;
+}
+async function byggDataset(knapp) {
+  knapp.disabled = true; knapp.textContent = 'Bygger …';
+  try {
+    const r = await hamta('/api/bygg', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    await laddaTraning();
+    $('#byggut').innerHTML = r.ok
+      ? `<div class="not ok">${esc(r.text)}</div><button class="liten" id="kopiera-ny">Kopiera prompten</button><details><summary>Prompten</summary><pre>${esc(r.prompt)}</pre></details>`
+      : `<div class="not fel">${esc(r.text)}</div>`;
+    if (r.ok) $('#kopiera-ny').onclick = e => kopiera(r.prompt, e.target);
+  } catch (e) { $('#byggut').innerHTML = `<div class="not fel">${esc(e.message)}</div>`; knapp.disabled = false; }
+}
+async function kopiera(text, knapp) {
+  try { await navigator.clipboard.writeText(text); knapp.textContent = 'Kopierad'; }
+  catch (e) { knapp.textContent = 'Kunde inte kopiera'; }
+}
+
+document.addEventListener('click', async e => {
+  const t = e.target;
+  if (t.dataset.flik) { flik = t.dataset.flik; try { localStorage.setItem('granska-flik', flik); } catch (x) {} ritaLista(); return; }
+  if (t.dataset.val) { if (!upptagen) sortera(t.closest('.rad').dataset.kod, t.dataset.val); return; }
+  if (t.dataset.alla) { if (!upptagen) allaTillTraning(t.dataset.alla); return; }
+  if (t.id === 'bygg') { byggDataset(t); return; }
+  if (t.dataset.prompt) { const r = await fetch('/api/prompt?mapp=' + encodeURIComponent(t.dataset.prompt)); kopiera(await r.text(), t); return; }
+  if (t.dataset.zoom) {
+    const r = rader.find(x => x.kod === t.dataset.zoom), n = r && (r.sattNamn || r.ratt);
+    $('#zoom').innerHTML = `<div class="par"><img src="/api/bild/${esc(t.dataset.zoom)}" alt="Beskärningen">${n ? `<img src="/api/kort?namn=${encodeURIComponent(n)}" alt="${esc(n)}">` : ''}</div>`;
+    $('#zoom').classList.add('pa'); return;
+  }
+  if (t.closest('#zoom')) $('#zoom').classList.remove('pa');
+});
+document.addEventListener('input', e => { if (e.target.dataset.namn) skrivet.set(e.target.dataset.namn, e.target.value); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#zoom').classList.remove('pa'); });
+
+laddaLista().then(laddaTraning);
+</script>
+</body>
+</html>
