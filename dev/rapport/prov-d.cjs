@@ -272,6 +272,28 @@ Image.new('RGB',(360,203),(90,58,34)).save(sys.argv[3],quality=95)
     ok(r.kod === 0 && p73 && p73.fil === 'R-9973-spar77.jpg' && sammaBild && p73.bild_ur === 'beskarning' && p73.ruta.kalla === 'beskarning' && p73.maskade[0].spar === 63 && p73.namn === 'Brainstorm' && p73.gissning === 'Opt'
        && p73.kontext === 'R-9973-spar77-kontext.jpg' && fs.existsSync(path.join(BANKDIR, p73.kontext)),
       `--spar 77 väljer läsningens beskärning (samma bytes), med ruta, maskade [63] och kontext: ${p73 ? JSON.stringify({ fil: p73.fil, bild_ur: p73.bild_ur, regel: p73.mask_regel }) : r.ut.trim()}`);
+    /* Kontexten är ett utsnitt runt kortet (Jespers beslut 2026-10-14), inte hela stillbilden: rutan + en rutas
+       bredd/höjd åt varje håll inom bilden, högst 480 px, och kontext_bild.utsnitt säger var. Rutans kant ligger där
+       utsnittet säger (röd), bordet till vänster om den brunt. */
+    {
+      const U = p73 && p73.kontext_bild && p73.kontext_bild.utsnitt;
+      const fv = { x: b77.x - b77.w, y: Math.max(0, b77.y - b77.h), w: 3 * b77.w, h: Math.min(1, b77.y + 2 * b77.h) - Math.max(0, b77.y - b77.h) };
+      let kp = null;
+      if (U) {
+        const q = pyKor(`
+import sys, json
+from PIL import Image
+im=Image.open(sys.argv[1]).convert('RGB'); W,H=im.size; u=json.loads(sys.argv[2]); r=json.loads(sys.argv[3])
+X=lambda x:(x-u['x'])/u['w']*W; Y=lambda y:(y-u['y'])/u['h']*H
+my=Y(r['y']+r['h']/2)
+print(json.dumps({'w':W,'h':H,'p':[im.getpixel((int(X(r['x']))+1,int(my))),im.getpixel((int(X(r['x']-r['w']/2)),int(my)))]}))
+`, path.join(BANKDIR, p73.kontext), JSON.stringify(U), JSON.stringify(b77));
+        try { kp = JSON.parse(q.stdout); } catch (e) { kp = null; }
+      }
+      const rod = c => c && c[0] > 180 && c[1] < 110, brun = c => c && Math.abs(c[0] - 90) < 30 && Math.abs(c[1] - 58) < 30 && Math.abs(c[2] - 34) < 30;
+      ok(U && ['x', 'y', 'w', 'h'].every(k => Math.abs(U[k] - fv[k]) < 0.01) && U.w * U.h < 0.5 && kp && Math.max(kp.w, kp.h) <= 480 && kp.w === p73.kontext_bild.w && rod(kp.p[0]) && brun(kp.p[1]),
+        `8c: fallets kontext är ett utsnitt runt kortet (utsnitt ${U ? JSON.stringify(U) : '?'}, ${kp ? `${kp.w}×${kp.h} px, ${JSON.stringify(kp.p)}` : 'ingen bild'})`);
+    }
     /* --spar + --bild: utsnittet ur stillbilden, 63 målat grått enligt bordsloggens under */
     r = tillFall(['R-9973', '--bank', '--lokal', '--mapp', rp, '--spar', '77', '--ratt', 'Brainstorm', '--bild', 's-1790000010000-0.jpg', '--skriv-over']);
     p73 = manifest().find(p => p.kod === 'R-9973' && p.spar === 77);

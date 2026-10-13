@@ -343,7 +343,7 @@ const PROV = async () => {
     const kb = rr && A.filer[`u-prov/rapporter/${rr.kod}/kontext.jpg`], bb = rr && A.filer[`u-prov/rapporter/${rr.kod}/beskarning.jpg`];
     ok('3b: rattelse.json har ruta (kalla beskarning), maskade [spår 63] och kontext — och kontext.jpg ligger i mappen',
        jr && jr.spar === 77 && jr.bild === 'telefon' && jr.ruta && jr.ruta.kalla === 'beskarning' && jr.ruta.bild && jr.ruta.bild.w === AW && Math.abs(jr.ruta.x - box77.x / AW) < 1e-3 && Math.abs(jr.ruta.h - box77.h / AH) < 1e-3
-       && jr.maskade && jr.maskade.length === 1 && jr.maskade[0].spar === 63 && jr.kontext && jr.kontext.fil === 'kontext.jpg' && jr.kontext.w >= 480 && kb && kb.type === 'image/jpeg' && kb.size > 2000,
+       && jr.maskade && jr.maskade.length === 1 && jr.maskade[0].spar === 63 && jr.kontext && jr.kontext.fil === 'kontext.jpg' && kb && kb.type === 'image/jpeg' && kb.size > 2000,
        JSON.stringify(jr && { ruta: jr.ruta, maskade: jr.maskade, kontext: jr.kontext && { w: jr.kontext.w, h: jr.kontext.h, ruta: jr.kontext.ruta, maskade: jr.kontext.maskade } }));
     ok('3b: radens vy bär bordets ruta och maskade (datorns syn, kalla bordet)', rr && rr.vy && rr.vy.ruta && rr.vy.ruta.kalla === 'bordet' && rr.vy.maskade && rr.vy.maskade[0] && rr.vy.maskade[0].spar === 63, JSON.stringify(rr && rr.vy));
     /* Masken stämmer med rutorna: räkna det grå området i beskarning.jpg UR rattelse.json (ruta + 8 % marginal,
@@ -360,11 +360,28 @@ const PROV = async () => {
       maskDet = `maskens hörn (${u0.toFixed(3)}, ${v0.toFixed(3)}) ur rattelse.json; bildpunkter ${JSON.stringify(P.p)}`;
     }
     ok('3b: masken i beskarning.jpg ligger där ruta + maskade säger (grått innanför, kortet utanför)', maskOk, maskDet);
-    /* kontext.jpg: rutan röd, den maskade lådan grå. */
+    /* kontext.jpg (Jespers beslut 2026-10-14): ett utsnitt runt kortet, inte hela bordet. Ringbilden är AW × AH;
+       utsnittet = rutan + en rutas bredd/höjd åt varje håll inom bilden, högst 480 px och högst ×2. */
     if (kb && jr && jr.kontext) {
-      const K = jr.kontext, r = K.ruta, q = K.maskade[0];
-      const P = await pix(kb, (w, h) => [[r.x * w + 1, (r.y + r.h * 0.3) * h], [(q.x + q.w * 0.7) * w, (q.y + q.h * 0.5) * h]]);
-      ok('3b: kontext.jpg har spårets ruta inritad (röd kant) och den maskade lådan grå', P.p[0][0] > 180 && P.p[0][1] < 110 && Math.abs(P.p[1][0] - P.p[1][2]) < 100 && P.p[1][0] < 170, JSON.stringify(P.p) + ' ' + JSON.stringify(K));
+      const K = jr.kontext, r = K.ruta, q = K.maskade[0], U = K.utsnitt;
+      const forv = { x: Math.max(0, box77.x - box77.w) / AW, y: Math.max(0, box77.y - box77.h) / AH, w: (Math.min(AW, box77.x + 2 * box77.w) - Math.max(0, box77.x - box77.w)) / AW, h: (Math.min(AH, box77.y + 2 * box77.h) - Math.max(0, box77.y - box77.h)) / AH };
+      const kd = await createImageBitmap(kb), ksz = { w: kd.width, h: kd.height }; try { kd.close(); } catch (e) {}
+      ok('3b: kontext.jpg är ett utsnitt: mindre del av ringbilden än hela, rutan + ett kortavstånd åt varje håll (utsnitt i rattelse.json)',
+         U && U.w < 1 && U.w * U.h < 0.5 && ['x', 'y', 'w', 'h'].every(k => Math.abs(U[k] - forv[k]) < 0.01) && K.bild && K.bild.w === AW
+         && r.x >= U.x && r.y >= U.y && r.x + r.w <= U.x + U.w + 1e-9 && r.y + r.h <= U.y + U.h + 1e-9,
+         JSON.stringify({ utsnitt: U, forvantat: forv, bild: K.bild }));
+      const srcW = U.w * AW, srcH = U.h * AH;
+      ok('3b: kontext.jpg högst 480 px åt längsta hållet, aldrig uppskalad mer än ×2, w/h i rattelse.json = bilden',
+         Math.max(ksz.w, ksz.h) <= 480 && ksz.w <= srcW * 2 + 1 && ksz.h <= srcH * 2 + 1 && ksz.w === K.w && ksz.h === K.h && Math.abs(ksz.w / ksz.h - srcW / srcH) < 0.02,
+         JSON.stringify({ jpg: ksz, kalla: [srcW, srcH], json: [K.w, K.h] }));
+      /* I utsnittets koordinater: rutans mitt hamnar där utsnittet säger, rutans kant röd, bordet utanför brunt. */
+      const iU = (X, Y) => [(X - U.x) / U.w, (Y - U.y) / U.h];
+      const [mx, my] = iU(r.x + r.w / 2, r.y + r.h / 2), [vx] = iU(r.x, 0), [, oy] = iU(0, r.y), [qx, qy] = iU(q.x + q.w * 0.7, q.y + q.h * 0.5), [ux] = iU(r.x - r.w * 0.5, 0);
+      const P = await pix(kb, (w, h) => [[vx * w + 1, my * h], [mx * w, oy * h + 1], [qx * w, qy * h], [ux * w, my * h], [mx * w - 6, my * h - 8]]);
+      const rod = c => c[0] > 180 && c[1] < 110, brun = c => Math.abs(c[0] - 0x5a) < 30 && Math.abs(c[1] - 0x3a) < 30 && Math.abs(c[2] - 0x22) < 30;
+      ok('3b: rutans mitt ligger där utsnittet säger: vänster och övre kant röd, den maskade lådan grå, bordet till vänster brunt, kortet blått innanför',
+         rod(P.p[0]) && rod(P.p[1]) && Math.abs(P.p[2][0] - P.p[2][2]) < 100 && P.p[2][0] < 170 && brun(P.p[3]) && P.p[4][2] > 150 && P.p[4][0] < 90,
+         JSON.stringify(P.p) + ' mitt ' + mx.toFixed(3) + ',' + my.toFixed(3));
       window.__kontextB64 = await new Promise(res => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(kb); });
     } else ok('3b: kontext.jpg har spårets ruta inritad', false, 'ingen kontext');
     ok('3b: kontexten bär dt (ringbildens t − beskärningens t, telefonens klocka) inom ±2 s, och inget skäl',

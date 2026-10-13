@@ -12,12 +12,18 @@ Utsnittet görs som appens beskar(): rutan + 8 % marginal på var sida, rak, och
 vridet -90° när rutan ligger (bredare än hög) så att kortet står. De maskade
 rutorna (de kort som ligger ÖVER spåret) målas grå (128) som appens maskaTackt,
 en bildpunkt större åt alla håll. Inget skalas upp: bredden som skrivs ut är
-den bilden har. Kontextbilden: hela stillbilden uppskalad till högst 720 px
-bredd (högst 2x), de maskade rutorna grå och streckade, spårets ruta röd.
+den bilden har. Kontextbilden (Jespers beslut 2026-10-14: bara kortets närmaste
+omgivning, aldrig hela bordet): ett utsnitt ur stillbilden, rutan plus en rutas
+bredd åt sidorna och en rutas höjd uppåt och nedåt, begränsat till bilden, skalat
+till högst 480 px åt längsta hållet och aldrig uppskalat mer än 2x — samma regel
+som appens kontextBild. De maskade rutorna grå och streckade, spårets ruta röd,
+i utsnittets koordinater.
 
-Skriver { "w", "h", "kontext": {"w","h"} } som JSON på stdout.
+Skriver { "w", "h", "kontext": {"w","h","utsnitt": {x,y,w,h}} } som JSON på stdout;
+utsnitt = kontextens läge i stillbilden (andelar).
 """
 import json
+import math
 import sys
 
 from PIL import Image, ImageDraw
@@ -59,10 +65,29 @@ def streckad(d, a, b, c, e, farg, langd=6, glapp=4, bredd=2):
             t = u + glapp
 
 
+KONTEXT_MAX = 480
+
+
+def kontext_utsnitt(r, Wb, Hb):
+    """Som appens kontextUtsnitt: rutan + en rutas bredd/höjd åt varje håll, inom bilden."""
+    x0 = max(0, math.floor((r["x"] - r["w"]) * Wb))
+    y0 = max(0, math.floor((r["y"] - r["h"]) * Hb))
+    x1 = min(Wb, math.ceil((r["x"] + 2 * r["w"]) * Wb))
+    y1 = min(Hb, math.ceil((r["y"] + 2 * r["h"]) * Hb))
+    sw, sh = max(1, x1 - x0), max(1, y1 - y0)
+    sk = min(2.0, KONTEXT_MAX / max(sw, sh))
+    return x0, y0, sw, sh, sk
+
+
 def kontext(im, ruta, maskade, spar):
-    sk = max(1.0, min(2.0, 720.0 / im.width))
-    W, H = round(im.width * sk), round(im.height * sk)
-    k = im.resize((W, H), Image.LANCZOS).convert("RGBA")
+    Wb, Hb = im.size
+    x0, y0, sw, sh, sk = kontext_utsnitt(ruta, Wb, Hb)
+    W, H = max(1, round(sw * sk)), max(1, round(sh * sk))
+    k = im.crop((x0, y0, x0 + sw, y0 + sh)).resize((W, H), Image.LANCZOS).convert("RGBA")
+
+    def px(q, _W=None, _H=None):
+        return (q["x"] * Wb - x0) * sk, (q["y"] * Hb - y0) * sk, q["w"] * Wb * sk, q["h"] * Hb * sk
+
     lager = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(lager)
     for q in maskade:
@@ -81,7 +106,7 @@ def kontext(im, ruta, maskade, spar):
     text = "spår %s" % spar
     d.rectangle([a, max(0, b - 16), a + 7 * len(text) + 8, max(16, b)], fill=ROD)
     d.text((a + 4, max(0, b - 16) + 2), text, fill=(255, 255, 255))
-    return k
+    return k, {"x": x0 / Wb, "y": y0 / Hb, "w": sw / Wb, "h": sh / Hb}
 
 
 def main():
@@ -93,9 +118,9 @@ def main():
         u.save(o["ut"], quality=92)
         svar.update(w=u.width, h=u.height)
     if o.get("kontext"):
-        k = kontext(im, o["ruta"], o.get("maskade") or [], o.get("spar"))
+        k, u = kontext(im, o["ruta"], o.get("maskade") or [], o.get("spar"))
         k.save(o["kontext"], quality=88)
-        svar["kontext"] = {"w": k.width, "h": k.height}
+        svar["kontext"] = {"w": k.width, "h": k.height, "utsnitt": u}
     print(json.dumps(svar))
 
 

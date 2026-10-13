@@ -80,8 +80,10 @@
    aldrig tränas på fel data). Därför:
      - ruta     spårets låda i kamerabilden (andelar, + bildens mått och kalla)
      - maskade  de lådor som målades grå (korten som ligger ÖVER spåret), med spår
-     - kontext  en bild av bordet med rutan inritad (<fil>-kontext.jpg i bänken,
-                kontext.jpg i träningen)
+     - kontext  ett utsnitt runt kortet (rutan + en rutas bredd/höjd åt varje
+                håll, aldrig hela bordet) med rutan inritad (<fil>-kontext.jpg
+                i bänken, kontext.jpg i träningen); kontext_bild.utsnitt = dess
+                läge i bilden (andelar)
    --traning kräver ruta och maskade (en rättelse utan dem: --utan-ruta), och
    en bild där kortets bredd är minst MIN_TRAN_PX. Stillbildernas spårnamn är
    ALDRIG facit: namnet kommer från spelaren (--ratt, eller rättelsens ratt).
@@ -480,7 +482,7 @@ function urSpar(mapp, o) {
   if (kontextSkal) varn.push(`obs: ingen kontextbild — ${kontextSkal}`);
   if (bildKalla === 'stillbild') varn.push(`VARNING: lågupplöst — utsnittet ur stillbilden är ${svar.w}×${svar.h} px (stillbilden ${st.w} px bred)${Math.min(svar.w, svar.h) < MIN_TRAN_PX ? `, under träningens ${MIN_TRAN_PX} px` : ''}`);
   return { bild, ratt: o.ratt, gissning, varfor, handelse: 'rapport', t, spar: id, kalla: 'rapport', bildKalla, ruta, maskade, maskRegel: regel,
-           kontext, kontextInfo: stK ? { fil: stK.fil, t: stK.t, dt, w: svar.kontext && svar.kontext.w, h: svar.kontext && svar.kontext.h, ruta: ks, maskade: km } : null, kontextSkal, varn, tmp };
+           kontext, kontextInfo: stK ? { fil: stK.fil, t: stK.t, dt, w: svar.kontext && svar.kontext.w, h: svar.kontext && svar.kontext.h, utsnitt: (svar.kontext && svar.kontext.utsnitt) || null, ruta: ks, maskade: km } : null, kontextSkal, varn, tmp };
 }
 const ext = f => path.extname(f).toLowerCase() || '.jpg';
 function jpegStorlek(buf) {

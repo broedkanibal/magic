@@ -3541,7 +3541,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
            bara med ?debug eller RAPPORT_FOR_ALLA. Valet följer med Google-rundturen (sthv.bilder). -->
       <label class="portalvillkor" id="bildRad" hidden>
         <input type="checkbox" id="bildBox">
-        <span><b>Share pictures of cards I correct.</b> When you fix a card's name, Mesa keeps the picture of that card to fix problems and improve its card recognition, including training our models.<small>Optional. You can change it any time in Settings.</small></span>
+        <span><b>Share pictures of cards I correct.</b> When you fix a card's name, Mesa keeps a picture of that card and the cards right around it, to fix problems and improve its card recognition, including training our models.<small>Optional. You can change it any time in Settings.</small></span>
       </label>
       <p class="portalfin" id="villkorFin">Mesa records how you use the app, linked to your account, to find and fix
         problems. <a href="/privacy.html" target="_blank" rel="noopener" style="color:inherit">What and why</a></p>
@@ -4173,7 +4173,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <button class="btn sm ghost dbg" id="pbBordLogg" title="Saves every table the phone sent since the camera was turned on, as a file that can be replayed with dev/dubbletter.cjs --logg">Save table log</button>
         </div>
         <!-- De tysta rättelserna (MES-366): kontots inställning user_metadata.improve_pictures, samma fält som Settings (del C). -->
-        <label class="pbinspval dbg" id="pbBilderRad" style="display:flex;align-items:center;gap:8px;margin-top:6px" title="When you fix a card's name or remove a card the camera put down, Mesa keeps the picture of that card. Saved on your account">
+        <label class="pbinspval dbg" id="pbBilderRad" style="display:flex;align-items:center;gap:8px;margin-top:6px" title="When you fix a card&#39;s name, Mesa keeps a picture of that card and the cards right around it, to fix problems and improve its card recognition, including training our models.">
           <input type="checkbox" id="pbBilder"> <span>Share pictures of cards I correct</span> <small id="pbBilderTxt" style="opacity:.7"></small></label>
         <!-- Bildläget (MES-229, MES-244): 4K · 15 är förvalet; 1080p · 30 analyserar
              varje ruta; 1080p · 15 har samma takt som förvalet, så bara upplösningen
@@ -39575,7 +39575,7 @@ var Installningar, TelefonArk;
   const datum = iso => { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? `${d.getDate()} ${MAN[d.getMonth()]} ${d.getFullYear()}` : ''; };
   const st1 = (n, ord) => `${n} ${ord}${n === 1 ? '' : 's'}`;
   const vad = a => `${st1(a.rapporter, 'report')} and ${st1(a.bilder, 'card picture')}`;
-  const BILD_TEXT = "When you fix a card's name, Mesa keeps the picture of that card to fix problems and improve its card recognition, including training our models.";
+  const BILD_TEXT = "When you fix a card's name, Mesa keeps a picture of that card and the cards right around it, to fix problems and improve its card recognition, including training our models.";
 
   /* ── Settings (README §3, tavlorna L9-Settings, L9-DeleteAsk, L9-Deleted) ──────────────
      lage: vila · fraga (Delete?) · raderar · raderat. antal: undefined = läser, null = gick inte. */
@@ -40007,14 +40007,26 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
   }
 
   /* En tyst rättelse på datorn ber om spårets beskärning (Rattelse): ladda upp den som beskarning.jpg i radens mapp. */
-  /* kontext.jpg (uppföljning av MES-366/368): ringens bild av bordet med spåret, den som ligger närmast beskärningen
-     i tid (utan beskärning: den nyaste), uppskalad till högst 720 px bredd, med spårets låda inritad (röd, tjock) och
-     de maskade lådorna grå och streckade — så att den som läser facit ser vilket kort i högen som rättades. Görs ur
-     ringens färdiga JPEG (aldrig ur videon), först när rättelsen sparas: inget i analyssteget.
+  /* kontext.jpg (uppföljning av MES-366/368): ett utsnitt runt spåret ur ringens bild av bordet, den som ligger
+     närmast beskärningen i tid (utan beskärning: den nyaste). Jespers beslut 2026-10-14: bara kortets närmaste
+     omgivning, aldrig hela bordet — rutan plus ungefär ett kortavstånd åt varje håll (rutans bredd åt sidorna, rutans
+     höjd uppåt och nedåt, begränsat till bilden), högst KONTEXT_MAX px åt längsta hållet och aldrig uppskalat mer än ×2.
+     Spårets låda inritad (röd, tjock) och de maskade lådorna grå och streckade, i utsnittets koordinater, så att den som
+     läser facit ser vilket kort i högen som rättades. info.utsnitt = utsnittets läge i ringbilden (andelar x,y,w,h);
+     info.ruta/maskade är andelar av hela ringbilden, som förut. Görs ur ringens färdiga JPEG (aldrig ur videon), först
+     när rättelsen sparas: inget i analyssteget.
      Tidsgränsen (granskningen av 6c3fea8): beskärningens lådor ritas bara i en bild högst KONTEXT_DT_MS från
      beskärningen (dt = ringbildens t − beskärningens t, båda telefonens klocka). Längre bort: ingen kontext, och
      skälet följer med i svaret — en låda ur en annan tid i en bild av ett bord som hunnit ändras är ett falskt facit. */
-  const KONTEXT_DT_MS = 2000;
+  const KONTEXT_DT_MS = 2000, KONTEXT_MAX = 480;
+  /* Utsnittet runt en ruta (andelar) i en bild Wb × Hb px: rutan + en rutas bredd/höjd åt varje håll, inom bilden. */
+  function kontextUtsnitt(r, Wb, Hb) {
+    const x0 = Math.max(0, Math.floor((r.x - r.w) * Wb)), y0 = Math.max(0, Math.floor((r.y - r.h) * Hb));
+    const x1 = Math.min(Wb, Math.ceil((r.x + 2 * r.w) * Wb)), y1 = Math.min(Hb, Math.ceil((r.y + 2 * r.h) * Hb));
+    const sw = Math.max(1, x1 - x0), sh = Math.max(1, y1 - y0), sk = Math.min(2, KONTEXT_MAX / Math.max(sw, sh));
+    return { x0, y0, sw, sh, sk, W: Math.max(1, Math.round(sw * sk)), H: Math.max(1, Math.round(sh * sk)),
+             utsnitt: { x: x0 / Wb, y: y0 / Hb, w: sw / Wb, h: sh / Hb } };
+  }
   async function kontextBild(sparId, f) {
     let bast = null;
     for (const b of ring) {
@@ -40026,15 +40038,15 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
     if (dt != null && Math.abs(dt) > KONTEXT_DT_MS) return { blob: null, skal: `ringens närmaste bild med spåret är ${(dt / 1000).toFixed(1)} s från beskärningen (gränsen ±${KONTEXT_DT_MS / 1000} s)`, dt };
     if (typeof createImageBitmap !== 'function') return { blob: null, skal: 'createImageBitmap saknas', dt };
     const bm = await createImageBitmap(bast.blob);
-    const sk = Math.max(1, Math.min(2, 720 / bast.w)), W = Math.round(bast.w * sk), H = Math.round(bast.h * sk);
-    const c = document.createElement('canvas'); c.width = W; c.height = H;
-    const x = c.getContext('2d');
-    x.drawImage(bm, 0, 0, W, H); try { bm.close(); } catch (e) {}
     const egen = bast.spar.find(s => s.id === sparId);
     const ruta = { x: egen.x, y: egen.y, w: egen.w, h: egen.h };
+    const Wb = bm.width || bast.w, Hb = bm.height || bast.h, U = kontextUtsnitt(ruta, Wb, Hb), W = U.W, H = U.H;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d');
+    x.drawImage(bm, U.x0, U.y0, U.sw, U.sh, 0, 0, W, H); try { bm.close(); } catch (e) {}
     /* De maskade lådorna i den här bilden: samma spår här om det finns, annars beskärningens låda (en annan tid). */
     const maskade = !(f && f.maskade) ? null : f.maskade.map(q => { const u = q.spar != null ? bast.spar.find(s => s.id === q.spar) : null; return u ? { spar: q.spar, x: u.x, y: u.y, w: u.w, h: u.h, ur: 'bilden' } : Object.assign({}, q, { ur: 'beskarningen' }); });
-    const px = q => [q.x * W, q.y * H, q.w * W, q.h * H];
+    const px = q => [(q.x * Wb - U.x0) * U.sk, (q.y * Hb - U.y0) * U.sk, q.w * Wb * U.sk, q.h * Hb * U.sk];
     const etikett = (text, X, Y, farg) => { x.font = 'bold 13px system-ui, sans-serif'; const w = x.measureText(text).width + 8; const y = Math.max(0, Y - 18); x.fillStyle = farg; x.fillRect(X, y, w, 17); x.fillStyle = '#fff'; x.fillText(text, X + 4, y + 13); };
     for (const q of maskade || []) {
       const [a, b, w, h] = px(q);
@@ -40045,7 +40057,7 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
     { const [a, b, w, h] = px(ruta); x.lineWidth = 4; x.strokeStyle = '#ff2d55'; x.strokeRect(a, b, w, h); etikett('spår ' + sparId, a, b, '#ff2d55'); }
     const blob = await new Promise(res => { try { c.toBlob(res, 'image/jpeg', 0.85); } catch (e) { res(null); } });
     if (!blob || !blob.size) return { blob: null, skal: 'kodningen gav ingen bild', dt };
-    return { blob, info: { fil: 'kontext.jpg', t: bast.t, dt, w: W, h: H, bild: { w: bast.w, h: bast.h }, ruta, maskade } };
+    return { blob, info: { fil: 'kontext.jpg', t: bast.t, dt, w: W, h: H, bild: { w: Wb, h: Hb }, utsnitt: U.utsnitt, ruta, maskade } };
   }
 
   async function rattelseBild(m) {
