@@ -109,7 +109,7 @@ Rör läsningen (`Pool`, `kamValdLek`, `kamIdentifiera`). Krockar med 2b och 3.
 
 | Del | Innehåll |
 |---|---|
-| Spärren mot tvillingar (MES-235) **först** | en inlärd lek saknar alltid kort. Ett läst namn som skiljer sig från listans namn i ett **helt ord** (Heath/Moor) är inte samma kort, hur lika bokstäverna än är. Utan den spärren ger en learned lek säkra fel namn |
+| Fel namn utanför leken (MES-235) **först** | en inlärd lek saknar alltid kort. `--utan-leken` ger i dag **6 säkra fel namn** på main (fall 01, 03 ×2, 08, 14, 15; mätt 2026-10-05), bland dem Thriving Heath → Moor. Föreslagen spärr för tvillingarna: ett läst namn som skiljer sig från listans namn i ett **helt ord** är inte samma kort. De andra felen måste spåras till sin väg |
 | `--utan-leken` med en fast lista (MES-266) | grinden för en ofullständig lek måste mäta samma sak varje gång. MES-266 säger att den inte gör det i dag. Bestäm listan en gång och skriv den i `dev/golden/` |
 | Poolen ur en namnmängd | `byggLekPool` tar en lista med namn och tryckningar i stället för ett lek-id. Cachen i IndexedDB per kort, inte per lek, så att ett byte av aktiv lek inte bygger om allt |
 | Starten | den lek spelaren spelade senast (learned eller complete). Telefonen gör redan nästan så när ingen lek valts (`kamValdLek`) |
@@ -270,6 +270,8 @@ byggordning.
 | 1a minnet i datan | MES-373 | – |
 | G4 aktiva lekens mätning | MES-374 | – |
 | 2a världens fingeravtryck | MES-375 | – |
+| Kort utanför leken får säkert fel namn (6 i `--utan-leken`, 2026-10-05) | MES-235 | – |
+| Fast lista för `--utan-leken` i repot | MES-266 | – |
 | 1b aktiva leken, steg 2 | MES-376 | MES-373, MES-374, MES-235 (tvillingarna), MES-266 (fast lista för `--utan-leken`) |
 | 2b världssteget | MES-377 | MES-376, MES-375 |
 | 3 Claude som lärare | MES-378 | MES-377 (hör ihop med MES-326) |
