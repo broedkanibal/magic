@@ -262,7 +262,8 @@ spelar ett andra parti.
 
 Parent **MES-371** (löftet: Mirror lär sig leken medan man spelar), i
 Private beta, *6 · Mirror my table*. Sub-issuerna blockerar varandra i
-byggordning.
+byggordning och står i den ordningen under parenten. Prompten för en
+orkestrerande session: `dev/plan/prompt-2026-10-13-mirror-lar-sig-leken.md`.
 
 | Steg | Issue | Blockeras av |
 |---|---|---|
@@ -270,8 +271,8 @@ byggordning.
 | 1a minnet i datan | MES-373 | – |
 | G4 aktiva lekens mätning | MES-374 | – |
 | 2a världens fingeravtryck | MES-375 | – |
-| Kort utanför leken får säkert fel namn (6 i `--utan-leken`, 2026-10-05) | MES-235 | – |
 | Fast lista för `--utan-leken` i repot | MES-266 | – |
+| Kort utanför leken får säkert fel namn (6 i `--utan-leken`, 2026-10-05) | MES-235 | MES-266 |
 | 1b aktiva leken, steg 2 | MES-376 | MES-373, MES-374, MES-235 (tvillingarna), MES-266 (fast lista för `--utan-leken`) |
 | 2b världssteget | MES-377 | MES-376, MES-375 |
 | 3 Claude som lärare | MES-378 | MES-377 (hör ihop med MES-326) |
