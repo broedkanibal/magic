@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mesa Mat test</title>
+<!-- En rapport (MES-366, kor.cjs --visa --rapport <mapp>): telefonens stillbilder
+     med spårens rutor till vänster, mattan ur rapportens bordslogg till höger, på
+     rapportens klocka (datorns). Röd markering = trycket. -->
 <!-- Uppspelarens visare (MES-333): bilden från bordet till vänster, appens
      riktiga matta till höger (index.html i en iframe, i samma storlek som
      mätningen, 1400 × 1000, nedskalad). Motorn (motor.js) spelar upp
@@ -32,6 +35,9 @@
   #markor i { position: absolute; top: 0; width: 2px; height: 8px; background: var(--acc); opacity: .8; }
   #markor i.bort { background: var(--warn); }
   #markor i.flytt { background: #8fb4ff; }
+  #markor i.frys { background: #ff6b6b; width: 3px; height: 14px; top: -3px; opacity: 1; }
+  #markor i.bild { background: #9a9cab; opacity: .35; width: 1px; }
+  #rapBild { width: 100%; height: 100%; display: block; }
   #handelser { flex: 0 0 132px; overflow: auto; background: var(--panel); border-radius: 6px; padding: 6px 8px; font-variant-numeric: tabular-nums; }
   #handelser div { color: var(--dim); white-space: nowrap; }
   #handelser div.nu { color: var(--text); }
@@ -98,18 +104,52 @@ async function tillTid(s) {
 
 /* Bilden: video (golden), kontaktark med en ruta per sekund (passet
    2026-09-22) eller kamerans rutor (partiet 2026-09-21). */
-let video = null, arkEl = null, hel = null;
+let video = null, arkEl = null, hel = null, rapC = null, rapImg = new Map(), rapNu = null;
 function byggMedia() {
-  const m = $('#media'); [...m.querySelectorAll('video,#ark,img.hel')].forEach(e => e.remove()); video = arkEl = hel = null;
+  const m = $('#media'); [...m.querySelectorAll('video,#ark,img.hel,#rapBild')].forEach(e => e.remove()); video = arkEl = hel = rapC = null;
   const md = fall.media || {};
+  if (md.slag === 'rapport') { rapC = document.createElement('canvas'); rapC.id = 'rapBild'; m.prepend(rapC); }
   if (md.slag === 'video') { video = document.createElement('video'); video.src = '/' + md.fil; video.muted = true; video.playsInline = true; video.preload = 'auto'; m.prepend(video); }
   else if (md.slag === 'stillbilder') { arkEl = document.createElement('div'); arkEl.id = 'ark'; m.prepend(arkEl); }
   else if (md.slag === 'rutor') { hel = document.createElement('img'); hel.className = 'hel'; hel.alt = 'kamerans ruta'; m.prepend(hel); }
+}
+/* Rapportens stillbild vid s: den senaste bilden tagen före s, med spårens rutor och namn ritade ovanpå
+   (rutorna är andelar av bilden, som telefonen såg dem när bilden togs). */
+function rapBild(s) {
+  const md = fall.media, l = md.bilder || [], bt = $('#bildText');
+  let lo = 0, hi = l.length - 1, b = null;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (l[mid].s <= s + 1e-6) { b = l[mid]; lo = mid + 1; } else hi = mid - 1; }
+  if (!b) { bt.textContent = 'ingen stillbild före ' + fmt(s); const x = rapC.getContext('2d'); x.clearRect(0, 0, rapC.width, rapC.height); rapNu = null; return; }
+  const efter = s - b.s;
+  bt.textContent = `stillbild ${fmt(b.s)} (${b.orsak === 'handelse' ? 'händelse' : 'varannan sekund'}, ${efter.toFixed(1).replace('.', ',')} s sedan) · ${b.spar.length} spår` + (md.frys != null ? ` · trycket ${fmt(md.frys)}` : '');
+  if (rapNu === b) return;
+  rapNu = b;
+  const rita = img => {
+    if (rapNu !== b) return;
+    const r = rapC.parentElement.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    rapC.width = Math.round(r.width * dpr); rapC.height = Math.round(r.height * dpr);
+    const x = rapC.getContext('2d'), k = Math.min(rapC.width / img.width, rapC.height / img.height), w = img.width * k, h = img.height * k, ox = (rapC.width - w) / 2, oy = (rapC.height - h) / 2;
+    x.clearRect(0, 0, rapC.width, rapC.height); x.drawImage(img, ox, oy, w, h);
+    x.lineWidth = 2 * dpr; x.font = `${11 * dpr}px -apple-system, system-ui, sans-serif`; x.textBaseline = 'bottom';
+    for (const t of b.spar) {
+      const f = t.kort ? (t.saker ? '#6fd3a0' : '#f0b35a') : '#9a9cab';
+      x.strokeStyle = f; x.strokeRect(ox + t.x * w, oy + t.y * h, t.w * w, t.h * h);
+      const txt = `#${t.id}${t.kort ? ' ' + t.kort : ''}${t.tappad ? ' ↷' : ''}`;
+      const tw = x.measureText(txt).width + 6 * dpr;
+      x.fillStyle = 'rgba(0,0,0,.7)'; x.fillRect(ox + t.x * w, oy + t.y * h - 15 * dpr, tw, 15 * dpr);
+      x.fillStyle = f; x.fillText(txt, ox + t.x * w + 3 * dpr, oy + t.y * h - 2 * dpr);
+    }
+  };
+  const har = rapImg.get(b.fil);
+  if (har && har.complete) return rita(har);
+  const img = har || new Image(); img.onload = () => rita(img);
+  if (!har) { img.src = '/__upp/rapport/bilder/' + encodeURIComponent(b.fil); rapImg.set(b.fil, img); }
 }
 function visaBild(s) {
   const md = fall.media || {};
   const bt = $('#bildText'), ins = $('#inset');
   ins.style.display = 'none';
+  if (rapC) return rapBild(s);
   if (video) { bt.textContent = 'telefonens video ' + fmt(s); return; }
   if (arkEl) {
     const sek = Math.floor(s), start = Math.floor(sek / 20) * 20, i = sek - start;
@@ -134,11 +174,14 @@ function handelser() {
   const h = $('#handelser'), F = (fall.facit || []);
   const nu = F.filter(x => Math.abs(x.t - t) < 6);
   h.innerHTML = (fall.slag === 'facit' ? '<div class="nu">Mattan matas med v2-facit (en idealiserad telefon var tionde sekund), inte med telefonens ström.</div>' : '')
-    + (nu.length ? nu.map(x => `<div class="${Math.abs(x.t - t) < 1 ? 'nu' : ''}">${fmt(x.t)} · ${x.typ} · ${x.kort || ''}${x.till ? ' → ' + x.till : ''}</div>`).join('') : '<div>inga händelser i facit inom ±6 s</div>');
+    + (nu.length ? nu.map(x => `<div class="${Math.abs(x.t - t) < 1 ? 'nu' : ''}">${fmt(x.t)} · ${x.typ} · ${x.kort || ''}${x.till ? ' → ' + x.till : ''}</div>`).join('') : `<div>inga händelser ${fall.slag === 'rapport' ? 'på mattan' : 'i facit'} inom ±6 s</div>`);
 }
 function markor() {
   const m = $('#markor'), span = fall.till - fall.fran;
-  m.innerHTML = (fall.facit || []).map(x => `<i class="${x.typ === 'tar_bort' ? 'bort' : x.typ === 'flyttar' ? 'flytt' : ''}" style="left:${((x.t - fall.fran) / span * 100).toFixed(2)}%" title="${fmt(x.t)} ${x.typ} ${x.kort || ''}"></i>`).join('');
+  const md = fall.media || {}, pos = t => ((t - fall.fran) / span * 100).toFixed(2);
+  m.innerHTML = (md.slag === 'rapport' ? (md.bilder || []).filter(b => b.s >= fall.fran).map(b => `<i class="bild" style="left:${pos(b.s)}%"></i>`).join('') : '')
+    + (fall.facit || []).map(x => `<i class="${x.typ === 'tar_bort' ? 'bort' : x.typ === 'flyttar' ? 'flytt' : ''}" style="left:${pos(x.t)}%" title="${fmt(x.t)} ${x.typ} ${x.kort || ''}"></i>`).join('')
+    + (md.slag === 'rapport' && md.frys != null ? `<i class="frys" style="left:${pos(md.frys)}%" title="trycket ${fmt(md.frys)}"></i>` : '');
 }
 async function satt(s, franVideo) {
   t = Math.max(fall.fran, Math.min(fall.till, s));
@@ -180,7 +223,8 @@ addEventListener('keydown', e => {
   fall = lista.find(f => f.id === id) || lista[0];
   $('#fallVal').innerHTML = lista.map(f => `<option value="${f.id}"${f.id === fall.id ? ' selected' : ''}>${f.id} — ${f.namn}</option>`).join('');
   $('#underrubrik').textContent = fall.namn + ' — ' + (fall.anm || '');
-  $('#not').textContent = fall.slag === 'facit' ? 'Facit, inte telefonen: mattan visar hur appen ritar korten när telefonen ser allt rätt.' : '';
+  $('#not').textContent = fall.slag === 'facit' ? 'Facit, inte telefonen: mattan visar hur appen ritar korten när telefonen ser allt rätt.'
+    : fall.slag === 'rapport' ? 'Rapport: markeringarna är mattans ändringar ur rapportens tidslinje, den röda är trycket. Grön ruta = säkert namn, gul = osäkert, grå = utan namn.' : '';
   data = await (await fetch(`/__upp/fall/${fall.id}.json`)).json();
   const sp = $('#spola'); sp.min = fall.fran; sp.max = fall.till;
   byggMedia(); markor();

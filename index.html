@@ -4148,6 +4148,9 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <button class="btn sm ghost dbg" id="pbRapport" title="Opens the problem report: what you write, the last 10 minutes on this computer and the phone, and the phone's pictures (Ctrl+Alt+R)">Report a problem</button>
           <button class="btn sm ghost dbg" id="pbBordLogg" title="Saves every table the phone sent since the camera was turned on, as a file that can be replayed with dev/dubbletter.cjs --logg">Save table log</button>
         </div>
+        <!-- De tysta rättelserna (MES-366): kontots inställning user_metadata.improve_pictures, samma fält som Settings (del C). -->
+        <label class="pbinspval dbg" id="pbBilderRad" style="display:flex;align-items:center;gap:8px;margin-top:6px" title="When you fix a card's name or remove a card the camera put down, Mesa keeps the picture of that card. Saved on your account">
+          <input type="checkbox" id="pbBilder"> <span>Share pictures of cards I correct</span> <small id="pbBilderTxt" style="opacity:.7"></small></label>
         <!-- Bildläget (MES-229, MES-244): 4K · 15 är förvalet; 1080p · 30 analyserar
              varje ruta; 1080p · 15 har samma takt som förvalet, så bara upplösningen
              skiljer. Analysbredden (MES-244) är den bild detektorn ser. Bara ?debug;
@@ -7174,6 +7177,27 @@ const Moln = (() => {
     if (error) { if (saknasFel(error)) saknas.rapporter = true; return null; }
     return typeof data === 'number' ? data : null;
   }
+  /* De tysta rättelserna (MES-366): kontots inställning user_metadata.improve_pictures, LÄST FRÅN SERVERN i det
+     ögonblick en bild ska sparas — inte sessionens kopia, som en annan enhet (C:s Settings, Developer-lådan på en
+     annan dator) kan ha ändrat sedan inloggningen. Saknas fältet, svarar servern inte eller är man utloggad: av. */
+  async function bildInstallning() {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    try {
+      const { data, error } = await s.auth.getUser();
+      if (error || !data || !data.user) return false;
+      session = Object.assign({}, session, { user: data.user });
+      return !!(data.user.user_metadata && data.user.user_metadata.improve_pictures === true);
+    } catch (e) { return false; }
+  }
+  /* Samma fält som C:s Settings skriver: improve_pictures och improve_pictures_at (varje ändring). */
+  async function sattBildInstallning(pa) {
+    const s = await klient(); if (!s || !inloggad()) throw new Error('Not signed in');
+    const { data, error } = await s.auth.updateUser({ data: { improve_pictures: !!pa, improve_pictures_at: new Date().toISOString() } });
+    if (error) throw error;
+    if (data && data.user) session = Object.assign({}, session, { user: data.user });
+    return !!pa;
+  }
+  const bildInstallningSedan = () => { const m = session && session.user && session.user.user_metadata; return (m && m.improve_pictures_at) || null; };
 
   /* ── Spelupplevelsen (supabase/migrations/20261009120000_spelupplevelse.sql) ──
      Korthändelserna och betyget efter partiet. Saknas tabellerna (migrationen
@@ -7212,7 +7236,7 @@ const Moln = (() => {
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt, token,
            VILLKOR_VERSION, villkorGodkand, godkannVillkor,
            skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
-           avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, rapportRad, rapportFil, rapportUppdatera, rapporterIdag, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
+           avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, rapportRad, rapportFil, rapportUppdatera, rapporterIdag, bildInstallning, sattBildInstallning, bildInstallningSedan, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, sparaLekSlv, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
@@ -12648,6 +12672,7 @@ function arkSvar(val, n) {
   if (val === 'token') {
     if (q.spar != null) borttagna.add(q.spar);
     khLogga('borttagen', q.id);   // spelupplevelsen
+    if (typeof Rattelse !== 'undefined' && q.spar != null) Rattelse.fran('borttaget', q, null);   // den tysta rättelsen (MES-366): bara med kontots inställning på
     p.pending.splice(p.pending.indexOf(q), 1);
     closeArk(); save(); renderAll(true); return;
   }
@@ -14156,6 +14181,7 @@ function removeAt(i, msg) {
      tre sekunder senare, som ett nytt kort. */
   if (gone.spar != null) borttagna.add(gone.spar);
   if (!msg && gone.spar != null) khLogga('borttagen', gone.cid, { namn: gone.name || null });   // spelupplevelsen: kameran lade dit något som inte var där
+  if (!msg && gone.spar != null && typeof Rattelse !== 'undefined') Rattelse.fran('borttaget', gone, null);   // den tysta rättelsen (MES-366)
   const sel = state.sel;
   state.sel = clamp(state.sel, 0, Math.max(0, h.length - 1));
   save(); renderAll();
@@ -14807,6 +14833,7 @@ function ofrInteKort(pend) {
   if (!q) return;
   if (q.spar != null) borttagna.add(q.spar);
   khLogga('borttagen', q.id);   // spelupplevelsen
+  if (typeof Rattelse !== 'undefined' && q.spar != null) Rattelse.fran('borttaget', q, null);   // den tysta rättelsen (MES-366)
   p.pending.splice(p.pending.indexOf(q), 1);
   const post = ofrLista().find(o => o.pend === pend);
   if (post) ofrMinne.delete(post.id);
@@ -24881,6 +24908,7 @@ function sammaKortVid(p, name, spar) {
 function namngePend(p, q, name, sid, list) {
   p.pending.splice(p.pending.indexOf(q), 1);
   if (!q.overTak) khLogga('namngiven', q.id, { namn: name });   // spelupplevelsen
+  if (!q.overTak && q.spar != null && typeof Rattelse !== 'undefined') Rattelse.fran('name_this_card', q, name);   // den tysta rättelsen (MES-366)
   const bundet = q.spar != null && p.cards.find(c => c.spar === q.spar);
   const sammaKort = (!bundet && sammaKortVid(p, name, q.spar)) || null;
   /* Kortet i väntan först (MES-291), sedan ett nedtonat, sedan ett obundet — se kortSomKomTillbaka. */
@@ -24901,6 +24929,7 @@ function applyPick(name, sid, cands) {
   if (t && t.kind === 'card' && cardById(t.id)) {
     const c = cardById(t.id);
     if (c.spar != null && c.name && c.name !== name) khLogga('bytt', c.cid, { namn: name, fran: c.name });   // spelupplevelsen: kamerans namn var fel
+    if (c.spar != null && c.name && c.name !== name && typeof Rattelse !== 'undefined') Rattelse.fran('namnbyte', c, name);   // den tysta rättelsen (MES-366), före namnet byts
     Object.assign(c, { name, sid: sid || undefined, cands: list });
   } else if (t && t.kind === 'pend' && pendById(t.id)) {
     sammaKort = namngePend(p, pendById(t.id), name, sid, list);
@@ -29776,6 +29805,8 @@ const Kamera = (() => {
        identifieringen syns vid nästa steg, inom 150 ms. */
     const efter = () => {
       rita(vb, vh);
+      /* Stillbilderna (MES-366): rutan detektorn just såg, ur analysbilden — ingen ny ritning ur videon. */
+      if (typeof Stillbilder !== 'undefined') Stillbilder.steg(anaC, nu, spar, AW, AH);
       /* Hela stegets tid — krympningen, steg() och ritningen — till provet. */
       if (matare) { try { matare(performance.now() - nu, ljus, dia.ms); } catch (e) { /* provet får aldrig stoppa analysen */ } }
     };
@@ -31083,6 +31114,7 @@ const Kamera = (() => {
     } catch (e) { fel = true; }
     finally { lasande--; t.laser = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(nuRiktig() - t0)); }
     lasLogg(t, lasStart, svar, 'las');
+    if (c && svar && typeof Stillbilder !== 'undefined') Stillbilder.beskarning(t, c, svar);   // beskärningen som gav namnet, per namnsättning (MES-366)
     /* null betyder "inte redo än" — leken byggs fortfarande. Spåret väntar
        en och en halv sekund och frågar igen; inte varje ruta, för varje
        fråga är en beskärning ur videon. Ett kastat fel är ett "vet inte":
@@ -31191,6 +31223,7 @@ const Kamera = (() => {
       if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true, tackt, detPoang: t.detPoang || 0, remsa: !!(t.remsaLada && !t.remsaSynt) });
       svar = await medRemsa(t, svar, tackt);
       lasLogg(t, lasStart, svar, 'spek');
+      if (b && b.bild && svar && svar.saker && svar.namn && typeof Stillbilder !== 'undefined') Stillbilder.beskarning(t, b.bild, svar);   // den tidiga läsningens namn kan bli kortets (MES-366)
       if (t.spek !== vantar) return;
       t.spek = svar && !svar.skrap && !svar.baksida && svar.saker && svar.namn
         ? { svar, geo, upptagna: upptagna(svar.namn, t), nar: nu || 0 }
@@ -38810,10 +38843,14 @@ const Rapport = (() => {
     /* Taket 15 MB: de äldsta stillbilderna släpps först (README §9). */
     const bilder = (f.bilder || []).slice().sort((a, b) => (b.t || 0) - (a.t || 0)), med = [];
     for (const b of bilder) { if (!b || !b.blob) continue; if (b.blob.size > budget) continue; budget -= b.blob.size; med.push(b); }
+    /* Raden på telefonen, README §9: Sending pictures, 12 of 40 tills klart (B, MES-366). */
+    const rad = typeof Stillbilder !== 'undefined' ? Stillbilder.sandRad(med) : null;
     for (const b of med) {
       try { await Moln.rapportFil(mapp + '/bilder', b.namn || ((b.t || Date.now()) + '.jpg'), b.blob, b.blob.type || 'image/jpeg'); antal++; }
       catch (e) { fel++; }
+      if (rad) rad.klar(b);
     }
+    if (rad) rad.slut(fel);
     Moln.sandKam('rapport_bilder_klar', { kod: m.kod, antal, fel, slappta: bilder.length - med.length, sen: f.sen ? 1 : undefined });
   }
 
@@ -38887,6 +38924,7 @@ const Rapport = (() => {
     if (!m || typeof m.typ !== 'string' || m.typ.indexOf('rapport') !== 0) return false;
     if (m.typ === 'rapport_lada') { tagEmotLada(m); return true; }
     if (m.typ === 'rapport_bilder_klar') { const r = bilderVantar.get(m.kod); if (r) { bilderVantar.delete(m.kod); r(m); } return true; }
+    if (m.typ === 'rapport_rattelse_klar') { if (typeof Rattelse !== 'undefined') Rattelse.svar(m); return true; }   // B (MES-366): telefonens beskärning till en tyst rättelse
     if (m.typ === 'rapport') { telefonensRapport(m); return true; }
     return true;
   }
@@ -38903,6 +38941,7 @@ const Rapport = (() => {
     if (!m || typeof m.typ !== 'string' || m.typ.indexOf('rapport') !== 0) return false;
     if (m.typ === 'rapport_lada') { telefonFrys(m); return true; }
     if (m.typ === 'rapport_bilder') { telefonLaddaUpp(m); return true; }
+    if (m.typ === 'rapport_rattelse_bild') { if (typeof Stillbilder !== 'undefined') Stillbilder.rattelseBild(m); return true; }   // B (MES-366)
     if (m.typ === 'rapport_svar') { const r = telefonLyss.get(m.id); if (r) { telefonLyss.delete(m.id); r(m); } return true; }
     return true;
   }
@@ -39086,6 +39125,291 @@ const Rapport = (() => {
 })();
 /* Rapportrutans öppnare för C (toppraden) och Developer-lådan. */
 function oppnaRapportRuta(opt) { return Rapport.oppna(opt); }
+</script>
+<script>
+"use strict";
+/* ══ BLOCK: STILLBILDERNA OCH DE TYSTA RÄTTELSERNA (MES-366, del B av MES-271) ══
+   Specen: dev/diagnos/natt-2026-10-13/issuer.md (MES-366) och
+   design_handoff_rapport/README.md §9 och Grundregler. Hämtas hem med
+   node dev/rapport/hamta.cjs R-NNNN; spelas upp med
+   node dev/mattest/kor.cjs --visa --rapport dev/diagnos/rapporter/R-NNNN.
+
+   Stillbilder (telefonen): en ringbuffert i minnet med kamerans ruta i
+   analysbildens storlek (anaC, högst 360 px bred i förval), JPEG, en var
+   annan sekund och en vid varje händelse på bordet (nytt kort, namn satt,
+   kort borta, tap, flytt). Tak 300 bilder och 7,5 MB; det äldsta släpps
+   först. Bilden tas ur den ruta detektorn redan fått ritad — ingen ny
+   drawImage ur videon — och kodningen (toBlob) går asynkront utanför
+   steget, högst två i taget (fler hoppas över, steget väntar aldrig).
+   Varje bild bär spårens rutor (andelar av bilden) och namn, så att
+   uppspelaren kan rita dem ovanpå. Beskärningen som gav ett namn (läsningens,
+   den som går till Claude när det händer) sparas per spår och namnsättning:
+   högst 40 och 2,5 MB. Bilderna lämnar aldrig telefonen före ett tryck
+   (Rapport.stillbilder, A:s uppladdning, steg 3) eller en tyst rättelse.
+
+   Tysta rättelser (datorn): namnbyte, Name this card och borttaget kort på
+   ett kamerakort blir en rad i rapporter (kalla 'rattelse', anvandning
+   null) med två filer under radens sokvag: beskarning.jpg och
+   rattelse.json { gissning, varfor, ratt, spelkod, t, spar, handelse,
+   saker, bild } — kontraktet med del D (till-fall.cjs --bank). BARA när
+   kontots user_metadata.improve_pictures === true, läst från servern i det
+   ögonblicket (Moln.bildInstallning); av eller saknas = ingenting, inte
+   heller lokalt. Beskärningen laddar telefonen upp själv
+   (rapport_rattelse_bild → rapport_rattelse_klar); svarar den inte inom
+   10 s tar datorn sin egen kopia (granskningens beskärning eller kamerans
+   foto av kortet), annars bilder = 'saknas'.
+
+   Claude är aldrig ett villkor: inget här frågar Claude eller skickar en
+   bild dit. Avstängning för mätningen (golden --utan-stillbilder):
+   window.STILLBILDER_AV = true. */
+const Stillbilder = (() => {
+  const VAR_MS = 2000, HAND_MIN_MS = 300, MAX_ANTAL = 300, MAX_BYTES = 7.5 * 1024 * 1024;
+  const BESK_ANTAL = 40, BESK_BYTES = 2.5 * 1024 * 1024, MAX_BREDD = 480, KVAL = 0.7, BESK_KVAL = 0.85, MAX_KO = 2;
+  const ring = [];            // { t, orsak, w, h, spar, blob }
+  const besk = new Map();     // spår-id → { t, spar, kort, saker, varfor, w, h, blob }
+  let bytes = 0, beskBytes = 0, senast = -Infinity, senastHand = -Infinity, sig = null, ko = 0;
+  const stat = { tagna: 0, slappta: 0, hoppade: 0, beskTagna: 0, beskSlappta: 0, kodMs: 0, kodN: 0, stegMs: 0, stegN: 0 };
+  const av = () => { try { return window.STILLBILDER_AV === true; } catch (e) { return false; } };
+  let liten = null;
+
+  /* Händelserna på bordet, ur spåren: ett kort (namn, eller har vilat en gång) kom eller gick, fick ett namn, tappades eller
+     flyttade sitt viloläge mer än 3 % av bildens bredd. Händer, skräp och korta glimtar ger ingen bild. */
+  function sigAv(spar, aw) {
+    const steg = Math.max(1, aw * 0.03);
+    return spar.filter(t => t && t.tillstand !== 'skrap' && (t.namn || t.vilaX != null))
+      .map(t => `${t.id}:${t.namn || ''}:${t.tappad ? 1 : 0}:${t.vilaX != null ? Math.round(t.vilaX / steg) + ',' + Math.round(t.vilaY / steg) : ''}`).join('|');
+  }
+  function sparAv(spar, aw, ah) {
+    const ut = [];
+    for (const t of spar) {
+      if (!t || t.tillstand === 'skrap') continue;
+      const b = t.ram || t.box; if (!b) continue;
+      ut.push({ id: t.id, kort: t.namn || null, saker: !!t.saker, tappad: !!t.tappad, tillstand: t.tillstand || null, varfor: t.varfor || null,
+                x: +(b.x / aw).toFixed(4), y: +(b.y / ah).toFixed(4), w: +(b.w / aw).toFixed(4), h: +(b.h / ah).toFixed(4) });
+      if (ut.length >= 60) break;
+    }
+    return ut;
+  }
+  function slappRing() {
+    while (ring.length > MAX_ANTAL || (bytes > MAX_BYTES && ring.length > 1)) { const b = ring.shift(); bytes -= b.blob.size; stat.slappta++; }
+  }
+  function slappBesk() {
+    while (besk.size > BESK_ANTAL || (beskBytes > BESK_BYTES && besk.size > 1)) {
+      let aldst = null; for (const [k, v] of besk) if (!aldst || v.t < aldst[1].t) aldst = [k, v];
+      besk.delete(aldst[0]); beskBytes -= aldst[1].blob.size; stat.beskSlappta++;
+    }
+  }
+  /* Kodar en canvas till JPEG utanför steget. toBlob tar en kopia av bilden direkt och kodar asynkront. */
+  function koda(canvas, kval, klar) {
+    if (ko >= MAX_KO) { stat.hoppade++; return false; }
+    ko++;
+    const t0 = performance.now();
+    try {
+      canvas.toBlob(b => {
+        ko--;
+        stat.kodMs += performance.now() - t0; stat.kodN++;
+        if (b && b.size) { try { klar(b); } catch (e) {} }
+      }, 'image/jpeg', kval);
+    } catch (e) { ko--; return false; }
+    return true;
+  }
+
+  /* Ett analyssteg är klart (Kamera, efter()). canvas = analysbilden, spår och mått som steget såg dem. */
+  function steg(canvas, nu, spar, aw, ah) {
+    if (av() || !canvas || !canvas.width || !aw || !ah) return;
+    const t0 = performance.now();
+    try {
+      const s = sigAv(spar || [], aw);
+      const andrat = sig !== null && s !== sig;
+      sig = s;
+      const orsak = nu - senast >= VAR_MS ? 'tid' : andrat && nu - senastHand >= HAND_MIN_MS ? 'handelse' : null;
+      if (!orsak) return;
+      let kalla = canvas;
+      /* En analysbredd över 480 (bara ?debug, och golden-fallens foton) skalas ned ur analysbilden — aldrig ur videon. */
+      if (canvas.width > MAX_BREDD) {
+        if (!liten) liten = document.createElement('canvas');
+        const w = MAX_BREDD, h = Math.max(1, Math.round(canvas.height * MAX_BREDD / canvas.width));
+        if (liten.width !== w || liten.height !== h) { liten.width = w; liten.height = h; }
+        liten.getContext('2d').drawImage(canvas, 0, 0, w, h);
+        kalla = liten;
+      }
+      const post = { t: Date.now(), orsak, w: kalla.width, h: kalla.height, spar: sparAv(spar || [], aw, ah), blob: null };
+      if (!koda(kalla, KVAL, b => { post.blob = b; ring.push(post); bytes += b.size; stat.tagna++; slappRing(); })) return;
+      if (orsak === 'tid') senast = nu; else senastHand = nu;
+      if (orsak === 'handelse' && nu - senast >= VAR_MS / 2) senast = nu;   // en händelsebild nyss räcker som tidsbild
+    } catch (e) { /* lådan får aldrig stoppa analysen */ }
+    finally { stat.stegMs += performance.now() - t0; stat.stegN++; }
+  }
+
+  /* Läsningens beskärning, per spår och namnsättning (identifiera, spekulera). Den senaste ersätter den förra för samma spår. */
+  function beskarning(t, canvas, svar) {
+    if (av() || !t || t.id == null || !canvas || !canvas.width) return;
+    try {
+      const post = { t: Date.now(), spar: t.id, kort: (svar && svar.namn) || null, saker: !!(svar && svar.saker), varfor: (svar && svar.varfor) || null,
+                     w: canvas.width, h: canvas.height, blob: null };
+      koda(canvas, BESK_KVAL, b => {
+        post.blob = b;
+        const f = besk.get(t.id); if (f) beskBytes -= f.blob.size;
+        besk.set(t.id, post); beskBytes += b.size; stat.beskTagna++; slappBesk();
+      });
+    } catch (e) {}
+  }
+
+  /* A:s krok (Rapport.stillbilder): telefonens bilder vid trycket, plus index.json som säger vad varje bild är.
+     A laddar upp dem till <kod>/bilder/ på rapport_bilder, nyast först inom 15 MB. */
+  function stillbilder() {
+    const ut = [], bilder = [], beskarningar = [];
+    ring.forEach((b, i) => { const namn = `s-${b.t}-${i}.jpg`; ut.push({ namn, t: b.t, blob: b.blob }); bilder.push({ fil: namn, t: b.t, orsak: b.orsak, w: b.w, h: b.h, spar: b.spar }); });
+    for (const b of besk.values()) { const namn = `beskarning-spar${b.spar}-${b.t}.jpg`; ut.push({ namn, t: b.t, blob: b.blob }); beskarningar.push({ fil: namn, t: b.t, spar: b.spar, kort: b.kort, saker: b.saker, varfor: b.varfor, w: b.w, h: b.h }); }
+    const index = { v: 1, sida: 'telefon', klocka: 'telefonens Date.now() (rapport.json telefon.offset räknar om till datorns)', frys: Date.now(),
+                    bilder, beskarningar, stat: statNu() };
+    ut.push({ namn: 'index.json', t: Date.now() + 1, blob: new Blob([JSON.stringify(index)], { type: 'application/json' }) });
+    return ut;
+  }
+
+  /* Raden på telefonen medan bilderna går upp (README §9): Sending pictures, 12 of 40. Bara bilderna räknas. */
+  let radEl = null;
+  function sandRad(lista) {
+    const bild = b => b && b.blob && /^image\//.test(b.blob.type || 'image/jpeg');
+    const tot = (lista || []).filter(bild).length;
+    let n = 0;
+    const visa = () => {
+      try {
+        if (!radEl) {
+          radEl = document.createElement('div'); radEl.id = 'telBilderRad'; radEl.setAttribute('role', 'status');
+          radEl.style.cssText = 'position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9999;'
+            + 'background:rgba(16,18,24,.88);color:#e9e9ee;font:13px/1.3 system-ui,sans-serif;padding:6px 12px;border-radius:999px;pointer-events:none';
+          document.body.appendChild(radEl);
+        }
+        radEl.textContent = `Sending pictures, ${n} of ${tot}`; radEl.hidden = false;
+      } catch (e) {}
+    };
+    if (tot) visa();
+    return {
+      klar(b) { if (bild(b)) { n++; if (tot) visa(); } },
+      slut() { if (radEl) radEl.hidden = true; }
+    };
+  }
+
+  /* En tyst rättelse på datorn ber om spårets beskärning (Rattelse): ladda upp den som beskarning.jpg i radens mapp. */
+  async function rattelseBild(m) {
+    const mapp = String((m && m.sokvag) || ''), f = m && m.spar != null ? besk.get(m.spar) : null;
+    let ok = 0;
+    try {
+      if (f && f.blob && Moln.minId() && mapp.startsWith(Moln.minId() + '/rapporter/')) {
+        await Moln.rapportFil(mapp, 'beskarning.jpg', f.blob, 'image/jpeg'); ok = 1;
+      }
+    } catch (e) { Lada.skriv('fel', { kalla: 'rattelse', med: 'beskärningen: ' + Lada.kap(e && e.message, 200) }); }
+    Moln.sandKam('rapport_rattelse_klar', { kod: m && m.kod, ok, kort: f ? f.kort : null, varfor: f ? f.varfor : null, tBesk: f ? f.t : null });
+  }
+
+  function statNu() {
+    return { antal: ring.length, bytes, beskAntal: besk.size, beskBytes, tak: { antal: MAX_ANTAL, bytes: MAX_BYTES, beskAntal: BESK_ANTAL, beskBytes: BESK_BYTES },
+             tagna: stat.tagna, slappta: stat.slappta, hoppade: stat.hoppade, beskTagna: stat.beskTagna, beskSlappta: stat.beskSlappta,
+             kodMs: stat.kodN ? +(stat.kodMs / stat.kodN).toFixed(2) : null, stegMs: stat.stegN ? +(stat.stegMs / stat.stegN).toFixed(3) : null, stegN: stat.stegN,
+             aldst: ring.length ? ring[0].t : null, nyast: ring.length ? ring[ring.length - 1].t : null, av: av() };
+  }
+  function glom() { ring.length = 0; besk.clear(); bytes = 0; beskBytes = 0; senast = -Infinity; senastHand = -Infinity; sig = null; for (const k in stat) stat[k] = 0; }
+
+  return { steg, beskarning, stillbilder, sandRad, rattelseBild, stat: statNu, glom, get ring() { return ring; }, get besk() { return besk; }, get ko() { return ko; } };
+})();
+if (typeof Rapport !== 'undefined') Rapport.stillbilder = Stillbilder.stillbilder;
+
+/* ── De tysta rättelserna, datorns sida ─────────────────────────────── */
+const Rattelse = (() => {
+  const SVAR_MS = 10000;
+  const vantar = new Map();   // kod → resolve
+  const gjorda = new Set();   // samma rättelse av samma kort en gång (avstämningen kan anropa igen)
+  const stat = { forsok: 0, sparade: 0, av: 0, fel: 0 };
+  const sparet = id => { try { return (senasteSpar || []).find(u => u.id === id) || null; } catch (e) { return null; } };
+  /* Telefonens gissning och domskäl, tagna innan rättelsen ändrar kortet. */
+  function gissningFor(handelse, obj) {
+    const t = sparet(obj.spar);
+    const forsta = l => (l && l[0] && (l[0].name || l[0].namn)) || null;
+    if (handelse === 'namnbyte') return { gissning: obj.name || (t && t.namn) || null, varfor: (t && t.varfor) || null, saker: t ? !!t.saker : null };
+    const g = (t && (t.namn || t.gissning)) || obj.name || forsta(obj.cands) || (t && forsta(t.cands)) || (t && t.remsa && t.remsa.namn) || null;
+    return { gissning: g, varfor: (t && t.varfor) || obj.varfor || null, saker: t ? !!t.saker : null };
+  }
+  function egenBild(spar) {
+    try {
+      for (const w of [260, 220]) { const b = cropCache.get('spar-' + spar + '@' + w); if (typeof b === 'string' && b.startsWith('data:image/')) return b; }
+      const f = ofrFoto.get(spar); if (typeof f === 'string' && f.startsWith('data:image/')) return f;
+    } catch (e) {}
+    return null;
+  }
+  const tillBlob = async b64 => (await fetch(b64)).blob();
+  function fragaTelefon(r, spar) {
+    return new Promise(res => {
+      let ansl = false; try { ansl = !!kamAnsluten; } catch (e) {}
+      if (!ansl || !Moln.sandKam('rapport_rattelse_bild', { kod: r.kod, sokvag: r.sokvag, spar })) { res(null); return; }
+      vantar.set(r.kod, res);
+      setTimeout(() => { if (vantar.delete(r.kod)) res(null); }, SVAR_MS);
+    });
+  }
+  function svar(m) { const r = m && vantar.get(m.kod); if (r) { vantar.delete(m.kod); r(m); } }
+
+  /* handelse: 'namnbyte' | 'name_this_card' | 'borttaget'; obj: kortet eller granskningsposten (spar); ratt: spelarens namn, null = inget kort. */
+  function fran(handelse, obj, ratt) {
+    try {
+      if (!obj || obj.spar == null || !spelLage || !Moln.inloggad()) return null;
+      if (typeof mittLage === 'function' && mittLage() !== 'bord') return null;
+      const nyckel = `${handelse}|${obj.cid || obj.id}|${ratt || ''}`;
+      if (gjorda.has(nyckel)) return null;
+      gjorda.add(nyckel);
+      const g = gissningFor(handelse, obj);
+      const fakta = { gissning: g.gissning, varfor: g.varfor, ratt: ratt || null, spelkod: spelLage.kod || null, t: Date.now(), spar: obj.spar, handelse, saker: g.saker };
+      const gameId = spelLage.id || null;
+      stat.forsok++;
+      return spara(fakta, gameId).catch(e => { stat.fel++; Lada.skriv('fel', { kalla: 'rattelse', med: Lada.kap(e && e.message, 200) }); return null; });
+    } catch (e) { return null; }
+  }
+  async function spara(fakta, gameId) {
+    /* Inställningen läses NU, från servern. Av eller okänd: ingenting sparas, inte heller lokalt. */
+    if (!(await Moln.bildInstallning())) { stat.av++; return null; }
+    const r = await Moln.rapportRad({ game_id: gameId, kalla: 'rattelse', text: null, tagg: null, vy: { handelse: fakta.handelse, gissning: fakta.gissning, ratt: fakta.ratt, spar: fakta.spar }, bilder: null });
+    const s = await fragaTelefon(r, fakta.spar);
+    let bild = s && s.ok ? 'telefon' : null;
+    if (!bild) {
+      const b64 = egenBild(fakta.spar);
+      if (b64) { await Moln.rapportFil(r.sokvag, 'beskarning.jpg', await tillBlob(b64), 'image/jpeg'); bild = 'dator'; }
+    }
+    const json = Object.assign({}, fakta, { bild });
+    await Moln.rapportFil(r.sokvag, 'rattelse.json', new Blob([JSON.stringify(json)], { type: 'application/json' }), 'application/json');
+    Moln.rapportUppdatera(r.kod, { bilder: bild ? 'klar' : 'saknas' });
+    stat.sparade++;
+    Lada.skriv('handling', { typ: 'rättelse sparad', kod: r.kod, handelse: fakta.handelse, bild });
+    return { kod: r.kod, sokvag: r.sokvag, json };
+  }
+  return { fran, svar, stat: () => Object.assign({}, stat), glom: () => { gjorda.clear(); for (const k in stat) stat[k] = 0; } };
+})();
+
+/* Växeln i Developer-lådan (?debug): läser och skriver kontots improve_pictures (samma fält som C:s Settings). */
+(() => {
+  const box = document.getElementById('pbBilder'), txt = document.getElementById('pbBilderTxt'), rad = document.getElementById('pbBilderRad');
+  if (!box) return;
+  let laser = null;
+  const datum = iso => { try { return iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''; } catch (e) { return ''; } };
+  function rita(pa) {
+    box.checked = !!pa;
+    if (txt) txt.textContent = !Moln.inloggad() ? 'Sign in to change it.' : pa ? `On since ${datum(Moln.bildInstallningSedan())}.` : 'Off. Nothing is kept when you correct a card.';
+  }
+  function las() {
+    if (laser) return laser;
+    box.disabled = true;
+    laser = Moln.bildInstallning().then(pa => { rita(pa); }, () => rita(false)).finally(() => { box.disabled = !Moln.inloggad(); laser = null; });
+    return laser;
+  }
+  box.addEventListener('change', async () => {
+    const v = box.checked; box.disabled = true;
+    try { await Moln.sattBildInstallning(v); Lada.skriv('handling', { typ: 'inställning', falt: 'improve_pictures', varde: v }); }
+    catch (e) { toast("Couldn't save the setting. Try again.", 'err'); }
+    finally { await las(); }
+  });
+  if (rad) rad.addEventListener('pointerenter', () => las());
+  const dev = document.getElementById('kamDev');
+  if (dev) dev.addEventListener('toggle', () => { if (dev.open) las(); });
+  window.lasBildVaxel = las;   // provet och C kan läsa om den
+})();
 </script>
 </body>
 </html>
