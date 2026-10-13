@@ -843,6 +843,9 @@ body.tomhand .kolmark,body.utanins .kolmark{display:none}
 .card > .handmark{position:absolute;right:0;bottom:0;z-index:5;width:22px;height:22px;border-radius:11px;box-sizing:border-box;
   display:flex;align-items:center;justify-content:center;background:var(--bg3);border:1.5px solid var(--acc);
   box-shadow:0 4px 10px -2px #000c;pointer-events:none;transform:translate(50%,50%) scale(calc(1 / var(--matz,1)))}
+/* På ett tappat kort (vridet 90° medurs) ligger kortets övre högra hörn nere till höger på skärmen: brickan sitter
+   där och vrids tillbaka, så att den står på samma ställe och upprätt som på ett otappat kort. */
+.card.tappad > .handmark{top:0;bottom:auto;transform:translate(50%,-50%) rotate(-90deg) scale(calc(1 / var(--matz,1)))}
 /* Där kameran har kortet, under draget: en streckad ram i kortets storlek på brädet, med linjen och kameraikonen
    i samma storlek på skärmen vid all zoom. */
 .kamplats{position:absolute;z-index:900;box-sizing:border-box;pointer-events:none;border-radius:10px;
@@ -7686,7 +7689,10 @@ function slimDelat(cards) {
     /* Flyttat för hand (MES-352): i ett spel byggs mitt bord om ur den här raden vid en omladdning (oppnaSpel), och
        kamerans k.kam följer inte med — bara var kameran hade kortet vid släppet (bildandelar), så att handKvar kan
        se om det riktiga kortet flyttats medan sidan laddades. De andra läser inte fältet. */
-    hand: c.hand ? handDelat(c.hand) : undefined
+    hand: c.hand ? handDelat(c.hand) : undefined,
+    /* Kamerans senaste tap-dom (MODE-4), av samma skäl: utan den tog kameran sin första dom efter omladdningen, och
+       ett tap för hand försvann fast det riktiga kortet inte vridits. De andra läser inte fältet. */
+    kamTap: c.kamTap === 0 || c.kamTap === 1 ? c.kamTap : undefined
   }));
 }
 function slimKort(cards) {
@@ -8729,15 +8735,29 @@ function kortHtml(e, i, extra, pos, bif, las) {
   return `<div class="${kl}" data-i="${i}" data-cid="${esc(e.cid)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}" style="left:${Math.round(x || 0)}px;top:${Math.round(y || 0)}px;width:${sz.w}px;height:${sz.h}px;z-index:${Math.max(1, Math.round(z || 1))}"><i class="lyftskugga" aria-hidden="true"></i>${ofr ? ofrLager(ofr.foto, false, ofr.skarp) : ''}${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}${baksida ? '<span class="lekslv"></span>' : ''}
     <span class="bar"></span>
     <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(felText(keyOf(e))) + '</span>' : ''}</span>
-    ${kwHtml}${ptTile(pv)}${handMarkSyns(e, las) ? `<span class="handmark" title="Moved by hand">${handIkon(12, 2.6)}</span>` : ''}
+    ${kwHtml}${ptTile(pv)}${matMarkHtml(e, las)}
   </div>`;
 }
 /* Brickan "flyttat för hand" (MES-352): bara på mitt eget bord, och bara medan kameran speglar det — i de andra
    lägena, och med kameran borta, lägger ingen kamera om kortet. */
 function handMarkSyns(e, las) { return !las && !!e.hand && kamSpeglar(minSpelare()); }
+/* Tappat för hand (Jespers beslut 2026-10-13: samma bricka och toast som flytten i MES-352). Kameran skriver tapped
+   bara när dess egen dom ändras (kamTap, MODE-4), så ett tap på mattan står kvar tills det riktiga kortet vrids.
+   Brickan syns medan mattan visar ett annat läge än kamerans senaste dom, och går när de är överens igen — vem som
+   än gav sig. Bara för ett kort kameran följer (kamFoljer): utan spår finns ingen dom att vara oense med. */
+function tapMarkSyns(e, las) { return !las && kamFoljer(e) && e.kamTap != null && (e.tapped ? 1 : 0) !== e.kamTap; }
+/* Ett kort bär en bricka: flyttat (fyra pilar) går före tappat (den vridna pilen). */
+function matMarkHtml(e, las) {
+  if (handMarkSyns(e, las)) return `<span class="handmark" title="Moved by hand">${handIkon(12, 2.6)}</span>`;
+  if (tapMarkSyns(e, las)) return `<span class="handmark" title="${e.tapped ? 'Tapped' : 'Untapped'} by hand">${tapIkon(12, 2.6)}</span>`;
+  return '';
+}
 /* Designytans ikoner: fyra pilar (flyttat för hand) och kameran. */
 function handIkon(px, sw) {
   return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="#f0a52a" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>`;
+}
+function tapIkon(px, sw) {
+  return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="#f0a52a" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 3.5v5h-5"/></svg>`;
 }
 function kamIkon(px, farg) {
   return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="${farg}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>`;
@@ -9831,7 +9851,7 @@ function renderGrid(force) {
   const strukt = cards.map(c =>
     c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
     + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (ofrFran(c) ? 'O' : '') + (c.ny && nuT - c.ny < 2500 ? 'N' : '')
-    + '·' + (paMattan(c) ? matSlag(c) : zonAv(c)) + '·' + (c.cts || []).map(ctLabel).join(',') + (handMarkSyns(c) ? '·H' : '')).join('|')
+    + '·' + (paMattan(c) ? matSlag(c) : zonAv(c)) + '·' + (c.cts || []).map(ctLabel).join(',') + (handMarkSyns(c) ? '·H' : tapMarkSyns(c) ? '·P' : '')).join('|')
     + '/' + ofr.map(q => q.id + (q.foto ? 'F' : '') + (q.pend || '') + (q.overTak ? 'Q' + (q.namn || '') + q.tak : '') + (ofrTappad(q) ? 'T' : '')).join(',') + '/' + p.id + (redigerbar() ? '' : 'L')
     + '/' + matLage.nyN + '/' + (ark ? (ark.cid || ark.pend) : '')
     + '/' + lekSig(p) + '/' + lekFargSig(slvAv(p))   // leken bland korten och bordets sleeves (MES-334 steg 3)
@@ -12559,6 +12579,7 @@ function renderPill() {
     : esc(c.tapped ? 'Swing it back up' : 'Swing it sideways');
   const html = `<span class="hint">${hint}</span>`
     + `<button type="button" class="prim" data-pakt="tap">${c.tapped ? 'Untap' : 'Tap'}<kbd>T</kbd></button>`
+    + (handMarkSyns(c) || tapMarkSyns(c) ? `<button type="button" data-pakt="folj" title="Put the card the way the camera sees it">Follow camera</button>` : '')
     + `<button type="button" class="meny" data-pakt="ctr" title="Counters on this card (C)">+</button>`
     + `<button type="button" class="meny" data-pakt="meny" title="Everything else you can do">⋯</button>`;
   if (!el) { el = document.createElement('div'); el.className = 'pill'; gridEl.appendChild(el); }
@@ -14723,11 +14744,34 @@ function tokensVidEtb() {
 function tappa(i) {
   const e = hand()[i];
   if (!e || !paMattan(e)) return;
-  angraPunkt();
+  const p = player(), fore = JSON.stringify(p.cards);
+  angraPunkt(p, fore);
   e.tapped = e.tapped ? 0 : 1;
   /* Kortet behåller sitt element, och omritningen vrider det (matSynk,
      MES-334 steg 2). Förut byttes elementet ut, och vridIn fick starta det
      nya i det förra läget. */
+  save(); renderGrid(true); renderInspektor();
+  tapToast(fore, [e]);
+}
+/* Efter ett tap på mattan: toasten "Tapped by hand" (som "Moved by hand", MES-352) när kortet nu visar ett annat läge
+   än kameran ser. Blev mattan och kameran överens igen stängs en öppen tap-toast. En öppen "Moved by hand" för samma
+   kort står kvar: dess Undo tar redan tillbaka tapet från före draget. */
+function tapToast(fore, kort) {
+  const nya = kort.filter(e => tapMarkSyns(e)).map(e => e.cid), s = handToastStang;
+  if (!nya.length) { if (handToastOppen() && s.tap) handToastStang(); return; }
+  if (handToastOppen() && !s.tap && nya.every(cid => (s.cids || []).includes(cid))) return;
+  visaHandToast(fore, nya, null, true);
+}
+/* Follow camera (Jespers beslut 2026-10-13): kortet släpper det spelaren satt — platsen (c.hand, MES-352) och
+   tap-läget — och tar kamerans läge direkt, utan att det riktiga kortet rörs. Som när kameran tar över (handKvar,
+   MODE-4): speglaKamPos lägger kortet där kameran har det, och tapped blir kamerans senaste dom. */
+function foljKameran(i) {
+  const c = hand()[i];
+  if (!c || !paMattan(c) || !(handMarkSyns(c) || tapMarkSyns(c))) return;
+  angraPunkt();
+  if (c.hand) { delete c.hand; delete c.kamRitad; }
+  if (c.kamTap != null) c.tapped = c.kamTap;
+  if (handToastOppen()) handToastStang();
   save(); renderGrid(true); renderInspektor();
 }
 function kortAktion(akt, i) {
@@ -14751,6 +14795,7 @@ gridEl.addEventListener('click', ev => {
     ev.stopPropagation();
     const i = hand().findIndex(k => k.cid === pk.closest('.pill').dataset.cid); if (i < 0) return;
     if (pk.dataset.pakt === 'tap') tappa(i);
+    else if (pk.dataset.pakt === 'folj') foljKameran(i);
     else if (pk.dataset.pakt === 'ctr') openCounters(hand()[i].cid);
     else openKortMeny(hand()[i].cid, ev.clientX, ev.clientY);
     return;
@@ -15372,21 +15417,41 @@ function handAngra(fore, cids, efter, ofr) {
   raknaOmHogar(mig.cards);
   save(); renderGrid(true); renderInspektor();
 }
+/* Undo i toasten efter ett tap för hand: bara tap-läget på de korten — utom där kameran sett det riktiga kortet vridas
+   sedan (kamTap ändrad, MODE-4): då gäller bordet. Som handAngra. */
+function tapAngra(fore, cids) {
+  const mig = minSpelare();
+  if (!mig || !arMitt(mig) || !fore) return;
+  let f0; try { f0 = new Map(JSON.parse(fore).map(k => [k.cid, k])); } catch (e) { return; }
+  for (const cid of cids) {
+    const c = mig.cards.find(k => k.cid === cid), f = f0.get(cid);
+    if (!c || !f || !paMattan(c)) continue;
+    if ((c.kamTap == null ? null : c.kamTap) === (f.kamTap == null ? null : f.kamTap)) c.tapped = f.tapped ? 1 : 0;
+  }
+  const sista = angraStack[angraStack.length - 1];
+  if (sista && sista.pid === mig.id && sista.bild === fore) angraStack.pop();
+  save(); renderGrid(true); renderInspektor();
+}
 /* Toasten efter släppet: "Moved by hand", en mening och Undo, i 4 s — varje gång, också på en pekskärm. Ett fast
    lager mitt på skärmen (#handToast, utanför brädet). En ny toast ersätter en öppen, också en vanlig notis (toast),
    och en vanlig notis ersätter den. Klockan pausar medan pekaren är över den eller fokus står i den, och Esc stänger
    den. Tillståndet bor på handToastStang (som kamSkala.las): toast() anropar den, och toast() kan köras innan
    raderna här har körts. */
 function hogPlats(c) { return (c.grp || '') + '|' + (c.gi != null ? c.gi : ''); }
-function visaHandToast(fore, cids, ofr) {
+function visaHandToast(fore, cids, ofr, tap) {
   const el = document.getElementById('handToast'), s = handToastStang;
-  const efter = new Map(((minSpelare() || {}).cards || []).map(k => [k.cid, hogPlats(k)]));   // högarna direkt efter släppet (handAngra)
+  const mina = (minSpelare() || {}).cards || [];
+  const efter = new Map(mina.map(k => [k.cid, hogPlats(k)]));   // högarna direkt efter släppet (handAngra)
   clearTimeout(s.tid); clearTimeout(s.bort); s.tid = 0;
   if (toastEl.classList.contains('on')) hideToast();
-  el.innerHTML = `<div class="htkort"><span class="htikon">${handIkon(18, 2.2)}</span><div class="httxt"><b>Moved by hand</b>`
-    + `<span>The camera takes over again when you move the real card.</span></div><button type="button" class="htangra">Undo</button></div>`;
+  /* tap: "Tapped by hand" (Jespers beslut 2026-10-13) — "Untapped" när alla korten nu står upp. */
+  const titel = !tap ? 'Moved by hand' : cids.every(cid => { const c = mina.find(k => k.cid === cid); return c && !c.tapped; }) ? 'Untapped by hand' : 'Tapped by hand';
+  const rad = tap ? 'The camera takes over again when you turn the real card.' : 'The camera takes over again when you move the real card.';
+  el.innerHTML = `<div class="htkort"><span class="htikon">${tap ? tapIkon(18, 2.2) : handIkon(18, 2.2)}</span><div class="httxt"><b>${titel}</b>`
+    + `<span>${rad}</span></div><button type="button" class="htangra">Undo</button></div>`;
+  s.tap = !!tap; s.cids = cids.slice();
   const k = el.firstElementChild;
-  k.querySelector('.htangra').onclick = ev => { ev.stopPropagation(); handAngra(fore, cids, efter, ofr); handToastStang(); };
+  k.querySelector('.htangra').onclick = ev => { ev.stopPropagation(); if (tap) tapAngra(fore, cids); else handAngra(fore, cids, efter, ofr); handToastStang(); };
   /* Pekaren över toasten räknas bara för en mus eller penna: ett finger har ingen hover, och Chrome på Android
      behåller :hover efter ett tryck — klockan hade aldrig gått vidare. */
   let over = false;
@@ -15484,9 +15549,11 @@ function gruppSlapp(d, avbryt) {
 function tappaValda() {
   const valda = valdaKort().filter(e => paMattan(e));
   const ny = valda.some(e => !e.tapped) ? 1 : 0;
-  angraPunkt();
+  const p = player(), fore = JSON.stringify(p.cards);
+  angraPunkt(p, fore);
   valda.forEach(e => { e.tapped = ny; });
   save(); renderGrid(true); renderInspektor();   // de som bytte läge vrids av omritningen (matSynk)
+  tapToast(fore, valda);
 }
 gridEl.addEventListener('pointerdown', ev => {
   /* Nollställs här, inte i klickhanteraren: efter ett drag utfärdar

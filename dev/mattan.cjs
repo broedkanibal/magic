@@ -1416,14 +1416,60 @@ const PROV = async () => {
     $('#handToast').querySelector('.htangra').click();
     ok('D: … och en tap som kameran sett efter draget står kvar efter Undo', k1.tapped === 1 && !k1.hand, `tapped ${k1.tapped}`);
     r[0] = Object.assign({}, r[0], { tappad: false }); avstamBord(r, false); renderGrid(true);
-    /* Klick = tap, och det står kvar tills kameran ser det riktiga kortet vridas (MODE-4). */
+    /* ── Tappat för hand (Jespers beslut 2026-10-13: samma bricka och toast som flytten) ──
+       Klick = tap, och det står kvar tills kameran ser det riktiga kortet vridas (MODE-4). Brickan med den vridna
+       pilen i skärmens nedre högra hörn (också på det tappade kortet) och toasten "Tapped by hand" med Undo. */
     const k3 = kort(83);
-    klickK(k3);
-    const t1 = k3.tapped, toastVidKlick = handToastOppen();
-    avstamBord(r, false); avstamBord(r, false); const t2 = k3.tapped;
-    r[2] = S(83, 'Serra Angel', 0.64, 0.25, { tappad: true }); avstamBord(r, false); const t3 = k3.tapped;
-    r[2] = S(83, 'Serra Angel', 0.64, 0.25, { tappad: false }); avstamBord(r, false); const t4 = k3.tapped;
-    ok('D: ett klick tappar (ingen toast), tapet står kvar genom kamerans bord och följer när det riktiga kortet vrids', t1 === 1 && !toastVidKlick && t2 === 1 && t3 === 1 && t4 === 0, `klick ${t1}, bord ${t2}, vrids ${t3}, tillbaka ${t4}`);
+    const brK = c => elK(c).querySelector('.handmark');
+    klickK(k3); renderGrid(true);
+    const t1 = k3.tapped, tkT = $('#handToast').querySelector('.htkort');
+    const toastT = !!tkT && handToastOppen() && tkT.querySelector('b').textContent === 'Tapped by hand'
+      && /The camera takes over again when you turn the real card\./.test(tkT.textContent) && tkT.querySelector('button').textContent === 'Undo';
+    await vanta(600);   // vridningen (matSynk) är klar: kortets ruta är den tappade
+    const brT = brK(k3), kR = elK(k3).getBoundingClientRect(), bR = brT && brT.getBoundingClientRect();
+    const hornT = !!bR && Math.abs(bR.left + bR.width / 2 - kR.right) < 3 && Math.abs(bR.top + bR.height / 2 - kR.bottom) < 3 && Math.abs(bR.width - 22) < 1.5;
+    ok('T: ett klick tappar — brickan "Tapped by hand" i skärmens nedre högra hörn, 22 px, och toasten med Undo',
+      t1 === 1 && toastT && hornT && brT.getAttribute('title') === 'Tapped by hand',
+      `tap ${t1}, toast ${tkT ? tkT.textContent.trim() : 'ingen'}, bricka ${bR ? `${Math.round(bR.left + bR.width / 2)},${Math.round(bR.top + bR.height / 2)} mot ${Math.round(kR.right)},${Math.round(kR.bottom)}, ${bR.width.toFixed(1)} px` : 'ingen'}`);
+    await bild('T-tappad-bricka-och-toast');
+    tkT.querySelector('.htangra').click(); renderGrid(true);
+    const undoT = k3.tapped === 0 && !brK(k3) && !handToastOppen();
+    klickK(k3); renderGrid(true);
+    avstamBord(r, false); avstamBord(r, false); renderGrid(true);
+    const t2 = k3.tapped, brKvar = !!brK(k3);
+    r[2] = S(83, 'Serra Angel', 0.64, 0.25, { tappad: true }); avstamBord(r, false); renderGrid(true);
+    const t3 = k3.tapped, brVrid = !brK(k3);
+    r[2] = S(83, 'Serra Angel', 0.64, 0.25, { tappad: false }); avstamBord(r, false); renderGrid(true);
+    const t4 = k3.tapped;
+    ok('T: Undo tar tillbaka tapet; ett nytt tap står kvar genom kamerans bord med brickan, och när det riktiga kortet vrids likadant går brickan och kortet följer bordet igen',
+      undoT && t2 === 1 && brKvar && t3 === 1 && brVrid && t4 === 0, `undo ${undoT}, bord ${t2} (bricka ${brKvar}), vrids ${t3} (bricka borta ${brVrid}), tillbaka ${t4}`);
+    klickK(k3); renderGrid(true); const opp1 = handToastOppen() && !!brK(k3);
+    klickK(k3); renderGrid(true);
+    ok('T: tappas kortet tillbaka till kamerans läge stängs toasten och brickan går', opp1 && k3.tapped === 0 && !handToastOppen() && !brK(k3), `först ${opp1}, sedan tap ${k3.tapped}, toast ${handToastOppen()}`);
+    /* Follow camera i pillen: bara när kortet bär en bricka. */
+    matHover = k3.cid; renderPill();
+    const utanBricka = !gridEl.querySelector('.pill [data-pakt="folj"]');
+    klickK(k3); renderGrid(true); matHover = k3.cid; renderPill();
+    const fb = gridEl.querySelector('.pill [data-pakt="folj"]');
+    await bild('T-follow-camera-i-pillen');
+    if (fb) fb.click();
+    renderGrid(true);
+    ok('T: Follow camera i pillen (bara med bricka) tar kamerans tap-läge och släpper brickan och toasten',
+      utanBricka && !!fb && fb.textContent === 'Follow camera' && k3.tapped === 0 && !brK(k3) && !handToastOppen() && !gridEl.querySelector('.pill [data-pakt="folj"]'),
+      `utan bricka ${utanBricka}, knapp ${!!fb}, tap ${k3.tapped}, bricka ${!!brK(k3)}`);
+    await vanta(600);
+    dra(k3, 60, 40); const fh = !!k3.hand;
+    matHover = k3.cid; renderPill();
+    const fb2 = gridEl.querySelector('.pill [data-pakt="folj"]');
+    svalgKlick = false;   // klicket som följer på släppet i en riktig webbläsare (de syntetiska händelserna ger inget)
+    if (fb2) fb2.click();
+    renderGrid(true);
+    const kp3 = kamPlats(k3, speglaKamPos.skala, gravRuta(matVy()));
+    ok('T: Follow camera på ett flyttat kort lägger det där kameran har det', fh && !!fb2 && !k3.hand && Math.abs(k3.x - kp3.x) < 1 && Math.abs(k3.y - kp3.y) < 1 && !handToastOppen(),
+      `hand ${fh}, knapp ${!!fb2}, x ${Math.round(k3.x)} mot ${Math.round(kp3.x)}`);
+    matHover = null; renderPill();
+    await vanta(600);
+    klickK(k3);   // tappat för hand inför omladdningen nedan
     /* En preliminär position (kortet bärs, vilar false) som ankras om när kortet lagt sig: handflyttningen står kvar. */
     r[1] = S(82, 'Forest', 0.42, 0.55, { vilar: false }); avstamBord(r, false); renderGrid(true);
     const prelNar = k2.kam.nar, varPrel = !!k2.kam.prel;
@@ -1445,6 +1491,10 @@ const PROV = async () => {
     const r2 = r.map(t => Object.assign({}, t, { id: t.id + 100 }));
     avstamBord(r2, false); renderGrid(true);
     const kvar = k2b.spar === 182 && !!k2b.kam && !!k2b.hand && k2b.x === pr.x && k2b.y === pr.y && !!elK(k2b).querySelector('.handmark');
+    const k3b = mig.cards.find(c => c.cid === k3.cid);
+    ok('T: omladdning i ett spel — raden bär kamerans tap-dom, och tapet för hand står kvar med brickan när kortet binds om',
+      !!k3b && k3b.spar === 183 && k3b.tapped === 1 && k3b.kamTap === 0 && !!elK(k3b).querySelector('.handmark'), k3b ? `spår ${k3b.spar}, tap ${k3b.tapped}, kamTap ${k3b.kamTap}` : 'inget kort');
+    if (k3b) { k3b.tapped = 0; renderGrid(true); }
     r2[1] = S(182, 'Forest', 0.7, 0.7); avstamBord(r2, false); renderGrid(true);
     ok('D: omladdning — slimKort bär handflyttningen, och i ett spel står kortet kvar ur raden tills det riktiga kortet flyttas',
       !!lokalt.hand && lokalt.hand.nar === k2.hand.nar && kvar && !k2b.hand && (k2b.x !== pr.x || k2b.y !== pr.y), `lokalt ${JSON.stringify(lokalt.hand)}, kvar ${kvar}, efter flytt hand ${!!k2b.hand}`);
