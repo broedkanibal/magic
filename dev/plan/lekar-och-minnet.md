@@ -177,6 +177,8 @@ på bordet, och om de spelar ett andra parti.
    3. Claude som lärare
    4. lekvalet bort ur Mirror
 
+Planen för bygget (2026-10-13): `dev/plan/lekar-och-minnet-bygget.md`.
+
 ## Resultat G1/G2 (MES-361, 2026-10-11)
 
 ### Svaret först

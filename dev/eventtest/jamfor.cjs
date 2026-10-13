@@ -138,6 +138,7 @@ return {
   get ofr() { return ofrLista(); },
   get fas() { return kamFas; },
   set grund(v) { kamGrund = v; },
+  set bildRor(v) { if (typeof kamBildRor !== 'undefined') kamBildRor = v; },   // telefonens ror (2026-10-13); en index.html utan den bryr sig inte
   set lek(m) { lekTal = m; }
 };`)({ now: () => klocka.t }, setTimeoutV, clearTimeoutV);
   app.grund = grund;
@@ -190,7 +191,7 @@ function spelaUpp(logg, lek) {
   const loggat = logg.find(r => r.grund !== undefined && r.grund !== null);
   const grund = loggat ? loggat.grund : GRUND_PROD;
   const { app, klocka, timers } = byggApp(grund, lek);
-  const hand = logg.map((r, i) => ({ t: VIRT0 + Math.round(r.s * 1000), s: r.s, fas: r.fas, nollstall: !!r.nollstall, spar: r.spar, grav: r.grav, slag: 'rapport', nr: i }));
+  const hand = logg.map((r, i) => ({ t: VIRT0 + Math.round(r.s * 1000), s: r.s, fas: r.fas, nollstall: !!r.nollstall, spar: r.spar, grav: r.grav, ror: r.ror, slag: 'rapport', nr: i }));
   const alla = hand.slice();
   const tSlut = hand[hand.length - 1].t + Math.round(SVANS_S * 1000);
   for (let t = hand[0].t + HJARTSLAG_MS; t <= tSlut; t += HJARTSLAG_MS) alla.push({ t, slag: 'hjärtslag' });
@@ -209,6 +210,7 @@ function spelaUpp(logg, lek) {
     if (h.slag === 'hjärtslag') { if (senastBord) steg('hjärtslag', h.t, senastBord, false, senastFas, senastRapport ? senastRapport.grav : undefined); continue; }
     if (h.nollstall) senastBord = null; else { senastBord = h.spar; senastRapport = h; }
     senastFas = h.fas;
+    app.bildRor = h.ror === undefined ? null : !!h.ror;   // en logg utan fältet: som en äldre telefon
     steg('rapport', h.t, h.spar || [], h.nollstall, h.fas, h.grav);
   }
   return { grund, bilder };

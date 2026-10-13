@@ -843,6 +843,9 @@ body.tomhand .kolmark,body.utanins .kolmark{display:none}
 .card > .handmark{position:absolute;right:0;bottom:0;z-index:5;width:22px;height:22px;border-radius:11px;box-sizing:border-box;
   display:flex;align-items:center;justify-content:center;background:var(--bg3);border:1.5px solid var(--acc);
   box-shadow:0 4px 10px -2px #000c;pointer-events:none;transform:translate(50%,50%) scale(calc(1 / var(--matz,1)))}
+/* På ett tappat kort (vridet 90° medurs) ligger kortets övre högra hörn nere till höger på skärmen: brickan sitter
+   där och vrids tillbaka, så att den står på samma ställe och upprätt som på ett otappat kort. */
+.card.tappad > .handmark{top:0;bottom:auto;transform:translate(50%,-50%) rotate(-90deg) scale(calc(1 / var(--matz,1)))}
 /* Där kameran har kortet, under draget: en streckad ram i kortets storlek på brädet, med linjen och kameraikonen
    i samma storlek på skärmen vid all zoom. */
 .kamplats{position:absolute;z-index:900;box-sizing:border-box;pointer-events:none;border-radius:10px;
@@ -2030,6 +2033,10 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .ofrmark.aktuell,.ofretik.aktuell{z-index:901!important}   /* över strålkastarens dimning (.ofr.aktuell 900), före left/top/z-index inline */
 /* Knappen döljs medan sökrutan är öppen; etiketten när den inte får plats (ofrMarkLagg). */
 .ofrmark.dold,.ofretik.dold{visibility:hidden}
+/* Sökrutan är öppen (designytan "Mesa Name Which Card", D): etiketten på kortet säger NAMING i accentfärgen, och de
+   andra korten som väntar på ett namn tonas ned (ofrMarkLagg) — de går fortfarande att klicka på. */
+.ofretik.nu{background:var(--acc);border-color:var(--acc);color:#1a1206}
+.ofr.tonad,.ofrmark.tonad,.ofretik.tonad{opacity:.55}
 /* Pekaren på kortet, dess etikett eller knapp lyser upp kortet och knappen: där korten ligger tätt kan knappen
    stå en bit från sitt kort. */
 .ofr.pekad{outline:2px solid var(--acc);outline-offset:2px}
@@ -2043,6 +2050,20 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .ofrsok .sok-foto{height:168px;flex:none;border-radius:8px;background:#0b0f15;display:flex;align-items:center;justify-content:center}
 .ofrsok .sok-foto img{width:120px;height:158px;object-fit:cover;border-radius:5px;display:block}
 .ofrsok .sok-foto.vand img{transform:rotate(180deg)}
+/* Designytan "Mesa Name Which Card" (D): fotot med bordet runt kortet, kortets kontur i accentfärgen och resten
+   mörkat; samma färg som ringen runt kortet på mattan. Kortets del är lika stor som i det vanliga fotot. */
+.ofrsok .sok-foto.vid{height:206px}
+.ofrsok .sok-ram{position:relative;display:block;height:196px;border-radius:5px;overflow:hidden}
+.ofrsok .sok-ram img{display:block;height:100%;width:auto}
+.ofrsok .sok-kontur{position:absolute;box-sizing:border-box;border:2px solid var(--acc);border-radius:6px;box-shadow:0 0 0 400px #05070aa8;pointer-events:none}
+.ofrsok .sok-not{font:12px var(--sans);color:#9aa7b8;margin-top:-2px}
+.ofrsok .sok-not b{color:var(--acc);font-weight:600}
+/* Spetsen mot kortet (ofrSokPlacera): .h = kortet står till höger, .v = till vänster. */
+.ofrsok .sok-spets{display:none;position:absolute;width:12px;height:12px;box-sizing:border-box;background:#151b26;border:1px solid #3b485c;transform:rotate(45deg);pointer-events:none}
+.ofrsok .sok-spets.h{display:block;right:-7px;border-left-color:transparent;border-bottom-color:transparent}
+.ofrsok .sok-spets.v{display:block;left:-7px;border-right-color:transparent;border-top-color:transparent}
+/* Ringen runt kortet som namnges, i rutans lager (ofrSokOppna): syns runt hela kortet, också där ett annat ligger över. */
+.ofrsok-ring{position:absolute;z-index:973;box-sizing:border-box;border:2px solid var(--acc);border-radius:12px;box-shadow:0 0 0 4px #f0a52a2e,0 0 22px #f0a52a55;pointer-events:none}
 .ofrsok .sok-in{height:34px;border-radius:8px;border:1px solid #3b485c;background:#0b0f15;color:var(--txt);font:14px var(--sans);padding:0 10px;outline:none}
 .ofrsok .sok-in:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a22}
 .ofrsok .sok-res{display:flex;flex-direction:column;gap:8px}
@@ -3541,7 +3562,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
            bara med ?debug eller RAPPORT_FOR_ALLA. Valet följer med Google-rundturen (sthv.bilder). -->
       <label class="portalvillkor" id="bildRad" hidden>
         <input type="checkbox" id="bildBox">
-        <span><b>Share pictures of cards I correct.</b> When you fix a card's name, Mesa keeps the picture of that card to fix problems and improve its card recognition, including training our models.<small>Optional. You can change it any time in Settings.</small></span>
+        <span><b>Share pictures of cards I correct.</b> When you fix a card's name, Mesa keeps a picture of that card and the cards right around it, to fix problems and improve its card recognition, including training our models.<small>Optional. You can change it any time in Settings.</small></span>
       </label>
       <p class="portalfin" id="villkorFin">Mesa records how you use the app, linked to your account, to find and fix
         problems. <a href="/privacy.html" target="_blank" rel="noopener" style="color:inherit">What and why</a></p>
@@ -4173,7 +4194,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <button class="btn sm ghost dbg" id="pbBordLogg" title="Saves every table the phone sent since the camera was turned on, as a file that can be replayed with dev/dubbletter.cjs --logg">Save table log</button>
         </div>
         <!-- De tysta rättelserna (MES-366): kontots inställning user_metadata.improve_pictures, samma fält som Settings (del C). -->
-        <label class="pbinspval dbg" id="pbBilderRad" style="display:flex;align-items:center;gap:8px;margin-top:6px" title="When you fix a card's name or remove a card the camera put down, Mesa keeps the picture of that card. Saved on your account">
+        <label class="pbinspval dbg" id="pbBilderRad" style="display:flex;align-items:center;gap:8px;margin-top:6px" title="When you fix a card&#39;s name, Mesa keeps a picture of that card and the cards right around it, to fix problems and improve its card recognition, including training our models.">
           <input type="checkbox" id="pbBilder"> <span>Share pictures of cards I correct</span> <small id="pbBilderTxt" style="opacity:.7"></small></label>
         <!-- Bildläget (MES-229, MES-244): 4K · 15 är förvalet; 1080p · 30 analyserar
              varje ruta; 1080p · 15 har samma takt som förvalet, så bara upplösningen
@@ -7668,7 +7689,10 @@ function slimDelat(cards) {
     /* Flyttat för hand (MES-352): i ett spel byggs mitt bord om ur den här raden vid en omladdning (oppnaSpel), och
        kamerans k.kam följer inte med — bara var kameran hade kortet vid släppet (bildandelar), så att handKvar kan
        se om det riktiga kortet flyttats medan sidan laddades. De andra läser inte fältet. */
-    hand: c.hand ? handDelat(c.hand) : undefined
+    hand: c.hand ? handDelat(c.hand) : undefined,
+    /* Kamerans senaste tap-dom (MODE-4), av samma skäl: utan den tog kameran sin första dom efter omladdningen, och
+       ett tap för hand försvann fast det riktiga kortet inte vridits. De andra läser inte fältet. */
+    kamTap: c.kamTap === 0 || c.kamTap === 1 ? c.kamTap : undefined
   }));
 }
 function slimKort(cards) {
@@ -8711,15 +8735,29 @@ function kortHtml(e, i, extra, pos, bif, las) {
   return `<div class="${kl}" data-i="${i}" data-cid="${esc(e.cid)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}" style="left:${Math.round(x || 0)}px;top:${Math.round(y || 0)}px;width:${sz.w}px;height:${sz.h}px;z-index:${Math.max(1, Math.round(z || 1))}"><i class="lyftskugga" aria-hidden="true"></i>${ofr ? ofrLager(ofr.foto, false, ofr.skarp) : ''}${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}${baksida ? '<span class="lekslv"></span>' : ''}
     <span class="bar"></span>
     <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(felText(keyOf(e))) + '</span>' : ''}</span>
-    ${kwHtml}${ptTile(pv)}${handMarkSyns(e, las) ? `<span class="handmark" title="Moved by hand">${handIkon(12, 2.6)}</span>` : ''}
+    ${kwHtml}${ptTile(pv)}${matMarkHtml(e, las)}
   </div>`;
 }
 /* Brickan "flyttat för hand" (MES-352): bara på mitt eget bord, och bara medan kameran speglar det — i de andra
    lägena, och med kameran borta, lägger ingen kamera om kortet. */
 function handMarkSyns(e, las) { return !las && !!e.hand && kamSpeglar(minSpelare()); }
+/* Tappat för hand (Jespers beslut 2026-10-13: samma bricka och toast som flytten i MES-352). Kameran skriver tapped
+   bara när dess egen dom ändras (kamTap, MODE-4), så ett tap på mattan står kvar tills det riktiga kortet vrids.
+   Brickan syns medan mattan visar ett annat läge än kamerans senaste dom, och går när de är överens igen — vem som
+   än gav sig. Bara för ett kort kameran följer (kamFoljer): utan spår finns ingen dom att vara oense med. */
+function tapMarkSyns(e, las) { return !las && kamFoljer(e) && e.kamTap != null && (e.tapped ? 1 : 0) !== e.kamTap; }
+/* Ett kort bär en bricka: flyttat (fyra pilar) går före tappat (den vridna pilen). */
+function matMarkHtml(e, las) {
+  if (handMarkSyns(e, las)) return `<span class="handmark" title="Moved by hand">${handIkon(12, 2.6)}</span>`;
+  if (tapMarkSyns(e, las)) return `<span class="handmark" title="${e.tapped ? 'Tapped' : 'Untapped'} by hand">${tapIkon(12, 2.6)}</span>`;
+  return '';
+}
 /* Designytans ikoner: fyra pilar (flyttat för hand) och kameran. */
 function handIkon(px, sw) {
   return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="#f0a52a" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>`;
+}
+function tapIkon(px, sw) {
+  return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="#f0a52a" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 3.5v5h-5"/></svg>`;
 }
 function kamIkon(px, farg) {
   return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="${farg}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>`;
@@ -8967,6 +9005,20 @@ function ofrMarkLagg() {
     const v = CSS.escape(o.dataset.ofr || '');
     if (![...gridEl.querySelectorAll(`[data-ofr="${v}"]`)].some(e => e.matches(':hover') && e.matches('.ofr.fraga, .ofrmark, .ofretik'))) o.classList.remove('pekad');
   }
+  /* Sökrutan är öppen (designytan "Mesa Name Which Card", D): kortets etikett säger NAMING, och de andra korten
+     som väntar på ett namn tonas ned — kortet, etiketten och knappen. Utläggningen nedan räknar NAMING med bredden
+     NOT IDENTIFIED hade (_bredd): annars fick en etikett som var dold för en krock plötsligt plats när rutan
+     öppnades, och grannarna hoppade (MES-351, läge 5: inget hoppar när rutan öppnas och stängs). */
+  for (const e of gridEl.querySelectorAll(':scope > .ofr.fraga[data-pend], :scope > .ofrmark[data-pend], :scope > .ofretik[data-pend]')) {
+    const detta = !!ofrSokPend && e.dataset.pend === ofrSokPend, tonad = !!ofrSokPend && !detta;
+    if (e.classList.contains('tonad') !== tonad) e.classList.toggle('tonad', tonad);
+    if (e.classList.contains('ofretik')) {
+      const txt = detta ? 'NAMING' : 'NOT IDENTIFIED';
+      if (detta && e.textContent !== txt) e._bredd = e.offsetWidth;
+      if (e.textContent !== txt) e.textContent = txt;
+      if (e.classList.contains('nu') !== detta) e.classList.toggle('nu', detta);
+    }
+  }
   if (!el.length && !et.length) return;
   const z = gridEl._matzMal || 1, ofr = new Map(ofrNu().map(q => [String(q.id), q]));
   const skar = (r, b, luft) => r.x0 < b.x1 + luft && b.x0 < r.x1 + luft && r.y0 < b.y1 + luft && b.y0 < r.y1 + luft;
@@ -8976,7 +9028,7 @@ function ofrMarkLagg() {
     const q = ofr.get(e.dataset.ofr), a = q && ofrEtikAnkare(q);
     let dold = !a || (ofrTappad(q) ? MATTA.CW : MATTA.CH) * z < OFR_ETIK_MIN;
     if (!dold) {
-      const cx = a.x * z, ty = a.y * z + OFR_ETIK_DY, w = e.offsetWidth, h = e.offsetHeight;
+      const cx = a.x * z, ty = a.y * z + OFR_ETIK_DY, w = e.classList.contains('nu') && e._bredd ? e._bredd : e.offsetWidth, h = e.offsetHeight;
       const r = { x0: cx - w / 2, x1: cx + w / 2, y0: ty, y1: ty + h };
       dold = krock(r, 0);
       if (!dold) { lagda.push(r); etiketter.push({ e, r }); }
@@ -9799,7 +9851,7 @@ function renderGrid(force) {
   const strukt = cards.map(c =>
     c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
     + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (ofrFran(c) ? 'O' : '') + (c.ny && nuT - c.ny < 2500 ? 'N' : '')
-    + '·' + (paMattan(c) ? matSlag(c) : zonAv(c)) + '·' + (c.cts || []).map(ctLabel).join(',') + (handMarkSyns(c) ? '·H' : '')).join('|')
+    + '·' + (paMattan(c) ? matSlag(c) : zonAv(c)) + '·' + (c.cts || []).map(ctLabel).join(',') + (handMarkSyns(c) ? '·H' : tapMarkSyns(c) ? '·P' : '')).join('|')
     + '/' + ofr.map(q => q.id + (q.foto ? 'F' : '') + (q.pend || '') + (q.overTak ? 'Q' + (q.namn || '') + q.tak : '') + (ofrTappad(q) ? 'T' : '')).join(',') + '/' + p.id + (redigerbar() ? '' : 'L')
     + '/' + matLage.nyN + '/' + (ark ? (ark.cid || ark.pend) : '')
     + '/' + lekSig(p) + '/' + lekFargSig(slvAv(p))   // leken bland korten och bordets sleeves (MES-334 steg 3)
@@ -12527,6 +12579,7 @@ function renderPill() {
     : esc(c.tapped ? 'Swing it back up' : 'Swing it sideways');
   const html = `<span class="hint">${hint}</span>`
     + `<button type="button" class="prim" data-pakt="tap">${c.tapped ? 'Untap' : 'Tap'}<kbd>T</kbd></button>`
+    + (handMarkSyns(c) || tapMarkSyns(c) ? `<button type="button" data-pakt="folj" title="Put the card the way the camera sees it">Follow camera</button>` : '')
     + `<button type="button" class="meny" data-pakt="ctr" title="Counters on this card (C)">+</button>`
     + `<button type="button" class="meny" data-pakt="meny" title="Everything else you can do">⋯</button>`;
   if (!el) { el = document.createElement('div'); el.className = 'pill'; gridEl.appendChild(el); }
@@ -14691,11 +14744,34 @@ function tokensVidEtb() {
 function tappa(i) {
   const e = hand()[i];
   if (!e || !paMattan(e)) return;
-  angraPunkt();
+  const p = player(), fore = JSON.stringify(p.cards);
+  angraPunkt(p, fore);
   e.tapped = e.tapped ? 0 : 1;
   /* Kortet behåller sitt element, och omritningen vrider det (matSynk,
      MES-334 steg 2). Förut byttes elementet ut, och vridIn fick starta det
      nya i det förra läget. */
+  save(); renderGrid(true); renderInspektor();
+  tapToast(fore, [e]);
+}
+/* Efter ett tap på mattan: toasten "Tapped by hand" (som "Moved by hand", MES-352) när kortet nu visar ett annat läge
+   än kameran ser. Blev mattan och kameran överens igen stängs en öppen tap-toast. En öppen "Moved by hand" för samma
+   kort står kvar: dess Undo tar redan tillbaka tapet från före draget. */
+function tapToast(fore, kort) {
+  const nya = kort.filter(e => tapMarkSyns(e)).map(e => e.cid), s = handToastStang;
+  if (!nya.length) { if (handToastOppen() && s.tap) handToastStang(); return; }
+  if (handToastOppen() && !s.tap && nya.every(cid => (s.cids || []).includes(cid))) return;
+  visaHandToast(fore, nya, null, true);
+}
+/* Follow camera (Jespers beslut 2026-10-13): kortet släpper det spelaren satt — platsen (c.hand, MES-352) och
+   tap-läget — och tar kamerans läge direkt, utan att det riktiga kortet rörs. Som när kameran tar över (handKvar,
+   MODE-4): speglaKamPos lägger kortet där kameran har det, och tapped blir kamerans senaste dom. */
+function foljKameran(i) {
+  const c = hand()[i];
+  if (!c || !paMattan(c) || !(handMarkSyns(c) || tapMarkSyns(c))) return;
+  angraPunkt();
+  if (c.hand) { delete c.hand; delete c.kamRitad; }
+  if (c.kamTap != null) c.tapped = c.kamTap;
+  if (handToastOppen()) handToastStang();
   save(); renderGrid(true); renderInspektor();
 }
 function kortAktion(akt, i) {
@@ -14719,6 +14795,7 @@ gridEl.addEventListener('click', ev => {
     ev.stopPropagation();
     const i = hand().findIndex(k => k.cid === pk.closest('.pill').dataset.cid); if (i < 0) return;
     if (pk.dataset.pakt === 'tap') tappa(i);
+    else if (pk.dataset.pakt === 'folj') foljKameran(i);
     else if (pk.dataset.pakt === 'ctr') openCounters(hand()[i].cid);
     else openKortMeny(hand()[i].cid, ev.clientX, ev.clientY);
     return;
@@ -14760,8 +14837,8 @@ let ofrSok = null;   // { pend, el, inp, res, traffar: [{ namn, sid }], idx, seq
 const OFR_SOK_N = 6;
 function ofrSokStang() {
   if (!ofrSok) return;
-  ofrSok.el.remove(); ofrSok = null;
-  ofrSokPend = null; ofrMarkLagg();   // knappen kommer tillbaka (MES-351)
+  ofrSok.el.remove(); ofrSok.ring.remove(); ofrSok = null;
+  ofrSokPend = null; ofrMarkLagg();   // knappen kommer tillbaka (MES-351), etiketten blir NOT IDENTIFIED igen
 }
 function ofrSokPlacera() {
   if (!ofrSok) return;
@@ -14770,9 +14847,18 @@ function ofrSokPlacera() {
   if (!zp || !el) return ofrSokStang();
   const R = zp.getBoundingClientRect(), r = el.getBoundingClientRect(), w = 280, h = ofrSok.el.offsetHeight || 262;
   const vanster = r.left - R.left, hoger = r.right - R.left;
-  const x = vanster >= w + 20 ? vanster - w - 12 : Math.min(R.width - w - 8, hoger + 12);
-  ofrSok.el.style.left = Math.round(Math.max(8, x)) + 'px';
-  ofrSok.el.style.top = Math.round(Math.max(8, Math.min(R.height - h - 8, r.top - R.top))) + 'px';
+  const x = Math.round(Math.max(8, vanster >= w + 20 ? vanster - w - 12 : Math.min(R.width - w - 8, hoger + 12)));
+  const y = Math.round(Math.max(8, Math.min(R.height - h - 8, r.top - R.top)));
+  ofrSok.el.style.left = x + 'px';
+  ofrSok.el.style.top = y + 'px';
+  /* Spetsen pekar mot kortet från den sida kortet står på, i höjd med kortets mitt (inom rutan); står rutan över
+     kortet (smal skärm) finns ingen sida att peka från. Ringen: kortets ruta, 3 px utanför. */
+  const s = ofrSok.el.querySelector('.sok-spets'), mitt = (r.top + r.bottom) / 2 - R.top - y;
+  const sida = x + w <= vanster + 1 ? 'h' : x >= hoger - 1 ? 'v' : '';
+  if (s) { s.className = 'sok-spets' + (sida ? ' ' + sida : ''); s.style.top = Math.round(Math.max(14, Math.min(h - 26, mitt - 6))) + 'px'; }
+  const g = ofrSok.ring.style;
+  g.left = Math.round(r.left - R.left - 3) + 'px'; g.top = Math.round(r.top - R.top - 3) + 'px';
+  g.width = Math.round(r.width + 6) + 'px'; g.height = Math.round(r.height + 6) + 'px';
 }
 /* Kortet fick namn (av kameran, Claude eller granskningen) eller gick: rutan stängs. Annars följer den kortet. */
 function ofrSokFolj(ofr) {
@@ -14786,16 +14872,26 @@ function ofrSokOppna(pend) {
   const el = document.createElement('div');
   /* MES-351: rubriken "Enter card name", och kamerans foto skarpt överst — det enda stället där ägaren ser kortet
      skarpt, så att namnet går att läsa av. */
+  /* Designytan "Mesa Name Which Card" (D): ligger kort omlott syns flera kort i fotot. Med bordet runt kortet
+     (ofrFotoVid) får kortet en kontur och resten mörkas, och raden under säger "Name the outlined card".
+     Konturen är kortets låda: marginalen marg per sida, alltså marg / (1 + 2·marg) av fotots bredd och höjd. */
   const post = ofrLista().find(o => o.pend === pend), foto = post && post.foto && OFR_BILD.test(post.foto) ? post.foto : null;
+  const vid = post && ofrFotoVid.get(post.spar), vand = ofrVand() ? ' vand' : '';
+  const kant = vid ? +(vid.marg / (1 + 2 * vid.marg) * 100).toFixed(2) : 0;
   el.className = 'ofrsok'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Enter card name');
-  el.innerHTML = '<div class="sok-hu"><label class="sok-l" for="ofrSokIn">Enter card name</label>'
+  el.innerHTML = '<i class="sok-spets" aria-hidden="true"></i><div class="sok-hu"><label class="sok-l" for="ofrSokIn">Enter card name</label>'
     + '<button type="button" class="sok-x" aria-label="Close" data-sokstang><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg></button></div>'
-    + (foto ? `<div class="sok-foto${ofrVand() ? ' vand' : ''}"><img src="${foto}" alt="The camera’s photo of the card"></div>` : '')
+    + (vid ? `<div class="sok-foto vid${vand}"><span class="sok-ram"><img src="${vid.b64}" alt="The camera’s photo of the card and the table around it"><i class="sok-kontur" style="inset:${kant}%"></i></span></div><div class="sok-not">Name the <b>outlined</b> card</div>`
+      : foto ? `<div class="sok-foto${vand}"><img src="${foto}" alt="The camera’s photo of the card"></div>` : '')
     + '<input id="ofrSokIn" class="sok-in" type="text" autocomplete="off" spellcheck="false" placeholder="Type a card name">'
     + '<div class="sok-res"></div>'
     + '<div class="sok-fot"><button type="button" class="sok-nej" data-soknej title="The camera stops asking about it">Not a card</button></div>';
   zp.appendChild(el);
-  ofrSok = { pend, el, inp: el.querySelector('.sok-in'), res: el.querySelector('.sok-res'), traffar: [], idx: 0, seq: 0, bekr: null };
+  /* Ringen runt kortet på mattan (D): i rutans lager, ovanpå korten, så att den syns runt hela kortet också när
+     ett annat kort ligger över det. ofrSokPlacera lägger den där kortet står. */
+  const ring = document.createElement('i'); ring.className = 'ofrsok-ring'; ring.setAttribute('aria-hidden', 'true');
+  zp.appendChild(ring);
+  ofrSok = { pend, el, ring, inp: el.querySelector('.sok-in'), res: el.querySelector('.sok-res'), traffar: [], idx: 0, seq: 0, bekr: null };
   ofrSok.inp.addEventListener('input', () => ofrSokSok());
   ofrSok.inp.addEventListener('keydown', ev => {
     ev.stopPropagation();
@@ -15321,21 +15417,41 @@ function handAngra(fore, cids, efter, ofr) {
   raknaOmHogar(mig.cards);
   save(); renderGrid(true); renderInspektor();
 }
+/* Undo i toasten efter ett tap för hand: bara tap-läget på de korten — utom där kameran sett det riktiga kortet vridas
+   sedan (kamTap ändrad, MODE-4): då gäller bordet. Som handAngra. */
+function tapAngra(fore, cids) {
+  const mig = minSpelare();
+  if (!mig || !arMitt(mig) || !fore) return;
+  let f0; try { f0 = new Map(JSON.parse(fore).map(k => [k.cid, k])); } catch (e) { return; }
+  for (const cid of cids) {
+    const c = mig.cards.find(k => k.cid === cid), f = f0.get(cid);
+    if (!c || !f || !paMattan(c)) continue;
+    if ((c.kamTap == null ? null : c.kamTap) === (f.kamTap == null ? null : f.kamTap)) c.tapped = f.tapped ? 1 : 0;
+  }
+  const sista = angraStack[angraStack.length - 1];
+  if (sista && sista.pid === mig.id && sista.bild === fore) angraStack.pop();
+  save(); renderGrid(true); renderInspektor();
+}
 /* Toasten efter släppet: "Moved by hand", en mening och Undo, i 4 s — varje gång, också på en pekskärm. Ett fast
    lager mitt på skärmen (#handToast, utanför brädet). En ny toast ersätter en öppen, också en vanlig notis (toast),
    och en vanlig notis ersätter den. Klockan pausar medan pekaren är över den eller fokus står i den, och Esc stänger
    den. Tillståndet bor på handToastStang (som kamSkala.las): toast() anropar den, och toast() kan köras innan
    raderna här har körts. */
 function hogPlats(c) { return (c.grp || '') + '|' + (c.gi != null ? c.gi : ''); }
-function visaHandToast(fore, cids, ofr) {
+function visaHandToast(fore, cids, ofr, tap) {
   const el = document.getElementById('handToast'), s = handToastStang;
-  const efter = new Map(((minSpelare() || {}).cards || []).map(k => [k.cid, hogPlats(k)]));   // högarna direkt efter släppet (handAngra)
+  const mina = (minSpelare() || {}).cards || [];
+  const efter = new Map(mina.map(k => [k.cid, hogPlats(k)]));   // högarna direkt efter släppet (handAngra)
   clearTimeout(s.tid); clearTimeout(s.bort); s.tid = 0;
   if (toastEl.classList.contains('on')) hideToast();
-  el.innerHTML = `<div class="htkort"><span class="htikon">${handIkon(18, 2.2)}</span><div class="httxt"><b>Moved by hand</b>`
-    + `<span>The camera takes over again when you move the real card.</span></div><button type="button" class="htangra">Undo</button></div>`;
+  /* tap: "Tapped by hand" (Jespers beslut 2026-10-13) — "Untapped" när alla korten nu står upp. */
+  const titel = !tap ? 'Moved by hand' : cids.every(cid => { const c = mina.find(k => k.cid === cid); return c && !c.tapped; }) ? 'Untapped by hand' : 'Tapped by hand';
+  const rad = tap ? 'The camera takes over again when you turn the real card.' : 'The camera takes over again when you move the real card.';
+  el.innerHTML = `<div class="htkort"><span class="htikon">${tap ? tapIkon(18, 2.2) : handIkon(18, 2.2)}</span><div class="httxt"><b>${titel}</b>`
+    + `<span>${rad}</span></div><button type="button" class="htangra">Undo</button></div>`;
+  s.tap = !!tap; s.cids = cids.slice();
   const k = el.firstElementChild;
-  k.querySelector('.htangra').onclick = ev => { ev.stopPropagation(); handAngra(fore, cids, efter, ofr); handToastStang(); };
+  k.querySelector('.htangra').onclick = ev => { ev.stopPropagation(); if (tap) tapAngra(fore, cids); else handAngra(fore, cids, efter, ofr); handToastStang(); };
   /* Pekaren över toasten räknas bara för en mus eller penna: ett finger har ingen hover, och Chrome på Android
      behåller :hover efter ett tryck — klockan hade aldrig gått vidare. */
   let over = false;
@@ -15433,9 +15549,11 @@ function gruppSlapp(d, avbryt) {
 function tappaValda() {
   const valda = valdaKort().filter(e => paMattan(e));
   const ny = valda.some(e => !e.tapped) ? 1 : 0;
-  angraPunkt();
+  const p = player(), fore = JSON.stringify(p.cards);
+  angraPunkt(p, fore);
   valda.forEach(e => { e.tapped = ny; });
   save(); renderGrid(true); renderInspektor();   // de som bytte läge vrids av omritningen (matSynk)
+  tapToast(fore, valda);
 }
 gridEl.addEventListener('pointerdown', ev => {
   /* Nollställs här, inte i klickhanteraren: efter ett drag utfärdar
@@ -21925,7 +22043,6 @@ $('#menuBtn').onclick = ev => {
     <div class="hd">Table mode</div>
     ${lagerad('bord', M_LAGE_BORD)}
     <button data-a="lage-utan" class="val${!kamPa ? ' pa' : ''}" title="${esc(LAGE_TXT.utan)}">${M_LAGE_UTAN}${esc(LAGE_NAMN.utan)}<span class="bock">✓</span></button>
-    ${kamPa && lg === 'bord' && kamAnsluten && redigerbar() ? `<button data-a="match" title="Match the mat to what the camera sees. Undo puts it back">Match the camera${meta('M')}</button>` : ''}
     <hr>
     <div class="hd">Game ${esc(spelLage.kod)}</div>
     <button data-a="bjudin">Copy invitation link</button>
@@ -21952,7 +22069,6 @@ menuEl.addEventListener('click', ev => {
   const a = b.dataset.a;
   if (a === 'clearhand') $('#clearHand').click();   // samma väg, med ångra
   if (a === 'bjudin') $('#spelKnapp').click();
-  if (a === 'match') matchaKameran('meny');   // Match the camera (MES-357)
   /* Lägesbytet mitt i spelet (MES-209), och den enda väg som finns när
      kameran är av. Var kameran av slår Mirror my table på den igen (samma
      som gamla "Turn on camera"). */
@@ -30681,16 +30797,18 @@ const Kamera = (() => {
     return avAxel >= T.beskarVridMin ? { rot: rotGrov, rikt: false } : null;
   }
 
-  /* Det oframkallade kortets foto (MES-344): kortets låda ur den fulla videon med 2 % marginal (mot
-     läsningens 8 %: fotot ska vara kortet, inte bordet runt det), rätat upp om det ligger ner, och redan
-     litet (FOTO_BREDD) — en enda nedskalning, ingen beskärning i läsningens storlek. */
-  const FOTO_BREDD = 160, FOTO_MARG = 0.02;
+  /* Det oframkallade kortets foto (MES-344): kortets låda ur den fulla videon, rätat upp om det ligger ner, och
+     redan litet — en enda nedskalning, ingen beskärning i läsningens storlek. Marginalen är 15 % (FOTO_MARG):
+     mattan visar kortet med 2 % (datorn skär till, ofrFotoTill), och rutan "Enter card name" visar hela fotot
+     med kortets kontur, så att det syns vilket kort rutan gäller när kort ligger omlott (designytan "Mesa Name
+     Which Card", D). Bredden är sådan att kortets del är 160 px, som förut (FOTO_BREDD). */
+  const FOTO_MARG = 0.15, FOTO_BREDD = Math.round(160 * (1 + 2 * FOTO_MARG) / (1 + 2 * 0.02));
   function skickaFoton() {
     if (cb.foto && video) for (const t of spar) {
       if (t.fotoSkickat || (t.tillstand === 'klar' && t.namn) || t.tillstand === 'skrap' || t.skymd || arHelbild(t) || arNedKort(t) || !skuggklar(t)) continue;   // inte arVila: datorn lägger kortet vid första kortlika rapporten (ofrSomKort, 2026-10-12), och fotot ska komma med den
       t.fotoSkickat = true;
       let c = null; try { c = fotoUr(t); } catch (e) {}
-      if (c) cb.foto(t.id, c);
+      if (c) cb.foto(t.id, c, FOTO_MARG);
     }
   }
   /* Datorn sa hej (laddades om, eller fick tillbaka telefonen): den har glömt fotona, och telefonen skickar
@@ -30703,10 +30821,17 @@ const Kamera = (() => {
     const bx = r.x + (b.x - b.w * m) * sx, by = r.y + (b.y - b.h * m) * sy, bw = b.w * (1 + 2 * m) * sx, bh = b.h * (1 + 2 * m) * sy;
     if (!(bw >= 4 && bh >= 4)) return null;
     const liggande = bw > bh, ow = FOTO_BREDD, oh = Math.round(FOTO_BREDD * (liggande ? bw / bh : bh / bw));
+    /* Marginalen kan gå utanför videon (ett kort vid bildkanten): bara delen inom videon ritas, på sin plats, och
+       resten blir mörk — kortet står kvar i mitten, så att datorns tillskärning och konturen stämmer. */
+    const x0 = Math.max(0, bx), y0 = Math.max(0, by), x1 = Math.min(vb, bx + bw), y1 = Math.min(vh, by + bh);
+    if (!(x1 - x0 >= 4 && y1 - y0 >= 4)) return null;
+    const W = liggande ? oh : ow, H = liggande ? ow : oh;   // målet i videons riktning
+    const dx = (x0 - bx) / bw * W, dy = (y0 - by) / bh * H, dw = (x1 - x0) / bw * W, dh = (y1 - y0) / bh * H;
     const c = document.createElement('canvas'); c.width = ow; c.height = oh;
     const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
-    if (liggande) { x.translate(ow / 2, oh / 2); x.rotate(-Math.PI / 2); x.drawImage(video, bx, by, bw, bh, -oh / 2, -ow / 2, oh, ow); }
-    else x.drawImage(video, bx, by, bw, bh, 0, 0, ow, oh);
+    x.fillStyle = '#11161e'; x.fillRect(0, 0, ow, oh);
+    if (liggande) { x.translate(ow / 2, oh / 2); x.rotate(-Math.PI / 2); x.drawImage(video, x0, y0, x1 - x0, y1 - y0, -W / 2 + dx, -H / 2 + dy, dw, dh); }
+    else x.drawImage(video, x0, y0, x1 - x0, y1 - y0, dx, dy, dw, dh);
     return c;
   }
   /* Beskär kortet ur den fulla videon, räta upp det om det ligger ner. */
@@ -30792,6 +30917,11 @@ const Kamera = (() => {
      beskärningen, genom samma led som bilden — så ser läsningen bara det
      som är kortet: namnraden och det som sticker fram. */
   function maskaTackt(b, t) {
+    /* Facit för problemrapportens tysta rättelser (uppföljning av MES-366/368): vilken låda beskärningen är och
+       vilka lådor som målas grå nedan, i analyspixlar — bara siffrorna, på beskärningens duk. Stillbilder.beskarning
+       läser dem; läsningen och domen ser dem aldrig. */
+    if (b && b.bild) { const kop = q => ({ x: q.x, y: q.y, w: q.w, h: q.h }), r = t.ram || t.box;
+      b.bild.lasFacit = { ruta: r ? kop(r) : null, maskade: b.geo && t.tackt && t.tackt.length ? t.tackt.map(kop) : [], aw: AW, ah: AH, rot: t.beskarRot != null ? t.beskarRot : null }; }
     if (!b || !b.geo || !t.tackt || !t.tackt.length) return false;
     const g = b.geo, x = b.bild.getContext('2d');
     /* beskar() lämnar kontexten vriden för ett liggande kort (translate +
@@ -32147,7 +32277,7 @@ async function oppnaKamera(gameId) {
          rådet om avståndet väntar då på Claudes svar innan det säger något. */
       aiPa: () => AI.mode === 'server' && !!prefs.aiAuto,
       helbild: (canvas, o) => kamHelbild(canvas, o),
-      foto: (id, canvas) => kamSkickaFoto(id, canvas),   // det oframkallade kortets foto till datorn (MES-344)
+      foto: (id, canvas, marg) => kamSkickaFoto(id, canvas, marg),   // det oframkallade kortets foto till datorn (MES-344)
       kedja: spar => Moln.sandKam('kedja', { spar })     // igenkänningskedjan per spår, bara ?debug (satKedja)
     });
   } catch (e) {
@@ -32829,12 +32959,13 @@ const kamAiNamnKapade = () => Math.max(0, [...new Set(namnUtanBaksida().filter(n
    alltid till Kamera.svarAI; spåret prövas under tiden (identifiera).
    false = frågan ställs inte (AI av, ingen pool, taket nått): den lokala
    domen är allt som finns, och ett osäkert kort går till granskningen. */
-/* Kamerans foto av ett nytt kort till datorn (MES-344, fotoUr i Kamera): 160 px brett — mattans kort är
-   178 px och de unika ytorna visas suddiga (12 px), men ramen ska se skarp ut i mattans vanliga zoom.
-   ~6–8 kB per kort, en gång per kort, på kontots privata kanal (MES-305). */
-function kamSkickaFoto(id, canvas) {
+/* Kamerans foto av ett nytt kort till datorn (MES-344, fotoUr i Kamera): kortets del 160 px bred — mattans kort
+   är 178 px och de unika ytorna visas suddiga (12 px), men ramen ska se skarp ut i mattans vanliga zoom. marg är
+   marginalen runt kortet (15 %): datorn skär till mattans foto ur det, och rutan "Enter card name" visar hela.
+   ~10–12 kB per kort, en gång per kort, på kontots privata kanal (MES-305). */
+function kamSkickaFoto(id, canvas, marg) {
   if (!canvas || !canvas.width || !canvas.height) return;
-  Moln.sandKam('foto', { spar: id, b64: canvas.toDataURL('image/jpeg', 0.65) });
+  Moln.sandKam('foto', { spar: id, b64: canvas.toDataURL('image/jpeg', 0.65), marg: typeof marg === 'number' ? marg : undefined });
 }
 function kamFragaAI(canvas, id) {
   if (AI.mode !== 'server' || !prefs.aiAuto || !Pool.idx || !canvas || aiPausad()) return false;
@@ -33584,6 +33715,13 @@ let tvivel = new Map();      // spår-id → namnet det bar när det kom tillbak
    gamla spåret tar ledigt kortet i väntan (steg 3) och kortet bärs dit;
    ligger kortet kvar när handen gått skapas det nya som förut. Inga
    slutsatser förrän handen lämnat kortet (princip 3). */
+/* …och tvärtom (Jesper 2026-10-13): ett spår som föds senare än så EFTER att kortet försvann är ett nytt kort, inte
+   kortet som flyttas — när det gäller att hålla tillbaka det nya kortets oframkallade kort (ofrFlyttKan) och att hålla
+   kvar det försvunna kortet på mattan (kanFlyttas). I passet 2026-10-11 föddes det flyttade kortets nya spår mellan
+   0,5 s före och 1,3 s efter att det gamla dog. Att ta upp ett kort på handen och lägga ut ett nytt tar längre tid:
+   handen ska ut ur bild och tillbaka. Bindningen när namnet läses (steg 3b, passar) har ingen sådan gräns, och inte
+   heller olastSpar (ett oläst kort håller kvar det försvunna tills det lästs — prövat: med gränsen föll TH6 och KA1). */
+const FLYTT_EFTER = 1500;
 const FLYTT_FORE = 450;      // ms (tre rapporter): ett spår som fötts tidigare än så innan kortet senast sågs fritt kan inte vara kortet som lyftes — med 1500 band Flutterfox (passet, 95 s) ett spår i landhögen som fötts medan kortet låg kvar; 300 tappade Mirran (114 s) på en avrundning
 const FLYTT_VILA = 3000;     // ms: ett spår som lagt sig längre sedan än så är inte något som just lades ned
 const DUBBLETT_VANTA = 3000; // ms: så länge väntar ett klart spår på att kortet med samma namn ska släppas av handen
@@ -33934,11 +34072,19 @@ const OFR_TROSKEL = 0;     // ms från släppet till det oframkallade kortet (va
    ligga över (ett land på en hög, O16) läggs ned vid släppet. */
 const OFR_TROSKEL_TACKT = 500;
 const OFR_SUDD = 12;       // px i brädet: hur suddigt kamerans foto är i de unika ytorna (sida 3, "Suddighet", förvalet Mellan)
+const OFR_HOG_TACK = 0.75; // ett nytt spår som täcker så mycket av ett annat kort ligger på en hög: det väntar på vilar (ofrSteg, iHog)
 const OFR_NAD = 1200;      // ms: ett oframkallat kort vars spår dött väntar så länge på ett spår som föds om på samma plats
 const OFR_FRAN_MS = 1500;  // ms: så länge bär ett nytt kort fotot det framkallades ur (lagren är osynliga efter 300 ms)
 let ofrMinne = new Map();  // post-id (första spårets id) → { id, spar, vila, lagd, kam, tappad, pend, overTak, tak, namn, foto, dod }
 let ofrVila = new Map();   // spår-id → släppet: första rapporten där spåret låg still som ett kort
 let ofrFoto = new Map();   // spår-id → kamerans foto av kortet (telefonens 'foto', annars granskningens beskärning)
+/* spår-id → { b64, marg }: fotot med bordet runt kortet, marg = marginalen per sida (telefonens 15 %, granskningens
+   beskärning 8 %). Rutan "Enter card name" visar det med kortets kontur (designytan "Mesa Name Which Card", D). */
+let ofrFotoVid = new Map();
+function ofrFotoVidSatt(spar, b64, marg) {
+  if (spar == null || ofrFotoVid.has(spar) || !(marg > 0.02 && marg <= 0.5) || typeof b64 !== 'string' || !OFR_BILD.test(b64)) return;
+  ofrFotoVid.set(spar, { b64, marg });
+}
 let ofrFrister = [];       // när nästa oframkallade kort ska läggas ned, eller ett dött spårs post glömmas (avstamBord ställer timern)
 let ofrOver = new Map();   // spår-id → id:n på spåren telefonen sagt ligger ÖVER det (under, MES-331) — också efter att spåret dött (MES-346)
 const ofrVilar = t => t.vilar != null ? !!t.vilar : !!t.stilla;
@@ -34141,6 +34287,15 @@ function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas, kvar) {
   const dubbelLada = t => olast(t) && spar.some(u => u.id !== t.id && olast(u) && losa.has(u.id) && u.w != null && u.h != null && !franHelbild(u) && !!u.kortlik && !u.skymd
     && (fodd(u.id) < fodd(t.id) || (fodd(u.id) === fodd(t.id) && u.id < t.id)) && tackning(u, t) >= SAMMA_KORT_TACKNING
     );   // telefonens under håller inte isär två olästa lådor (467,4 s: lådan på det flyttade Islandet stod "över" det)
+  /* Bekräftat räcker bara på fri bordsyta (Jesper 2026-10-13). Ett spår som ligger på ett annat kort (täcker ett annat
+     spår med korts form, SAMMA_KORT_TACKNING) väntar på vilar som före 2026-10-12: i en hög blinkar lådor fram och
+     dör inom en sekund. Uppspelat genom partiet 2026-09-21 (kamerans video genom kedjan) gav bekr på högarna 48 nya
+     oframkallade kort i 6 minuter, vart och ett i ~2 s — 33 av dem på ett annat spår (överlapp 0,8–1), med telefonens
+     relation "ligger över". Med vilar på högarna syntes de inte, som förut. Gränsen är OFR_HOG_TACK, inte
+     SAMMA_KORT_TACKNING: ett Island som lades delvis på ett annat i Jespers parti 2026-10-11 (458,6 s) täckte 0,65
+     och hade annars väntat 1,5 s; spökena täckte 0,75–1 utom sex. Riktiga kort som läggs nästan rakt på ett annat
+     (över 0,75) väntar som före 2026-10-12. */
+  const iHog = t => spar.some(u => u.id !== t.id && u.w != null && u.h != null && !franHelbild(u) && (u.kortlik || u.tillstand === 'klar') && tackning(u, t) >= OFR_HOG_TACK);
   /* Nya: ett löst spår som ligger still som ett kort, från släppet (OFR_TROSKEL), utan namn — eller med
      antalets fråga. Inte ett spår spelaren hoppat över eller tagit bort, inte ett som kan vara ett kort
      i väntan som flyttats hit (det avgörs när telefonen läst det), och inte ett som ligger där ett kort i
@@ -34150,6 +34305,7 @@ function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas, kvar) {
     const q = mig.pending.find(q => q.spar === t.id);
     if (t.tillstand === 'klar' && !(q && q.overTak)) continue;
     if (!ofrSomKort(t)) continue;
+    if (!ofrVilar(t) && iHog(t)) continue;   // på en hög: vilar som före 2026-10-12
     if (vantaLas && vantaLas(t)) continue;   // läsningen avgör (avstamBord: leken ska läggas ned)
     const v = ofrVila.get(t.id);
     const troskel = Math.max(OFR_TROSKEL, tackerKort(t) ? OFR_TROSKEL_TACKT : 0);
@@ -34164,13 +34320,14 @@ function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas, kvar) {
   /* Släppet och fotot glöms med spåret — utom för ett spår som en post bär. */
   for (const id of [...ofrVila.keys()]) if (!synliga.has(id)) ofrVila.delete(id);
   for (const id of [...ofrFoto.keys()]) if (!synliga.has(id) && !iPost(id)) ofrFoto.delete(id);
+  for (const id of [...ofrFotoVid.keys()]) if (!synliga.has(id) && !iPost(id)) ofrFotoVid.delete(id);
   /* Relationen minns så länge spåret syns, bär ett kort (i väntan, eller före en gissad flytt: motsager) eller en post. */
   for (const id of [...ofrOver.keys()]) if (!synliga.has(id) && !iPost(id) && !kortPa(id) && !mig.cards.some(c => c.flyttFran && c.flyttFran.spar === id)) ofrOver.delete(id);
   return andrat;
 }
 /* De oframkallade korten just nu, i den ordning de lades ned. */
 function ofrLista() { return [...ofrMinne.values()].sort((a, b) => a.lagd - b.lagd || a.id - b.id); }
-function ofrGlom() { ofrMinne = new Map(); ofrVila = new Map(); ofrFoto = new Map(); ofrOver = new Map(); ofrFrister = []; }
+function ofrGlom() { ofrMinne = new Map(); ofrVila = new Map(); ofrFoto = new Map(); ofrFotoVid = new Map(); ofrOver = new Map(); ofrFrister = []; }
 
 /* ── sammanfattningen när auto stängs av ─────────────────────────────
    Vad hela passet kostade och gav: kort som hittades, hur de fick sitt
@@ -35173,9 +35330,16 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      dog, och det gamla hade då sen 370–410 ms. Utan det här blinkade ett oframkallat kort förbi där kortet lades,
      tills det gamla spåret dog och flytten tog över. Ett kort som bara blinkade (sen tillbaka under LYFT_MS) släpper
      väntan i nästa rapport. */
+  /* …och i den här frågan räknas inte om platsen syns täckt (platsTackt): det oframkallade kortet väntar på läsningen
+     så länge ett kort som nyss försvunnit kan vara det som läggs ned här (passar), också när kortets gamla plats
+     delvis täcks av ett annat kort. I passet 2026-10-11 (468,1 s) flyttades ett Island som legat omlott med ett
+     annat; det kvarliggande Islandet täckte 0,37 av den gamla platsen, platsTackt sa "kortet kan ligga kvar under",
+     och det flyttade kortets nya spår fick ett oframkallat kort i 1,9 s tills läsningen bar dit kortet. Priset är
+     att ett nytt kort som läggs ned medan ett annat nyss försvunnit väntar på sitt namn — som alla kort före
+     2026-10-12. Steg 3b (vilka kort som får bäras) läser platsTackt som förut. */
   const lyfts = k => { const u = k.spar != null && synliga.has(k.spar) ? spar.find(x => x.id === k.spar) : null; return !!u && !u.skymd && u.sen != null && u.sen >= LYFT_MS; };
   ofrFlyttKan = t => (t.tillstand === 'ny' || t.tillstand === 'stilla') && mig.cards.some(k => k.spar != null && paBordet(k) && !k.fysisk && !!k.kam && !k.attachedTo
-    && (synliga.has(k.spar) ? lyfts(k) : !(k.borta && nu - k.borta > BORTA_NAD) && !platsTackt(k)) && passar(k, t));
+    && (synliga.has(k.spar) ? lyfts(k) : !(k.borta && nu - k.borta > BORTA_NAD) && sedd(t) <= (k.borta || nu) + FLYTT_EFTER) && passar(k, t));
   if (kand.length && vantar.length) {
     const avst =(k, t) => Math.hypot((t.vx != null ? t.vx : t.x + t.w / 2) - k.kam.x, (t.vy != null ? t.vy : t.y + t.h / 2) - k.kam.y);
     const par = [];
@@ -35572,6 +35736,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const kantHaller = borta => !matchar && !kamFlaggar && kamFas === 'kant' && !!kantSedan && borta != null && borta - kantSedan <= SLAPP_MS && kantSedan - borta <= LOS_MS;
   /* …och ett nytt spår som ännu inte lästs, där flytten kan bära kortet (passar, steg 3b): det avgör läsningen. */
   const kanFlyttas = k => spar.some(t => t.w != null && !franHelbild(t) && !bunden(t.id) && (t.tillstand === 'ny' || t.tillstand === 'stilla') && (!!t.kortlik || ofrVila.has(t.id)) && !t.skymd && !t.ned
+    && sedd(t) <= k.borta + FLYTT_EFTER
     && !hoppade.has(t.id) && !borttagna.has(t.id) && passar(k, t));
   const handIBild = sparRa.some(t => handSpar(t, sparRa));
   const orort = k => namnAnnanstans(k) || olastSpar(k) || kanFlyttas(k) || tacktAvKort(k) || urBild(k) || kantHaller(k.borta);
@@ -35733,7 +35898,7 @@ function tagEmotBeskarning(m) {
   if (q && m.namnLast) q.namnLast = m.namnLast;
   /* Det oframkallade kortets foto (MES-344), om telefonen inte redan skickat ett när kortet lades ned (en
      äldre telefon): läsningens beskärning har 8 % marginal runt kortet, fotot 2 % — den skärs till först. */
-  if (!ofrFoto.has(m.spar)) ofrFotoTill(m.b64, 0.08, b => { if (ofrFotoSatt(m.spar, b)) renderGrid(); });
+  if (!ofrFoto.has(m.spar)) { ofrFotoVidSatt(m.spar, m.b64, 0.08); ofrFotoTill(m.b64, 0.08, b => { if (ofrFotoSatt(m.spar, b)) renderGrid(); }); }
   if (q) renderAll(true);
 }
 /* En beskärning med marginalen marg runt kortet, som ett foto med telefonens 2 % (fotoUr), 160 px brett. */
@@ -35751,10 +35916,15 @@ function ofrFotoTill(b64, marg, fn) {
   img.src = b64;
 }
 /* Kamerans foto av ett nytt kort (MES-344): telefonen skickar det när kortet först ligger still, så att
-   ett oframkallat kort kan visa det om namnet dröjer (kamSkickaFoto). Kommer före bordet. */
+   ett oframkallat kort kan visa det om namnet dröjer (kamSkickaFoto). Kommer före bordet. Med marg (15 %) har
+   fotot bordet runt kortet: rutan "Enter card name" får hela, mattan kortet med 2 % (ofrFotoTill). Utan marg
+   (en äldre telefon) är fotot redan mattans. */
 function tagEmotFoto(m) {
   if (!m || m.spar == null || typeof m.b64 !== 'string' || !m.b64.startsWith('data:image/')) return;
-  if (ofrFotoSatt(m.spar, m.b64)) renderGrid();
+  const marg = typeof m.marg === 'number' && m.marg > 0.02 && m.marg <= 0.5 ? m.marg : null;
+  if (!marg) { if (ofrFotoSatt(m.spar, m.b64)) renderGrid(); return; }
+  ofrFotoVidSatt(m.spar, m.b64, marg);
+  ofrFotoTill(m.b64, marg, b => { if (ofrFotoSatt(m.spar, b)) renderGrid(); });
 }
 
 /* ── Statusfältet, ritat ────────────────────────────────────────────
@@ -39480,11 +39650,20 @@ var Installningar, TelefonArk;
 .instruta .s{margin:4px 0 0;font-size:12.8px;color:var(--dim);line-height:1.5}
 .instruta .m{margin:6px 0 0;font-size:12px;color:var(--dim2)}
 .instruta .m.bad{color:#f3b3b8}
-.instruta .switch{position:relative;flex:none;width:42px;height:26px;border-radius:999px;background:#3a4558;margin-top:1px;border:0;padding:0;cursor:pointer}
-.instruta .switch::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#cfd6e2;transition:left .15s}
-.instruta .switch.on{background:var(--acc)}
-.instruta .switch.on::after{left:19px;background:#1a1205}
-.instruta .switch:disabled{opacity:.6;cursor:default}
+/* Växeln (role=switch): spåret mörkt med en tunn kant när den är av, accentfärgat när den är på; knoppen glider och får en bock. Fokusringen syns bara från tangentbordet. */
+.switch{position:relative;flex:none;width:44px;height:26px;margin-top:-1px;padding:0;border:0;border-radius:999px;background:var(--bg4);box-shadow:inset 0 0 0 1px #3a4558;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;transition:background .2s,box-shadow .2s}
+.switch::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#aeb7c6 center/12px 12px no-repeat;box-shadow:0 1px 2px #0007;transition:transform .22s cubic-bezier(.3,.7,.4,1),background-color .2s}
+.switch:hover:not(:disabled){box-shadow:inset 0 0 0 1px #4a5670}
+.switch:hover:not(:disabled)::after{background-color:#c4ccd8}
+.switch.on{background:var(--acc);box-shadow:none}
+.switch.on::after{transform:translateX(18px);background-color:#fff;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6l4.5-5' fill='none' stroke='%23b8770f' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.switch.on:hover:not(:disabled){background:#f5b545;box-shadow:none}
+.switch.on:hover:not(:disabled)::after{background-color:#fff}
+.switch:active:not(:disabled)::after{width:23px}
+.switch.on:active:not(:disabled)::after{transform:translateX(15px)}
+.switch:focus-visible{box-shadow:inset 0 0 0 1px #3a4558,0 0 0 3px var(--bg2),0 0 0 5px #f0a52a99}
+.switch.on:focus-visible{box-shadow:0 0 0 3px var(--bg2),0 0 0 5px #f0a52a99}
+.switch:disabled{opacity:.55;cursor:default}
 .instruta .btn.danger{align-self:flex-start;background:#2a1215;border:1px solid #6e2f36;color:#f0a0a6}
 .instruta .btn.danger:disabled{background:var(--bg3);border-color:var(--line);color:var(--dim2);opacity:1}
 .instruta .btn.dangerfill{background:#c94a55;border-color:#c94a55;color:#fff}
@@ -39537,7 +39716,7 @@ var Installningar, TelefonArk;
   const datum = iso => { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? `${d.getDate()} ${MAN[d.getMonth()]} ${d.getFullYear()}` : ''; };
   const st1 = (n, ord) => `${n} ${ord}${n === 1 ? '' : 's'}`;
   const vad = a => `${st1(a.rapporter, 'report')} and ${st1(a.bilder, 'card picture')}`;
-  const BILD_TEXT = "When you fix a card's name, Mesa keeps the picture of that card to fix problems and improve its card recognition, including training our models.";
+  const BILD_TEXT = "When you fix a card's name, Mesa keeps a picture of that card and the cards right around it, to fix problems and improve its card recognition, including training our models.";
 
   /* ── Settings (README §3, tavlorna L9-Settings, L9-DeleteAsk, L9-Deleted) ──────────────
      lage: vila · fraga (Delete?) · raderar · raderat. antal: undefined = läser, null = gick inte. */
@@ -39770,7 +39949,11 @@ function ritaRapportKnapp() {
    ett kamerakort blir en rad i rapporter (kalla 'rattelse', anvandning
    null) med två filer under radens sokvag: beskarning.jpg och
    rattelse.json { gissning, varfor, ratt, spelkod, t, spar, handelse,
-   saker, bild } — kontraktet med del D (till-fall.cjs --bank). BARA när
+   saker, bild, ruta, maskade, kontext, bordet } — kontraktet med del D
+   (till-fall.cjs --bank). ruta = beskärningens låda i analysbilden
+   (andelar + bild {w,h}), maskade = de lådor som målades grå (med spår),
+   och kontext.jpg = ett utsnitt runt kortet ur ringens bild, med rutan inritad — så att
+   facit säger vilket kort i en hög som rättades (dev/rapport/LÄS-MIG.md). BARA när
    kontots user_metadata.improve_pictures === true, läst från servern i det
    ögonblicket (Moln.bildInstallning); av eller saknas = ingenting, inte
    heller lokalt. Beskärningen laddar telefonen upp själv
@@ -39801,7 +39984,7 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
   const ring = [];            // { t, orsak, w, h, spar, blob }
   const besk = new Map();     // spår-id → { t, spar, kort, saker, varfor, w, h, blob }
   let gen = 0;                // räknas upp av tom/glom: en kodning som blir klar efter tömningen kastas (punkt 3)
-  let bytes = 0, beskBytes = 0, senast = -Infinity, senastHand = -Infinity, sig = null, ko = 0, beskKo = 0, agarenNu = null;
+  let bytes = 0, beskBytes = 0, senast = -Infinity, senastHand = -Infinity, sig = null, ko = 0, beskKo = 0, agarenNu = null, sparNu = null;
   const stat = { tagna: 0, slappta: 0, hoppade: 0, beskTagna: 0, beskSlappta: 0, beskHoppade: 0, kodMs: 0, kodN: 0, kodSyncMs: 0, kodSyncMax: 0, stegMs: 0, stegN: 0, stegMax: 0, tommda: 0 };
   /* Av: golden --utan-stillbilder. På: golden (STILLBILDER_PA) eller när rapporten finns för spelaren. */
   const av = () => { try { return window.STILLBILDER_AV === true || !(window.STILLBILDER_PA === true || rapportFinns()); } catch (e) { return true; } };
@@ -39877,6 +40060,7 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
   function steg(canvas, nu, spar, aw, ah) {
     if (av() || !canvas || !canvas.width || !aw || !ah) return;
     const t0 = performance.now();
+    sparNu = spar || null;   // bara referensen: beskarning() slår upp vilka spår de maskade lådorna är
     try {
       kollaAgare();
       const s = sigAv(spar || [], aw);
@@ -39894,12 +40078,30 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
   }
 
   /* Läsningens beskärning, per spår och namnsättning (identifiera, spekulera). Den senaste ersätter den förra för samma spår. */
+  /* Var beskärningen låg (facit för rättelserna, uppföljning av MES-366/368): maskaTackt lägger lådan och de grå
+     lådorna på duken (canvas.lasFacit, analyspixlar). Här blir de andelar av analysbilden som stillbildernas spår,
+     och varje maskad låda får sitt spår med samma regel som bordets under (underAv i Kamera): spåret vars låda har
+     IoU ≥ 0,5 mot den, bästa; inget sådant = spar null. ruta null = duken bar inga siffror (okänt). */
+  const iouL = (a, b) => { const iw = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), ih = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y); if (iw <= 0 || ih <= 0) return 0; const s = iw * ih; return s / (a.w * a.h + b.w * b.h - s); };
+  const andel = (q, aw, ah) => ({ x: +(q.x / aw).toFixed(4), y: +(q.y / ah).toFixed(4), w: +(q.w / aw).toFixed(4), h: +(q.h / ah).toFixed(4) });
+  function platsAv(t, canvas) {
+    const f = canvas && canvas.lasFacit;
+    if (!f || !f.ruta || !f.aw || !f.ah) return { ruta: null, maskade: null };
+    const ruta = Object.assign(andel(f.ruta, f.aw, f.ah), { bild: { w: f.aw, h: f.ah }, rot: f.rot != null ? f.rot : null });   // rot: beskärningen är kortets vridna rektangel (beskarVridning), inte lådan
+    const maskade = (f.maskade || []).map(q => {
+      let bast = null, bv = 0.5;
+      for (const u of sparNu || []) { if (!u || u === t || u.id === t.id || u.tillstand === 'skrap' || !u.box) continue; const v = iouL(u.box, q); if (v >= bv) { bv = v; bast = u; } }
+      return Object.assign({ spar: bast ? bast.id : null }, andel(q, f.aw, f.ah));
+    });
+    return { ruta, maskade };
+  }
   function beskarning(t, canvas, svar) {
     if (av() || !t || t.id == null || !canvas || !canvas.width) return;
     try {
       kollaAgare();
+      const pl = platsAv(t, canvas);
       const post = { t: Date.now(), spar: t.id, kort: (svar && svar.namn) || null, saker: !!(svar && svar.saker), varfor: (svar && svar.varfor) || null,
-                     w: 0, h: 0, blob: null };
+                     w: 0, h: 0, blob: null, ruta: pl.ruta, maskade: pl.maskade };
       koda(canvas, BESK_KVAL, (b, w, h) => {
         post.blob = b; post.w = w; post.h = h;
         const f = besk.get(t.id); if (f) beskBytes -= f.blob.size;
@@ -39914,7 +40116,7 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
     kollaAgare();   // ett annat konto eller parti sedan bilderna togs: de följer inte med (punkt 5)
     const ut = [], bilder = [], beskarningar = [];
     ring.forEach((b, i) => { const namn = `s-${b.t}-${i}.jpg`; ut.push({ namn, t: b.t, blob: b.blob }); bilder.push({ fil: namn, t: b.t, orsak: b.orsak, w: b.w, h: b.h, spar: b.spar }); });
-    for (const b of besk.values()) { const namn = `beskarning-spar${b.spar}-${b.t}.jpg`; ut.push({ namn, t: b.t, blob: b.blob }); beskarningar.push({ fil: namn, t: b.t, spar: b.spar, kort: b.kort, saker: b.saker, varfor: b.varfor, w: b.w, h: b.h }); }
+    for (const b of besk.values()) { const namn = `beskarning-spar${b.spar}-${b.t}.jpg`; ut.push({ namn, t: b.t, blob: b.blob }); beskarningar.push({ fil: namn, t: b.t, spar: b.spar, kort: b.kort, saker: b.saker, varfor: b.varfor, w: b.w, h: b.h, ruta: b.ruta || null, maskade: b.maskade || null }); }
     const index = { v: 1, sida: 'telefon', klocka: 'telefonens Date.now() (rapport.json telefon.offset räknar om till datorns)', frys: Date.now(),
                     bilder, beskarningar, stat: statNu() };
     ut.push({ namn: 'index.json', t: Date.now() + 1, blob: new Blob([JSON.stringify(index)], { type: 'application/json' }) });
@@ -39946,17 +40148,85 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
   }
 
   /* En tyst rättelse på datorn ber om spårets beskärning (Rattelse): ladda upp den som beskarning.jpg i radens mapp. */
+  /* kontext.jpg (uppföljning av MES-366/368): ett utsnitt runt spåret ur ringens bild av bordet, den som ligger
+     närmast beskärningen i tid (utan beskärning: den nyaste). Jespers beslut 2026-10-14: bara kortets närmaste
+     omgivning, aldrig hela bordet — rutan plus ungefär ett kortavstånd åt varje håll (rutans bredd åt sidorna, rutans
+     höjd uppåt och nedåt, begränsat till bilden), högst KONTEXT_MAX px åt längsta hållet och aldrig uppskalat mer än ×2.
+     Spårets låda inritad (röd, tjock) och de maskade lådorna grå och streckade, i utsnittets koordinater, så att den som
+     läser facit ser vilket kort i högen som rättades. info.utsnitt = utsnittets läge i ringbilden (andelar x,y,w,h);
+     info.ruta/maskade är andelar av hela ringbilden, som förut. Görs ur ringens färdiga JPEG (aldrig ur videon), först
+     när rättelsen sparas: inget i analyssteget.
+     Tidsgränsen (granskningen av 6c3fea8): beskärningens lådor ritas bara i en bild högst KONTEXT_DT_MS från
+     beskärningen (dt = ringbildens t − beskärningens t, båda telefonens klocka). Längre bort: ingen kontext, och
+     skälet följer med i svaret — en låda ur en annan tid i en bild av ett bord som hunnit ändras är ett falskt facit. */
+  const KONTEXT_DT_MS = 2000, KONTEXT_UTAN_MS = 10000, KONTEXT_MAX = 480;   // utan beskärning: ringbilden högst 10 s gammal (granskningen av 931419e)
+  /* Utsnittet runt en ruta (andelar) i en bild Wb × Hb px: rutan + en rutas bredd/höjd åt varje håll, inom bilden. */
+  function kontextUtsnitt(r, Wb, Hb) {
+    const x0 = Math.max(0, Math.floor((r.x - r.w) * Wb)), y0 = Math.max(0, Math.floor((r.y - r.h) * Hb));
+    const x1 = Math.min(Wb, Math.ceil((r.x + 2 * r.w) * Wb)), y1 = Math.min(Hb, Math.ceil((r.y + 2 * r.h) * Hb));
+    const sw = Math.max(1, x1 - x0), sh = Math.max(1, y1 - y0), sk = Math.min(2, KONTEXT_MAX / Math.max(sw, sh));
+    return { x0, y0, sw, sh, sk, W: Math.max(1, Math.round(sw * sk)), H: Math.max(1, Math.round(sh * sk)),
+             utsnitt: { x: x0 / Wb, y: y0 / Hb, w: sw / Wb, h: sh / Hb } };
+  }
+  async function kontextBild(sparId, f) {
+    let bast = null;
+    for (const b of ring) {
+      if (!b.blob || !b.spar || !b.spar.some(s => s.id === sparId)) continue;
+      if (!bast || (f ? Math.abs(b.t - f.t) < Math.abs(bast.t - f.t) : b.t > bast.t)) bast = b;
+    }
+    if (!bast) return { blob: null, skal: 'spåret finns inte i ringens bilder', dt: null };
+    /* dt = ringbildens tid − beskärningens (telefonens klocka); utan beskärning: − nu, alltså bildens ålder. */
+    const dt = f ? bast.t - f.t : bast.t - Date.now(), grans = f ? KONTEXT_DT_MS : KONTEXT_UTAN_MS;
+    if (Math.abs(dt) > grans) return { blob: null, skal: f ? `ringens närmaste bild med spåret är ${(dt / 1000).toFixed(1)} s från beskärningen (gränsen ±${grans / 1000} s)` : `ringens senaste bild med spåret är ${(-dt / 1000).toFixed(1)} s gammal (gränsen ${grans / 1000} s)`, dt };
+    if (typeof createImageBitmap !== 'function') return { blob: null, skal: 'createImageBitmap saknas', dt };
+    const bm = await createImageBitmap(bast.blob);
+    const egen = bast.spar.find(s => s.id === sparId);
+    const ruta = { x: egen.x, y: egen.y, w: egen.w, h: egen.h };
+    const Wb = bm.width || bast.w, Hb = bm.height || bast.h, U = kontextUtsnitt(ruta, Wb, Hb), W = U.W, H = U.H;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d');
+    x.drawImage(bm, U.x0, U.y0, U.sw, U.sh, 0, 0, W, H); try { bm.close(); } catch (e) {}
+    /* De maskade lådorna i den här bilden: samma spår här om det finns, annars beskärningens låda (en annan tid). */
+    const maskade = !(f && f.maskade) ? null : f.maskade.map(q => { const u = q.spar != null ? bast.spar.find(s => s.id === q.spar) : null; return u ? { spar: q.spar, x: u.x, y: u.y, w: u.w, h: u.h, ur: 'bilden' } : Object.assign({}, q, { ur: 'beskarningen' }); });
+    const px = q => [(q.x * Wb - U.x0) * U.sk, (q.y * Hb - U.y0) * U.sk, q.w * Wb * U.sk, q.h * Hb * U.sk];
+    const etikett = (text, X, Y, farg) => { x.font = 'bold 13px system-ui, sans-serif'; const w = x.measureText(text).width + 8; const y = Math.max(0, Y - 18); x.fillStyle = farg; x.fillRect(X, y, w, 17); x.fillStyle = '#fff'; x.fillText(text, X + 4, y + 13); };
+    for (const q of maskade || []) {
+      const [a, b, w, h] = px(q);
+      x.fillStyle = 'rgba(110,110,110,0.55)'; x.fillRect(a, b, w, h);
+      x.setLineDash([6, 4]); x.lineWidth = 2; x.strokeStyle = '#e8e8e8'; x.strokeRect(a, b, w, h); x.setLineDash([]);
+      etikett('maskad' + (q.spar != null ? ' ' + q.spar : ''), a, b + h + 18, 'rgba(70,70,70,0.9)');
+    }
+    { const [a, b, w, h] = px(ruta); x.lineWidth = 4; x.strokeStyle = '#ff2d55'; x.strokeRect(a, b, w, h); etikett('spår ' + sparId, a, b, '#ff2d55'); }
+    const blob = await new Promise(res => { try { c.toBlob(res, 'image/jpeg', 0.85); } catch (e) { res(null); } });
+    if (!blob || !blob.size) return { blob: null, skal: 'kodningen gav ingen bild', dt };
+    return { blob, info: { fil: 'kontext.jpg', t: bast.t, dt, w: W, h: H, bild: { w: Wb, h: Hb }, utsnitt: U.utsnitt, ruta, maskade } };
+  }
+
   async function rattelseBild(m) {
     kollaAgare();
     const mapp = String((m && m.sokvag) || ''), f = m && m.spar != null ? besk.get(m.spar) : null;
-    let ok = 0, nej = 0;
+    const iRingen = m && m.spar != null && ring.some(b => b.spar && b.spar.some(s => s.id === m.spar));
+    let ok = 0, nej = 0, kontext = null, kontextSkal = iRingen ? null : 'spåret finns inte i ringens bilder';
     try {
       /* Telefonen läser kontots inställning själv före uppladdningen (punkt 7): datorns ord räcker inte. */
-      if (f && f.blob && Moln.minId() && mapp.startsWith(Moln.minId() + '/rapporter/')) {
-        if (await Moln.bildInstallning()) { await Moln.rapportFil(mapp, 'beskarning.jpg', f.blob, 'image/jpeg'); ok = 1; } else nej = 1;
+      if (((f && f.blob) || iRingen) && Moln.minId() && mapp.startsWith(Moln.minId() + '/rapporter/')) {
+        if (await Moln.bildInstallning()) {
+          /* Beskärningens uppladdning och kontexten (bild + uppladdning) samtidigt, så att svaret hinner inom datorns 10 s. */
+          const upp = f && f.blob ? Moln.rapportFil(mapp, 'beskarning.jpg', f.blob, 'image/jpeg').then(() => { ok = 1; }) : null;
+          const kon = (async () => {
+            try {
+              const k = await kontextBild(m.spar, f);
+              if (k && k.blob) { await Moln.rapportFil(mapp, 'kontext.jpg', k.blob, 'image/jpeg'); kontext = k.info; kontextSkal = null; }
+              else if (k) kontextSkal = k.skal;
+            } catch (e) { kontextSkal = 'fel: ' + Lada.kap(e && e.message, 120); Lada.skriv('fel', { kalla: 'rattelse', med: 'kontextbilden: ' + Lada.kap(e && e.message, 200) }); }
+          })();
+          const [u] = await Promise.allSettled([upp, kon]);
+          if (u.status === 'rejected') throw u.reason;
+        } else nej = 1;
       }
     } catch (e) { Lada.skriv('fel', { kalla: 'rattelse', med: 'beskärningen: ' + Lada.kap(e && e.message, 200) }); }
-    Moln.sandKam('rapport_rattelse_klar', { kod: m && m.kod, ok, nej: nej || undefined, kort: f ? f.kort : null, varfor: f ? f.varfor : null, saker: f ? f.saker : null, tBesk: f ? f.t : null });
+    Moln.sandKam('rapport_rattelse_klar', { kod: m && m.kod, ok, nej: nej || undefined, kort: f ? f.kort : null, varfor: f ? f.varfor : null, saker: f ? f.saker : null, tBesk: f ? f.t : null,
+                                            ruta: f && f.ruta ? f.ruta : null, maskade: f && f.maskade ? f.maskade : null, kontext, kontextSkal: kontext ? null : kontextSkal });
   }
 
   function statNu() {
@@ -39993,6 +40263,16 @@ var Rattelse = (() => {   // var: se Rapport
     const g = (t && (t.namn || t.gissning)) || obj.name || forsta(obj.cands) || (t && forsta(t.cands)) || (t && t.remsa && t.remsa.namn) || null;
     return { gissning: g, varfor: (t && t.varfor) || obj.varfor || null, saker: t ? !!t.saker : null };
   }
+  /* Var datorn senast såg spåret (bordets rad från telefonen, andelar av bilden): rutan och de spår som ligger ÖVER det
+     (bordets under, telefonens regel underAv). Datorn vet inte analysbildens mått och inte om dess egen kopia av
+     beskärningen är övermålad — det här är "så gott det går" när telefonen inte svarar, och radens vy. */
+  function platsPaBordet(spar) {
+    const t = sparet(spar); if (!t || t.x == null) return { ruta: null, maskade: null };
+    const ruta = { x: +(+t.x).toFixed(4), y: +(+t.y).toFixed(4), w: +(+t.w).toFixed(4), h: +(+t.h).toFixed(4), bild: null, kalla: 'bordet' };
+    /* maskad utan känt under = okänt (null), aldrig "inget ovanpå" (granskningen av 6c3fea8) */
+    const maskade = !t.maskad ? [] : !(t.under && t.under.length) ? null : t.under.map(id => { const u = sparet(id); return u && u.x != null ? { spar: id, x: +(+u.x).toFixed(4), y: +(+u.y).toFixed(4), w: +(+u.w).toFixed(4), h: +(+u.h).toFixed(4) } : { spar: id }; });
+    return { ruta, maskade };
+  }
   function egenBild(spar) {
     try {
       for (const w of [260, 220]) { const b = cropCache.get('spar-' + spar + '@' + w); if (typeof b === 'string' && b.startsWith('data:image/')) return b; }
@@ -40024,8 +40304,9 @@ var Rattelse = (() => {   // var: se Rapport
       const g = gissningFor(handelse, obj);
       const fakta = { gissning: g.gissning, varfor: g.varfor, ratt: ratt || null, spelkod: spelLage.kod || null, t: Date.now(), spar: obj.spar, handelse, saker: g.saker };
       const gameId = spelLage.id || null;
+      const bordet = platsPaBordet(obj.spar);   // nu, innan rättelsen tar bort eller flyttar kortet
       stat.forsok++;
-      const lofte = spara(fakta, gameId)
+      const lofte = spara(fakta, gameId, bordet)
         .then(r => { if (r) gjorda.add(nyckel); return r; },
               e => { if (arTak(e)) { takNatt = true; stat.tak++; return null; } stat.fel++; Lada.skriv('fel', { kalla: 'rattelse', med: Lada.kap(e && e.message, 200) }); return null; })
         .finally(() => { pagar.delete(nyckel); aktiva.delete(lofte); });
@@ -40033,10 +40314,11 @@ var Rattelse = (() => {   // var: se Rapport
       return lofte;
     } catch (e) { return null; }
   }
-  async function spara(fakta, gameId) {
+  async function spara(fakta, gameId, bordet) {
+    bordet = bordet || { ruta: null, maskade: null };
     /* Inställningen läses NU, från servern. Av eller okänd: ingenting sparas, inte heller lokalt. */
     if (!(await Moln.bildInstallning())) { stat.av++; return null; }
-    const r = await Moln.rapportRad({ game_id: gameId, kalla: 'rattelse', text: null, tagg: null, vy: { handelse: fakta.handelse, gissning: fakta.gissning, ratt: fakta.ratt, spar: fakta.spar }, bilder: null });
+    const r = await Moln.rapportRad({ game_id: gameId, kalla: 'rattelse', text: null, tagg: null, vy: { handelse: fakta.handelse, gissning: fakta.gissning, ratt: fakta.ratt, spar: fakta.spar, ruta: bordet.ruta, maskade: bordet.maskade }, bilder: null });
     const s = await fragaTelefon(r, fakta.spar);
     /* Spåret kan vara borta på datorn: telefonens beskärning bär läsningens namn och domskäl (punkt 8). */
     if (s) {
@@ -40055,7 +40337,14 @@ var Rattelse = (() => {   // var: se Rapport
       const b64 = egenBild(fakta.spar);
       if (b64) { await Moln.rapportFil(r.sokvag, 'beskarning.jpg', await tillBlob(b64), 'image/jpeg'); bild = 'dator'; }
     }
-    const json = Object.assign({}, fakta, { bild });
+    /* Var kortet låg (uppföljning av MES-366/368): telefonens beskärning bär sin egen låda och de grå lådorna
+       (kalla 'beskarning', exakt det bilden är); datorns kopia får bara bordets ruta, och maskade null = okänt.
+       kontext = telefonens kontext.jpg (utsnitt runt kortet ur ringens bild, rutan inritad), null när telefonen inte gjorde någon. */
+    const fran = bild === 'telefon' && s.ruta;
+    const ruta = fran ? Object.assign({}, s.ruta, { kalla: 'beskarning', t: s.tBesk || null }) : bordet.ruta;
+    const maskade = fran ? (s.maskade || null) : null;
+    const kontextSkal = s && s.kontext ? null : s ? (s.kontextSkal || 'telefonen gjorde ingen') : 'telefonen svarade inte';
+    const json = Object.assign({}, fakta, { bild, ruta, maskade, kontext: (s && s.kontext) || null, kontextSkal, bordet });
     await Moln.rapportFil(r.sokvag, 'rattelse.json', new Blob([JSON.stringify(json)], { type: 'application/json' }), 'application/json');
     Moln.rapportUppdatera(r.kod, { bilder: bild ? 'klar' : 'saknas' });
     stat.sparade++;

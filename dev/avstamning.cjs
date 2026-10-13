@@ -3630,6 +3630,42 @@ prov('SL5 ett kort som bara blinkar (sen under LYFT_MS) håller inte ett nytt ko
   klocka.t += 150; stam([klar(1, 'Swamp', { sen: 200, ...PORT }), bekr(2, LANGT)]);
   assert.deepEqual(ofrSlag(), ['2']);
 });
+prov('SL6 ett kort som nyss försvunnit håller tillbaka ett nytt kort som dyker upp inom FLYTT_EFTER: det kan vara kortet som flyttats; läsningen bär dit det', () => {
+  app.bildRor = true;
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);                                  // spåret dog
+  klocka.t += 300; stam([bekr(2, NY_PLATS)]);
+  assert.deepEqual(ofrSlag(), [], '0,3 s efter: kan vara flytten');
+  klocka.t += 900; stam([klar(2, 'Swamp', { sen: 0, kortlik: true, vilar: true, ...NY_PLATS })]);
+  assert.deepEqual(ofrSlag(), []); assert.equal(k.spar, 2, 'samma kort, flyttat'); assert.equal(app.kort.length, 1);
+});
+prov('SL7 (Jesper 2026-10-13) ett nytt kort som läggs ned senare än FLYTT_EFTER efter att ett annat försvann får sitt oframkallade kort direkt, fast det försvunna fortfarande väntar', () => {
+  app.bildRor = true;                                         // handen är kvar i bild: det försvunna kortet väntar
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 1700; stam([bekr(2, NY_PLATS)]);
+  assert.ok(app.kort.includes(k), 'det försvunna väntar fortfarande');
+  assert.deepEqual(ofrSlag(), ['2'], 'det nya kortet syns direkt');
+});
+prov('SL8 (2026-10-13) ett nytt bekräftat spår som ligger nästan rakt på ett annat kort (täcker över OFR_HOG_TACK) väntar på vilar: i en hög blinkar lådor fram', () => {
+  stam([klar(1, 'Plains', { sen: 0, ...PORT })]);
+  const PA = box(PORT.x + 0.004, PORT.y + 0.004, PORT.w, PORT.h);                 // täcker ~0,9 av kortet
+  klocka.t += 150; stam([klar(1, 'Plains', { sen: 0, ...PORT }), bekr(2, PA)]);
+  tid(klocka.t + 700); stam([klar(1, 'Plains', { sen: 0, ...PORT }), bekr(2, PA)]);
+  assert.deepEqual(ofrSlag(), [], 'inte på bekr');
+  klocka.t += 150; stam([klar(1, 'Plains', { sen: 0, ...PORT }), bekr(2, PA, { vilar: true })]);
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), ['2'], 'när det vilar, som förut');
+});
+prov('SL9 (2026-10-13) ett nytt kort som läggs delvis på ett annat (ett land på landhögen, täcker 0,65) får sitt oframkallade kort på bekr (Jespers parti 2026-10-11, 458,6 s)', () => {
+  stam([klar(1, 'Island', { sen: 0, ...PORT })]);
+  const DELVIS = box(PORT.x, PORT.y + 0.35 * PORT.h, PORT.w, PORT.h);           // förskjutet en tredjedel: täcker 0,65
+  klocka.t += 150; stam([klar(1, 'Island', { sen: 0, ...PORT }), bekr(2, DELVIS, { under: null })]);
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), ['2']);
+});
 prov('TH1 bilden är lugn när spåret dör: kortet går till handen efter den korta nåden, inte efter väntan', () => {
   app.bildRor = false;
   stam([klar(1, 'Expel', { sen: 0, ...PORT })]);

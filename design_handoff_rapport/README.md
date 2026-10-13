@@ -26,7 +26,8 @@ Kortet på startsidan, `#startKort` (`index.html` ~3511). Ordning uppifrån:
 1. Villkorsrutan som i dag (`#villkorBox`). **Den ensam** låser upp *Sign up with Google*.
 2. **Ny ruta**, aldrig ibockad från början, `id="bildBox"`:
    - fet: **Share pictures of cards I correct.**
-   - text: *When you fix a card's name, Mesa keeps the picture of that card to fix problems and improve its card recognition, including training our models.*
+   - text: *When you fix a card's name, Mesa keeps a picture of that card and the cards right around it, to fix problems and improve its card recognition, including training our models.*
+   - texten ändrades 2026-10-14 på Jespers begäran (förut: *... keeps the picture of that card to fix problems ...*), när kontextbilden blev ett utsnitt runt kortet i stället för hela bordet.
    - liten rad: *Optional. You can change it any time in Settings.*
 3. Finstilt (`#villkorFin`) **ersätts** med: *To find and fix problems, Mesa notes how the app is used and any errors. No ads, and no pictures unless you choose.* + länken *What and why* (privacy.html).
 

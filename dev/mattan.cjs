@@ -7,6 +7,8 @@
          node dev/mattan.cjs --visa     ett fönster i stället för huvudlös Chrome
          node dev/mattan.cjs --film <mapp>   rutor ur en flytt och en tap (JPEG), med
                                         animeringarna stoppade på 0, 60, 120 … 420 ms
+         node dev/mattan.cjs --bild <mapp>   bänken, och skärmbilder (PNG) där provet
+                                        tar dem (bild('namn') i provet) — att jämföra mot tavlorna
 
    Appen själv i en huvudlös Chrome, utan telefon och utan inloggning (minnet
    "kamerans datorsida provas utan telefon"): ett spel i Mirror my table med
@@ -28,7 +30,7 @@
 const { spawn } = require('child_process'), fs = require('fs'), path = require('path'), os = require('os'), http = require('http');
 const ROT = path.join(__dirname, '..');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
-const TID = process.argv.includes('--tid'), VISA = process.argv.includes('--visa'), FILM = arg('--film', '');
+const TID = process.argv.includes('--tid'), VISA = process.argv.includes('--visa'), FILM = arg('--film', ''), BILD = arg('--bild', '');
 const BARA_HOG = process.argv.includes('--hog');
 const FIL = path.resolve(arg('--fil', path.join(ROT, 'index.html')));
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -95,6 +97,13 @@ const PROV = async () => {
   const els = () => new Map([...gridEl.querySelectorAll('.card[data-cid]')].map(e => [e.dataset.cid, e]));
   const gar = el => el.getAnimations().some(a => a.playState === 'running');
   /* Ett riktigt musklick mitt på elementet (Node skickar trycket och släppet, se vakt). */
+  /* En skärmbild här, med --bild (window.__mattBildPa): drivaren tar den och svarar med __mattBildKlar. */
+  const bild = async namn => {
+    if (!window.__mattBildPa) return;
+    const nr = (window.__mattBild ? window.__mattBild.nr : 0) + 1;
+    window.__mattBild = { namn, nr };
+    for (let i = 0; i < 300 && window.__mattBildKlar !== nr; i++) await vanta(10);
+  };
   const riktigtKlick = async el => {
     const q = el.getBoundingClientRect(), nr = (window.__mattKlick ? window.__mattKlick.nr : 0) + 1;
     window.__mattKlick = { x: q.left + q.width / 2, y: q.top + q.height / 2, nr };
@@ -1117,6 +1126,24 @@ const PROV = async () => {
     ok('klicket på den mittersta etiketten öppnar sökrutan för just det kortet, bredvid det', !!sok2 && ofrSok && ofrSok.pend === mitt.dataset.pend && mittKort.dataset.pend === mitt.dataset.pend && (sr2.right <= kr.left || sr2.left >= kr.right),
       sok2 ? `pend ${ofrSok && ofrSok.pend} / ${mitt.dataset.pend}, ruta ${Math.round(sr2.left)}–${Math.round(sr2.right)}, kort ${Math.round(kr.left)}–${Math.round(kr.right)}` : 'ingen ruta');
     ok('… och raden "N cards to fill in" står fortfarande inte där (tre kort i granskningen, alla på mattan)', mig.pending.length === 3 && $('#pendBar').hidden, `${mig.pending.length} i granskningen, raden ${$('#pendBar').hidden ? 'dold' : 'synlig'}`);
+    /* Designytan "Mesa Name Which Card" (D): i högen syns vilket kort rutan gäller — en ring runt det på mattan, ovanpå
+       korten, etiketten NAMING, de andra korten som väntar tonade, och rutans spets mot kortet. */
+    {
+      const ring = document.querySelector('.ofrsok-ring'), rr = ring && rekt(ring);
+      const nid62 = gridEl.querySelector(':scope > .ofretik[data-ofr="62"]');
+      const andra = [61, 63].flatMap(id => [ofrEl(id), gridEl.querySelector(`:scope > .ofretik[data-ofr="${id}"]`), gridEl.querySelector(`:scope > .ofrmark[data-ofr="${id}"]`)]);
+      ok('D: en ring runt kortet som namnges, 3 px utanför, i accentfärgen', !!rr && Math.abs(rr.left - (kr.left - 3)) <= 1.5 && Math.abs(rr.top - (kr.top - 3)) <= 1.5 && Math.abs(rr.width - (kr.width + 6)) <= 2 && Math.abs(rr.height - (kr.height + 6)) <= 2 && getComputedStyle(ring).borderTopColor === 'rgb(240, 165, 42)' && getComputedStyle(ring).pointerEvents === 'none',
+        rr ? `ring ${Math.round(rr.left)},${Math.round(rr.top)} ${Math.round(rr.width)}×${Math.round(rr.height)}, kort ${Math.round(kr.left)},${Math.round(kr.top)} ${Math.round(kr.width)}×${Math.round(kr.height)}` : 'ingen ring');
+      const ringZ = ring ? +getComputedStyle(ring).zIndex : 0;
+      ok('… ovanpå korten, i rutans lager (kortet ligger under ett annat i högen)', ringZ > 900 && !!ring && ring.parentElement === sok2.parentElement && !gridEl.contains(ring), `z ${ringZ}`);
+      ok('… kortets etikett säger NAMING, i accentfärgen', !!nid62 && nid62.textContent === 'NAMING' && nid62.classList.contains('nu') && getComputedStyle(nid62).backgroundColor === 'rgb(240, 165, 42)', nid62 ? `${nid62.textContent} · ${nid62.className}` : 'ingen etikett');
+      ok('… de andra korten som väntar, deras etiketter och knappar tonas ned; kortet som namnges gör det inte', andra.every(e => e && e.classList.contains('tonad') && +getComputedStyle(e).opacity < 0.6) && !mittKort.classList.contains('tonad') && !nid62.classList.contains('tonad'),
+        andra.map(e => e ? e.className.replace(/\s+/g, '.') : 'saknas').join(' '));
+      const sp = sok2.querySelector('.sok-spets'), spr = sp && rekt(sp), spMitt = spr && spr.top + spr.height / 2, sida = sr2.right <= kr.left ? 'h' : 'v';
+      ok('… rutans spets pekar mot kortet, från den sida kortet står på, i kortets höjd', !!sp && getComputedStyle(sp).display === 'block' && sp.classList.contains(sida) && spMitt >= kr.top && spMitt <= kr.bottom && Math.abs(spr.left + spr.width / 2 - (sida === 'h' ? sr2.right : sr2.left)) <= 4,
+        sp ? `${sp.className}, mitt ${Math.round(spMitt)}, kort ${Math.round(kr.top)}–${Math.round(kr.bottom)}, spetsens mitt ${Math.round(spr.left + spr.width / 2)} mot kanten ${Math.round(sida === 'h' ? sr2.right : sr2.left)}` : 'ingen spets');
+      await bild('D-hogen-utan-foto');
+    }
     /* Not a card (granskningsradens Discard, för ett kort i taget): kortet går, och kameran frågar inte mer om spåret. */
     const nej = sok2 && sok2.querySelector('[data-soknej]'), pend62 = mitt && mitt.dataset.pend;
     if (nej) await riktigtKlick(nej);
@@ -1125,6 +1152,38 @@ const PROV = async () => {
     ok('Not a card i sökrutan: kortet och dess etikett går, granskningen har de två andra, och spåret frågas inte igen', !!nej && !ofrEl(62) && !gridEl.querySelector(':scope > .ofrmark[data-ofr="62"]') && !document.querySelector('.ofrsok')
       && mig.pending.length === 2 && !mig.pending.some(q => q.id === pend62 || q.spar === 62) && borttagna.has(62) && !!ofrEl(61) && !!ofrEl(63),
       `${nej ? 'knapp' : 'ingen knapp'}, ${mig.pending.length} i granskningen, oframkallade ${[61, 62, 63].filter(id => ofrEl(id)).join(',')}`);
+    {
+      const rester = [61, 63].flatMap(id => [ofrEl(id), gridEl.querySelector(`:scope > .ofretik[data-ofr="${id}"]`), gridEl.querySelector(`:scope > .ofrmark[data-ofr="${id}"]`)]).filter(Boolean);
+      ok('D: rutan stängd — ringen borta, inget tonat, etiketterna säger NOT IDENTIFIED igen', !document.querySelector('.ofrsok-ring') && rester.length === 6 && !rester.some(e => e.classList.contains('tonad') || e.classList.contains('nu')) && [...gridEl.querySelectorAll(':scope > .ofretik')].every(e => e.textContent === 'NOT IDENTIFIED'),
+        rester.map(e => e.className.replace(/\s+/g, '.')).join(' '));
+    }
+    /* D: telefonens foto med bordet runt kortet (marg 15 %). Mattan får kortet med 2 %, rutan hela fotot med kortets
+       kontur, och raden "Name the outlined card". */
+    {
+      const VID = (() => { const c = document.createElement('canvas'); c.width = 200; c.height = 278; const x = c.getContext('2d'); x.fillStyle = '#3b2f22'; x.fillRect(0, 0, 200, 278); x.fillStyle = '#c8b27a'; x.fillRect(23, 32, 154, 214); return c.toDataURL('image/jpeg', 0.6); })();
+      tagEmotFoto({ spar: 47, b64: VID, marg: 0.15 });
+      r.push(S(47, null, 0.7, 0.34, { tillstand: 'okand', cands: [{ name: 'Forest', score: 0.4 }] }));
+      avstamBord(r, false);
+      for (let i = 0; i < 80 && !((ofrLista().find(o => o.spar === 47) || {}).foto && (ofrLista().find(o => o.spar === 47) || {}).pend); i++) await vanta(25);
+      const post47 = ofrLista().find(o => o.spar === 47), matt = post47 && post47.foto;
+      const mattBild = matt ? await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = matt; }) : null;
+      ok('D: mattans foto är tillskuret ur det breda (160 px brett, inte telefonens 200)', !!matt && matt !== VID && !!mattBild && mattBild.width === 160, mattBild ? `${mattBild.width}×${mattBild.height}` : 'inget foto');
+      await zoomPa(ofrEl(47), 1);
+      ofrSokOppna(post47 && post47.pend);
+      await vanta(50);
+      await bild('D-fotot-och-ringen');
+      const sok = document.querySelector('.ofrsok'), img = sok && sok.querySelector('.sok-foto.vid img'), kon = sok && sok.querySelector('.sok-kontur');
+      const ir = img && rekt(img), kr2 = kon && rekt(kon), f = 0.15 / 1.3;
+      ok('… rutan visar hela fotot, med kortets kontur (15 % / 130 % in från varje kant) och resten mörkat', !!img && img.src === VID && !!kon && Math.abs(kr2.left - ir.left - f * ir.width) <= 1.5 && Math.abs(ir.bottom - kr2.bottom - f * ir.height) <= 1.5 && /400px/.test(getComputedStyle(kon).boxShadow) && getComputedStyle(kon).borderTopColor === 'rgb(240, 165, 42)',
+        ir && kr2 ? `foto ${Math.round(ir.width)}×${Math.round(ir.height)}, kontur ${Math.round(kr2.left - ir.left)} px in, ${Math.round(ir.bottom - kr2.bottom)} px upp` : 'ingen kontur');
+      ok('… kortets del är minst lika stor som i det vanliga fotot (≥ 150 px hög)', !!kr2 && kr2.height >= 150, kr2 ? Math.round(kr2.height) + ' px' : '');
+      const not = sok && sok.querySelector('.sok-not');
+      ok('… och raden "Name the outlined card", med "outlined" i accentfärgen', !!not && not.textContent === 'Name the outlined card' && getComputedStyle(not.querySelector('b')).color === 'rgb(240, 165, 42)', not ? not.textContent : 'ingen rad');
+      ofrInteKort(post47.pend);
+      avstamBord(r, false);
+      matZoomMot(zFit, 0, 0); await vanta(300);
+      ok('… Not a card: kortet och rutan borta', !ofrEl(47) && !document.querySelector('.ofrsok') && !document.querySelector('.ofrsok-ring') && mig.pending.length === 2, `${mig.pending.length} i granskningen`);
+    }
     /* Sökrutan, Jespers beslut 2026-10-09: stavfel hittar lekens kort, och ett kort utanför leken läggs till i leken
        när det väljs. Scryfall, uppslaget och lekens sparning är attrapper här — det som prövas är att rätt
        ändring går till leken som spelas. */
@@ -1232,7 +1291,7 @@ const PROV = async () => {
     const forst9 = knapp9[0], fId = forst9 && forst9.dataset.ofr;
     const lage9 = () => { const g = gridEl.getBoundingClientRect(); return [...gridEl.querySelectorAll(':scope > .ofrmark[data-ofr], :scope > .ofretik[data-ofr]')]
       .filter(el => !(el.dataset.ofr === fId && el.classList.contains('ofrmark')))
-      .map(el => { const q = rekt(el); return `${el.dataset.ofr}${el.classList.contains('ofrmark') ? 'k' : 'e'}${el.classList.contains('dold') ? '·dold' : ''}@${Math.round(q.left - g.left)},${Math.round(q.top - g.top)}`; }).join(' '); };
+      .map(el => { const q = rekt(el); return `${el.dataset.ofr}${el.classList.contains('ofrmark') ? 'k' : 'e'}${el.classList.contains('dold') ? '·dold' : ''}@${Math.round(q.left + q.width / 2 - g.left)},${Math.round(q.top - g.top)}`; }).join(' '); };   // mitten: kortets egen etikett säger NAMING medan rutan är öppen, smalare men på samma ställe ("Mesa Name Which Card", D)
     const fore9 = lage9();
     if (forst9) await riktigtKlick(forst9);
     const oppen9 = !!document.querySelector('.ofrsok') && !!ofrSok && !!forst9 && ofrSok.pend === forst9.dataset.pend, under9 = lage9();
@@ -1357,14 +1416,60 @@ const PROV = async () => {
     $('#handToast').querySelector('.htangra').click();
     ok('D: … och en tap som kameran sett efter draget står kvar efter Undo', k1.tapped === 1 && !k1.hand, `tapped ${k1.tapped}`);
     r[0] = Object.assign({}, r[0], { tappad: false }); avstamBord(r, false); renderGrid(true);
-    /* Klick = tap, och det står kvar tills kameran ser det riktiga kortet vridas (MODE-4). */
+    /* ── Tappat för hand (Jespers beslut 2026-10-13: samma bricka och toast som flytten) ──
+       Klick = tap, och det står kvar tills kameran ser det riktiga kortet vridas (MODE-4). Brickan med den vridna
+       pilen i skärmens nedre högra hörn (också på det tappade kortet) och toasten "Tapped by hand" med Undo. */
     const k3 = kort(83);
-    klickK(k3);
-    const t1 = k3.tapped, toastVidKlick = handToastOppen();
-    avstamBord(r, false); avstamBord(r, false); const t2 = k3.tapped;
-    r[2] = S(83, 'Serra Angel', 0.64, 0.25, { tappad: true }); avstamBord(r, false); const t3 = k3.tapped;
-    r[2] = S(83, 'Serra Angel', 0.64, 0.25, { tappad: false }); avstamBord(r, false); const t4 = k3.tapped;
-    ok('D: ett klick tappar (ingen toast), tapet står kvar genom kamerans bord och följer när det riktiga kortet vrids', t1 === 1 && !toastVidKlick && t2 === 1 && t3 === 1 && t4 === 0, `klick ${t1}, bord ${t2}, vrids ${t3}, tillbaka ${t4}`);
+    const brK = c => elK(c).querySelector('.handmark');
+    klickK(k3); renderGrid(true);
+    const t1 = k3.tapped, tkT = $('#handToast').querySelector('.htkort');
+    const toastT = !!tkT && handToastOppen() && tkT.querySelector('b').textContent === 'Tapped by hand'
+      && /The camera takes over again when you turn the real card\./.test(tkT.textContent) && tkT.querySelector('button').textContent === 'Undo';
+    await vanta(600);   // vridningen (matSynk) är klar: kortets ruta är den tappade
+    const brT = brK(k3), kR = elK(k3).getBoundingClientRect(), bR = brT && brT.getBoundingClientRect();
+    const hornT = !!bR && Math.abs(bR.left + bR.width / 2 - kR.right) < 3 && Math.abs(bR.top + bR.height / 2 - kR.bottom) < 3 && Math.abs(bR.width - 22) < 1.5;
+    ok('T: ett klick tappar — brickan "Tapped by hand" i skärmens nedre högra hörn, 22 px, och toasten med Undo',
+      t1 === 1 && toastT && hornT && brT.getAttribute('title') === 'Tapped by hand',
+      `tap ${t1}, toast ${tkT ? tkT.textContent.trim() : 'ingen'}, bricka ${bR ? `${Math.round(bR.left + bR.width / 2)},${Math.round(bR.top + bR.height / 2)} mot ${Math.round(kR.right)},${Math.round(kR.bottom)}, ${bR.width.toFixed(1)} px` : 'ingen'}`);
+    await bild('T-tappad-bricka-och-toast');
+    tkT.querySelector('.htangra').click(); renderGrid(true);
+    const undoT = k3.tapped === 0 && !brK(k3) && !handToastOppen();
+    klickK(k3); renderGrid(true);
+    avstamBord(r, false); avstamBord(r, false); renderGrid(true);
+    const t2 = k3.tapped, brKvar = !!brK(k3);
+    r[2] = S(83, 'Serra Angel', 0.64, 0.25, { tappad: true }); avstamBord(r, false); renderGrid(true);
+    const t3 = k3.tapped, brVrid = !brK(k3);
+    r[2] = S(83, 'Serra Angel', 0.64, 0.25, { tappad: false }); avstamBord(r, false); renderGrid(true);
+    const t4 = k3.tapped;
+    ok('T: Undo tar tillbaka tapet; ett nytt tap står kvar genom kamerans bord med brickan, och när det riktiga kortet vrids likadant går brickan och kortet följer bordet igen',
+      undoT && t2 === 1 && brKvar && t3 === 1 && brVrid && t4 === 0, `undo ${undoT}, bord ${t2} (bricka ${brKvar}), vrids ${t3} (bricka borta ${brVrid}), tillbaka ${t4}`);
+    klickK(k3); renderGrid(true); const opp1 = handToastOppen() && !!brK(k3);
+    klickK(k3); renderGrid(true);
+    ok('T: tappas kortet tillbaka till kamerans läge stängs toasten och brickan går', opp1 && k3.tapped === 0 && !handToastOppen() && !brK(k3), `först ${opp1}, sedan tap ${k3.tapped}, toast ${handToastOppen()}`);
+    /* Follow camera i pillen: bara när kortet bär en bricka. */
+    matHover = k3.cid; renderPill();
+    const utanBricka = !gridEl.querySelector('.pill [data-pakt="folj"]');
+    klickK(k3); renderGrid(true); matHover = k3.cid; renderPill();
+    const fb = gridEl.querySelector('.pill [data-pakt="folj"]');
+    await bild('T-follow-camera-i-pillen');
+    if (fb) fb.click();
+    renderGrid(true);
+    ok('T: Follow camera i pillen (bara med bricka) tar kamerans tap-läge och släpper brickan och toasten',
+      utanBricka && !!fb && fb.textContent === 'Follow camera' && k3.tapped === 0 && !brK(k3) && !handToastOppen() && !gridEl.querySelector('.pill [data-pakt="folj"]'),
+      `utan bricka ${utanBricka}, knapp ${!!fb}, tap ${k3.tapped}, bricka ${!!brK(k3)}`);
+    await vanta(600);
+    dra(k3, 60, 40); const fh = !!k3.hand;
+    matHover = k3.cid; renderPill();
+    const fb2 = gridEl.querySelector('.pill [data-pakt="folj"]');
+    svalgKlick = false;   // klicket som följer på släppet i en riktig webbläsare (de syntetiska händelserna ger inget)
+    if (fb2) fb2.click();
+    renderGrid(true);
+    const kp3 = kamPlats(k3, speglaKamPos.skala, gravRuta(matVy()));
+    ok('T: Follow camera på ett flyttat kort lägger det där kameran har det', fh && !!fb2 && !k3.hand && Math.abs(k3.x - kp3.x) < 1 && Math.abs(k3.y - kp3.y) < 1 && !handToastOppen(),
+      `hand ${fh}, knapp ${!!fb2}, x ${Math.round(k3.x)} mot ${Math.round(kp3.x)}`);
+    matHover = null; renderPill();
+    await vanta(600);
+    klickK(k3);   // tappat för hand inför omladdningen nedan
     /* En preliminär position (kortet bärs, vilar false) som ankras om när kortet lagt sig: handflyttningen står kvar. */
     r[1] = S(82, 'Forest', 0.42, 0.55, { vilar: false }); avstamBord(r, false); renderGrid(true);
     const prelNar = k2.kam.nar, varPrel = !!k2.kam.prel;
@@ -1386,6 +1491,10 @@ const PROV = async () => {
     const r2 = r.map(t => Object.assign({}, t, { id: t.id + 100 }));
     avstamBord(r2, false); renderGrid(true);
     const kvar = k2b.spar === 182 && !!k2b.kam && !!k2b.hand && k2b.x === pr.x && k2b.y === pr.y && !!elK(k2b).querySelector('.handmark');
+    const k3b = mig.cards.find(c => c.cid === k3.cid);
+    ok('T: omladdning i ett spel — raden bär kamerans tap-dom, och tapet för hand står kvar med brickan när kortet binds om',
+      !!k3b && k3b.spar === 183 && k3b.tapped === 1 && k3b.kamTap === 0 && !!elK(k3b).querySelector('.handmark'), k3b ? `spår ${k3b.spar}, tap ${k3b.tapped}, kamTap ${k3b.kamTap}` : 'inget kort');
+    if (k3b) { k3b.tapped = 0; renderGrid(true); }
     r2[1] = S(182, 'Forest', 0.7, 0.7); avstamBord(r2, false); renderGrid(true);
     ok('D: omladdning — slimKort bär handflyttningen, och i ett spel står kortet kvar ur raden tills det riktiga kortet flyttas',
       !!lokalt.hand && lokalt.hand.nar === k2.hand.nar && kvar && !k2b.hand && (k2b.x !== pr.x || k2b.y !== pr.y), `lokalt ${JSON.stringify(lokalt.hand)}, kvar ${kvar}, efter flytt hand ${!!k2b.hand}`);
@@ -2100,17 +2209,24 @@ const TIDPROV = async () => {
          emulerar mediefrågan, så att appens matLugn() läser den på riktigt.
          Den kan slås på och av flera gånger (mattans rörelser, zoomstegen). */
       let provKlart = false;
+      if (BILD) { fs.mkdirSync(BILD, { recursive: true }); await c.cdp('Runtime.evaluate', { expression: 'window.__mattBildPa = true' }); }
       const uttryck = `(async () => { const a = ${BARA_HOG ? '[]' : 'await (' + PROV.toString() + ')()'}; return a.concat(await (${HOGPROV.toString()})()); })()`;
       const r0 = c.cdp('Runtime.evaluate', { expression: uttryck, awaitPromise: true, returnByValue: true }).finally(() => { provKlart = true; });
       /* Riktiga musklick (window.__mattKlick, riktigtKlick i provet): Chrome får tryck och släpp som från en mus,
          så att pekarfångsten (setPointerCapture) gäller som för en spelare. En syntetisk el.click() går förbi
          pointerdown — så missade provet att lassot svalde klicket på "Name this card". */
-      let klickNr = 0;
+      let klickNr = 0, bildNr = 0;
       const vakt = (async () => {
         let pa = false;
         const slut = Date.now() + 240000;
         while (!provKlart && Date.now() < slut) {
-          const v = await c.cdp('Runtime.evaluate', { expression: '[window.__mattLugn, window.__mattKlick || null]', returnByValue: true }).catch(() => null), [x, k] = (v && v.result.value) || [];
+          const v = await c.cdp('Runtime.evaluate', { expression: '[window.__mattLugn, window.__mattKlick || null, window.__mattBild || null]', returnByValue: true }).catch(() => null), [x, k, b] = (v && v.result.value) || [];
+          if (b && b.nr !== bildNr) {
+            bildNr = b.nr;
+            const bl = await c.cdp('Page.captureScreenshot', { format: 'png' });
+            fs.writeFileSync(path.join(BILD, String(b.namn).replace(/[^\w.-]+/g, '_') + '.png'), Buffer.from(bl.data, 'base64'));
+            await c.cdp('Runtime.evaluate', { expression: `window.__mattBildKlar = ${b.nr}` });
+          }
           if (x === true && !pa) { pa = true; await c.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] }); }
           if (x === false && pa) { pa = false; await c.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] }); }
           if (k && k.nr !== klickNr) {
