@@ -21925,7 +21925,6 @@ $('#menuBtn').onclick = ev => {
     <div class="hd">Table mode</div>
     ${lagerad('bord', M_LAGE_BORD)}
     <button data-a="lage-utan" class="val${!kamPa ? ' pa' : ''}" title="${esc(LAGE_TXT.utan)}">${M_LAGE_UTAN}${esc(LAGE_NAMN.utan)}<span class="bock">✓</span></button>
-    ${kamPa && lg === 'bord' && kamAnsluten && redigerbar() ? `<button data-a="match" title="Match the mat to what the camera sees. Undo puts it back">Match the camera${meta('M')}</button>` : ''}
     <hr>
     <div class="hd">Game ${esc(spelLage.kod)}</div>
     <button data-a="bjudin">Copy invitation link</button>
@@ -21952,7 +21951,6 @@ menuEl.addEventListener('click', ev => {
   const a = b.dataset.a;
   if (a === 'clearhand') $('#clearHand').click();   // samma väg, med ångra
   if (a === 'bjudin') $('#spelKnapp').click();
-  if (a === 'match') matchaKameran('meny');   // Match the camera (MES-357)
   /* Lägesbytet mitt i spelet (MES-209), och den enda väg som finns när
      kameran är av. Var kameran av slår Mirror my table på den igen (samma
      som gamla "Turn on camera"). */
