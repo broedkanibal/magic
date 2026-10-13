@@ -2597,6 +2597,11 @@ body.ispel #addPlayerBtn{display:none}
 .portalvillkor{display:flex;gap:10px;align-items:flex-start;font:12.5px/1.5 var(--sans);color:var(--dim);cursor:pointer}
 .portalvillkor input{flex:none;width:17px;height:17px;margin:1px 0 0;accent-color:var(--gold,#f0a52a);cursor:pointer}
 .portalvillkor a{color:var(--txt);text-decoration:underline;text-underline-offset:2px}
+.portalvillkor b{color:var(--txt);font-weight:600}
+.portalvillkor small{display:block;margin-top:3px;font-size:11.5px;color:var(--dim2)}
+#bildRad[hidden],#startNytt[hidden]{display:none}
+.portalnotis.portalnytt{background:#e8b33a14;border-color:#e8b33a40}
+.portalnotis.portalnytt span{font:12.5px/1.5 var(--sans)}
 .btn:disabled,.btn[disabled]{opacity:.45;cursor:not-allowed}
 .portalrubrik{margin:0;font:700 15px var(--sans);color:var(--txt)}
 /* Landningssidan: presentationen till vänster, kontot till höger, staplat på
@@ -2679,6 +2684,7 @@ body.ispel #addPlayerBtn{display:none}
 .lsmeny button:hover{background:var(--bg3)}
 .lsmeny button.fara,.lsmeny button.fara svg{color:#ff9099}
 .lsmeny hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+#hemInstallningar[hidden],#hemInstallningarHr[hidden]{display:none}
 
 /* ── Du spelar redan (MES-355, "Mesa Reconnect Camera" P1) ── */
 .valet{align-items:center;overflow:auto}
@@ -3520,10 +3526,22 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
         <span class="portalfin">Sign in and you join right away.</span>
       </div>
 
+      <!-- What's new på spärren (MES-367 §2): bara med ?debug eller RAPPORT_FOR_ALLA. -->
+      <div id="startNytt" class="portalnotis portalnytt" hidden>
+        <b>What's new</b>
+        <span>You can send us a problem report with pictures, and choose whether to share pictures of cards you correct.</span>
+      </div>
+
       <label class="portalvillkor" id="villkorRad">
         <input type="checkbox" id="villkorBox">
         <span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms and Conditions</a>
           and have read the <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+      </label>
+      <!-- Bildrutan (MES-367 §1–2): aldrig förbockad på Create your account, låser aldrig knappen,
+           bara med ?debug eller RAPPORT_FOR_ALLA. Valet följer med Google-rundturen (sthv.bilder). -->
+      <label class="portalvillkor" id="bildRad" hidden>
+        <input type="checkbox" id="bildBox">
+        <span><b>Share pictures of cards I correct.</b> When you fix a card's name, Mesa keeps the picture of that card to fix problems and improve its card recognition, including training our models.<small>Optional. You can change it any time in Settings.</small></span>
       </label>
       <p class="portalfin" id="villkorFin">Mesa records how you use the app, linked to your account, to find and fix
         problems. <a href="/privacy.html" target="_blank" rel="noopener" style="color:inherit">What and why</a></p>
@@ -3556,7 +3574,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
     <span class="grow"></span>
     <span class="sidajag" id="hemJag"></span>
     <div class="vr"></div>
-    <div class="lsmen"><button class="btn ghost" id="hemMenyBtn" data-hem="meny" title="More"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button><div class="lsmeny" hidden><button type="button" data-hem="loggaut">Sign out</button></div></div>
+    <div class="lsmen"><button class="btn ghost" id="hemMenyBtn" data-hem="meny" title="More"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button><div class="lsmeny" hidden><button type="button" data-hem="installningar" id="hemInstallningar" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button><hr id="hemInstallningarHr" hidden><button type="button" data-hem="loggaut"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/></svg>Sign out</button></div></div>
   </header>
   <main class="hem" id="hemInnehall"></main>
 </div>
@@ -3599,7 +3617,10 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
   <div class="kamtopp">
     <span class="kamprick" id="kamPrick"></span>
     <b id="kamSpel">—</b>
-    <button class="btn ghost sm" id="kamStang" style="margin-left:auto">Disconnect</button>
+    <span style="flex:1"></span>
+    <!-- Telefonens Report a problem (MES-367 §4–5): ett ark nerifrån; datorn skickar. -->
+    <button class="btn ghost sm" id="kamRapport" hidden><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1-7 0a5 5 0 0 0-7 0z"/><path d="M5 21v-7"/></svg>Report a problem</button>
+    <button class="btn ghost sm" id="kamStang">Disconnect</button>
   </div>
 
   <div class="kambotten">
@@ -3748,6 +3769,9 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
       Player
     </button>
     <div class="topspacer"></div>
+    <!-- Report a problem (MES-367 §4): till vänster om kamerapillret, i alla lägen av ett spel, bara
+         i ett spel och bara med ?debug eller RAPPORT_FOR_ALLA (ritaRapportKnapp). Öppnar A:s ruta. -->
+    <button type="button" class="rapknapp" id="rapportKnapp" title="Report a problem" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1-7 0a5 5 0 0 0-7 0z"/><path d="M5 21v-7"/></svg><span>Report a problem</span></button>
     <!-- Modeplatsen. Allt om hur bordet läses av bor här och ingen annanstans;
          se renderMode(). -->
     <div class="modeslot" id="modeSlot"></div>
@@ -6259,14 +6283,22 @@ const Moln = (() => {
      nytt, höjs den här och alla får frågan vid nästa besök. Godkännandet
      sparas i kontots user_metadata, så att det följer kontot mellan enheter. */
   const VILLKOR_VERSION = '2026-10-09';
+  /* Problemrapporten för alla (MES-367, design_handoff_rapport/README.md Go-live). false: rapportknappen,
+     telefonens ark, Settings, bildrutan på konto och spärr och felrapporterna syns och skickas bara med
+     ?debug. Sätts till true på go-live-grenen ihop med en ny VILLKOR_VERSION och nya privacy/terms. */
+  const RAPPORT_FOR_ALLA = false;
   function villkorGodkand() {
     const m = session && session.user && session.user.user_metadata;
     return !!m && m.terms_version === VILLKOR_VERSION;
   }
-  async function godkannVillkor() {
+  /* bilder (MES-367 §1–2): bildrutans val på Create your account och Before you continue, i samma
+     updateUser. undefined = rutan visades inte (flaggan av, Sign in) och fältet rörs inte. Samma värde
+     som kontot redan har skrivs inte om, så att "On since" behåller sitt datum. */
+  async function godkannVillkor(bilder) {
     const s = await klient(); if (!s || !inloggad()) throw new Error('Not signed in');
-    const { data, error } = await s.auth.updateUser({
-      data: { terms_version: VILLKOR_VERSION, terms_accepted_at: new Date().toISOString() } });
+    const nu = new Date().toISOString(), falt = { terms_version: VILLKOR_VERSION, terms_accepted_at: nu };
+    if (typeof bilder === 'boolean' && bildInstallningKonto() !== bilder) Object.assign(falt, { improve_pictures: bilder, improve_pictures_at: nu });
+    const { data, error } = await s.auth.updateUser({ data: falt });
     if (error) throw error;
     if (data && data.user) session = Object.assign({}, session, { user: data.user });
   }
@@ -7216,6 +7248,38 @@ const Moln = (() => {
     return !!pa;
   }
   const bildInstallningSedan = () => { const m = session && session.user && session.user.user_metadata; return (m && m.improve_pictures_at) || null; };
+  /* Kontots värde i sessionen (C:s spärr visar det): true/false, eller null när fältet saknas. */
+  const bildInstallningKonto = () => { const m = session && session.user && session.user.user_metadata; return m && typeof m.improve_pictures === 'boolean' ? m.improve_pictures : null; };
+  /* C:s Settings (MES-367 §3): vad spelaren skickat, ur rapporter (RLS: bara egna rader). null = vet inte. */
+  async function rapportAntal() {
+    const s = await klient(); if (!s || !inloggad()) return null;
+    const rakna = kalla => s.from('rapporter').select('kod', { count: 'exact', head: true }).eq('user_id', minId()).eq('kalla', kalla);
+    const [r, b] = await Promise.all([rakna('rapport'), rakna('rattelse')]);
+    if (r.error || b.error) return null;
+    return { rapporter: r.count || 0, bilder: b.count || 0 };
+  }
+  /* C:s Delete my reports and pictures (README §3, §9): koderna som blivit test eller träning skrivs i
+     raderingar FÖRST (RLS kräver att raden finns; Jesper tar bort kopiorna i repot efter
+     lista.cjs --raderade), sedan alla filer under scans/<uid>/rapporter/ och alla spelarens rader, alla
+     kalla. Inställningen rörs inte. Kastar om något steg misslyckas; ett nytt tryck gör om det som återstår. */
+  async function raderaMinaRapporter() {
+    const s = await klient(); if (!s || !inloggad()) throw new Error('Not signed in');
+    const jag = minId(), rot = jag + '/rapporter';
+    const { data: rader, error } = await s.from('rapporter').select('kod, sokvag, kalla, anvandning').eq('user_id', jag);
+    if (error) throw new Error(error.message || 'rapporter');
+    const kopior = (rader || []).filter(r => r.anvandning === 'test' || r.anvandning === 'traning').map(r => ({ kod: r.kod }));
+    if (kopior.length) { const { error: e } = await s.from('raderingar').insert(kopior); if (e) throw new Error(e.message || 'raderingar'); }
+    const mappar = new Set((rader || []).map(r => r.sokvag).filter(m => m && String(m).startsWith(rot + '/')));
+    const lista = async d => { const { data, error: e } = await s.storage.from('scans').list(d, { limit: 1000 }); if (e) throw new Error(e.message || 'scans'); return data || []; };
+    for (const f of await lista(rot)) if (f && f.name && !f.id) mappar.add(rot + '/' + f.name);   // mappar utan rad (Cancel som inte hann städa)
+    const filer = [];
+    for (const m of mappar) for (const d of [m, m + '/bilder']) for (const f of await lista(d)) if (f && f.id) filer.push(d + '/' + f.name);
+    for (let i = 0; i < filer.length; i += 100) { const { error: e } = await s.storage.from('scans').remove(filer.slice(i, i + 100)); if (e) throw new Error(e.message || 'scans'); }
+    const { error: e3 } = await s.from('rapporter').delete().eq('user_id', jag);
+    if (e3) throw new Error(e3.message || 'rapporter');
+    return { rapporter: (rader || []).filter(r => r.kalla === 'rapport').length, bilder: (rader || []).filter(r => r.kalla === 'rattelse').length,
+             alla: (rader || []).length, filer: filer.length, raderingar: kopior.map(k => k.kod) };
+  }
 
   /* ── Spelupplevelsen (supabase/migrations/20261009120000_spelupplevelse.sql) ──
      Korthändelserna och betyget efter partiet. Saknas tabellerna (migrationen
@@ -7252,15 +7316,19 @@ const Moln = (() => {
   }
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt, token,
-           VILLKOR_VERSION, villkorGodkand, godkannVillkor,
+           VILLKOR_VERSION, RAPPORT_FOR_ALLA, villkorGodkand, godkannVillkor,
            skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
-           avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, rapportRad, rapportFil, rapportUppdatera, rapportRadera, rapporterIdag, bildInstallning, sattBildInstallning, bildInstallningSedan, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
+           avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, rapportRad, rapportFil, rapportUppdatera, rapportRadera, rapporterIdag, bildInstallning, sattBildInstallning, bildInstallningSedan, bildInstallningKonto, rapportAntal, raderaMinaRapporter, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, sparaLekSlv, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans, hamtaVektorer, hamtaRefs, sparaRefs, raderaRefs,
            loggaKortHandelser, betygAttFraga, sparaBetyg };
 })();
+/* Flaggan (MES-367) som global, så att Rapport.rapportPa och C:s ytor läser samma värde. Ändras i Moln, bredvid VILLKOR_VERSION. */
+const RAPPORT_FOR_ALLA = Moln.RAPPORT_FOR_ALLA;
+/* Problemrapportens ytor (MES-367): ?debug eller flaggan. Samma regel som Rapport.rapportPa. */
+function rapportYtor() { return (typeof DEBUG !== 'undefined' && !!DEBUG) || !!RAPPORT_FOR_ALLA; }
 /* ── Mixpanel (Jespers beslut 2026-10-09) ────────────────────────────
    Vad spelarna gör, för Mixpanels rapporter och dess MCP. Samma
    korthändelser som kort_handelser i Supabase (Supabase är facit för
@@ -13245,6 +13313,7 @@ function renderMode() {
   renderTom();              // tomrutan följer samma läge som pillret
   /* Statusfältet bär bara steget om grundläget och granskningen (MES-98). */
   renderAutoBar();
+  if (typeof ritaRapportKnapp === 'function') ritaRapportKnapp();   // MES-367: Report a problem, bara i ett spel
 }
 
 /* Mattan medan telefonen är borta (MES-355): "Frozen as it looked 2 min ago"
@@ -37996,6 +38065,7 @@ $('#vyHem').addEventListener('click', async ev => {
   if (a === 'meny') { ev.stopPropagation(); lsMenyVaxla(b); return; }
   lsMenyerStang();
   if (a === 'loggaut') { loggaUtHelt(); return; }
+  if (a === 'installningar') { if (typeof Installningar !== 'undefined') Installningar.oppna(); return; }   // MES-367 §3
   if (a === 'starta') { hemStartaSpel(b); return; }
   if (a === 'lekarigen') { visaHem(); return; }
   if (a === 'betyg') {
@@ -38450,9 +38520,20 @@ async function loggaUtHelt() {
    till Google. Med Google är "skapa" och "logga in" samma rundtur; skillnaden
    är bara om godkännandet tas före eller efter. */
 let startLage = 'skapa', startKonfigurerad = true;
+/* Den finstilta raden (MES-367 §1): den nya texten hör till go-live (nya privacy.html), så den följer
+   flaggan som bildrutan. Utan ?debug och utan RAPPORT_FOR_ALLA står dagens rad kvar. */
+const VILLKOR_FIN_GAMMAL = $('#villkorFin').innerHTML;
+const VILLKOR_FIN_NY = 'To find and fix problems, Mesa notes how the app is used and any errors. No ads, and no pictures unless you choose. <a href="/privacy.html" target="_blank" rel="noopener" style="color:inherit">What and why</a>';
 function visaStartLage(lage) {
   startLage = lage;
   const skapa = lage === 'skapa', sparr = lage === 'sparr';
+  /* Bildrutan och What's new (MES-367 §1–2): aldrig vid Sign in. Skapa: aldrig förbockad. Spärren:
+     kontots värde om fältet finns (sessionen är laddad när villkorSparr anropar hit), annars tom. */
+  const ytor = rapportYtor();
+  $('#bildRad').hidden = !ytor || lage === 'logga';
+  $('#startNytt').hidden = !ytor || !sparr;
+  $('#bildBox').checked = ytor && sparr && Moln.bildInstallningKonto() === true;
+  $('#villkorFin').innerHTML = ytor ? VILLKOR_FIN_NY : VILLKOR_FIN_GAMMAL;
   $('#startRubrik').textContent = sparr ? 'Before you continue' : skapa ? 'Create your account' : 'Sign in to Mesa';
   $('#startUnder').textContent = sparr ? 'Our terms are new. Please read and agree.' : skapa ? 'Free during the beta · Google account' : 'With the Google account you signed up with';
   $('#villkorRad').hidden = $('#villkorFin').hidden = lage === 'logga';
@@ -38480,7 +38561,7 @@ function villkorSparr() { $('#vyStart').classList.add('kompakt'); visaStartLage(
 $('#villkorOkBtn').onclick = async () => {
   portalFel('#startFel', '');
   $('#villkorOkBtn').disabled = true;
-  try { await Moln.godkannVillkor(); location.reload(); }
+  try { await Moln.godkannVillkor(rapportYtor() ? $('#bildBox').checked : undefined); location.reload(); }
   catch (e) { portalFel('#startFel', 'Could not save your agreement: ' + (e.message || '')); $('#villkorOkBtn').disabled = false; }
 };
 $('#villkorUtBtn').onclick = async () => { try { await Moln.loggaUt(); } catch (e) {} location.reload(); };
@@ -38493,6 +38574,9 @@ $('#loggaInBtn').onclick = async () => {
        stället efteråt, i spärren, om kontot inte redan har det. */
     if (startLage === 'skapa') sessionStorage.setItem('sthv.villkor', Moln.VILLKOR_VERSION);
     else sessionStorage.removeItem('sthv.villkor');
+    /* Bildrutans val följer med på samma sätt (MES-367 §1); bara när rutan syntes. */
+    if (startLage === 'skapa' && rapportYtor()) sessionStorage.setItem('sthv.bilder', $('#bildBox').checked ? '1' : '0');
+    else sessionStorage.removeItem('sthv.bilder');
     LS.set(K.lage, 'moln'); await Moln.loggaIn(inbjudanIUrl());
   }
   catch (e) { portalFel('#startFel', e.message || 'Sign-in could not start.'); }
@@ -38548,9 +38632,12 @@ async function portalStart() {
   /* Villkoren: nya konton bockade rutan före Google (sessionStorage) och får
      godkännandet skrivet nu; konton från före villkoren, eller efter en
      ny version, får frågan innan något annat visas. */
+  const bilderVal = sessionStorage.getItem('sthv.bilder');
+  sessionStorage.removeItem('sthv.bilder');
   if (!Moln.villkorGodkand()) {
     if (sessionStorage.getItem('sthv.villkor') === Moln.VILLKOR_VERSION) {
-      try { await Moln.godkannVillkor(); sessionStorage.removeItem('sthv.villkor'); }
+      /* Bildrutans val i samma updateUser som godkännandet (MES-367 §1). */
+      try { await Moln.godkannVillkor(bilderVal === '1' ? true : bilderVal === '0' ? false : undefined); sessionStorage.removeItem('sthv.villkor'); }
       catch (e) { villkorSparr(); portalFel('#startFel', 'Could not save your agreement: ' + (e.message || '')); return; }
     } else { villkorSparr(); return; }
   }
@@ -39262,6 +39349,276 @@ var Rapport = (() => {
 })();
 /* Rapportrutans öppnare för C (toppraden) och Developer-lådan. */
 function oppnaRapportRuta(opt) { return Rapport.oppna(opt); }
+</script>
+<script>
+"use strict";
+/* ══ BLOCK: PROBLEMRAPPORTEN C — knappen, telefonens ark och Settings (MES-367, del C av MES-271) ══
+   Specen: design_handoff_rapport/README.md §1–6, §9 och tavlorna project/L9-*.dc.html (sida 9).
+   C bygger spelarens ytor ovanpå A (Rapport: rutan, uppladdningen, kanalen) och B (Stillbilder,
+   Rattelse, inställningen improve_pictures). Ingen egen väg: knappen öppnar A:s ruta, telefonens ark
+   anropar Rapport.franTelefon (datorn skickar, telefonen aldrig själv), Settings läser och skriver samma
+   fält som B:s växel i Developer-lådan.
+
+   Allt här syns bara med ?debug eller flaggan RAPPORT_FOR_ALLA (Moln, bredvid VILLKOR_VERSION):
+   rapportYtor(). Claude är aldrig ett villkor och inget här frågar Claude. Gröna notiser används inte:
+   kvittensen är koden, och Settings visar sitt läge i rutan.
+
+   var, inte const (som Rapport/Stillbilder/Rattelse): kastar blocket när det startar ska krokarna i
+   renderMode och Home-menyn hoppa över i stället för att kasta. */
+var Installningar, TelefonArk;
+(() => {
+  const CSS = `
+.rapknapp{display:inline-flex;align-items:center;gap:7px;flex:none;height:34px;padding:0 12px;border-radius:9px;border:1px solid #3a4558;background:var(--bg3);color:var(--txt);font:600 13px var(--sans);cursor:pointer;white-space:nowrap}
+.rapknapp:hover{border-color:#4a5770;background:var(--bg4)}
+.rapknapp svg{flex:none;color:var(--dim)}
+@media (max-width:1100px){.rapknapp{padding:0 10px}.rapknapp span{display:none}}
+.instscrim{position:fixed;inset:0;z-index:469;background:#000a}
+.instruta{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:470;width:460px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:var(--bg2);border:1px solid #2e3747;border-radius:14px;box-shadow:0 22px 48px -14px #000d,0 2px 8px #0008;color:var(--txt);font-family:var(--sans)}
+.instruta .hd2{display:flex;align-items:center;gap:10px;padding:12px 10px 8px 20px}
+.instruta .hd2 h2{margin:0;flex:1;font-size:17px;font-weight:650}
+.instruta .x{width:40px;height:40px;display:grid;place-items:center;border-radius:9px;color:var(--dim);background:none;border:0;cursor:pointer}
+.instruta .x:hover{background:var(--bg3);color:var(--txt)}
+.instruta .bd{padding:4px 20px 20px;display:flex;flex-direction:column}
+.instruta .secth{margin:6px 0 0;font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--dim2);font-weight:600}
+.instruta .set{display:flex;gap:14px;align-items:flex-start;padding:10px 0 14px}
+.instruta .grow{flex:1;min-width:0}
+.instruta .t{margin:0;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.instruta .t svg{flex:none;color:var(--green)}
+.instruta .s{margin:4px 0 0;font-size:12.8px;color:var(--dim);line-height:1.5}
+.instruta .m{margin:6px 0 0;font-size:12px;color:var(--dim2)}
+.instruta .m.bad{color:#f3b3b8}
+.instruta .switch{position:relative;flex:none;width:42px;height:26px;border-radius:999px;background:#3a4558;margin-top:1px;border:0;padding:0;cursor:pointer}
+.instruta .switch::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#cfd6e2;transition:left .15s}
+.instruta .switch.on{background:var(--acc)}
+.instruta .switch.on::after{left:19px;background:#1a1205}
+.instruta .switch:disabled{opacity:.6;cursor:default}
+.instruta .btn.danger{align-self:flex-start;background:#2a1215;border:1px solid #6e2f36;color:#f0a0a6}
+.instruta .btn.danger:disabled{background:var(--bg3);border-color:var(--line);color:var(--dim2);opacity:1}
+.instruta .btn.dangerfill{background:#c94a55;border-color:#c94a55;color:#fff}
+.instruta .alert{display:flex;flex-direction:column;gap:10px;padding:11px 13px;border-radius:10px;font-size:13px;line-height:1.5;background:#2a1215;border:1px solid #6e2f36;color:#f3b3b8}
+.instruta .alert p{margin:0}
+.instruta .alert b{color:#fff;font-weight:650}
+.instruta .rad{display:flex;gap:8px}
+.instruta .note{margin:16px 0 0;font-size:12.5px;color:var(--dim)}
+.instruta .note a{color:#a9bcff}
+.telarkscrim{position:fixed;inset:0;z-index:499;background:#000a}
+.telark{position:fixed;left:0;right:0;bottom:0;z-index:500;max-height:92vh;overflow:auto;box-sizing:border-box;padding:10px 18px calc(env(safe-area-inset-bottom,0px) + 22px);border-radius:22px 22px 0 0;background:var(--bg2);border-top:1px solid #2e3747;color:var(--txt);font-family:var(--sans);display:flex;flex-direction:column;gap:12px}
+.telark .grab{width:40px;height:5px;border-radius:999px;background:#3a4558;align-self:center;flex:none}
+.telark h2{margin:0;font-size:18px;font-weight:650}
+.telark .telta{width:100%;box-sizing:border-box;height:70px;padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid #3a4558;color:var(--txt);font:16px/1.4 var(--sans);resize:none}
+.telark .telta::placeholder{color:#6f7d93}
+.telark .telta:focus{outline:none;border-color:var(--acc)}
+.telark .telta:disabled,.telark .chip:disabled{opacity:.6}
+.telark .chips{display:flex;flex-wrap:wrap;gap:8px}
+.telark .chip{display:inline-flex;align-items:center;height:44px;padding:0 16px;border-radius:999px;border:1px solid #3a4558;background:var(--bg3);color:var(--dim);font:600 14.5px var(--sans);cursor:pointer}
+.telark .chip.on{background:#2a2110;border-color:var(--acc);color:#f6c46a}
+.telark .btn{justify-content:center;height:48px;font-size:15px}
+.telark .btn.wide{width:100%}
+.telark .rad{display:flex;gap:10px}
+.telark .alert{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:10px;font-size:13.5px;line-height:1.5}
+.telark .alert p{margin:0}
+.telark .alert svg{flex:none;margin-top:2px}
+.telark .alert.warn{background:#251c0c;border:1px solid #6a5124;color:#f6d08f}
+.telark .alert.bad{background:#2a1215;border:1px solid #6e2f36;color:#f3b3b8}
+.telark .alert b{color:#fff;font-weight:650}
+.telark .done{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:14px 10px 8px}
+.telark .done .ok{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#173222;color:var(--green)}
+.telark .done h3{margin:0;font-size:19px;font-weight:650}
+.telark .done p{margin:0;color:var(--dim)}
+.telark .code{font:700 15px var(--mono);letter-spacing:.04em;color:var(--txt);background:var(--bg);border:1px solid #3a4558;border-radius:8px;padding:5px 10px}
+.telark .spin{width:15px;height:15px;flex:none;border-radius:50%;border:2.5px solid #1a120544;border-top-color:#1a1205;animation:rapspin .8s linear infinite;margin-right:8px}
+@keyframes rapspin{to{transform:rotate(360deg)}}`;
+  const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+  const IK = {
+    x: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    ok: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+    bock: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+    bad: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>',
+    klocka: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
+  };
+  const MAN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const datum = iso => { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? `${d.getDate()} ${MAN[d.getMonth()]} ${d.getFullYear()}` : ''; };
+  const st1 = (n, ord) => `${n} ${ord}${n === 1 ? '' : 's'}`;
+  const vad = a => `${st1(a.rapporter, 'report')} and ${st1(a.bilder, 'card picture')}`;
+  const BILD_TEXT = "When you fix a card's name, Mesa keeps the picture of that card to fix problems and improve its card recognition, including training our models.";
+
+  /* ── Settings (README §3, tavlorna L9-Settings, L9-DeleteAsk, L9-Deleted) ──────────────
+     lage: vila · fraga (Delete?) · raderar · raderat. antal: undefined = läser, null = gick inte. */
+  Installningar = (() => {
+    let el = null, scrim = null, lage = 'vila', pa = false, sedan = null, antal, raderat = null, sparar = false, sparFel = false, raderaFel = false, nr = 0;
+    function bygg() {
+      if (el) return;
+      scrim = document.createElement('div'); scrim.className = 'instscrim'; scrim.hidden = true;
+      scrim.addEventListener('click', stang);
+      el = document.createElement('section'); el.className = 'instruta'; el.hidden = true;
+      el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Settings'); el.id = 'instRuta';
+      document.body.append(scrim, el);
+      el.addEventListener('click', klick);
+      el.addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.preventDefault(); stang(); } ev.stopPropagation(); });
+    }
+    function rita() {
+      if (!el) return;
+      const harSkickat = antal && (antal.rapporter + antal.bilder) > 0;
+      const m = sparFel ? `<p class="m bad">Couldn't save. Check your internet connection and try again.</p>`
+        : pa ? `<p class="m">${sedan ? `On since ${datum(sedan)}.` : 'On.'}</p>` : `<p class="m">Off. Nothing is kept when you correct a card.</p>`;
+      let skickat;
+      if (lage === 'raderat') skickat = `<p class="t">${IK.bock}Nothing you sent is stored in Mesa</p><p class="s">${vad(raderat)} were deleted.${pa ? ' The switch is still on: new corrections are kept from now on.' : ''}</p>`;
+      else if (antal === undefined) skickat = `<p class="t" aria-busy="true">&nbsp;</p>`;
+      else if (antal === null) skickat = `<p class="s">Couldn't count what you have sent. Close Settings and try again.</p>`;
+      else if (!harSkickat) skickat = `<p class="t">Nothing sent yet</p><p class="s">Reports you send are always your own choice, one at a time, whatever the switch says.</p>`;
+      else skickat = `<p class="t">${vad(antal)}</p><p class="s">Reports you send are always your own choice, one at a time, whatever the switch says.</p>`;
+      const fraga = lage === 'fraga' || lage === 'raderar';
+      const knapp = fraga
+        ? `<div class="alert" role="alert"><p><b>Delete ${vad(antal)}?</b> They are deleted from Mesa right away. Pictures already used to train a model can't be taken out of that model.</p>`
+          + (raderaFel ? `<p>Couldn't delete everything. Check your internet connection and try again.</p>` : '')
+          + `<div class="rad"><button class="btn sm dangerfill" type="button" data-inst="radera"${lage === 'raderar' ? ' disabled' : ''}>Delete</button><button class="btn sm ghost" type="button" data-inst="avbryt"${lage === 'raderar' ? ' disabled' : ''}>Cancel</button></div></div>`
+        : `<button class="btn danger" type="button" data-inst="fraga"${harSkickat && lage === 'vila' ? '' : ' disabled'}>Delete my reports and pictures</button>`;
+      el.innerHTML = `<header class="hd2"><h2>Settings</h2><button class="x" type="button" data-inst="stang" aria-label="Close">${IK.x}</button></header>`
+        + `<div class="bd"><p class="secth">Pictures</p>`
+        + `<div class="set"><div class="grow"><p class="t">Share pictures of cards I correct</p><p class="s">${BILD_TEXT}</p>${m}</div>`
+        + `<button class="switch${pa ? ' on' : ''}" type="button" role="switch" id="instBilder" data-inst="vaxel" aria-checked="${pa}" aria-label="Share pictures of cards I correct"${sparar ? ' disabled' : ''}></button></div>`
+        + `<p class="secth" style="margin-top:14px">What you have sent</p><div class="set"><div class="grow">${skickat}</div></div>`
+        + knapp
+        + `<p class="note"><a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a></p></div>`;
+    }
+    async function vaxla() {
+      if (sparar) return;
+      const ny = !pa; pa = ny; sparar = true; sparFel = false; rita();
+      try { await Moln.sattBildInstallning(ny); sedan = Moln.bildInstallningSedan(); }
+      catch (e) { pa = !ny; sparFel = true; }
+      sparar = false; rita();
+      const v = el.querySelector('#instBilder'); if (v) v.focus();
+      try { if (typeof window.lasBildVaxel === 'function') window.lasBildVaxel(); } catch (e) {}   // B:s växel i Developer-lådan visar samma fält
+    }
+    async function radera() {
+      if (lage !== 'fraga') return;
+      lage = 'raderar'; raderaFel = false; rita();
+      try {
+        const r = await Moln.raderaMinaRapporter();
+        raderat = { rapporter: r.rapporter, bilder: r.bilder }; antal = { rapporter: 0, bilder: 0 }; lage = 'raderat';
+      } catch (e) { raderaFel = true; lage = 'fraga'; }
+      rita();
+    }
+    function klick(ev) {
+      const b = ev.target.closest('[data-inst]'); if (!b || b.disabled) return;
+      const g = b.dataset.inst;
+      if (g === 'stang') stang();
+      else if (g === 'vaxel') vaxla();
+      else if (g === 'fraga') { lage = 'fraga'; raderaFel = false; rita(); const d = el.querySelector('[data-inst="avbryt"]'); if (d) d.focus(); }
+      else if (g === 'avbryt') { lage = 'vila'; raderaFel = false; rita(); }
+      else if (g === 'radera') radera();
+    }
+    function oppna() {
+      if (!rapportYtor()) return;
+      bygg();
+      const mitt = ++nr;
+      lage = 'vila'; raderat = null; sparFel = false; raderaFel = false; antal = undefined;
+      pa = Moln.bildInstallningKonto() === true; sedan = Moln.bildInstallningSedan();
+      el.hidden = scrim.hidden = false; rita();
+      const x = el.querySelector('#instBilder'); if (x) x.focus();
+      /* Servern är facit (en annan enhet kan ha ändrat växeln sedan inloggningen). */
+      Moln.bildInstallning().then(v => { if (mitt === nr && !sparar) { pa = !!v; sedan = Moln.bildInstallningSedan(); rita(); } }, () => {});
+      Moln.rapportAntal().then(a => { if (mitt === nr && lage !== 'raderat') { antal = a; rita(); } }, () => { if (mitt === nr) { antal = null; rita(); } });
+    }
+    function stang() { if (!el || el.hidden || lage === 'raderar') return; el.hidden = scrim.hidden = true; nr++; }
+    return { oppna, stang, get oppen() { return !!(el && !el.hidden); }, get lage() { return lage; } };
+  })();
+
+  /* ── Telefonens ark (README §5 Telefonen, tavlorna L9-SimplePhone, L9-PhoneReportSent,
+     L9-PhoneReportAlone) ── Arket skickar orden och taggen till datorn (Rapport.franTelefon);
+     datorn fryser sin låda och telefonens, laddar upp och svarar med koden. Telefonen skickar
+     aldrig själv. lage: skriv · skickar · skickad · narInte (inget svar på 10 s) · tak · fel · av. */
+  TelefonArk = (() => {
+    let el = null, scrim = null, lage = 'skriv', text = '', tagg = null, kod = null, nr = 0;
+    const TAGGAR = () => (typeof Rapport !== 'undefined' && Rapport && Rapport.TAGGAR) || [];
+    function bygg() {
+      if (el) return;
+      scrim = document.createElement('div'); scrim.className = 'telarkscrim'; scrim.hidden = true;
+      scrim.addEventListener('click', () => { if (lage !== 'skickar') stang(); });
+      el = document.createElement('section'); el.className = 'telark'; el.hidden = true; el.id = 'telArk';
+      el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Report a problem');
+      document.body.append(scrim, el);
+      el.addEventListener('click', klick);
+      el.addEventListener('input', ev => { if (ev.target.id === 'telArkText') text = ev.target.value.slice(0, 500); });
+    }
+    function rita() {
+      if (!el) return;
+      const las = lage === 'skickar';
+      if (lage === 'skickad') {
+        el.innerHTML = `<span class="grab"></span><div class="done"><span class="ok">${IK.ok}</span><h3>Report sent</h3><span class="code" id="telArkKod">${esc(kod)}</span>`
+          + `<p>Your computer sent it. If you write to us about it, mention this code.</p></div>`
+          + `<button class="btn prim wide" type="button" data-ark="stang">Done</button>`;
+        return;
+      }
+      if (lage === 'tak') {
+        el.innerHTML = `<span class="grab"></span><h2>Report a problem</h2><div class="alert warn">${IK.klocka}<p><b>You have sent 20 reports today.</b> That is the most for one day. You can send more tomorrow.</p></div>`
+          + `<button class="btn wide" type="button" data-ark="stang">Close</button>`;
+        return;
+      }
+      const ta = `<textarea class="telta" id="telArkText" maxlength="500" placeholder="What happened?" aria-label="What happened?"${las ? ' disabled' : ''}></textarea>`;
+      if (lage === 'narInte') {
+        el.innerHTML = `<span class="grab"></span><h2>Report a problem</h2>`
+          + `<div class="alert warn">${IK.bad}<p><b>Can't reach your computer.</b> Reports are sent from the computer. Your words are kept here: try again when the dot at the top is green, or use Report a problem on the computer.</p></div>`
+          + ta + `<div class="rad"><button class="btn ghost" type="button" data-ark="stang" style="flex:1">Close</button><button class="btn prim" type="button" data-ark="skicka" style="flex:2">Try again</button></div>`;
+      } else {
+        const varning = lage === 'fel' ? `<div class="alert bad">${IK.bad}<p><b>Couldn't send the report.</b> Check your internet connection and try again. Your words are kept until you close this box.</p></div>`
+          : lage === 'av' ? `<div class="alert bad">${IK.bad}<p><b>Couldn't send the report.</b> Reports are turned off on your computer.</p></div>` : '';
+        const chips = TAGGAR().map(([k, t]) => `<button class="chip${tagg === k ? ' on' : ''}" type="button" data-tagg="${k}" aria-pressed="${tagg === k}"${las ? ' disabled' : ''}>${esc(t)}</button>`).join('');
+        const knapp = las ? `<button class="btn prim wide" type="button" disabled><span class="spin"></span>Sending</button>`
+          : `<button class="btn prim wide" type="button" data-ark="skicka">${lage === 'fel' || lage === 'av' ? 'Try again' : 'Send report'}</button>`;
+        el.innerHTML = `<span class="grab"></span><h2>Report a problem</h2>${varning}${ta}<div class="chips">${chips}</div>${knapp}`;
+      }
+      const t = el.querySelector('#telArkText'); if (t) t.value = text;
+    }
+    async function skicka() {
+      if (lage === 'skickar' || typeof Rapport === 'undefined' || !Rapport) return;
+      const mitt = ++nr;
+      lage = 'skickar'; rita();
+      let r;
+      try { r = await Rapport.franTelefon(text.trim(), tagg); } catch (e) { r = { fel: 'dator' }; }
+      if (mitt !== nr || !el || el.hidden) return;
+      if (r && r.kod) { kod = r.kod; lage = 'skickad'; text = ''; tagg = null; }
+      else lage = !r || r.fel === 'dator' ? 'narInte' : r.fel === 'tak' ? 'tak' : r.fel === 'av' ? 'av' : 'fel';
+      rita();
+    }
+    function klick(ev) {
+      const b = ev.target.closest('[data-ark], [data-tagg]'); if (!b || b.disabled) return;
+      if (b.dataset.tagg) { tagg = tagg === b.dataset.tagg ? null : b.dataset.tagg; for (const c of el.querySelectorAll('.chip')) { const on = c.dataset.tagg === tagg; c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); } return; }
+      if (b.dataset.ark === 'stang') stang();
+      else if (b.dataset.ark === 'skicka') skicka();
+    }
+    function oppna() {
+      if (!rapportYtor()) return;
+      bygg();
+      if (!el.hidden) return;
+      lage = 'skriv'; text = ''; tagg = null; kod = null; nr++;
+      el.hidden = scrim.hidden = false; rita();
+      try { Lada.skriv('dialog', { id: 'telArk', oppen: true }); } catch (e) {}
+    }
+    function stang() {
+      if (!el || el.hidden || lage === 'skickar') return;
+      el.hidden = scrim.hidden = true; nr++; text = ''; tagg = null;
+      try { Lada.skriv('dialog', { id: 'telArk', oppen: false }); } catch (e) {}
+    }
+    return { oppna, stang, get oppen() { return !!(el && !el.hidden); }, get lage() { return lage; } };
+  })();
+
+  /* ── Knapparna och raderna som bara syns med ?debug eller flaggan ── */
+  const ytor = rapportYtor();
+  const kb = document.getElementById('rapportKnapp');
+  if (kb) kb.onclick = () => { if (typeof oppnaRapportRuta === 'function') oppnaRapportRuta(); };
+  const tb = document.getElementById('kamRapport');
+  if (tb) { tb.hidden = !ytor; tb.onclick = () => TelefonArk.oppna(); }
+  for (const id of ['hemInstallningar', 'hemInstallningarHr']) { const e = document.getElementById(id); if (e) e.hidden = !ytor; }
+  ritaRapportKnapp();
+})();
+/* Datorns knapp i toppraden (README §4): i ett spel, alla lägen, aldrig på telefonen. renderMode ritar om. */
+function ritaRapportKnapp() {
+  const b = document.getElementById('rapportKnapp'); if (!b) return;
+  let vis = false;
+  try { vis = rapportYtor() && !!spelLage && !kameraEnhet; } catch (e) {}
+  if (b.hidden === vis) b.hidden = !vis;
+}
 </script>
 <script>
 "use strict";

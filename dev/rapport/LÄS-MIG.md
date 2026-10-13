@@ -150,6 +150,17 @@ datorns klocka.
 | Växeln | Developer-lådan (`?debug`): *Share pictures of cards I correct*, läser/skriver `improve_pictures` + `improve_pictures_at` (`Moln.bildInstallning`, `Moln.sattBildInstallning`, `Moln.bildInstallningSedan`) |
 | Prov | `node dev/rapport/prov-b.cjs` (ringen 30 min accelererat, rapportens bilder, rättelserna av/på/av, växeln), `node dev/rapport/prov-b-uppspelaren.cjs --bilder <mapp>` (golden-video → ringen → hamta → uppspelaren), `node dev/rapport/prov-b-supabase.cjs <fil>` (rad + filer mot riktiga Supabase, hamta, städning) |
 
+## Del C (MES-367): knappen, telefonens ark, Settings och samtycket
+
+| | |
+|---|---|
+| Flaggan | `const RAPPORT_FOR_ALLA = false;` i Moln bredvid `VILLKOR_VERSION` (global spegel `RAPPORT_FOR_ALLA`, regeln `rapportYtor()` = `?debug` eller flaggan, samma som `Rapport.rapportPa`). Av: inga ytor, inga felrapporter. Go-live: `dev/diagnos/natt-2026-10-13/golive/golive.md` |
+| Konto och spärr | `#bildRad`/`#bildBox` (aldrig förbockad, låser aldrig knappen), `#startNytt` (What's new, bara spärren), ny finstilt rad. Valet följer Google-rundturen i `sthv.bilder` och skrivs i samma `updateUser` som villkoret (`Moln.godkannVillkor(bilder)`; samma värde skrivs inte om) |
+| Settings | Home-menyn `data-hem="installningar"` → `Installningar.oppna()`: växeln (`Moln.sattBildInstallning`, B:s växel läses om), antalen (`Moln.rapportAntal`), *Delete my reports and pictures* (`Moln.raderaMinaRapporter`: test/träning-koderna i `raderingar` först, sedan alla filer under `<uid>/rapporter/` och alla rader, alla `kalla`) |
+| Knappen | `#rapportKnapp` i spelets topprad, vänster om kamerapillret (`ritaRapportKnapp`, från renderMode): i ett spel, alla lägen, aldrig på telefonen. Öppnar A:s ruta |
+| Telefonen | `#kamRapport` bredvid Disconnect → `TelefonArk` (ark nerifrån) → `Rapport.franTelefon`; kvittensen med koden, *Can't reach your computer* efter 10 s, `tak`, `nat`, `av` |
+| Prov | `node dev/rapport/prov-c.cjs [--bilder <mapp>]` (steg i `dev/kolla.sh`): appens egna Moln-funktioner mot en attrapp av supabase-js (`fake-supabase.mjs`) med RLS-reglerna; allt annat nät stängt |
+
 ## Från rapport till något som mäter (del D, MES-368)
 
 Utan det här steget är rapporterna en hög. Varje rapport blir **en** av fyra saker:
