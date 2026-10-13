@@ -7172,7 +7172,8 @@ const Moln = (() => {
     return !error;
   }
   /* Raderar en egen rapport: koden i raderingar först (medan raden finns, så att Jesper kan ta bort kopian i repot;
-     20261013150000 kräver att koden är min), sedan filerna under mappen och raden. Cancel under Sending och C:s Delete. */
+     20261013150000 kräver att koden är min), sedan filerna under mappen och raden. Cancel under Sending och C:s Delete,
+     och B:s tysta rättelse när inställningen slagits av under väntan på telefonen (Rattelse.spara). */
   async function rapportRadera(kod, mapp) {
     const s = await klient(); if (!s || !inloggad() || !kod) return false;
     await s.from('raderingar').insert({ kod }).then(() => {}, () => {});
@@ -39315,9 +39316,13 @@ function oppnaRapportRuta(opt) { return Rapport.oppna(opt); }
 var rapportFinns = () => (typeof DEBUG !== 'undefined' && !!DEBUG) || (typeof RAPPORT_FOR_ALLA !== 'undefined' && !!RAPPORT_FOR_ALLA);
 var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar får inte döda krokarna)
   const VAR_MS = 2000, HAND_MIN_MS = 300, MAX_ANTAL = 300, MAX_BYTES = 7.5 * 1024 * 1024;
-  const BESK_ANTAL = 40, BESK_BYTES = 2.5 * 1024 * 1024, MAX_BREDD = 480, KVAL = 0.7, BESK_KVAL = 0.85, MAX_KO = 2, BESK_KO = 8;
+  /* Beskärningarna sparas i full storlek (granskning 2, punkt 1): läsningens bild är högst BESKAR_BREDD (720) bred, och
+     BESK_MAX_BREDD är bara en spärr över den — ringens helbilder skalas till MAX_BREDD. 40 beskärningar à ~30–80 kB
+     (4K, kort på bordet) ryms i BESK_BYTES; ringen 7,5 + beskärningarna 4 MB håller sig under rapportens 15 MB. */
+  const BESK_ANTAL = 40, BESK_BYTES = 4 * 1024 * 1024, MAX_BREDD = 480, BESK_MAX_BREDD = 1024, KVAL = 0.7, BESK_KVAL = 0.85, MAX_KO = 2, BESK_KO = 8;
   const ring = [];            // { t, orsak, w, h, spar, blob }
   const besk = new Map();     // spår-id → { t, spar, kort, saker, varfor, w, h, blob }
+  let gen = 0;                // räknas upp av tom/glom: en kodning som blir klar efter tömningen kastas (punkt 3)
   let bytes = 0, beskBytes = 0, senast = -Infinity, senastHand = -Infinity, sig = null, ko = 0, beskKo = 0, agarenNu = null;
   const stat = { tagna: 0, slappta: 0, hoppade: 0, beskTagna: 0, beskSlappta: 0, beskHoppade: 0, kodMs: 0, kodN: 0, kodSyncMs: 0, kodSyncMax: 0, stegMs: 0, stegN: 0, stegMax: 0, tommda: 0 };
   /* Av: golden --utan-stillbilder. På: golden (STILLBILDER_PA) eller när rapporten finns för spelaren. */
@@ -39355,21 +39360,24 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
     }
   }
   /* Kodar en canvas till JPEG UTANFÖR steget och läsningen (punkt 1). I steget görs bara en kopia (drawImage
-     canvas → canvas, nedskalad till högst 480 px); toBlob körs i en egen uppgift efter steget, eftersom WebKit
+     canvas → canvas, ringen nedskalad till högst 480 px, beskärningen i full storlek upp till BESK_MAX_BREDD); toBlob körs i en egen uppgift efter steget, eftersom WebKit
      (iPhone) kodar synkront i toBlob. kodSyncMs = den tid toBlob själv blockerar (utanför steget), kodMs = till
      klar. besk = beskärningens egen kö, så att ringen aldrig tränger ut en beskärning (punkt 9). */
   function koda(src, kval, klar, besk) {
     if (besk ? beskKo >= BESK_KO : ko >= MAX_KO) { if (besk) stat.beskHoppade++; else stat.hoppade++; return false; }
-    const sk = src.width > MAX_BREDD ? MAX_BREDD / src.width : 1;
+    const max = besk ? BESK_MAX_BREDD : MAX_BREDD;
+    const sk = src.width > max ? max / src.width : 1;
     const w = Math.max(1, Math.round(src.width * sk)), h = Math.max(1, Math.round(src.height * sk));
+    const tillbaka = () => { if (c && forrad.length < MAX_KO + BESK_KO) forrad.push(c); };
     let c = null;
     try {
       c = forrad.pop() || document.createElement('canvas');
       if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
       c.getContext('2d').drawImage(src, 0, 0, w, h);
-    } catch (e) { return false; }
+    } catch (e) { tillbaka(); return false; }   // den lånade duken tillbaka till förrådet (punkt 4)
     if (besk) beskKo++; else ko++;
-    const slut = () => { if (besk) beskKo--; else ko--; if (forrad.length < MAX_KO + BESK_KO) forrad.push(c); };
+    const g0 = gen;
+    const slut = () => { if (besk) beskKo--; else ko--; tillbaka(); };
     const t0 = performance.now();
     setTimeout(() => {
       const t1 = performance.now();
@@ -39378,7 +39386,8 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
           stat.kodMs += performance.now() - t0; stat.kodN++;
           const ok = b && b.size;
           slut();
-          if (ok) { try { klar(b, w, h); } catch (e) {} }
+          /* Ringen tömd under kodningen (konto, parti, utloggning, golden mellan fallen): bilden hör inte hit. */
+          if (ok && g0 === gen) { try { klar(b, w, h); } catch (e) {} }
         }, 'image/jpeg', kval);
       } catch (e) { slut(); }
       const d = performance.now() - t1; stat.kodSyncMs += d; if (d > stat.kodSyncMax) stat.kodSyncMax = d;
@@ -39480,7 +39489,7 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
              aldst: ring.length ? ring[0].t : null, nyast: ring.length ? ring[ring.length - 1].t : null, av: av() };
   }
   /* tom: bilderna bort (nytt konto eller parti, punkt 5). glom: också statistiken (utloggning, golden mellan fallen). */
-  function tom() { ring.length = 0; besk.clear(); bytes = 0; beskBytes = 0; senast = -Infinity; senastHand = -Infinity; sig = null; }
+  function tom() { gen++; ring.length = 0; besk.clear(); bytes = 0; beskBytes = 0; senast = -Infinity; senastHand = -Infinity; sig = null; }
   function glom() { tom(); agarenNu = null; for (const k in stat) stat[k] = 0; }
 
   return { steg, beskarning, stillbilder, sandRad, rattelseBild, stat: statNu, glom, get pa() { return !av(); }, get ring() { return ring; }, get besk() { return besk; }, get ko() { return ko + beskKo; } };
@@ -39556,7 +39565,7 @@ var Rattelse = (() => {   // var: se Rapport
     /* Upp till 10 s har gått: läs inställningen igen före filerna (punkt 7). Av nu = raden bort, inga filer. */
     if (!(s && s.ok) && !(await Moln.bildInstallning())) {
       stat.avNar++;
-      try { await Moln.rapportRadera(r.kod); } catch (e) {}
+      try { await Moln.rapportRadera(r.kod, r.sokvag); } catch (e) {}   // sökvägen med: en sent uppladdad beskarning.jpg städas också
       return null;
     }
     let bild = s && s.ok ? 'telefon' : null;

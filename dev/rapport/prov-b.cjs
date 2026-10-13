@@ -169,7 +169,7 @@ const PROV = async () => {
   const bc = document.createElement('canvas'); bc.width = 520; bc.height = 720; const bx = bc.getContext('2d'); bx.fillStyle = '#c9b38a'; bx.fillRect(0, 0, 520, 720); bx.fillStyle = '#222'; bx.font = '40px serif'; bx.fillText('Llanowar Elves', 30, 70);
   for (let i = 1; i <= 50; i++) { Stillbilder.beskarning({ id: 1000 + i }, bc, { namn: 'Kort ' + i, saker: true, varfor: 'remsa' }); for (let j = 0; j < 200 && Stillbilder.ko; j++) await vanta(1); }
   const sb = Stillbilder.stat();
-  ok('beskärningarna: 50 spår ger högst 40 och 2,5 MB, den senaste kvar', sb.beskAntal <= 40 && sb.beskBytes <= sb.tak.beskBytes && Stillbilder.besk.has(1050) && !Stillbilder.besk.has(1001), `${sb.beskAntal} st, ${MB(sb.beskBytes)}`);
+  ok('beskärningarna: 50 spår ger högst 40 och taket (4 MB), den senaste kvar', sb.beskAntal <= 40 && sb.beskBytes <= sb.tak.beskBytes && Stillbilder.besk.has(1050) && !Stillbilder.besk.has(1001), `${sb.beskAntal} st, ${MB(sb.beskBytes)}`);
   ok('minnet totalt under ~10 MB (bilder + beskärningar)', sb.bytes + sb.beskBytes <= 10 * 1048576, MB(sb.bytes + sb.beskBytes) + (performance.memory ? ', JS-heap max ' + MB(Math.max(r30.maxHeap, r10.maxHeap)) : ''));
   ok('avstängd (STILLBILDER_AV): ingen bild tas', (() => { window.STILLBILDER_AV = true; const f = Stillbilder.stat().tagna; Stillbilder.steg(c, 1e9, [], 360, 203); window.STILLBILDER_AV = false; return Stillbilder.stat().tagna === f && !Stillbilder.ko; })());
   const minne = { slat: { antal: s30.antal, bytes: bytesSlat, kBperBild: +(styckSlat / 1024).toFixed(1), tagna: s30.tagna }, brus: { antal: s10.antal, bytes: s10.bytes }, besk: { antal: sb.beskAntal, bytes: sb.beskBytes },
@@ -288,6 +288,34 @@ const PROV = async () => {
     const sm = Stillbilder.stat(); per.sort((a, b) => a - b);
     minne.dod3 = { steg: per.length, stegMedian: +per[per.length >> 1].toFixed(3), stegP99: +per[Math.floor(per.length * 0.99)].toFixed(3), stegMax: +per[per.length - 1].toFixed(3), bilder: sm.tagna, kodSyncMs: sm.kodSyncMs, kodSyncMax: sm.kodSyncMax, kodMs: sm.kodMs };
     ok('DoD 3: steget kostar under 1 ms i median med ringen på (kodningen utanför)', minne.dod3.stegMedian < 1, JSON.stringify(minne.dod3));
+  }
+  /* Granskning 2, punkt 1: beskärningen sparas i full storlek (upp till spärren 1024), ringen skalas till 480. */
+  {
+    Stillbilder.glom();
+    const duk = (w, h) => { const d = document.createElement('canvas'); d.width = w; d.height = h; const x = d.getContext('2d'); x.fillStyle = '#c9b38a'; x.fillRect(0, 0, w, h); x.fillStyle = '#222'; x.font = '30px serif'; x.fillText('Llanowar Elves', 20, 50); return d; };
+    const fall = [[720, 1005], [300, 419], [1400, 1960]];
+    fall.forEach(([w, h], i) => Stillbilder.beskarning({ id: 5100 + i }, duk(w, h), { namn: 'Bredd ' + w, saker: true, varfor: 'remsa' }));
+    Stillbilder.steg(duk(960, 540), 8e9, [], 960, 540);
+    for (let i = 0; i < 200 && Stillbilder.ko; i++) await vanta(1);
+    const bw = fall.map((f, i) => { const b = Stillbilder.besk.get(5100 + i); return b ? b.w + 'x' + b.h : null; });
+    const rw = Stillbilder.ring[0] ? Stillbilder.ring[0].w + 'x' + Stillbilder.ring[0].h : null;
+    ok('granskning 2, punkt 1: beskärningen i full storlek (720 → 720, 300 → 300), spärren 1024; ringens bild 480', bw[0] === '720x1005' && bw[1] === '300x419' && bw[2] === '1024x1434' && rw === '480x270', `beskärningar ${bw.join(', ')}, ringen ${rw}`);
+    /* Punkt 3: en kodning som blir klar efter glom/tom hamnar inte i den tömda ringen (annat konto eller parti). */
+    Stillbilder.glom();
+    Stillbilder.beskarning({ id: 5200 }, duk(400, 560), { namn: 'Sen', saker: true, varfor: 'remsa' });
+    Stillbilder.steg(duk(360, 203), 9e9, [], 360, 203);
+    const iKo = Stillbilder.ko;
+    Stillbilder.glom();
+    for (let i = 0; i < 200 && Stillbilder.ko; i++) await vanta(1);
+    const s3 = Stillbilder.stat();
+    ok('granskning 2, punkt 3: kodning klar efter glom → bilden kastas (ring och beskärningar tomma)', iKo === 2 && Stillbilder.ring.length === 0 && Stillbilder.besk.size === 0 && s3.tagna === 0 && s3.beskTagna === 0 && s3.bytes === 0 && s3.beskBytes === 0, `i kön ${iKo}, ring ${Stillbilder.ring.length}, besk ${Stillbilder.besk.size}`);
+    /* Punkt 4: drawImage kastar → ingen kö hänger kvar, och nästa kodning går. */
+    Stillbilder.glom();
+    Stillbilder.beskarning({ id: 5300 }, { width: 100, height: 140 }, { namn: 'Kastar', saker: true });
+    Stillbilder.beskarning({ id: 5301 }, duk(300, 419), { namn: 'Efter', saker: true });
+    for (let i = 0; i < 200 && Stillbilder.ko; i++) await vanta(1);
+    ok('granskning 2, punkt 4: en kodning där drawImage kastar lämnar ingen kö, nästa går', !Stillbilder.besk.has(5300) && Stillbilder.besk.has(5301) && Stillbilder.ko === 0);
+    Stillbilder.glom();
   }
   /* Fynd 9: en händelse som inte fick plats (kön full) tas i nästa steg; beskärningarna har egen kö. */
   {
