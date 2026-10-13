@@ -742,6 +742,7 @@ function aterkoppling(f, prov) {
       /* grav: högvakten (MES-85) — { n, sen } som rapporten bär den, null utan ruta — så att uppspelningen ser samma högändringar som datorn. */
       if (prov.bordLogg) prov.bordLogg.push({ s: prov.s, fas: K ? K.lage : null, nollstall: !!nollstall, grund: K && K.grund != null ? Math.round(K.grund * 180 / Math.PI) % 180 : null,
         grav: extra && extra.grav ? extra.grav : null,
+        ror: K && K.bildRor != null ? (K.bildRor ? 1 : 0) : undefined,   // något rör sig i bilden (bordets ror, 2026-10-13): vägen till handen väntar på det
         spar: (spar || []).map(t => Object.assign({}, t, {
           cands: t.cands ? t.cands.slice(0, 3).map(c => ({ name: c.name, sid: c.sid || null, score: c.score != null ? c.score : null })) : null,
           namnLast: t.namnLast ? { namn: t.namnLast.namn != null ? t.namnLast.namn : null, poang: t.namnLast.poang != null ? t.namnLast.poang : null } : null

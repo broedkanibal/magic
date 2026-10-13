@@ -33584,6 +33584,13 @@ let tvivel = new Map();      // spår-id → namnet det bar när det kom tillbak
    gamla spåret tar ledigt kortet i väntan (steg 3) och kortet bärs dit;
    ligger kortet kvar när handen gått skapas det nya som förut. Inga
    slutsatser förrän handen lämnat kortet (princip 3). */
+/* …och tvärtom (Jesper 2026-10-13): ett spår som föds senare än så EFTER att kortet försvann är ett nytt kort, inte
+   kortet som flyttas — när det gäller att hålla tillbaka det nya kortets oframkallade kort (ofrFlyttKan) och att hålla
+   kvar det försvunna kortet på mattan (kanFlyttas). I passet 2026-10-11 föddes det flyttade kortets nya spår mellan
+   0,5 s före och 1,3 s efter att det gamla dog. Att ta upp ett kort på handen och lägga ut ett nytt tar längre tid:
+   handen ska ut ur bild och tillbaka. Bindningen när namnet läses (steg 3b, passar) har ingen sådan gräns, och inte
+   heller olastSpar (ett oläst kort håller kvar det försvunna tills det lästs — prövat: med gränsen föll TH6 och KA1). */
+const FLYTT_EFTER = 1500;
 const FLYTT_FORE = 450;      // ms (tre rapporter): ett spår som fötts tidigare än så innan kortet senast sågs fritt kan inte vara kortet som lyftes — med 1500 band Flutterfox (passet, 95 s) ett spår i landhögen som fötts medan kortet låg kvar; 300 tappade Mirran (114 s) på en avrundning
 const FLYTT_VILA = 3000;     // ms: ett spår som lagt sig längre sedan än så är inte något som just lades ned
 const DUBBLETT_VANTA = 3000; // ms: så länge väntar ett klart spår på att kortet med samma namn ska släppas av handen
@@ -33934,6 +33941,7 @@ const OFR_TROSKEL = 0;     // ms från släppet till det oframkallade kortet (va
    ligga över (ett land på en hög, O16) läggs ned vid släppet. */
 const OFR_TROSKEL_TACKT = 500;
 const OFR_SUDD = 12;       // px i brädet: hur suddigt kamerans foto är i de unika ytorna (sida 3, "Suddighet", förvalet Mellan)
+const OFR_HOG_TACK = 0.75; // ett nytt spår som täcker så mycket av ett annat kort ligger på en hög: det väntar på vilar (ofrSteg, iHog)
 const OFR_NAD = 1200;      // ms: ett oframkallat kort vars spår dött väntar så länge på ett spår som föds om på samma plats
 const OFR_FRAN_MS = 1500;  // ms: så länge bär ett nytt kort fotot det framkallades ur (lagren är osynliga efter 300 ms)
 let ofrMinne = new Map();  // post-id (första spårets id) → { id, spar, vila, lagd, kam, tappad, pend, overTak, tak, namn, foto, dod }
@@ -34141,6 +34149,15 @@ function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas, kvar) {
   const dubbelLada = t => olast(t) && spar.some(u => u.id !== t.id && olast(u) && losa.has(u.id) && u.w != null && u.h != null && !franHelbild(u) && !!u.kortlik && !u.skymd
     && (fodd(u.id) < fodd(t.id) || (fodd(u.id) === fodd(t.id) && u.id < t.id)) && tackning(u, t) >= SAMMA_KORT_TACKNING
     );   // telefonens under håller inte isär två olästa lådor (467,4 s: lådan på det flyttade Islandet stod "över" det)
+  /* Bekräftat räcker bara på fri bordsyta (Jesper 2026-10-13). Ett spår som ligger på ett annat kort (täcker ett annat
+     spår med korts form, SAMMA_KORT_TACKNING) väntar på vilar som före 2026-10-12: i en hög blinkar lådor fram och
+     dör inom en sekund. Uppspelat genom partiet 2026-09-21 (kamerans video genom kedjan) gav bekr på högarna 48 nya
+     oframkallade kort i 6 minuter, vart och ett i ~2 s — 33 av dem på ett annat spår (överlapp 0,8–1), med telefonens
+     relation "ligger över". Med vilar på högarna syntes de inte, som förut. Gränsen är OFR_HOG_TACK, inte
+     SAMMA_KORT_TACKNING: ett Island som lades delvis på ett annat i Jespers parti 2026-10-11 (458,6 s) täckte 0,65
+     och hade annars väntat 1,5 s; spökena täckte 0,75–1 utom sex. Riktiga kort som läggs nästan rakt på ett annat
+     (över 0,75) väntar som före 2026-10-12. */
+  const iHog = t => spar.some(u => u.id !== t.id && u.w != null && u.h != null && !franHelbild(u) && (u.kortlik || u.tillstand === 'klar') && tackning(u, t) >= OFR_HOG_TACK);
   /* Nya: ett löst spår som ligger still som ett kort, från släppet (OFR_TROSKEL), utan namn — eller med
      antalets fråga. Inte ett spår spelaren hoppat över eller tagit bort, inte ett som kan vara ett kort
      i väntan som flyttats hit (det avgörs när telefonen läst det), och inte ett som ligger där ett kort i
@@ -34150,6 +34167,7 @@ function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas, kvar) {
     const q = mig.pending.find(q => q.spar === t.id);
     if (t.tillstand === 'klar' && !(q && q.overTak)) continue;
     if (!ofrSomKort(t)) continue;
+    if (!ofrVilar(t) && iHog(t)) continue;   // på en hög: vilar som före 2026-10-12
     if (vantaLas && vantaLas(t)) continue;   // läsningen avgör (avstamBord: leken ska läggas ned)
     const v = ofrVila.get(t.id);
     const troskel = Math.max(OFR_TROSKEL, tackerKort(t) ? OFR_TROSKEL_TACKT : 0);
@@ -35173,9 +35191,16 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      dog, och det gamla hade då sen 370–410 ms. Utan det här blinkade ett oframkallat kort förbi där kortet lades,
      tills det gamla spåret dog och flytten tog över. Ett kort som bara blinkade (sen tillbaka under LYFT_MS) släpper
      väntan i nästa rapport. */
+  /* …och i den här frågan räknas inte om platsen syns täckt (platsTackt): det oframkallade kortet väntar på läsningen
+     så länge ett kort som nyss försvunnit kan vara det som läggs ned här (passar), också när kortets gamla plats
+     delvis täcks av ett annat kort. I passet 2026-10-11 (468,1 s) flyttades ett Island som legat omlott med ett
+     annat; det kvarliggande Islandet täckte 0,37 av den gamla platsen, platsTackt sa "kortet kan ligga kvar under",
+     och det flyttade kortets nya spår fick ett oframkallat kort i 1,9 s tills läsningen bar dit kortet. Priset är
+     att ett nytt kort som läggs ned medan ett annat nyss försvunnit väntar på sitt namn — som alla kort före
+     2026-10-12. Steg 3b (vilka kort som får bäras) läser platsTackt som förut. */
   const lyfts = k => { const u = k.spar != null && synliga.has(k.spar) ? spar.find(x => x.id === k.spar) : null; return !!u && !u.skymd && u.sen != null && u.sen >= LYFT_MS; };
   ofrFlyttKan = t => (t.tillstand === 'ny' || t.tillstand === 'stilla') && mig.cards.some(k => k.spar != null && paBordet(k) && !k.fysisk && !!k.kam && !k.attachedTo
-    && (synliga.has(k.spar) ? lyfts(k) : !(k.borta && nu - k.borta > BORTA_NAD) && !platsTackt(k)) && passar(k, t));
+    && (synliga.has(k.spar) ? lyfts(k) : !(k.borta && nu - k.borta > BORTA_NAD) && sedd(t) <= (k.borta || nu) + FLYTT_EFTER) && passar(k, t));
   if (kand.length && vantar.length) {
     const avst =(k, t) => Math.hypot((t.vx != null ? t.vx : t.x + t.w / 2) - k.kam.x, (t.vy != null ? t.vy : t.y + t.h / 2) - k.kam.y);
     const par = [];
@@ -35572,6 +35597,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const kantHaller = borta => !matchar && !kamFlaggar && kamFas === 'kant' && !!kantSedan && borta != null && borta - kantSedan <= SLAPP_MS && kantSedan - borta <= LOS_MS;
   /* …och ett nytt spår som ännu inte lästs, där flytten kan bära kortet (passar, steg 3b): det avgör läsningen. */
   const kanFlyttas = k => spar.some(t => t.w != null && !franHelbild(t) && !bunden(t.id) && (t.tillstand === 'ny' || t.tillstand === 'stilla') && (!!t.kortlik || ofrVila.has(t.id)) && !t.skymd && !t.ned
+    && sedd(t) <= k.borta + FLYTT_EFTER
     && !hoppade.has(t.id) && !borttagna.has(t.id) && passar(k, t));
   const handIBild = sparRa.some(t => handSpar(t, sparRa));
   const orort = k => namnAnnanstans(k) || olastSpar(k) || kanFlyttas(k) || tacktAvKort(k) || urBild(k) || kantHaller(k.borta);
