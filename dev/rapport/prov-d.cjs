@@ -29,11 +29,13 @@ const tillFall = (args, env) => kor('till-fall.cjs', args, Object.assign({ MESA_
 
 /* En hämtad tyst rättelse, som hamta.cjs lägger den (B:s kontrakt). */
 const MAN = JSON.parse(fs.readFileSync(path.join(ROT, 'dev', 'embed', 'riktiga', 'manifest.json'), 'utf8'));
-function rattelse(kod, i, handelse, spelkod, game_id) {
+function rattelse(kod, i, handelse, spelkod, game_id, utanRuta) {
   const p = MAN[i], mapp = path.join(IN, kod);
   fs.mkdirSync(mapp, { recursive: true });
   fs.copyFileSync(path.join(ROT, 'dev', 'embed', 'riktiga', p.fil), path.join(mapp, 'beskarning.jpg'));
-  fs.writeFileSync(path.join(mapp, 'rattelse.json'), JSON.stringify({ gissning: 'Swamp', varfor: 'modell land', ratt: p.namn, spelkod: spelkod === undefined ? 'PROV' + i : spelkod, t: 1790000000000 + i, spar: 7, handelse: handelse || 'namnbyte' }));
+  /* var kortet låg (uppföljning av MES-366/368); utanRuta = en äldre rättelse som R-0008 */
+  const plats = utanRuta ? {} : { ruta: { x: 0.4, y: 0.3, w: 0.14, h: 0.33, bild: { w: 360, h: 203 }, kalla: 'beskarning', t: 1790000000000 + i }, maskade: [] };
+  fs.writeFileSync(path.join(mapp, 'rattelse.json'), JSON.stringify(Object.assign({ gissning: 'Swamp', varfor: 'modell land', ratt: p.namn, spelkod: spelkod === undefined ? 'PROV' + i : spelkod, t: 1790000000000 + i, spar: 7, handelse: handelse || 'namnbyte', bild: 'telefon' }, plats)));
   fs.writeFileSync(path.join(mapp, 'rapport.json'), JSON.stringify({ kod, text: null, tagg: null, tidslinje: [], rad: game_id ? { kod, game_id } : null }));
   return { mapp, namn: p.namn };
 }
@@ -203,6 +205,116 @@ satt(process.argv.slice(1), S).then(t => console.log(t)).catch(e => { console.er
   ok(r.kod === 0 && /spel:ABC123/.test(r.ut), `--logg utan --spelkod: bordsloggens egen spelkod läses (slutkod ${r.kod})`);
   r = tillFall(['--mattest', '--logg', lf, '--lokal', '--torr', '--spelkod', '../x']);
   ok(r.kod === 2, `--spelkod «../x» vägras (slutkod ${r.kod})`);
+
+  /* 8. Var kortet låg (uppföljning av MES-366/368): ruta, maskade, kontext och --spar. */
+  {
+    const py8 = process.env.MESA_PY || path.join(os.homedir(), '.mesa', 'detektor-venv', 'bin', 'python');
+    const pyKor = (kod, ...x) => spawnSync(py8, ['-c', kod, ...x], { encoding: 'utf8' });
+    const manifest = () => fs.existsSync(bankMan) ? JSON.parse(fs.readFileSync(bankMan, 'utf8')) : [];
+    const BANKDIR = path.join(UT, 'dev', 'remsa', 'rapportbank');
+    /* 8a. En äldre rättelse utan ruta (som R-0008): bänkfall med varning, träning bara med --utan-ruta. */
+    const g0 = rattelse('R-9970', 10, 'name_this_card', 'GAMMAL1', undefined, true);
+    r = tillFall(['R-9970', '--bank', '--lokal', '--mapp', g0.mapp]);
+    ok(r.kod === 0 && /VARNING: rättelsen saknar ruta/.test(r.ut) && manifest().some(p => p.kod === 'R-9970' && p.ruta === null), `R-0008-lik rättelse utan ruta blir bänkfall med varning (slutkod ${r.kod})`);
+    const g1 = rattelse('R-9971', 11, 'name_this_card', 'GAMMAL2', undefined, true);
+    r = tillFall(['R-9971', '--traning', '--lokal', '--mapp', g1.mapp]);
+    ok(r.kod === 2 && /kräver ruta och maskade/.test(r.ut) && !fs.existsSync(path.join(UT, 'dev', 'material', 'arbete', 'markning', 'rapporter-traning-mesa', 'R-9971')), `--traning av en rättelse utan ruta vägras (slutkod ${r.kod}): ${r.ut.trim().split('\n').pop().slice(0, 120)}`);
+    r = tillFall(['R-9971', '--traning', '--lokal', '--mapp', g1.mapp, '--utan-ruta']);
+    ok(r.kod === 0, `… och går med --utan-ruta uttryckligen (slutkod ${r.kod})`);
+    /* 8b. En rättelse MED ruta, maskade och kontext.jpg: allt följer med in i bänken. */
+    const g2 = rattelse('R-9972', 12, 'namnbyte', 'NYARE1');
+    const rj = JSON.parse(fs.readFileSync(path.join(g2.mapp, 'rattelse.json'), 'utf8'));
+    rj.maskade = [{ spar: 63, x: 0.45, y: 0.4, w: 0.14, h: 0.33 }]; rj.kontext = { fil: 'kontext.jpg', t: rj.t, w: 720, h: 406 };
+    fs.writeFileSync(path.join(g2.mapp, 'rattelse.json'), JSON.stringify(rj));
+    fs.copyFileSync(path.join(g2.mapp, 'beskarning.jpg'), path.join(g2.mapp, 'kontext.jpg'));
+    r = tillFall(['R-9972', '--bank', '--lokal', '--mapp', g2.mapp]);
+    const p72 = manifest().find(p => p.kod === 'R-9972');
+    ok(r.kod === 0 && p72 && p72.ruta && p72.ruta.kalla === 'beskarning' && p72.maskade[0].spar === 63 && p72.kontext === 'R-9972-kontext.jpg' && fs.existsSync(path.join(BANKDIR, 'R-9972-kontext.jpg')),
+      `rättelsens ruta, maskade och kontext står i manifest.json (${p72 ? JSON.stringify({ ruta: p72.ruta && p72.ruta.kalla, maskade: p72.maskade, kontext: p72.kontext }) : r.ut.trim()})`);
+
+    /* 8c. En rapport med bilder: två kort omlott (spår 63 över spår 77), en beskärning av 77 och stillbilder. */
+    const rp = path.join(IN, 'R-9973'), bd = path.join(rp, 'bilder');
+    fs.mkdirSync(bd, { recursive: true });
+    const W = 720, H = 406, b77 = { x: 0.40, y: 0.30, w: 0.14, h: 0.33 }, b63 = { x: 0.47, y: 0.42, w: 0.14, h: 0.33 };
+    /* stillbilden: bord brunt, 77 blått, 63 rött ovanpå; beskärningen av 77 (600 px bred, som läsningens) */
+    const gen = pyKor(`
+import sys
+from PIL import Image, ImageDraw
+W,H=${W},${H}
+im=Image.new('RGB',(W,H),(90,58,34)); d=ImageDraw.Draw(im)
+for (x,y,w,h),f in (((${b77.x},${b77.y},${b77.w},${b77.h}),(48,80,192)),((${b63.x},${b63.y},${b63.w},${b63.h}),(192,48,48))):
+    d.rectangle([x*W,y*H,(x+w)*W,(y+h)*H],fill=f)
+im.save(sys.argv[1],quality=95)
+Image.new('RGB',(600,800),(48,80,192)).save(sys.argv[2],quality=95)
+Image.new('RGB',(360,203),(90,58,34)).save(sys.argv[3],quality=95)
+`, path.join(bd, 's-1790000010000-0.jpg'), path.join(bd, 'beskarning-spar77-1790000009000.jpg'), path.join(bd, 's-1790000020000-1.jpg'));
+    if (gen.status !== 0) { ok(false, '8c: kunde inte göra provbilderna: ' + (gen.stderr || '').trim().split('\n').pop()); }
+    const sp = (id, q, kort) => Object.assign({ id, kort, saker: true, tappad: false, tillstand: 'klar', varfor: 'remsa' }, q);
+    const still = [
+      { fil: 's-1790000010000-0.jpg', t: 1790000010000, orsak: 'handelse', w: W, h: H, spar: [sp(77, b77, 'Opt'), sp(63, b63, 'Shock')], s: 10, rel: -20 },
+      { fil: 's-1790000020000-1.jpg', t: 1790000020000, orsak: 'tid', w: 360, h: 203, spar: [sp(63, b63, 'Shock')], s: 20, rel: -10 }
+    ];
+    const besk = [{ fil: 'beskarning-spar77-1790000009000.jpg', t: 1790000009000, spar: 77, kort: 'Opt', saker: true, varfor: 'modell+orb', w: 600, h: 800, s: 9, rel: -21,
+                    ruta: Object.assign({ bild: { w: 960, h: 541 } }, b77), maskade: [Object.assign({ spar: 63 }, b63)] }];
+    fs.writeFileSync(path.join(rp, 'stillbilder.json'), JSON.stringify({ kod: 'R-9973', start: 1790000000000, frys: 1790000030000, bilder: still, beskarningar: besk }));
+    fs.writeFileSync(path.join(rp, 'rapport.json'), JSON.stringify({ kod: 'R-9973', text: 'Opt is wrong, it is Brainstorm', tagg: null, tidslinje: [], miljo: { spel: 'SPAR73' }, rad: null }));
+    const bordRad = s => ({ s, fas: 'kort', spar: [Object.assign({ id: 77, namn: 'Opt', maskad: true, under: [63] }, b77), Object.assign({ id: 63, namn: 'Shock', maskad: false, under: null }, b63)] });
+    fs.writeFileSync(path.join(rp, 'bordlogg.json'), JSON.stringify({ id: 'rapport-R-9973', start: new Date(1790000000000).toISOString(), rapport: 'R-9973', bordLogg: [bordRad(9.5), bordRad(10.4)] }));
+    /* --bild utan --spar vägras */
+    r = tillFall(['R-9973', '--bank', '--lokal', '--mapp', rp, '--bild', 's-1790000010000-0.jpg', '--ratt', 'Brainstorm']);
+    ok(r.kod === 2 && /--bild utan --spar vägras/.test(r.ut) && !manifest().some(p => p.kod === 'R-9973'), `--bild utan --spar vägras (slutkod ${r.kod}), inget skrivet`);
+    r = tillFall(['R-9973', '--bank', '--lokal', '--mapp', rp, '--ratt', 'Brainstorm']);
+    ok(r.kod === 2 && /--spar och --ratt hör ihop/.test(r.ut), `--ratt utan --spar vägras (slutkod ${r.kod})`);
+    /* --spar väljer läsningens beskärning */
+    r = tillFall(['R-9973', '--bank', '--lokal', '--mapp', rp, '--spar', '77', '--ratt', 'Brainstorm']);
+    let p73 = manifest().find(p => p.kod === 'R-9973' && p.spar === 77);
+    const sammaBild = p73 && fs.readFileSync(path.join(BANKDIR, p73.fil)).equals(fs.readFileSync(path.join(bd, 'beskarning-spar77-1790000009000.jpg')));
+    ok(r.kod === 0 && p73 && p73.fil === 'R-9973-spar77.jpg' && sammaBild && p73.bild_ur === 'beskarning' && p73.ruta.kalla === 'beskarning' && p73.maskade[0].spar === 63 && p73.namn === 'Brainstorm' && p73.gissning === 'Opt'
+       && p73.kontext === 'R-9973-spar77-kontext.jpg' && fs.existsSync(path.join(BANKDIR, p73.kontext)),
+      `--spar 77 väljer läsningens beskärning (samma bytes), med ruta, maskade [63] och kontext: ${p73 ? JSON.stringify({ fil: p73.fil, bild_ur: p73.bild_ur, regel: p73.mask_regel }) : r.ut.trim()}`);
+    /* --spar + --bild: utsnittet ur stillbilden, 63 målat grått enligt bordsloggens under */
+    r = tillFall(['R-9973', '--bank', '--lokal', '--mapp', rp, '--spar', '77', '--ratt', 'Brainstorm', '--bild', 's-1790000010000-0.jpg', '--skriv-over']);
+    p73 = manifest().find(p => p.kod === 'R-9973' && p.spar === 77);
+    let pix = null;
+    if (p73) {
+      /* utsnittet = rutan + 8 %; 63:s hörn i utsnittet (0–1): punkter innanför 63 (grått) och i 77 utanför 63 (blått) */
+      const cx = b77.x - b77.w * 0.08, cy = b77.y - b77.h * 0.08, cw = b77.w * 1.16, ch = b77.h * 1.16;
+      const u = (b63.x - cx) / cw, v = (b63.y - cy) / ch;
+      const q = pyKor(`
+import sys, json
+from PIL import Image
+im=Image.open(sys.argv[1]).convert('RGB'); W,H=im.size; u,v=float(sys.argv[2]),float(sys.argv[3])
+pts=[(u+(1-u)*0.5,v+(1-v)*0.5),(u+0.05,v+0.05),(u*0.5,v*0.5),(u*0.5,0.9)]
+print(json.dumps({'w':W,'h':H,'p':[im.getpixel((int(a*W),int(b*H))) for a,b in pts]}))
+`, path.join(BANKDIR, p73.fil), String(u), String(v));
+      try { pix = JSON.parse(q.stdout); } catch (e) { pix = null; }
+    }
+    const gra = c => c && Math.abs(c[0] - 128) < 16 && Math.abs(c[1] - 128) < 16 && Math.abs(c[2] - 128) < 16, bla = c => c && c[2] > 150 && c[0] < 90;
+    ok(r.kod === 0 && p73 && p73.bild_ur === 'stillbild' && p73.ruta.kalla === 'stillbild' && p73.maskade.length === 1 && p73.maskade[0].spar === 63 && /bordsloggens under/.test(p73.mask_regel) && /lågupplöst/.test(r.ut)
+       && pix && gra(pix.p[0]) && gra(pix.p[1]) && bla(pix.p[2]) && bla(pix.p[3]),
+      `--spar 77 --bild <stillbild>: utsnittet med 63 grått där bordsloggens under säger (${pix ? `${pix.w}×${pix.h} px, ${JSON.stringify(pix.p)}` : r.ut.trim()}), varning lågupplöst`);
+    /* utan bordslogg vid bilden: alla rutor som överlappar maskas */
+    fs.writeFileSync(path.join(rp, 'bordlogg.json'), JSON.stringify({ id: 'rapport-R-9973', start: new Date(1790000000000).toISOString(), rapport: 'R-9973', bordLogg: [bordRad(100)] }));
+    r = tillFall(['R-9973', '--bank', '--lokal', '--mapp', rp, '--spar', '63', '--ratt', 'Shock', '--bild', 's-1790000010000-0.jpg']);
+    const p63 = manifest().find(p => p.kod === 'R-9973' && p.spar === 63);
+    ok(r.kod === 0 && p63 && p63.maskade.length === 1 && p63.maskade[0].spar === 77 && /alla rutor som överlappar/.test(p63.mask_regel),
+      `utan bordslogg vid bilden maskas alla överlappande rutor (spår 63: ${p63 ? JSON.stringify(p63.maskade.map(q => q.spar)) + ' — ' + p63.mask_regel : r.ut.trim()})`);
+    /* träning: ett utsnitt ur en stillbild under 160 px vägras; läsningens beskärning med ruta går (ett annat parti) */
+    const rp2 = path.join(IN, 'R-9974'); fs.cpSync(rp, rp2, { recursive: true });
+    fs.writeFileSync(path.join(rp2, 'rapport.json'), JSON.stringify({ kod: 'R-9974', text: null, tagg: null, tidslinje: [], miljo: { spel: 'SPAR74' }, rad: null }));
+    r = tillFall(['R-9974', '--traning', '--lokal', '--mapp', rp2, '--spar', '77', '--ratt', 'Brainstorm', '--bild', 's-1790000010000-0.jpg']);
+    ok(r.kod === 2 && /under 160 px/.test(r.ut) && !fs.existsSync(path.join(UT, 'dev', 'material', 'arbete', 'markning', 'rapporter-traning-mesa', 'R-9974-spar77')), `--traning vägrar ett utsnitt under 160 px (slutkod ${r.kod})`);
+    r = tillFall(['R-9974', '--traning', '--lokal', '--mapp', rp2, '--spar', '77', '--ratt', 'Brainstorm']);
+    const kl74 = path.join(UT, 'dev', 'material', 'arbete', 'markning', 'rapporter-traning-mesa', 'R-9974-spar77');
+    const M74 = fs.existsSync(path.join(kl74, 'markning.json')) ? JSON.parse(fs.readFileSync(path.join(kl74, 'markning.json'), 'utf8')) : null;
+    ok(r.kod === 0 && M74 && M74.spar[0].ruta && M74.spar[0].maskade[0].spar === 63 && M74.spar[0].appens_spar === 77 && M74.spar[0].kontext === 'kontext.jpg' && fs.existsSync(path.join(kl74, 'kontext.jpg')),
+      `--traning --spar 77 ur läsningens beskärning: markning.json bär ruta, maskade och kontext.jpg (slutkod ${r.kod})`);
+    /* spärren per parti gäller --spar också: R-9975 ur samma parti (SPAR73) som bänkfallet R-9973 kan inte bli träning */
+    const rp3 = path.join(IN, 'R-9975'); fs.cpSync(rp, rp3, { recursive: true });
+    fs.writeFileSync(path.join(rp3, 'rapport.json'), JSON.stringify({ kod: 'R-9975', text: null, tagg: null, tidslinje: [], miljo: { spel: 'SPAR73' }, rad: null }));
+    r = tillFall(['R-9975', '--traning', '--lokal', '--mapp', rp3, '--spar', '77', '--ratt', 'Brainstorm']);
+    ok(r.kod === 3 && /samma parti/.test(r.ut), `spärren per parti gäller --spar (R-9975 ur samma parti som bänkfallet R-9973 → träning vägras, slutkod ${r.kod})`);
+  }
 
   /* 6. Bänken kör bänkfallet. */
   if (har('--bank-kor')) {
