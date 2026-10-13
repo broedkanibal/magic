@@ -37,7 +37,7 @@ Spelarens yta: `design_handoff_rapport/README.md` (§5 rutan, §9 detaljerna).
 | `node dev/rapport/till-fall.cjs R-0412 --mattest\|--bank\|--traning` | gör rapporten till ett Mat test-fall, ett bänkfall eller träningsdata, och sätter `anvandning` (nedan) |
 | `node dev/rapport/till-fall.cjs --mattest --logg pass.json [--orden o.tsv] [--lek lek.txt] [--spelkod KOD]` | samma för ett pass utan rapportkod (bordsloggen ur appen; spelkoden står inte i den, så ge den med `--spelkod` för spärren per parti) |
 | `node dev/rapport/prov-d.cjs [--bank-kor] [--tabell]` | provet för del D: syntetiska rättelser och en rapport i en tillfällig mapp, spärren åt båda hållen, bänken på bänkfallet, och (`--tabell`) satt/lista/spärren mot produktionens tabell med två provrader som tas bort efteråt |
-| `node dev/rapport/prov.cjs` | provet: ett parti i huvudlös Chrome, fel, anrop, telefonens låda, rutans fem lägen, taket, hamta — utan nät och utan Claude |
+| `node dev/rapport/prov.cjs` | provet: ett parti i huvudlös Chrome med en motståndare (dold information), fel, anrop, telefonens låda (NTP-offset), rutans fem lägen, Cancel under Sending, taket, telefonens ark utan `?debug`, appen när rapportblocket kastar, hamta — utan nät och utan Claude. Ett steg i `dev/kolla.sh`. Riktiga Supabase provas inte här |
 
 Verktygen mot tabellen läser `SUPABASE_URL` och `SUPABASE_SERVICE_ROLE_KEY` ur `.env.local`
 (i en worktree: symlänka den). Nyckeln skrivs aldrig ut.
@@ -72,9 +72,11 @@ Verktygen mot tabellen läser `SUPABASE_URL` och `SUPABASE_SERVICE_ROLE_KEY` ur 
 ## En klocka
 
 Datorn stämplar allt med sin egen klocka. När rutan öppnas skickar datorn
-`rapport_lada {id, t0}`; telefonen fryser sin låda och svarar med `tTel` (sin
-klocka). Datorn mäter rundturen och sätter **offset = tTel − (t0 + t1)/2**;
-varje telefonhändelse får `t = tTel_händelse − offset` (telefonens egen tid
+`rapport_lada {id, t0}`; telefonen fryser sin låda och svarar med `tMot` (när
+begäran kom) och `tTel` (när svaret gick), båda på sin klocka. Datorn tar emot
+svaret vid `t1` och sätter, som NTP, **offset = ((tMot − t0) + (tTel − t1)) / 2**
+— tiden telefonen lade på att frysa räknas då inte som resväg. (En telefon
+utan `tMot` ger mitt-i-rundturen: `tTel − (t0 + t1)/2`.) Varje telefonhändelse får `t = tTel_händelse − offset` (telefonens egen tid
 står kvar i `tTel`). Offset och rundtur står i `LÄS-MIG.md` och i
 `rapport.json` (`telefon.offset`, `telefon.rtt`). Felet är högst halva
 rundturen (oftast < 100 ms). Bordsloggens rader har `s` från passets start på
@@ -99,10 +101,16 @@ datorns klocka.
 `anvandning` (fix · test · traning · slangd — bara service role), `kalla` (rapport · rattelse · fel),
 `kontaktad_at`.
 
-- **Taket räknas på servern**: 20 rapporter och 50 felrapporter per konto och rullande 24 h; den 21:a
+- **Taket räknas på servern**: 20 rapporter, 50 felrapporter och 500 tysta rättelser per konto och
+  rullande 24 h (rättelsernas tak: `20261013150000_rapporter_tak_rattelse.sql`); den 21:a rapporten
   vägras med `rapport_tak` och rutan visar *Today's limit*. `rapporter_idag()` säger antalet när rutan öppnas.
+  `vy` får vara högst 64 kB och `text` högst 2000 tecken.
+- **Cancel under Sending**: uppladdningen stannar vid nästa steg, och fanns raden redan raderas den med
+  sina filer (`Moln.rapportRadera`: koden i `raderingar` först, sedan filerna och raden). Telefonen ombeds
+  aldrig om bilderna, och raden räknas inte mot taket.
 - **RLS**: spelaren lägger in, läser och raderar sina egna rader, och får uppdatera bara `storlek` och
-  `bilder` (steg 2–3: koden finns först när raden finns). `raderingar`: inloggad lägger in, bara service role läser.
+  `bilder` (steg 2–3: koden finns först när raden finns). `raderingar`: inloggad lägger in bara koder för sina
+  egna rapporter (skrivs före raderingen), bara service role läser.
 - **Felrapporter** (`kalla = 'fel'`): kodfel (`onerror`, `unhandledrejection`) och misslyckade anrop
   (5xx, inget svar), utan spelarens ord och utan bilder; felet och de senaste 20 handlingarna står i `vy`.
   Samma meddelande högst en gång per 10 min per sida. Skickas bara med `?debug` (del C: `RAPPORT_FOR_ALLA`).
@@ -112,19 +120,35 @@ datorns klocka.
 | Riktning | Meddelande (`typ`) | |
 |---|---|---|
 | dator → telefon | `rapport_lada {id, t0}` | frys din låda och din diagnosfil |
-| telefon → dator | `rapport_lada {id, t0, tTel, del, delar, json}` | lådan, i högst fyra delar |
+| telefon → dator | `rapport_lada {id, t0, tMot, tTel, del, delar, json}` | lådan, i högst fyra delar |
 | dator → telefon | `rapport_bilder {kod, sokvag, id}` | ladda upp det du frös till `<sokvag>/` och `<sokvag>/bilder/` |
 | telefon → dator | `rapport_bilder_klar {kod, antal, fel}` | raden får `bilder` klar / delvis (`saknas` om inget svar på 2 min eller ingen telefon) |
 | telefon → dator | `rapport {id, text, tagg}` | telefonens ark (del C): datorn fryser och skickar |
-| dator → telefon | `rapport_svar {id, kod}` eller `{id, fel: 'tak' \| 'nat'}` | |
+| dator → telefon | `rapport_svar {id, kod}` eller `{id, fel: 'tak' \| 'nat' \| 'av'}` | `av` = rapporten är inte på hos datorn (utan `?debug` / `RAPPORT_FOR_ALLA`) |
+| dator → telefon | `rapport_rattelse_bild {kod, sokvag, spar}` | B: ladda upp beskärningen till en tyst rättelse |
+| telefon → dator | `rapport_rattelse_klar {kod, ok, kort, varfor, tBesk}` | B: inget svar på 10 s = datorns kopia |
 
 ## För del B, C och D
 
 | Del | Kroka på |
 |---|---|
-| **B** | `Rapport.stillbilder = () => [{ namn, t, blob }]` på telefonen: anropas när datorn fryser, och bilderna laddas upp till `<kod>/bilder/` vid `rapport_bilder` (taket 15 MB, äldsta släpps). Rättelserna: en rad med `kalla: 'rattelse'` via `Moln.rapportRad` + `Moln.rapportFil` |
-| **C** | `oppnaRapportRuta()` (eller `Rapport.oppna()`) från knappen i toppraden; telefonens ark: `Rapport.franTelefon(text, tagg)` → `{kod}` eller `{fel: 'tak' \| 'nat' \| 'dator'}` (`dator` = inget svar på 10 s: *Can't reach your computer*). Flaggan `RAPPORT_FOR_ALLA` läses av `Rapport` om den finns. Rutans position (under knappen) är C:s |
+| **B** | `Rapport.stillbilder = () => [{ namn, t, blob }]` på telefonen: anropas när datorn fryser, och bilderna laddas upp till `<kod>/bilder/` vid `rapport_bilder` (taket 15 MB, äldsta släpps). Rättelserna: `Rattelse.fran(handelse, kort, ratt)` (se *Del B* nedan) |
+| **C** | `oppnaRapportRuta()` (eller `Rapport.oppna()`) från knappen i toppraden — ett nytt tryck med rutan öppen behåller orden och fokuserar fältet; telefonens ark: `Rapport.franTelefon(text, tagg)` → `{kod}` eller `{fel: 'tak' \| 'nat' \| 'dator' \| 'av'}` (`dator` = inget svar på 10 s: *Can't reach your computer*). Delete: `Moln.rapportRadera(kod, sokvag)`. Flaggan `RAPPORT_FOR_ALLA` läses av `Rapport` om den finns. Rutans position (under knappen) är C:s |
 | **D** | byggd (MES-368): `till-fall.cjs`, `satt.cjs`, `sparr.cjs`, `prov-d.cjs` — se nästa avsnitt |
+
+## Del B (MES-366): stillbilderna och de tysta rättelserna
+
+| | |
+|---|---|
+| Var | `Stillbilder`, `Rattelse` och växeln: sista `<script>`-blocket i index.html. Krokar: Kamera `loop` → `efter()` (en rad), `identifiera`/`spekulera` (en rad var), fem rader hos rättelserna (arkSvar token, removeAt, ofrInteKort, namngePend, applyPick) |
+| Stillbilder | telefonen, ringbuffert i minnet: analysbilden (anaC, ≤ 360 px i förval; över 480 skalas ned ur anaC) som JPEG 0,7, en var 2:a s + en per händelse (kort kom/gick, namn, tap, viloläget flyttat > 3 %), högst en händelsebild per 300 ms. Tak 300 bilder / 7,5 MB. Läsningens beskärning per spår och namnsättning: 40 / 2,5 MB. Kodningen med toBlob, högst två i taget (fler hoppas över). Av: `window.STILLBILDER_AV = true` (golden `--utan-stillbilder`) |
+| I rapporten | `Rapport.stillbilder` = `Stillbilder.stillbilder`: `bilder/s-<t>-<i>.jpg`, `bilder/beskarning-spar<id>-<t>.jpg`, `bilder/index.json` (per bild: fil, t telefonens klocka, orsak tid/handelse, w, h, spar[{id, kort, saker, tappad, tillstand, varfor, x, y, w, h}] i andelar av bilden). Telefonen visar *Sending pictures, N of M* under uppladdningen |
+| hamta.cjs | skriver `stillbilder.json` (bilderna på datorns klocka: t = tTel − offset, s = sekunder i bordsloggen, rel = från trycket). En rättelse (`kalla = 'rattelse'`): `rattelse.json`, `beskarning.jpg` och en kort `LÄS-MIG.md` |
+| Uppspelaren | `node dev/mattest/kor.cjs --visa --rapport dev/diagnos/rapporter/R-0412` (fönster) eller `--bilder <mapp> --vid rapport:12.5` (skärmdumpar): stillbilden med spårens rutor till vänster, mattan ur bordsloggen till höger, markeringar = mattans ändringar, röd = trycket |
+| Rättelserna | namnbyte, Name this card, borttaget kort (bara kamerakort, läget `bord`): rad i `rapporter` (`kalla 'rattelse'`, `vy {handelse, gissning, ratt, spar}`), filerna `beskarning.jpg` och `rattelse.json` = `{ gissning, varfor, ratt, spelkod, t, spar, handelse, saker, bild }` (`bild`: 'telefon' / 'dator' / null). BARA när `user_metadata.improve_pictures === true`, läst från servern (`auth.getUser`) i ögonblicket |
+| Kanalen | dator → telefon `rapport_rattelse_bild {kod, sokvag, spar}`; telefon → dator `rapport_rattelse_klar {kod, ok, kort, varfor, tBesk}`. Inget svar på 10 s: datorns kopia (granskningens beskärning, annars kamerans foto); ingen alls: `bilder = 'saknas'` |
+| Växeln | Developer-lådan (`?debug`): *Share pictures of cards I correct*, läser/skriver `improve_pictures` + `improve_pictures_at` (`Moln.bildInstallning`, `Moln.sattBildInstallning`, `Moln.bildInstallningSedan`) |
+| Prov | `node dev/rapport/prov-b.cjs` (ringen 30 min accelererat, rapportens bilder, rättelserna av/på/av, växeln), `node dev/rapport/prov-b-uppspelaren.cjs --bilder <mapp>` (golden-video → ringen → hamta → uppspelaren), `node dev/rapport/prov-b-supabase.cjs <fil>` (rad + filer mot riktiga Supabase, hamta, städning) |
 
 ## Från rapport till något som mäter (del D, MES-368)
 

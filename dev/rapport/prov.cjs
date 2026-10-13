@@ -12,6 +12,18 @@
    kod och Copy, Couldn't send med Try again, Today's limit (provräknare)
    och Phone not connected. Taket: den 21:a rapporten avvisas.
 
+   Rättelserunda 1 (granskningen av A): Cancel under Sending raderar raden
+   och skickar inget mer; ett nytt tryck med rutan öppen behåller orden;
+   telefonens låda med NTP-offset (telefonen frös i 400 ms); två spelare,
+   där motståndarens nedvända kort, hand och bibliotek inte får finnas i
+   paketet; telefonens ark utan ?debug (sida 2); och appen när
+   rapportblocket kastar när det startar (sida 3: mattan och kanalens
+   mottagare ska gå ändå).
+
+   Provas INTE här: riktiga Supabase (RLS, storage-policyn, taket i
+   triggern, raderingen). Det provas med apply_migration + en återrullad
+   transaktion, och dev/rapport/prov-b-supabase.cjs.
+
    Slutkod 0 = allt OK, 1 = något FEL, 2 = gick inte att köra. */
 'use strict';
 const { spawn } = require('child_process'), fs = require('fs'), path = require('path'), os = require('os'), http = require('http');
@@ -26,6 +38,13 @@ function server() {
     const s = http.createServer((req, ut) => {
       const u = decodeURIComponent(new URL(req.url, 'http://x').pathname);
       if (u === '/index.html' || u === '/') { ut.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); return ut.end(fs.readFileSync(FIL)); }
+      /* Sida 3: rapportblocket kastar när det startar (fynd 3). */
+      if (u === '/fallen.html') {
+        const html = fs.readFileSync(FIL, 'utf8'), krok = 'var Rapport = (() => {';
+        if (!html.includes(krok)) { ut.writeHead(500); return ut.end('hittar inte ' + krok); }
+        ut.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        return ut.end(html.replace(krok, krok + " throw new Error('rapportblocket föll med flit');"));
+      }
       ut.writeHead(404); ut.end();   // allt annat, också /api/*: 404 (ett misslyckat anrop i provet)
     });
     s.listen(0, '127.0.0.1', () => res(s));
@@ -51,12 +70,48 @@ async function chrome() {
   return { cdp, stang };
 }
 
+/* Sida 2, utan ?debug (fynd 13): telefonens ark får ett nej, ingen rad skapas. */
+const PROV_AV = async () => {
+  const svar = [], rader = [];
+  Moln.inloggad = () => true; Moln.minId = () => 'u-prov';
+  Moln.sandKam = (typ, d) => { svar.push(Object.assign({ typ }, d)); return true; };
+  Moln.rapportRad = async r => { rader.push(r); return { kod: 'R-0001', sokvag: 'u-prov/rapporter/R-0001' }; };
+  Rapport.datorTagEmot({ typ: 'rapport', id: 'ark1', text: 'från telefonen', tagg: 'tap', av: 'u-prov', fran: 'kamera' });
+  await new Promise(r => setTimeout(r, 200));
+  return [['utan ?debug: telefonens rapport ger svaret fel av, ingen rad', !DEBUG && rader.length === 0 && svar.some(m => m.typ === 'rapport_svar' && m.id === 'ark1' && m.fel === 'av'), JSON.stringify(svar)]];
+};
+/* Sida 3 (fynd 3): rapportblocket kastade när det startade. Mattan, kamerans
+   mottagare och telefonens kommandon ska gå ändå. */
+const PROV_FALLEN = async () => {
+  const ut = [], fel = [];
+  const forsok = (namn, f) => { try { f(); } catch (e) { fel.push(namn + ': ' + (e && e.message)); } };
+  ut.push(['sida 3: rapportblocket föll (Rapport undefined), stillbilderna och rättelserna finns', typeof Rapport === 'undefined' && typeof Stillbilder === 'object' && typeof Rattelse === 'object', typeof Rapport + ' / ' + typeof Stillbilder + ' / ' + typeof Rattelse]);
+  Moln.inloggad = () => true; Moln.minId = () => 'u-prov'; Moln.sandKam = () => true;
+  visaVy('app');
+  const mig = player();
+  spelLage = { id: 'fallprov', kod: 'FALL01', namn: 'Prov', vard: mig.id, mig: mig.id };
+  mig.lage = 'bord'; mig.cards = []; mig.pending = []; mig.plats = 1;
+  state.players = [mig]; state.active = mig.id;
+  oppSatt({ klar: true });
+  kamAnsluten = true; kamFas = ''; kamGrund = 0; prefs.autoLage = true;
+  forsok('renderAll', () => renderAll(true));
+  forsok('kamTogsEmot', () => kamTogsEmot({ typ: 'bord', av: 'u-prov', fran: 'kamera', fas: '', spar: [{ id: 1, tillstand: 'klar', namn: 'Forest', saker: true, x: 0.3, y: 0.3, w: 0.08, h: 0.11, tappad: false, vilar: true }] }));
+  forsok('kamTogsEmot rapport_lada', () => kamTogsEmot({ typ: 'rapport_lada', id: 'x', del: 0, delar: 1, json: '{}', av: 'u-prov', fran: 'kamera' }));
+  await new Promise(r => setTimeout(r, 1200));
+  forsok('renderAll igen', () => renderAll(true));
+  kamLage = { id: 'fallprov', kod: 'FALL01' };
+  forsok('kamKommando', () => kamKommando({ typ: 'rapport_lada', id: 'y', t0: Date.now(), av: 'u-prov', fran: 'dator' }));
+  kamLage = null;
+  ut.push(['sida 3: renderAll, kamTogsEmot och kamKommando kastar inte, kortet kommer till mattan', !fel.length && mig.cards.some(c => c.name === 'Forest'), fel.join(' | ') || mig.cards.map(c => c.name).join(', ')]);
+  return ut;
+};
+
 /* Provet i sidan. */
 const PROV = async () => {
   const rad = [], ok = (namn, villkor, detalj) => rad.push([namn, !!villkor, detalj || '']);
   const vanta = ms => new Promise(r => setTimeout(r, ms));
   /* ── Attrappen för Supabase och kanalen ── */
-  const A = { rader: [], filer: {}, kanal: [], idag: 0, felRad: false, felFil: 0, seg: 0, uppd: [] };
+  const A = { rader: [], filer: {}, kanal: [], idag: 0, felRad: false, felFil: 0, seg: 0, uppd: [], raderade: [] };
   window.__A = A;
   let nr = 0;
   Moln.inloggad = () => true;
@@ -73,6 +128,12 @@ const PROV = async () => {
   Moln.rapportFil = async (mapp, namn, blob) => { if (A.felFil > 0) { A.felFil--; throw new Error('Failed to fetch'); } A.filer[mapp + '/' + namn] = blob; };
   Moln.rapportUppdatera = async (kod, f) => { A.uppd.push([kod, f]); return true; };
   Moln.rapporterIdag = async () => A.idag;
+  Moln.rapportRadera = async (kod, mapp) => {
+    A.raderade.push(kod);
+    const i = A.rader.findIndex(r => r.kod === kod); if (i >= 0) { if (A.rader[i].kalla === 'rapport') A.idag--; A.rader.splice(i, 1); }
+    for (const k of Object.keys(A.filer)) if (k.startsWith(mapp + '/')) delete A.filer[k];
+    return true;
+  };
   Moln.sandKam = (typ, data) => { A.kanal.push(Object.assign({ typ }, data || {})); return true; };
 
   /* ── Ett parti: Mirror my table, telefonen ansluten ── */
@@ -80,7 +141,15 @@ const PROV = async () => {
   const mig = player();
   spelLage = { id: 'rapportprov', kod: 'RAPP01', namn: 'Prov', vard: mig.id, mig: mig.id };
   mig.lage = 'bord'; mig.cards = []; mig.pending = []; mig.plats = 1;
-  state.players = [mig]; state.active = mig.id;
+  /* Motståndaren (dold information, MES-305): ett nedvänt kort, ett kort i graveyard,
+     och en hand och ett bibliotek med namn som aldrig får lämna datorn i paketet. */
+  const opp = mkPlayer('Motståndaren', 1);
+  opp.id = 'u-motst'; opp.lage = 'bord'; opp.plats = 2;
+  opp.cards = [{ cid: 'o1', name: 'Hemlig Sfinx', flipped: 1, x: 300, y: 200 }, { cid: 'o2', name: 'Lightning Bolt', zon: ZON_GRAV }];
+  opp.hand = [{ cid: 'o3', name: 'Hemligt Handkort' }];
+  opp.bibliotek = [{ cid: 'o4', name: 'Hemligt Bibliotekskort' }];
+  opp.lek = { namn: 'Prov', kort: [{ name: 'Hemligt Lekkort', n: 1 }] };
+  state.players = [mig, opp]; state.active = mig.id;
   oppSatt({ klar: true });
   kamAnsluten = true; kamFas = ''; kamGrund = 0; prefs.autoLage = true;
   renderAll(true);
@@ -97,7 +166,8 @@ const PROV = async () => {
   mig.cards.splice(mig.cards.findIndex(c => c.name === 'Serra Angel'), 1); renderAll(true);
   await vanta(300);
   const elv = mig.cards.find(c => c.name === 'Llanowar Elves');
-  const el = elv && gridEl.querySelector(`.card[data-cid="${elv.cid}"]`);
+  let el = null;   // mattan ritas i nästa bildruta: vänta in kortet (en gång av fem hann det inte under last)
+  for (let i = 0; i < 40 && !(el = elv && gridEl.querySelector(`.card[data-cid="${elv.cid}"]`)); i++) { renderAll(true); await vanta(50); }
   if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 't', bubbles: true }));
   /* Provocerat fel och misslyckade anrop. */
@@ -132,16 +202,34 @@ const PROV = async () => {
   ok('telefonen ombeds frysa sin låda (rapport_lada)', !!begaran);
   ok('rutan: rubrik, fält, sju snabbval, texten om vad som skickas, Cancel + Send report — ingen kryssruta', /Report a problem/.test(ruta.textContent) && ruta.querySelectorAll('.chip').length === 7 && /what your camera saw/.test(ruta.textContent) && !ruta.querySelector('input[type=checkbox]') && /Send report/.test(ruta.textContent));
   /* Telefonen svarar: dess klocka går 5 s före. Lådan byggs på telefonens sida (kameraEnhet) och svaret matas till datorn. */
+  /* NTP-offseten (fynd 7): telefonen fick begäran strax efter t0 och lade 400 ms på att frysa —
+     mitt-i-rundturen hade gett ~5200 ms, ((tMot − t0) + (tTel − t1)) / 2 ger 5000. */
+  const tMot = begaran.t0 + 10 + 5000;
+  await vanta(400);
   const telT = Date.now() + 5000;
   const telLada = JSON.stringify({ frys: telT, miljo: { sida: 'telefon', ua: 'prov-telefon' }, lada: [{ t: telT - 2000, slag: 'spar', id: 2, borta: true }, { t: telT - 1500, slag: 'lage', lage: 'spel', bildlage: '4k15' }] });
-  Rapport.datorTagEmot({ typ: 'rapport_lada', id: begaran.id, t0: begaran.t0, tTel: telT, del: 0, delar: 2, json: telLada.slice(0, 40), av: 'u-prov', fran: 'kamera' });
-  Rapport.datorTagEmot({ typ: 'rapport_lada', id: begaran.id, t0: begaran.t0, tTel: telT, del: 1, delar: 2, json: telLada.slice(40), av: 'u-prov', fran: 'kamera' });
+  Rapport.datorTagEmot({ typ: 'rapport_lada', id: begaran.id, t0: begaran.t0, tTel: telT, del: 0, delar: 2, json: telLada.slice(0, 40), av: 'u-prov', fran: 'kamera', tMot });
+  Rapport.datorTagEmot({ typ: 'rapport_lada', id: begaran.id, t0: begaran.t0, tTel: telT, del: 1, delar: 2, json: telLada.slice(40), av: 'u-prov', fran: 'kamera', tMot });
   await vanta(20);
   const p = Rapport.paket;
-  ok('telefonens låda kom i två delar, omräknad till datorns klocka (offset ≈ 5000 ms)', p.telefon && p.telefon.svarade && Math.abs(p.telefon.offset - 5000) < 600 && Math.abs(p.telefon.lada[0].t - (Date.now() - 2000)) < 600, p.telefon ? `offset ${p.telefon.offset}, rtt ${p.telefon.rtt}` : 'inget svar');
+  ok('telefonens låda kom i två delar, omräknad till datorns klocka (NTP-offset ≈ 5000 ms trots 400 ms frysning)', p.telefon && p.telefon.svarade && Math.abs(p.telefon.offset - 5000) < 100 && Math.abs(p.telefon.lada[0].t - (Date.now() - 2000)) < 600, p.telefon ? `offset ${p.telefon.offset}, rtt ${p.telefon.rtt}` : 'inget svar');
   ok('paketet fryst vid öppningen: vyn (zoom, synlig del, senast rörda kortet, läge, kamAnsluten, skärm)', p.vy && p.vy.zoom > 0 && p.vy.synlig && p.vy.senastRordKort === (elv && elv.cid) && p.vy.lage === 'bord' && p.vy.kamAnsluten === true && p.vy.skarm.w > 0, JSON.stringify(p.vy));
   ok('paketet: bordsloggen i fallets form och mattan vid trycket', p.bordLogg && p.bordLogg.rader.length === 2 && p.bordLogg.rader[0].spar.length === 3 && p.matta && p.matta.mig.length === 2 && p.matta.mig.some(k => k.n === 'Forest' && k.z === 'grav'), p.bordLogg ? p.bordLogg.rader.length + ' rader' : 'ingen bordslogg');
   ok('paketet: miljön (sida, webbläsare, skärm, spelkod)', p.miljo.sida === 'dator' && p.miljo.ua && p.miljo.spel === 'RAPP01' && p.miljo.skarm.w > 0);
+
+  /* Dold information: motståndarens nedvända kort utan namn, graveyard med, hand/bibliotek/lek aldrig. */
+  const pt = JSON.stringify(p), andra = p.matta && p.matta.andra && p.matta.andra[0];
+  ok('dold information: motståndarens nedvända kort finns utan namn, graveyard-kortet med namn', andra && andra.kort.length === 2 && andra.kort.some(k => k.n === null && k.z !== 'grav') && andra.kort.some(k => k.n === 'Lightning Bolt' && k.z === 'grav'), andra ? JSON.stringify(andra.kort) : 'ingen motståndare i paketet');
+  ok('dold information: inget namn ur motståndarens nedvända kort, hand, bibliotek eller lek i paketet', !/Hemlig/.test(pt) && !/"(hand|bibliotek|library|lek)":\[/.test(pt), (pt.match(/Hemlig[^"]*/g) || []).join(', '));
+
+  /* Ett nytt tryck med rutan öppen (fynd 5): orden och paketet står kvar, fältet får fokus. */
+  const ta0 = ruta.querySelector('#rapText');
+  ta0.value = 'Halvskrivet'; ta0.dispatchEvent(new Event('input', { bubbles: true })); ta0.blur();
+  const kanalFore = A.kanal.length;
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r', code: 'KeyR', ctrlKey: true, altKey: true, bubbles: true }));
+  await vanta(50);
+  ok('ett nytt tryck med rutan öppen: orden kvar, samma paket, fokus i fältet, ingen ny frysning', ruta.querySelector('#rapText').value === 'Halvskrivet' && Rapport.paket === p && document.activeElement && document.activeElement.id === 'rapText' && !A.kanal.slice(kanalFore).some(m => m.typ === 'rapport_lada'));
+  ta0.value = ''; ta0.dispatchEvent(new Event('input', { bubbles: true }));
 
   /* Det som händer efter trycket hör inte till paketet. */
   Lada.skriv('handling', { typ: 'efter trycket' });
@@ -201,6 +289,25 @@ const PROV = async () => {
   const utan = A.rader.filter(r => r.kalla === 'rapport').pop();
   ok("utan telefon: skickad, raden får bilder = 'saknas', ingen begäran till telefonen", Rapport.lage === 'skickad' && utan.bilder === 'saknas', utan && utan.bilder);
   ruta.querySelector('[data-rap="stang"].btn').click();
+
+  /* Cancel under Sending (fynd 1): raden som hann skapas raderas med sina filer, ingen kod
+     visas, telefonen ombeds inte om bilderna, och den räknas inte mot taket. (Utan telefon, så att
+     raden skapas direkt i stället för efter telefonens låda.) */
+  oppnaRapportRuta();
+  await vanta(30);
+  ruta.querySelector('#rapText').value = 'Ångrar mig'; ruta.querySelector('#rapText').dispatchEvent(new Event('input', { bubbles: true }));
+  const idagFore = A.idag, kanalC = A.kanal.length;
+  A.seg = 300;
+  ruta.querySelector('[data-rap="skicka"]').click();
+  await vanta(60);
+  ok('Sending visar Cancel', Rapport.lage === 'skickar' && !!ruta.querySelector('[data-rap="avbryt"]'));
+  ruta.querySelector('[data-rap="avbryt"]').click();
+  await vanta(600);
+  A.seg = 0;
+  const avbrutenKod = A.raderade[A.raderade.length - 1];
+  ok('Cancel under Sending: rutan stängd, raden raderad, inget paket uppladdat, ingen begäran till telefonen, taket orört',
+    ruta.hidden && !!avbrutenKod && !A.rader.some(r => r.kod === avbrutenKod) && !Object.keys(A.filer).some(k => k.includes('/' + avbrutenKod + '/')) && !A.kanal.slice(kanalC).some(m => m.typ === 'rapport_bilder') && A.idag === idagFore,
+    `raderad ${avbrutenKod}, idag ${idagFore} → ${A.idag}`);
 
   /* Taket: med 20 skickade visas Today's limit när rutan öppnas; den 21:a avvisas. */
   A.idag = 19;
@@ -264,6 +371,28 @@ const PROV = async () => {
     const r = await c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')()', awaitPromise: true, returnByValue: true });
     if (r.exceptionDetails) throw new Error((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text);
     rader = r.result.value.rad; paket = r.result.value.paket;
+    /* Sida 2 och 3: ny laddning, samma Chrome. */
+    const ladda = async (vag, klar) => {
+      await c.cdp('Page.navigate', { url: `http://127.0.0.1:${srv.address().port}${vag}` });
+      await vanta(300);
+      const t1 = Date.now();
+      for (;;) {
+        const q = await c.cdp('Runtime.evaluate', { expression: `document.readyState === 'complete' && ${klar}`, returnByValue: true }).catch(() => null);
+        if (q && q.result && q.result.value) break;
+        if (Date.now() - t1 > 30000) throw new Error('appen laddade inte: ' + vag);
+        await vanta(100);
+      }
+      await vanta(300);
+    };
+    const kor = async f => {
+      const q = await c.cdp('Runtime.evaluate', { expression: '(' + f.toString() + ')()', awaitPromise: true, returnByValue: true });
+      if (q.exceptionDetails) throw new Error((q.exceptionDetails.exception || {}).description || q.exceptionDetails.text);
+      return q.result.value;
+    };
+    await ladda('/?debug=0', "typeof Rapport === 'object' && typeof avstamBord === 'function'");
+    rader.push(...await kor(PROV_AV));
+    await ladda('/fallen.html?debug=0', "typeof avstamBord === 'function' && typeof Rattelse === 'object'");
+    rader.push(...await kor(PROV_FALLEN));
   } catch (e) { console.error('rapport-prov: ' + e.message); await c.stang(); srv.close(); process.exit(2); }
   await c.stang(); srv.close();
 
@@ -271,7 +400,8 @@ const PROV = async () => {
   const ut = fs.mkdtempSync(path.join(os.tmpdir(), 'mesa-rapport-ut-'));
   const pf = path.join(ut, 'paket.json'); fs.writeFileSync(pf, paket);
   if (arg('--paket')) fs.writeFileSync(arg('--paket'), paket);
-  const { bygg } = require('./hamta.cjs');
+  const { bygg, inomMappen } = require('./hamta.cjs');
+  rader.push(['hamta: ett filnamn ur hinken som pekar ut ur mappen (../, /abs) skrivs inte', inomMappen(ut, 'bilder/a.jpg') === path.join(ut, 'bilder', 'a.jpg') && !inomMappen(ut, '../x') && !inomMappen(ut, 'bilder/../../x') && !inomMappen(ut, '/etc/x') && !inomMappen(ut, '')]);
   const p = JSON.parse(paket);
   const linje = bygg(p, null, [], path.join(ut, p.kod), null);
   const las = fs.readFileSync(path.join(ut, p.kod, 'LÄS-MIG.md'), 'utf8');
@@ -283,7 +413,7 @@ const PROV = async () => {
   fs.rmSync(ut, { recursive: true, force: true });
 
   let fel = 0;
-  for (const [namn, okk, detalj] of rader) { if (!okk) fel++; console.log(`${okk ? 'OK ' : 'FEL'}  ${namn}${detalj ? '  (' + String(detalj).slice(0, 160) + ')' : ''}`); }
-  console.log(`\nrapport-prov: ${rader.length - fel} OK, ${fel} FEL`);
+  for (const [namn, okk, detalj] of rader) { if (!okk) fel++; const r = `${okk ? 'OK ' : 'FEL'}  ${namn}${detalj ? '  (' + String(detalj).slice(0, 160) + ')' : ''}`; console.log(r); if (!okk) console.error(r); }
+  console.log(`\nrapport-prov: ${rader.length - fel} OK, ${fel} FEL  (riktiga Supabase provas inte här — se huvudet)`);
   process.exit(fel ? 1 : 0);
 })();

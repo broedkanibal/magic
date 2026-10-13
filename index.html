@@ -7170,6 +7170,22 @@ const Moln = (() => {
     const { error } = await s.from('rapporter').update(falt).eq('kod', kod);
     return !error;
   }
+  /* Raderar en egen rapport: koden i raderingar först (medan raden finns, så att Jesper kan ta bort kopian i repot;
+     20261013150000 kräver att koden är min), sedan filerna under mappen och raden. Cancel under Sending och C:s Delete. */
+  async function rapportRadera(kod, mapp) {
+    const s = await klient(); if (!s || !inloggad() || !kod) return false;
+    await s.from('raderingar').insert({ kod }).then(() => {}, () => {});
+    if (mapp && String(mapp).startsWith(minId() + '/rapporter/')) {
+      const filer = [];
+      for (const d of [mapp, mapp + '/bilder']) {
+        const { data } = await s.storage.from('scans').list(d, { limit: 1000 }).catch(() => ({ data: null }));
+        for (const f of data || []) if (f && f.id) filer.push(d + '/' + f.name);
+      }
+      if (filer.length) await s.storage.from('scans').remove(filer).catch(() => {});
+    }
+    const { error } = await s.from('rapporter').delete().eq('kod', kod);
+    return !error;
+  }
   /* Rapporter de senaste 24 h på serverns klocka; null = vet inte (utloggad, nätet, migrationen saknas). */
   async function rapporterIdag() {
     const s = await klient(); if (!s || !inloggad() || saknas.rapporter) return null;
@@ -7236,7 +7252,7 @@ const Moln = (() => {
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt, token,
            VILLKOR_VERSION, villkorGodkand, godkannVillkor,
            skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
-           avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, rapportRad, rapportFil, rapportUppdatera, rapporterIdag, bildInstallning, sattBildInstallning, bildInstallningSedan, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
+           avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, rapportRad, rapportFil, rapportUppdatera, rapportRadera, rapporterIdag, bildInstallning, sattBildInstallning, bildInstallningSedan, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, sparaLekSlv, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
@@ -38630,8 +38646,15 @@ async function portalStart() {
    paketet bär bara min matta, motståndarnas utlagda kort (som alla ser)
    och aldrig någon annans hand eller bibliotek.
 
-   Bakom ?debug i del A. C lägger flaggan RAPPORT_FOR_ALLA (se rapportPa). */
-const Rapport = (() => {
+   Bakom ?debug i del A. C lägger flaggan RAPPORT_FOR_ALLA (se rapportPa).
+
+   var, inte const (även Stillbilder och Rattelse nedan): kastar blocket
+   när det startar är en const-bindning död för alltid (TDZ), och då kastar
+   också krokarnas `typeof Rapport` i renderAll, kamKommando och
+   kamTogsEmot — ett fel här fick inte stoppa mattan eller kameran. Med var
+   är namnet undefined och krokarna hoppar över. Provat i prov.cjs (fallet
+   "rapportblocket faller"). */
+var Rapport = (() => {
   const TAGGAR = [
     ['forsvann', 'A card disappeared'], ['dok_upp', "A card appeared that I didn't play"], ['kom_aldrig', 'A card never showed up'],
     ['fel_namn', 'Wrong name'], ['tap', 'Tapped or untapped wrong'], ['langsamt', 'Slow'], ['annat', 'Something else']
@@ -38855,7 +38878,7 @@ const Rapport = (() => {
     } else p.telefonKlar = Promise.resolve(null);
     return p;
   }
-  /* Telefonens låda på datorns klocka: offset = telefonens klocka − datorns, mitt i rundturen. */
+  /* Telefonens låda på datorns klocka: offset = telefonens klocka − datorns. */
   function tagEmotLada(m) {
     const v = vantar.get(m.id); if (!v) return;
     if (v.t1 == null) v.t1 = Date.now();
@@ -38863,7 +38886,10 @@ const Rapport = (() => {
     if (v.delar.filter(x => x != null).length < (m.delar || 1)) return;
     vantar.delete(m.id);
     let j = null; try { j = JSON.parse(v.delar.join('')); } catch (e) { v.res({ svarade: true, fel: 'trasig' }); return; }
-    const rtt = v.t1 - v.t0, offset = Math.round(m.tTel - (v.t0 + v.t1) / 2);
+    /* Offset som i NTP när telefonen skickar sin mottagningstid (tMot): ((tMot − t0) + (tTel − t1)) / 2 —
+       tiden telefonen lade på att frysa räknas då inte som resväg. Äldre telefon utan tMot: mitt i rundturen. */
+    const rtt = v.t1 - v.t0 - (m.tMot != null ? Math.max(0, m.tTel - m.tMot) : 0);
+    const offset = Math.round(m.tMot != null ? ((m.tMot - v.t0) + (m.tTel - v.t1)) / 2 : m.tTel - (v.t0 + v.t1) / 2);
     for (const e of j.lada || []) { e.tTel = e.t; e.t = e.t - offset; }
     v.res({ svarade: true, offset, rtt, miljo: j.miljo, lada: j.lada || [], ladaStat: j.ladaStat, kapad: !!j.kapad, frysTel: j.frys });
   }
@@ -38897,7 +38923,7 @@ const Rapport = (() => {
       lada = lada.slice(Math.floor(lada.length / 5)); kapad = true;
     }
     const BIT = 150000, delar = Math.max(1, Math.ceil(json.length / BIT)), tTel = Date.now();
-    for (let i = 0; i < delar; i++) setTimeout(() => Moln.sandKam('rapport_lada', { id: m.id, t0: m.t0, tTel, del: i, delar, json: json.slice(i * BIT, (i + 1) * BIT) }), i * 150);
+    for (let i = 0; i < delar; i++) setTimeout(() => Moln.sandKam('rapport_lada', { id: m.id, t0: m.t0, tMot: nu, tTel, del: i, delar, json: json.slice(i * BIT, (i + 1) * BIT) }), i * 150);
   }
   async function telefonLaddaUpp(m) {
     const f = frysta.get(m.id) || { diagnos: diagnosFilTelefon(), bilder: [], sen: true };
@@ -38933,13 +38959,17 @@ const Rapport = (() => {
      Kvittensen (koden) kommer efter steg 2; steg 3 (telefonens bilder) går
      i bakgrunden. Kastar { tak } när taket nåtts, annars ett fel.
      Try again skickar samma paket: finns koden redan görs bara det som återstår. */
+  const AVBRUTEN = 'rapport_avbruten';
+  const stoppaOmAvbruten = p => { if (p.avbruten) throw Object.assign(new Error(AVBRUTEN), { avbruten: true }); };
   async function skicka(p, text, tagg, kalla) {
     await p.telefonKlar;
+    stoppaOmAvbruten(p);
     if (!p.kod) {
       const rad = { game_id: (spelLage && spelLage.id) || null, text: text ? kap(text, MAX_TECKEN) : null, tagg: tagg || null,
                     vy: p.vy, kalla: kalla || 'rapport', bilder: p.medTelefon && p.telefon && p.telefon.svarade ? null : 'saknas' };
       const r = await Moln.rapportRad(rad);
       p.kod = r.kod; p.sokvag = r.sokvag;
+      stoppaOmAvbruten(p);
     }
     if (!p.uppladdat) {
       const innehall = {
@@ -38953,8 +38983,10 @@ const Rapport = (() => {
       }
       const z = await gz(json);
       const blob = z || new Blob([json], { type: 'application/json' });
+      stoppaOmAvbruten(p);
       await Moln.rapportFil(p.sokvag, z ? 'rapport.json.gz' : 'rapport.json', blob, z ? 'application/gzip' : 'application/json');
       p.uppladdat = true; p.storlek = blob.size;
+      stoppaOmAvbruten(p);
       Moln.rapportUppdatera(p.kod, { storlek: p.storlek });
     }
     if (p.medTelefon && p.telefon && p.telefon.svarade && !p.bilderBegard) {
@@ -39000,6 +39032,8 @@ const Rapport = (() => {
   /* Telefonens ark (del C): orden och taggen kommer hit; datorn fryser sin
      låda och telefonens, skickar, och svarar med koden eller felet. */
   async function telefonensRapport(m) {
+    /* Samma grind som rutan och felrapporterna: utan ?debug (eller C:s RAPPORT_FOR_ALLA) skickas ingenting. */
+    if (!rapportPa()) { Moln.sandKam('rapport_svar', { id: m.id, fel: 'av' }); return; }
     Lada.skriv('handling', { typ: 'rapport från telefonen', tagg: m.tagg || null });
     const p = frys();
     try { const kod = await skicka(p, m.text, m.tagg, 'rapport'); Moln.sandKam('rapport_svar', { id: m.id, kod }); }
@@ -39014,7 +39048,7 @@ const Rapport = (() => {
     if (m.typ === 'rapport_svar') { const r = telefonLyss.get(m.id); if (r) { telefonLyss.delete(m.id); r(m); } return true; }
     return true;
   }
-  /* Telefonens väg (del C:s ark anropar den): { kod } eller { fel: 'tak' | 'nat' | 'dator' }.
+  /* Telefonens väg (del C:s ark anropar den): { kod } eller { fel: 'tak' | 'nat' | 'dator' | 'av' } ('av' = rapporten är inte på hos datorn).
      Inget svar inom 10 s = Can't reach your computer, orden kvar hos arket. */
   function franTelefon(text, tagg) {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -39128,7 +39162,7 @@ const Rapport = (() => {
     if (t.dataset.tagg) { tagg = tagg === t.dataset.tagg ? null : t.dataset.tagg; for (const c of el.querySelectorAll('.chip')) { const on = c.dataset.tagg === tagg; c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); } return; }
     const g = t.dataset.rap;
     if (g === 'stang') stang();
-    else if (g === 'avbryt') { forsok++; stang(); }
+    else if (g === 'avbryt') avbryt();
     else if (g === 'skicka') send();
     else if (g === 'ny') oppna({ ny: true });
     else if (g === 'kopiera') {
@@ -39140,17 +39174,32 @@ const Rapport = (() => {
       const b = t.querySelector('span'); if (b) b.textContent = 'Copied';
     }
   }
+  /* Cancel under Sending: uppladdningen stoppas vid nästa steg (stoppaOmAvbruten),
+     och finns raden redan raderas den med sina filer — den räknas inte mot taket och
+     ingen kod blir kvar som spelaren aldrig såg. Telefonen ombeds aldrig om bilderna. */
+  function avbryt() {
+    const p = paket;
+    if (p) {
+      p.avbruten = true;
+      Lada.skriv('handling', { typ: 'rapport avbruten', kod: p.kod || null });
+      const stad = () => { if (p.kod) Moln.rapportRadera(p.kod, p.sokvag).catch(() => {}); };
+      (p.pagar || Promise.resolve()).then(stad, stad);
+    }
+    forsok++; stang();
+  }
   async function send() {
     if (!paket || lage === 'skickar') return;
     const mitt = ++forsok;
     lage = 'skickar'; rita();
     try {
-      await skicka(paket, text.trim(), tagg, 'rapport');
+      const p = paket;
+      p.pagar = skicka(p, text.trim(), tagg, 'rapport');
+      await p.pagar;
       if (mitt !== forsok) return;
       lage = 'skickad'; rita();
       const d = el.querySelector('[data-rap="stang"].btn'); if (d) d.focus();
     } catch (e) {
-      if (mitt !== forsok) return;
+      if (mitt !== forsok || (e && e.avbruten)) return;
       Lada.skriv('handling', { typ: 'rapport misslyckades', tak: !!(e && e.tak), fel: kap(e && e.message, 120) });
       lage = e && e.tak ? 'tak' : 'fel'; rita();
     }
@@ -39166,6 +39215,14 @@ const Rapport = (() => {
     bygg();
     if (!el.hidden && lage === 'skickar') return;   // ett tryck till mitt i skickandet startar inget nytt
     const ny = !!(opt && opt.ny);
+    /* Ett nytt tryck med rutan redan öppen (och inte Sent): spelarens ord och det
+       frysta paketet står kvar, textfältet får fokus. Report something else (ny) och
+       ett tryck efter Sent börjar om. */
+    if (!el.hidden && !ny && lage !== 'skickad') {
+      const ta = el.querySelector('#rapText'); if (ta) ta.focus();
+      Lada.skriv('handling', { typ: 'rapportrutan redan öppen' });
+      return;
+    }
     forsok++;
     paket = frys(); text = ''; tagg = null; lage = 'skriv';
     let ansl = false; try { ansl = !!kamAnsluten; } catch (e) {}
@@ -39231,7 +39288,7 @@ function oppnaRapportRuta(opt) { return Rapport.oppna(opt); }
    Claude är aldrig ett villkor: inget här frågar Claude eller skickar en
    bild dit. Avstängning för mätningen (golden --utan-stillbilder):
    window.STILLBILDER_AV = true. */
-const Stillbilder = (() => {
+var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar får inte döda krokarna)
   const VAR_MS = 2000, HAND_MIN_MS = 300, MAX_ANTAL = 300, MAX_BYTES = 7.5 * 1024 * 1024;
   const BESK_ANTAL = 40, BESK_BYTES = 2.5 * 1024 * 1024, MAX_BREDD = 480, KVAL = 0.7, BESK_KVAL = 0.85, MAX_KO = 2;
   const ring = [];            // { t, orsak, w, h, spar, blob }
@@ -39385,7 +39442,7 @@ const Stillbilder = (() => {
 if (typeof Rapport !== 'undefined') Rapport.stillbilder = Stillbilder.stillbilder;
 
 /* ── De tysta rättelserna, datorns sida ─────────────────────────────── */
-const Rattelse = (() => {
+var Rattelse = (() => {   // var: se Rapport
   const SVAR_MS = 10000;
   const vantar = new Map();   // kod → resolve
   const gjorda = new Set();   // samma rättelse av samma kort en gång (avstämningen kan anropa igen)

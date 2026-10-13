@@ -219,10 +219,13 @@ async function main() {
   let paket = null;
   const sparade = [];
   for (const f of filer) {
+    /* Filnamnen kommer ur hinken, som spelaren skriver i: ett namn som pekar ut ur mappen (../) skrivs inte. */
+    const mal = inomMappen(ut, f.namn);
+    if (!mal) { console.error(`hamta: hoppar över ${JSON.stringify(f.namn)} — pekar ut ur ${path.relative(process.cwd(), ut)}`); continue; }
     const buf = await S.hamtaFil(rad.sokvag + '/' + f.namn);
     if (/^rapport\.json(\.gz)?$/.test(f.namn)) { paket = lasJson(buf); continue; }
-    fs.mkdirSync(path.dirname(path.join(ut, f.namn)), { recursive: true });
-    fs.writeFileSync(path.join(ut, f.namn), buf);
+    fs.mkdirSync(path.dirname(mal), { recursive: true });
+    fs.writeFileSync(mal, buf);
     sparade.push(f.namn);
   }
   const konto = await S.konto(rad.user_id);
@@ -237,5 +240,11 @@ async function main() {
   console.log(`${rad.kod} (${rad.kalla}, ${rad.created_at.slice(0, 16).replace('T', ' ')}): ${linje.length} händelser, ${sparade.length} filer till → ${path.relative(process.cwd(), ut)}/LÄS-MIG.md`);
 }
 
+/* Sökvägen för en fil ur hinken, eller null när den hamnar utanför mappen ut. */
+function inomMappen(ut, namn) {
+  const bas = path.resolve(ut), mal = path.resolve(bas, String(namn || ''));
+  return mal !== bas && mal.startsWith(bas + path.sep) ? mal : null;
+}
+
 if (require.main === module) main().catch(e => { console.error('hamta: ' + e.message); process.exit(1); });
-module.exports = { bygg, tidslinje, lasJson, stillbilder, rattelse };
+module.exports = { bygg, tidslinje, lasJson, stillbilder, rattelse, inomMappen };
