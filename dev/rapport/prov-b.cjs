@@ -16,6 +16,17 @@
       när telefonen inte har den) och rattelse.json i kontraktets form; av
       igen → slutar direkt.
    4. Växeln i Developer-lådan läser och skriver inställningen.
+   5. Granskning 1 (fynd 1–9): kodningen utanför steget och läsningen
+      (toBlob anropas aldrig synkront; stegMs och kodtiden mäts), taket för
+      rättelser tyst för resten av sessionen, sena rapport_bilder_klar
+      rättar raden och fyra uppladdningar samtidigt, ringen töms vid nytt
+      konto eller parti, en rättelse som var av kan sparas när den slagits
+      på, telefonen läser inställningen själv och datorn läser om den efter
+      väntan, telefonens domskäl när spåret är borta, en händelsebild som
+      inte fick plats tas i nästa steg och beskärningarna tappas inte.
+   6. En sida utan ?debug (rapporten finns inte för spelaren): ingen ring,
+      inga rättelser, ingen getUser; med RAPPORT_FOR_ALLA eller golden-
+      flaggan STILLBILDER_PA på igen.
 
    Supabase och kanalen är en attrapp i sidan (som dev/rapport/prov.cjs).
    --rattelse ut.json skriver den sparade rättelsen (raden + filerna, base64)
@@ -60,6 +71,42 @@ async function chrome() {
   return { cdp, stang };
 }
 
+/* Fynd 4: sidan utan ?debug — rapporten finns inte för spelaren. */
+const PROV_AV = async () => {
+  const rad = [], ok = (namn, villkor, detalj) => rad.push([namn, !!villkor, detalj || '']);
+  const vanta = ms => new Promise(r => setTimeout(r, ms));
+  let getUser = 0;
+  Moln.inloggad = () => true; Moln.minId = () => 'u-prov';
+  Moln.bildInstallning = async () => { getUser++; return true; };
+  Moln.rapportRad = async () => ({ kod: 'R-0999', sokvag: 'u-prov/rapporter/R-0999' });
+  Moln.rapportFil = async () => {}; Moln.rapportUppdatera = async () => true; Moln.sandKam = () => true;
+  const c = document.createElement('canvas'); c.width = 360; c.height = 203; c.getContext('2d').fillRect(0, 0, 50, 50);
+  const spar = [{ id: 1, namn: 'A', tillstand: 'klar', vilaX: 10, vilaY: 10, box: { x: 10, y: 10, w: 20, h: 30 } }];
+  Stillbilder.glom();
+  Stillbilder.steg(c, 1e9, spar, 360, 203); Stillbilder.beskarning({ id: 1 }, c, { namn: 'A', saker: true });
+  await vanta(50);
+  visaVy('app');
+  const mig = player(); mig.lage = 'bord';
+  spelLage = { id: 'av-spel', kod: 'AVSPEL', vard: mig.id, mig: mig.id };
+  const r = Rattelse.fran('namnbyte', { cid: 'x', spar: 1, name: 'A' }, 'B');
+  await vanta(30);
+  ok('fynd 4: utan ?debug och utan RAPPORT_FOR_ALLA: ingen ring, ingen beskärning, ingen rättelse, ingen getUser', DEBUG === false && !Stillbilder.pa && Stillbilder.ring.length === 0 && Stillbilder.besk.size === 0 && Stillbilder.stat().stegN === 0 && r === null && getUser === 0,
+     `DEBUG ${DEBUG}, ring ${Stillbilder.ring.length}, getUser ${getUser}`);
+  window.STILLBILDER_PA = true;   // golden (kor.html) som förval
+  Stillbilder.steg(c, 2e9, spar, 360, 203); await vanta(50);
+  ok('fynd 4: golden-flaggan STILLBILDER_PA slår på ringen (inte rättelserna)', Stillbilder.ring.length === 1 && Rattelse.fran('namnbyte', { cid: 'y', spar: 1, name: 'A' }, 'C') === null && getUser === 0);
+  window.STILLBILDER_AV = true; Stillbilder.steg(c, 3e9, spar, 360, 203); await vanta(50);
+  ok('fynd 4: --utan-stillbilder (STILLBILDER_AV) vinner över STILLBILDER_PA', Stillbilder.ring.length === 1);
+  delete window.STILLBILDER_AV; delete window.STILLBILDER_PA; Stillbilder.glom();
+  window.RAPPORT_FOR_ALLA = true;   // C:s flagga
+  Stillbilder.steg(c, 4e9, spar, 360, 203); await vanta(50);
+  const r2 = Rattelse.fran('namnbyte', { cid: 'z', spar: 1, name: 'A' }, 'D');
+  await vanta(30);
+  ok('fynd 4: med RAPPORT_FOR_ALLA på igen: ringen och rättelserna', Stillbilder.ring.length === 1 && r2 !== null && getUser >= 1, `ring ${Stillbilder.ring.length}, getUser ${getUser}, lage ${typeof mittLage === 'function' ? mittLage() : '?'}`);
+  delete window.RAPPORT_FOR_ALLA;
+  return { rad };
+};
+
 const PROV = async () => {
   const rad = [], ok = (namn, villkor, detalj) => rad.push([namn, !!villkor, detalj || '']);
   const vanta = ms => new Promise(r => setTimeout(r, ms));
@@ -70,10 +117,12 @@ const PROV = async () => {
   Moln.inloggad = () => true;
   Moln.minId = () => 'u-prov';
   Moln.rapportRad = async r => { const kod = 'R-' + String(++nr).padStart(4, '0'); A.rader.push(Object.assign({ kod }, JSON.parse(JSON.stringify(r)))); return { kod, sokvag: 'u-prov/rapporter/' + kod }; };
-  Moln.rapportFil = async (mapp, namn, blob) => { if (A.seg) await vanta(A.seg); A.filer[mapp + '/' + namn] = blob; };
+  A.samtidigt = 0; A.maxSamtidigt = 0; A.getUser = 0; A.raderade = [];
+  Moln.rapportFil = async (mapp, namn, blob) => { A.samtidigt++; A.maxSamtidigt = Math.max(A.maxSamtidigt, A.samtidigt); try { if (A.seg) await vanta(A.seg); A.filer[mapp + '/' + namn] = blob; } finally { A.samtidigt--; } };
+  Moln.rapportRadera = async kod => { A.raderade.push(kod); return true; };
   Moln.rapportUppdatera = async (kod, f) => { A.uppd.push([kod, f]); return true; };
   Moln.rapporterIdag = async () => 0;
-  Moln.bildInstallning = async () => A.bildPa;
+  Moln.bildInstallning = async () => { A.getUser++; return typeof A.bildPa === 'function' ? A.bildPa() : A.bildPa; };
   Moln.sattBildInstallning = async v => { A.satt.push(v); A.bildPa = !!v; return !!v; };
   Moln.bildInstallningSedan = () => '2026-10-13T01:00:00Z';
   /* Kanalen: datorn och telefonen är samma sida; kameraEnhet växlas runt telefonens del. */
@@ -85,7 +134,8 @@ const PROV = async () => {
     return true;
   };
 
-  /* ── 1. Ringbufferten ── */
+  /* ── 1. Ringbufferten ── (telefonen i partiet PROVB1 hela vägen till rapporten: ringens ägare) */
+  kamLage = { id: 'provB', kod: 'PROVB1' };
   Stillbilder.glom();
   const c = document.createElement('canvas'); c.width = 360; c.height = 203;
   const x = c.getContext('2d', { willReadFrequently: true });
@@ -122,7 +172,8 @@ const PROV = async () => {
   ok('beskärningarna: 50 spår ger högst 40 och 2,5 MB, den senaste kvar', sb.beskAntal <= 40 && sb.beskBytes <= sb.tak.beskBytes && Stillbilder.besk.has(1050) && !Stillbilder.besk.has(1001), `${sb.beskAntal} st, ${MB(sb.beskBytes)}`);
   ok('minnet totalt under ~10 MB (bilder + beskärningar)', sb.bytes + sb.beskBytes <= 10 * 1048576, MB(sb.bytes + sb.beskBytes) + (performance.memory ? ', JS-heap max ' + MB(Math.max(r30.maxHeap, r10.maxHeap)) : ''));
   ok('avstängd (STILLBILDER_AV): ingen bild tas', (() => { window.STILLBILDER_AV = true; const f = Stillbilder.stat().tagna; Stillbilder.steg(c, 1e9, [], 360, 203); window.STILLBILDER_AV = false; return Stillbilder.stat().tagna === f && !Stillbilder.ko; })());
-  const minne = { slat: { antal: s30.antal, bytes: bytesSlat, kBperBild: +(styckSlat / 1024).toFixed(1), tagna: s30.tagna }, brus: { antal: s10.antal, bytes: s10.bytes }, besk: { antal: sb.beskAntal, bytes: sb.beskBytes }, kodMs: sb.kodMs, stegMs: sb.stegMs };
+  const minne = { slat: { antal: s30.antal, bytes: bytesSlat, kBperBild: +(styckSlat / 1024).toFixed(1), tagna: s30.tagna }, brus: { antal: s10.antal, bytes: s10.bytes }, besk: { antal: sb.beskAntal, bytes: sb.beskBytes },
+                  stegMs: sb.stegMs, stegMax: sb.stegMax, stegN: sb.stegN, kodMs: sb.kodMs, kodSyncMs: sb.kodSyncMs, kodSyncMax: sb.kodSyncMax };
 
   /* ── 2. Rapporten tar bilderna med, inställningen AV ── */
   A.bildPa = false;
@@ -142,7 +193,14 @@ const PROV = async () => {
      `${upp.length} filer, svar ${JSON.stringify(klar)}`);
   ok('rapporten: index.json bär tid, orsak och spårens rutor per bild', index && index.bilder.every(b => b.fil && b.t && b.orsak && Array.isArray(b.spar)) && index.beskarningar.length > 0);
   ok('telefonen visar "Sending pictures, N of M" medan de går upp, och tar bort raden efter', !!sagRad && document.getElementById('telBilderRad').hidden, sagRad || '(ingen rad)');
+  ok('fynd 3: telefonen laddar upp fyra bilder samtidigt (inte en i taget)', A.maxSamtidigt >= 3 && A.maxSamtidigt <= 4, `högst ${A.maxSamtidigt} samtidigt`);
   kameraEnhet = false; kamLage = null;
+  /* Fynd 3: ett sent rapport_bilder_klar (efter datorns 120 s) rättar raden. */
+  const uppd0 = A.uppd.length;
+  Rapport.datorTagEmot({ typ: 'rapport_bilder_klar', kod: 'R-0777', antal: 340, fel: 0 });
+  Rapport.datorTagEmot({ typ: 'rapport_bilder_klar', kod: 'R-0778', antal: 300, fel: 2 });
+  await vanta(20);
+  ok('fynd 3: ett sent rapport_bilder_klar sätter raden till klar (delvis med fel)', A.uppd.slice(uppd0).some(u => u[0] === 'R-0777' && u[1].bilder === 'klar') && A.uppd.slice(uppd0).some(u => u[0] === 'R-0778' && u[1].bilder === 'delvis'), JSON.stringify(A.uppd.slice(uppd0)));
 
   /* ── 3. De tysta rättelserna på datorn ── */
   Stillbilder.glom(); Rattelse.glom();
@@ -208,6 +266,118 @@ const PROV = async () => {
   ok('AV igen: nästa rättelse sparar ingenting', A.rader.length === forr && Object.keys(A.filer).length === filer0);
   ok('ingen rättelse frågar Claude (inga anrop mot /api)', !Lada.utdrag().some(e => e.slag === 'claude'));
 
+  /* ── 5. Granskning 1 ── */
+  /* Fynd 1: toBlob anropas aldrig inne i steget eller i läsningens beskarning, bara i en egen uppgift efter. */
+  {
+    Stillbilder.glom();
+    const orig = HTMLCanvasElement.prototype.toBlob; let anrop = 0;
+    HTMLCanvasElement.prototype.toBlob = function (...a) { anrop++; return orig.apply(this, a); };
+    try {
+      Stillbilder.steg(c, 5e9, sparNu(400), 360, 203);
+      const iSteget = anrop;
+      Stillbilder.beskarning({ id: 4242 }, bc, { namn: 'Llanowar Elves', saker: true, varfor: 'remsa' });
+      const iLasningen = anrop;
+      for (let i = 0; i < 200 && Stillbilder.ko; i++) await vanta(1);
+      ok('fynd 1: kodningen (toBlob) körs inte i steget eller i läsningen, bara efteråt', iSteget === 0 && iLasningen === 0 && anrop === 2 && Stillbilder.ring.length === 1 && Stillbilder.besk.has(4242), `i steget ${iSteget}, i läsningen ${iLasningen}, efteråt ${anrop}`);
+    } finally { HTMLCanvasElement.prototype.toBlob = orig; }
+    /* DoD 3: stegets tid och kodningens synkrona tid utanför steget, 600 steg à 150 ms med en händelse var 5:e s. */
+    Stillbilder.glom();
+    const per = [];
+    for (let k = 0; k < 600; k++) { if (k % 13 === 0) slat(k); const t0 = performance.now(); Stillbilder.steg(c, 6e9 + k * 150, sparNu(k), 360, 203); per.push(performance.now() - t0); await vanta(0); }
+    for (let i = 0; i < 200 && Stillbilder.ko; i++) await vanta(1);
+    const sm = Stillbilder.stat(); per.sort((a, b) => a - b);
+    minne.dod3 = { steg: per.length, stegMedian: +per[per.length >> 1].toFixed(3), stegP99: +per[Math.floor(per.length * 0.99)].toFixed(3), stegMax: +per[per.length - 1].toFixed(3), bilder: sm.tagna, kodSyncMs: sm.kodSyncMs, kodSyncMax: sm.kodSyncMax, kodMs: sm.kodMs };
+    ok('DoD 3: steget kostar under 1 ms i median med ringen på (kodningen utanför)', minne.dod3.stegMedian < 1, JSON.stringify(minne.dod3));
+  }
+  /* Fynd 9: en händelse som inte fick plats (kön full) tas i nästa steg; beskärningarna har egen kö. */
+  {
+    Stillbilder.glom();
+    const s1 = [{ id: 1, namn: 'A', tillstand: 'klar', vilaX: 10, vilaY: 10, box: { x: 10, y: 10, w: 20, h: 30 } }];
+    const s2 = s1.concat([{ id: 2, namn: 'B', tillstand: 'klar', vilaX: 60, vilaY: 10, box: { x: 60, y: 10, w: 20, h: 30 } }]);
+    const s3 = s2.concat([{ id: 3, namn: 'C', tillstand: 'klar', vilaX: 110, vilaY: 10, box: { x: 110, y: 10, w: 20, h: 30 } }]);
+    Stillbilder.steg(c, 7e9, s1, 360, 203);          // tid
+    Stillbilder.steg(c, 7e9 + 400, s2, 360, 203);    // händelse (kön 2)
+    Stillbilder.steg(c, 7e9 + 800, s3, 360, 203);    // händelse, kön full → hoppas över
+    const hopp = Stillbilder.stat().hoppade;
+    Stillbilder.beskarning({ id: 9191 }, bc, { namn: 'C', saker: true });   // ringens kö är full: beskärningen tas ändå
+    for (let i = 0; i < 200 && Stillbilder.ko; i++) await vanta(1);
+    Stillbilder.steg(c, 7e9 + 900, s3, 360, 203);    // samma bord: händelsen som inte fick plats tas nu
+    for (let i = 0; i < 200 && Stillbilder.ko; i++) await vanta(1);
+    const r9 = Stillbilder.ring;
+    ok('fynd 9: händelsebilden som inte fick plats tas i nästa steg, med det bordet', hopp === 1 && r9.length === 3 && r9[2].orsak === 'handelse' && r9[2].spar.length === 3, `hoppade ${hopp}, ring ${r9.map(b => b.orsak + ':' + b.spar.length).join(' ')}`);
+    ok('fynd 9: beskärningen tappas inte när ringens kö är full', Stillbilder.besk.has(9191) && !Stillbilder.stat().beskHoppade);
+  }
+  /* Fynd 5: ringen tillhör kontot och partiet. */
+  {
+    Stillbilder.glom();
+    kamLage = { id: 'p1', kod: 'PARTI1' };
+    Stillbilder.steg(c, 8e9, sparNu(400), 360, 203);
+    for (let i = 0; i < 200 && Stillbilder.ko; i++) await vanta(1);
+    const fore = Stillbilder.ring.length;
+    kamLage = { id: 'p2', kod: 'PARTI2' };
+    const ut2 = Stillbilder.stillbilder();
+    const tomtNyttParti = ut2.length === 1 && ut2[0].namn === 'index.json' && Stillbilder.ring.length === 0;
+    Stillbilder.steg(c, 8e9 + 10, sparNu(400), 360, 203);
+    for (let i = 0; i < 200 && Stillbilder.ko; i++) await vanta(1);
+    const minId0 = Moln.minId; Moln.minId = () => 'u-annan';
+    const ut3 = Stillbilder.stillbilder(); Moln.minId = minId0;
+    ok('fynd 5: nytt parti eller annat konto → ringen töms innan bilderna lämnar telefonen', fore === 1 && tomtNyttParti && ut3.length === 1 && Stillbilder.stat().tommda === 2, `före ${fore}, nytt parti ${ut2.length} filer, annat konto ${ut3.length}`);
+    const kalla = [...document.scripts].map(x => x.textContent).join('\n');
+    ok('fynd 5: utloggningen tömmer ringen och rättelserna (loggaUt)', /signOut\(\);\s*session = null;\s*try \{ if \(typeof Stillbilder !== 'undefined'\) Stillbilder\.glom\(\); if \(typeof Rattelse !== 'undefined'\) Rattelse\.glom\(\)/.test(kalla));
+    kamLage = null; Stillbilder.glom();
+  }
+  /* Fynd 7: telefonen läser inställningen själv. */
+  {
+    Stillbilder.beskarning({ id: 77 }, bc, { namn: 'Serra Angel', saker: true, varfor: 'remsa' });
+    for (let i = 0; i < 200 && Stillbilder.ko; i++) await vanta(1);
+    A.bildPa = false; const k0 = A.kanal.length, f0 = Object.keys(A.filer).length;
+    await Stillbilder.rattelseBild({ kod: 'R-0880', sokvag: 'u-prov/rapporter/R-0880', spar: 77 });
+    const sv = A.kanal.slice(k0).find(m => m.typ === 'rapport_rattelse_klar');
+    ok('fynd 7: telefonen laddar inte upp när inställningen är av på servern', sv && sv.ok === 0 && sv.nej === 1 && Object.keys(A.filer).length === f0, JSON.stringify(sv));
+  }
+  /* Fynd 6 + 7 (datorn) + 8 + 2 på mattan. */
+  {
+    Rattelse.glom(); A.bildPa = false;
+    const gg = mig.cards.find(k => k.spar != null);
+    const r0 = rattelser().length;
+    await byt(gg, 'Fynd Sex'); await vanta(200);
+    const gg6 = kort('Fynd Sex') || gg;
+    A.bildPa = true;
+    /* Samma rättelse igen (avstämningen anropar en gång till) med inställningen på nu: sparas — tidigare låste gjorda ute den. */
+    const p6 = Rattelse.fran('namnbyte', Object.assign({}, gg6, { name: gg.name }), 'Fynd Sex');
+    const r6 = p6 && await p6;
+    ok('fynd 6: en rättelse som hoppades över (av) blockerar inte samma rättelse när inställningen slagits på', !!r6 && rattelser().length === r0 + 1, JSON.stringify(Rattelse.stat()));
+    const p6b = Rattelse.fran('namnbyte', Object.assign({}, gg6, { name: gg.name }), 'Fynd Sex');
+    ok('fynd 6: sparad en gång, inte två', p6b === null);
+    /* Fynd 7, datorn: inställningen slås av under väntan på telefonen → raden bort, inga filer. */
+    const ansl0 = kamAnsluten; kamAnsluten = false;   // ingen telefon: väntan blir kort
+    let n7 = 0; A.bildPa = () => (++n7 === 1);
+    const f7 = Object.keys(A.filer).length;
+    const r7 = await Rattelse.fran('namnbyte', Object.assign({}, gg6, { cid: 'fynd7' }), 'Fynd Sju');
+    const rad7 = rattelser()[rattelser().length - 1];
+    ok('fynd 7: datorn läser om inställningen efter väntan — av nu → raden raderas, inga filer', r7 === null && n7 === 2 && A.raderade.includes(rad7.kod) && Object.keys(A.filer).length === f7, `getUser ${n7}, raderade ${A.raderade.join(',')}`);
+    kamAnsluten = ansl0; A.bildPa = true;
+    /* Fynd 8: spåret är borta på datorn — telefonens domskäl används. */
+    Stillbilder.beskarning({ id: 4711 }, bc, { namn: 'Spöket', saker: true, varfor: 'remsa' });
+    for (let i = 0; i < 200 && Stillbilder.ko; i++) await vanta(1);
+    const r8 = await Rattelse.fran('borttaget', { cid: 'fynd8', spar: 4711, name: 'Spöket' }, null);
+    let j8 = null; try { j8 = JSON.parse(await A.filer[`${r8.sokvag}/rattelse.json`].text()); } catch (e) {}
+    ok('fynd 8: spåret borta på datorn → varfor och saker ur telefonens svar', j8 && j8.varfor === 'remsa' && j8.saker === true && j8.bild === 'telefon', JSON.stringify(j8));
+    /* Fynd 2: taket — tyst, och inga fler försök (ingen getUser) resten av sessionen. */
+    const rad0 = Moln.rapportRad; Moln.rapportRad = async () => { throw Object.assign(new Error('rapport_tak'), { tak: true }); };
+    const lad0 = Lada.utdrag().filter(e => e.slag === 'fel' && e.kalla === 'rattelse').length;
+    const t1 = await Rattelse.fran('namnbyte', { cid: 'tak1', spar: 1, name: 'X' }, 'Y');
+    const g0 = A.getUser;
+    const t2 = Rattelse.fran('namnbyte', { cid: 'tak2', spar: 1, name: 'X' }, 'Z');
+    await vanta(30);
+    ok('fynd 2: taket nått → tyst (inget fel i lådan) och inga fler försök denna session (ingen getUser)', t1 === null && t2 === null && A.getUser === g0 && Rattelse.stat().takNatt === true && Lada.utdrag().filter(e => e.slag === 'fel' && e.kalla === 'rattelse').length === lad0, JSON.stringify(Rattelse.stat()));
+    Moln.rapportRad = async () => { throw new Error('new row violates: rattelse_tak: 500 av 500'); };
+    Rattelse.glom();
+    const t3 = await Rattelse.fran('namnbyte', { cid: 'tak3', spar: 1, name: 'X' }, 'Y');
+    ok('fynd 2: också A:s nya felkod (rattelse_tak i texten) räknas som taket', t3 === null && Rattelse.stat().takNatt === true);
+    Moln.rapportRad = rad0; Rattelse.glom();
+  }
+
   /* ── 4. Växeln ── */
   const box = document.getElementById('pbBilder');
   A.bildPa = false; await window.lasBildVaxel();
@@ -242,6 +412,19 @@ const PROV = async () => {
     const r = await c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')()', awaitPromise: true, returnByValue: true });
     if (r.exceptionDetails) throw new Error((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text);
     ut = r.result.value;
+    /* Fynd 4: samma app utan ?debug (debug=0 tar bort lådans flagga). */
+    await c.cdp('Page.navigate', { url: `http://127.0.0.1:${srv.address().port}/?debug=0` });
+    const t1 = Date.now();
+    for (;;) {
+      const q = await c.cdp('Runtime.evaluate', { expression: "document.readyState === 'complete' && typeof Stillbilder === 'object' && typeof avstamBord === 'function'", returnByValue: true }).catch(() => null);
+      if (q && q.result && q.result.value) break;
+      if (Date.now() - t1 > 30000) throw new Error('appen laddade inte (utan debug)');
+      await vanta(100);
+    }
+    await vanta(300);
+    const r2 = await c.cdp('Runtime.evaluate', { expression: '(' + PROV_AV.toString() + ')()', awaitPromise: true, returnByValue: true });
+    if (r2.exceptionDetails) throw new Error((r2.exceptionDetails.exception || {}).description || r2.exceptionDetails.text);
+    ut.rad = ut.rad.concat(r2.result.value.rad);
   } catch (e) { console.error('prov-b: ' + e.message); await c.stang(); srv.close(); process.exit(2); }
   await c.stang(); srv.close();
   if (arg('--rattelse')) fs.writeFileSync(arg('--rattelse'), JSON.stringify(ut.sparad));
