@@ -45,7 +45,8 @@ const MATT = [
   ['avstandP90', 'Avståndsfel mattan mot bordet, 90:e percentilen (kortbredder)', 'lagre', 'kb'],
   ['falskaOmlott', 'Falska omlott (kortpar · rutor)', 'lagre', 'antal'],
   ['utanforRutor', 'Kort utanför mattans kant (kort · rutor)', 'lagre', 'antal'],
-  ['saknasRutor', 'Kort i facit som saknas på mattan (kort · rutor)', 'lagre', 'antal']
+  ['saknasRutor', 'Kort i facit som saknas på mattan (kort · rutor)', 'lagre', 'antal'],
+  ['fantomer', 'Kort som inte blev något (oframkallat/platshållare ≥ 3 s som försvann utan kort; fall ur rapporter)', 'lagre', 'antal']
 ];
 
 const median = l => { if (!l.length) return null; const s = l.slice().sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -270,6 +271,34 @@ function berakna(fall, logg) {
   m.laddtexter = ladd;
   detalj.platser = episoder;
 
+  /* ── kort som inte blev något (MES-368) ──
+     Ett oframkallat kort ('o') eller en platshållare ('p') som stod minst
+     FANTOM_S och försvann utan att ett kort tog över (ett kort föddes inom 1 s,
+     eller ett kort som fanns låg inom en kortbredd från den 1 s senare)
+     — en kedja av sådana som följer på varandra (nästa föds inom 1 s efter
+     förra) räknas en gång. Det är dubbletten som "inte kunde identifieras" i
+     passet 2026-10-11 22:15:43: kortet flyttades, mattan behöll det gamla
+     och visade det flyttade som ett okänt kort i 78 s. Räknas BARA i fallen
+     ur rapporter (slag 'rapport', dev/rapport/till-fall.cjs) tills
+     baslinjen sparas om med måttet för alla fall: då ändras inga gamla tal
+     och --jamfor säger samma sak som förut. */
+  if (fall.slag === 'rapport') {
+    const ep = logg.platser.filter(q => (q.slag === 'o' || q.slag === 'p') && q.fodd >= T0).sort((a, b) => a.fodd - b.fodd);
+    const kedjor = [];
+    for (const q of ep) {
+      const slut = q.dod != null ? q.dod : fall.till;
+      const k = kedjor.find(k => k.slut <= q.fodd + 1e-6 && q.fodd - k.slut <= 1 && !k.overtagen);
+      if (k) { k.slut = slut; k.spar.push(q.spar); k.dod = q.dod; }
+      else kedjor.push({ fodd: q.fodd, slut, dod: q.dod, spar: [q.spar] });
+      const kk = k || kedjor[kedjor.length - 1];
+      /* övertagen: ett kort föddes när den dog, eller ett kort som fanns ligger där den låg 1 s senare (bindningen tog ett befintligt kort) */
+      kk.overtagen = q.dod != null && kort.some(c => (c.fodd >= q.dod - 0.2 && c.fodd <= q.dod + 1) ||
+        (c.fodd < q.dod && (c.dod == null || c.dod > q.dod + 1) && (p => p && Math.hypot(p[3] - q.x, p[4] - q.y) <= cw)(vid(c, q.dod + 1))));
+    }
+    detalj.fantomer = kedjor.filter(k => !k.overtagen && k.slut - k.fodd >= FANTOM_S).map(k => ({ t: r2(k.fodd), slut: r2(k.slut), s: r2(k.slut - k.fodd), spar: k.spar.join('→') }));
+    m.fantomer = detalj.fantomer.length;
+  } else m.fantomer = null;
+
   /* ── utanför kanten ── */
   const utanfor = logg.utanfor.filter(x => x[0] >= T0);
   m.utanforKort = new Set(utanfor.map(x => x[1])).size;
@@ -331,7 +360,7 @@ function berakna(fall, logg) {
    kamerabild — de står i egna kolumner): antal
    summeras, tider räknas ur alla händelser ihop, per minut ur summan. */
 function totalt(res) {
-  const R = res.filter(r => r.slag !== 'facit' && r.slag !== 'kedja');
+  const R = res.filter(r => r.slag !== 'facit' && r.slag !== 'kedja' && r.slag !== 'rapport');   // rapport: fall ur till-fall.cjs (MES-368), per fall, inte i totalt
   const t = {};
   const alla = key => R.map(r => r.matt[key]).filter(v => v != null);
   for (const [key, , , enh] of MATT) {
@@ -368,6 +397,7 @@ function samre(key, fore, efter, grind) {
   }
   return def[2] === 'lagre' ? Math.round(efter * 100) > Math.round(fore * 100) : Math.round(efter * 100) < Math.round(fore * 100);
 }
+const FANTOM_S = 3;   // s: ett oframkallat kort som står så länge och försvinner utan kort är ett kort som inte finns
 const visa = v => v == null ? '–' : typeof v === 'object' ? `${v.n}/${v.av}` : String(v).replace('.', ',');
 
 module.exports = { MATT, berakna, totalt, samre, visa, FORE, EFTER, UTBYTT_S, VILA_TOL, FLYTT_MIN, OMLOTT };

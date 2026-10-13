@@ -17,6 +17,7 @@ Spelarens yta: `design_handoff_rapport/README.md` (§5 rutan, §9 detaljerna).
 | 5. Listan | du | `node dev/rapport/lista.cjs --nya` |
 | 6. Hämta | du | `node dev/rapport/hamta.cjs R-0412` → `dev/diagnos/rapporter/R-0412/LÄS-MIG.md` |
 | 7. Höra av sig | du | mejla spelaren (e-posten står i listan) med koden, och `lista.cjs --kontaktad R-0412` |
+| 7b. Sortera | du | vad blev rapporten? `till-fall.cjs <kod> --mattest \| --bank \| --traning` gör ett fall och sätter `anvandning`; annars `satt.cjs <kod> fix \| slangd` (se *Från rapport till något som mäter* nedan) |
 | 8. Gallra | du / schema | `node dev/rapport/gallra.cjs --torr`, sedan utan `--torr` |
 
 ## Verktygen
@@ -31,9 +32,14 @@ Spelarens yta: `design_handoff_rapport/README.md` (§5 rutan, §9 detaljerna).
 | `node dev/rapport/hamta.cjs R-0412` | hämtar raden och filerna, skriver mappen nedan |
 | `node dev/rapport/hamta.cjs --fil paket.json[.gz]` | samma av ett paket som redan ligger lokalt |
 | `node dev/rapport/gallra.cjs [--torr]` | tar bort rader och filer äldre än 90 dagar med `anvandning` null eller `slangd` |
+| `… --rattelser` | bara de tysta rättelserna (`kalla = 'rattelse'`, del B); går att kombinera med `--nya` |
+| `node dev/rapport/satt.cjs R-0412 fix\|test\|traning\|slangd` | sätter vad rapporten blev. Spärren: test och traning byts aldrig (slutkod 3) |
+| `node dev/rapport/till-fall.cjs R-0412 --mattest\|--bank\|--traning` | gör rapporten till ett Mat test-fall, ett bänkfall eller träningsdata, och sätter `anvandning` (nedan) |
+| `node dev/rapport/till-fall.cjs --mattest --logg pass.json [--orden o.tsv] [--lek lek.txt]` | samma för ett pass utan rapportkod (bordsloggen ur appen) |
+| `node dev/rapport/prov-d.cjs [--bank-kor] [--tabell]` | provet för del D: syntetiska rättelser och en rapport i en tillfällig mapp, spärren åt båda hållen, bänken på bänkfallet, och (`--tabell`) satt/lista/spärren mot produktionens tabell med två provrader som tas bort efteråt |
 | `node dev/rapport/prov.cjs` | provet: ett parti i huvudlös Chrome, fel, anrop, telefonens låda, rutans fem lägen, taket, hamta — utan nät och utan Claude |
 
-Alla tre verktygen läser `SUPABASE_URL` och `SUPABASE_SERVICE_ROLE_KEY` ur `.env.local`
+Verktygen mot tabellen läser `SUPABASE_URL` och `SUPABASE_SERVICE_ROLE_KEY` ur `.env.local`
 (i en worktree: symlänka den). Nyckeln skrivs aldrig ut.
 
 ## Mappen som hamta.cjs skriver (`dev/diagnos/rapporter/<kod>/`, gitignorerad)
@@ -118,4 +124,89 @@ datorns klocka.
 |---|---|
 | **B** | `Rapport.stillbilder = () => [{ namn, t, blob }]` på telefonen: anropas när datorn fryser, och bilderna laddas upp till `<kod>/bilder/` vid `rapport_bilder` (taket 15 MB, äldsta släpps). Rättelserna: en rad med `kalla: 'rattelse'` via `Moln.rapportRad` + `Moln.rapportFil` |
 | **C** | `oppnaRapportRuta()` (eller `Rapport.oppna()`) från knappen i toppraden; telefonens ark: `Rapport.franTelefon(text, tagg)` → `{kod}` eller `{fel: 'tak' \| 'nat' \| 'dator'}` (`dator` = inget svar på 10 s: *Can't reach your computer*). Flaggan `RAPPORT_FOR_ALLA` läses av `Rapport` om den finns. Rutans position (under knappen) är C:s |
-| **D** | `bordlogg.json` är fallformatets `rader`; mattans händelser (`slag: 'matta'`) har fallets `typ`/`kort`/`till`. Fyll på här: `till-fall.cjs`, `satt.cjs`, regeln om testfall i samma commit |
+| **D** | byggd (MES-368): `till-fall.cjs`, `satt.cjs`, `sparr.cjs`, `prov-d.cjs` — se nästa avsnitt |
+
+## Från rapport till något som mäter (del D, MES-368)
+
+Utan det här steget är rapporterna en hög. Varje rapport blir **en** av fyra saker:
+
+| Rapporten blir | När | Kommando | Hamnar i |
+|---|---|---|---|
+| **En fix** | felet syns i händelserna, felen eller bilderna och går att rätta | `satt.cjs <kod> fix`, sedan koden | — |
+| **Ett fall i Mat test** | mattans beteende: dubbletter, hopp, fel plats, kort till handen | `till-fall.cjs <kod> --mattest` | `dev/mattest/underlag/rapporter/<kod>/` (`fall.json` + `bordlogg.json.gz`); `node dev/mattest/kor.cjs --fall <kod>` |
+| **Ett bänkfall** | fel namn, missad remsa: en beskärning + rätt namn (en tyst rättelse) | `till-fall.cjs <kod> --bank` | `dev/remsa/rapportbank/` (`manifest.json` i `dev/embed/riktiga`-form); `~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/remsa/rapportbank dev/embed/modeller/mobileclip-s0-vision.onnx` |
+| **Träningsdata** | bilder + rätt namn som inte ska vara prov | `till-fall.cjs <kod> --traning` | `dev/material/arbete/markning/rapporter-traning-mesa/<kod>/markning.json` i mark.py:s form (MES-340); `dev/remsa/tran/dataset.py` läser den |
+| (inget) | inget att göra | `satt.cjs <kod> slangd` | `gallra.cjs` tar den efter 90 dagar |
+
+`--bank` och `--traning` ur en vanlig rapport (inte en rättelse) kräver `--bild bilder/<fil> --ratt "<namn>"`:
+vilken stillbild, och vilket namn spelaren sa. En rättelse av typen `borttaget` har inget rätt namn och blir
+inget bänkfall.
+
+### Regeln: en fix ur en rapport tar med sitt testfall i samma commit
+
+Rättar du något som en rapport visade: gör först fallet (`till-fall.cjs <kod> --mattest` eller `--bank`),
+se att det räknar felet på main, rätta, se att det inte längre gör det — och committa fallet och fixen
+**ihop**. Då kan felet aldrig komma tillbaka tyst, och commiten bär beviset. Koden i commit-meddelandet.
+
+### Spärren mellan test och träning
+
+En **mätregel, inte en samtyckesfråga**: ett fall som blivit ett regressionsprov får aldrig hamna i
+träningen — då mäter provet att modellen minns kortet. Samma regel som detektorns spärr prov/träning
+(`dev/detektor/delning.py`, MES-288). `sparr.cjs` håller den på två ställen, och båda måste säga ja:
+
+| Var | Regel |
+|---|---|
+| Tabellen | `anvandning` är `test` eller `traning`, aldrig båda. `till-fall.cjs` sätter den **först** (service role) och skriver sedan; `--mattest`/`--bank` = test, `--traning` = traning. När den väl är test eller traning byts den aldrig — inte heller via `fix` eller `slangd`, annars går det att tvätta test → slangd → traning. `null`/`fix` → test/traning går; `slangd` → ett fall kräver `satt.cjs` först |
+| Repot | koden får inte finnas på andra sidan: Mat test-underlaget och bänken mot träningsmaterialet. Håller också med `--lokal`, utan nät och om raden raderats |
+
+Varje tyst rättelse är en egen rad med egen kod, så regeln gäller per rättelse. Säger spärren nej skrivs
+ingenting och slutkoden är 3. Träningsmappen heter `rapporter-traning-mesa` så att `delning.py` dömer den
+som träning; golden-lekens namn märks `utanfor_traning` och valideringens namn `val` som i mark.py.
+
+### Facit för ett Mat test-fall: spelarens rättelser + orden
+
+Utgångsläget är vad kameran gjorde med mattan (rapportens `slag: 'matta'` utan `av: 'spelare'`), eller, för
+ett pass utan rapport, kamerans påståenden ur bordsloggen (säkert namn på ett spår = utspel, spåret borta =
+borttaget, samma namn på ett nytt spår inom 8 s = flytt). **Det spelaren ändrade är det rätta och vinner:**
+
+| Spelaren | Facit |
+|---|---|
+| byter namn | kortet hette det nya namnet hela tiden |
+| tar bort ett kort kameran lade dit medan ett med samma namn redan låg där (eller snabbvalet *A card appeared that I didn't play*) | utspelet stryks: en dubblett |
+| tar bort något annat | borttaget (kameran missade det) |
+| lägger tillbaka / flyttar tillbaka ett kort kameran tog bort inom 60 s | kamerans borttagning stryks |
+| lägger dit ett kort | utspel (kameran missade det) |
+| tappar/otappar tillbaka inom 60 s | kamerans tap stryks |
+
+**Orden** (`--orden`, en TSV: `t gor typ kort till text`, `gor` = `stryk` eller `lagg`) är samma sak med
+spelarens röst eller fritext, för det som inte blev en handling på mattan. `stryk` tar bort kamerans händelse
+närmast `t` (±10 s). Det ingen rättade antas vara rätt: fallet **underskattar** felen, det hittar inte på dem.
+`fall.json` visar varje struken rad och varför; justera facit för hand där om det behövs och skriv varför i `anm`.
+`--lek lek.txt` ger uppspelningen lekens antal (mattans regel "fler än leken").
+
+Exemplet: passet 2026-10-11 (inget rapportkod, Jespers röst):
+
+    node dev/rapport/till-fall.cjs --mattest --logg dev/diagnos/pass-2026-10-11/pass-2026-10-11-2006.json \
+         --lek dev/rapport/pass-2026-10-11/lek.txt --orden dev/rapport/pass-2026-10-11/orden.tsv
+    node dev/mattest/kor.cjs --fall p1011 --detalj p1011
+
+Fall ur rapporter har `slag: 'rapport'`, räknas per fall och inte i Mat tests totalt, och får måttet *Kort som
+inte blev något* (ett oframkallat kort eller en platshållare som stod ≥ 3 s och försvann utan att ett kort tog
+över — dubbletten "som inte kunde identifieras").
+
+### Raderade rapporter
+
+Spelaren raderar sina rapporter (C:s *Delete my reports and pictures*) → koderna hamnar i `raderingar`.
+`till-fall.cjs` skriver koden i klartext i varje fall det skapar (`fall.json`, bänkens `manifest.json`,
+`markning.json`), så: `node dev/rapport/lista.cjs --raderade`, sedan `grep -rl R-0412 dev/` och ta bort
+kopiorna för hand (fallmappen, bänkposten och bilden, träningsmappen). Privacy-texten lovar det.
+
+### En rutin, inte en issue per rapport
+
+Att gå igenom rapporterna (`lista.cjs --nya` → `hamta` → `satt`/`till-fall` → `gallra`) är en rutin. Ingen
+Linear-issue per rapport: tröskeln i CLAUDE.md gäller — en issue först när en rapport kräver ett beslut av
+Jesper eller mer än en session. En fix bär sin historia i commit-meddelandet med koden.
+
+**En träningsomgång på rättelserna blir en egen issue** när det finns material nog (räkna med
+`dev/remsa/tran/dataset.py rakna`), och den går genom bildmodellens grind (CLAUDE.md: 0 säkra fel i golden,
+totalen bättre, baslinje ×1 + ny ×2).

@@ -3,6 +3,7 @@
    Kör:  node dev/rapport/lista.cjs               de senaste 50 rapporterna (kalla 'rapport')
          node dev/rapport/lista.cjs --nya         bara de som inte sorterats (anvandning null)
          node dev/rapport/lista.cjs --alla        också felrapporter och rättelser
+         node dev/rapport/lista.cjs --rattelser   bara de tysta rättelserna (del B); går att kombinera med --nya
          node dev/rapport/lista.cjs --antal 200   fler rader
          node dev/rapport/lista.cjs --kontaktad R-0412   sätter kontaktad_at = nu (du har skrivit till spelaren)
          node dev/rapport/lista.cjs --raderade    koderna i raderingar: ta bort kopiorna i repot för hand
@@ -31,7 +32,8 @@ const { supa } = require('./supa.cjs');
   }
   const antal = +(arg('--antal') || 50);
   let q = `rapporter?select=kod,created_at,user_id,game_id,kalla,tagg,text,anvandning,bilder,storlek,kontaktad_at&order=created_at.desc&limit=${antal}`;
-  if (!a.includes('--alla')) q += '&kalla=eq.rapport';
+  if (a.includes('--rattelser')) q += '&kalla=eq.rattelse';   // de tysta rättelserna (del B), en rad var
+  else if (!a.includes('--alla')) q += '&kalla=eq.rapport';
   if (a.includes('--nya')) q += '&anvandning=is.null';
   const rader = await S.rest('GET', q);
   if (!rader.length) { console.log('Inga rapporter.'); return; }

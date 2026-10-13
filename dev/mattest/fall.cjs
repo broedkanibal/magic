@@ -230,7 +230,32 @@ function bordRekt(a) {
   return { x: a.x * BILD.w - w / 2, y: a.y * BILD.h - h / 2, w, h };
 }
 
+/* ── fall ur rapporter och pass (MES-368, dev/rapport/till-fall.cjs) ──────
+   Varje fall är en mapp underlag/rapporter/<id>/ med fall.json (allt utom
+   bordsloggen: facit, var det kom ifrån, rapportkoden) och bordlogg.json.gz
+   (telefonens bord, fallformatets rader). Mappen skrivs av till-fall.cjs och
+   ändras inte för hand utom facit (se dev/rapport/LÄS-MIG.md). Rapportkoden
+   står i fall.json i klartext, så att `grep -r R-0412 dev/` hittar fallet
+   när spelaren raderat sin rapport. slag 'rapport' räknas inte in i totalt. */
+const RAPPORTMAPP = path.join(UNDERLAG, 'rapporter');
+function rapportFallIds() {
+  if (!fs.existsSync(RAPPORTMAPP)) return [];
+  return fs.readdirSync(RAPPORTMAPP).filter(d => fs.existsSync(path.join(RAPPORTMAPP, d, 'fall.json'))).sort();
+}
+function rapportFall(id) {
+  const mapp = path.join(RAPPORTMAPP, id);
+  const F = JSON.parse(fs.readFileSync(path.join(mapp, 'fall.json'), 'utf8'));
+  const B = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(mapp, 'bordlogg.json.gz'))).toString('utf8'));
+  return {
+    id, namn: F.namn, slag: 'rapport', kalla: F.kalla + (F.rapport ? ` (rapport ${F.rapport})` : ''), rapport: F.rapport || null,
+    rader: B.bordLogg, facit: F.facit, fran: F.fran, till: F.till, matFran: F.matFran != null ? F.matFran : undefined,
+    upplosning: F.upplosning || { w: 1920, h: 1080 }, lek: F.lek || null,
+    media: { slag: 'ingen' }, anm: F.anm
+  };
+}
+
 const ALLA = ['g07', 'g09', 'g10', 'g11', 'g12', 'p0922', 'p0921', 'parti-kedjan'];
+for (const id of rapportFallIds()) if (!ALLA.includes(id)) ALLA.push(id);
 /* Gamla id som fortfarande tas emot: parti-kedjan hette p0921k till
    2026-10-07, och baslinjer och kommandon i äldre grenar säger så. */
 const GAMLA_ID = { p0921k: 'parti-kedjan' };
@@ -241,6 +266,7 @@ function lasFall(id) {
   if (id === 'p0922') return pass0922();
   if (id === 'p0921') return parti0921();
   if (id === 'parti-kedjan') return partiKedjan();
+  if (rapportFallIds().includes(id)) return rapportFall(id);
   throw new Error('okänt fall ' + id + ' (finns: ' + ALLA.join(', ') + ')');
 }
 module.exports = { ALLA, fallId, lasFall, bordAvstand, bordRekt, ROT };
