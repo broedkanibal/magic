@@ -20,6 +20,8 @@ from kalibrering import utan_marginal, RIKTIGA  # noqa: E402
 argv = sys.argv[1:]
 if '--bank' in argv:
     i = argv.index('--bank')
+    if i + 1 >= len(argv) or argv[i + 1].startswith('--'):
+        sys.exit('helkort_jamfor.py: --bank kräver en mapp (t.ex. --bank dev/remsa/rapportbank)')
     RIKTIGA = argv[i + 1] if os.path.isabs(argv[i + 1]) else os.path.join(ROT, argv[i + 1])
     del argv[i:i + 2]
 man = json.load(open(os.path.join(RIKTIGA, 'manifest.json'), encoding='utf-8'))

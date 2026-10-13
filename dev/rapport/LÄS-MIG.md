@@ -132,7 +132,7 @@ Utan det här steget är rapporterna en hög. Varje rapport blir **en** av fyra 
 
 | Rapporten blir | När | Kommando | Hamnar i |
 |---|---|---|---|
-| **En fix** | felet syns i händelserna, felen eller bilderna och går att rätta | `satt.cjs <kod> fix`, sedan koden | — |
+| **En fix** | felet syns i händelserna, felen eller bilderna och går att rätta | `satt.cjs <kod> fix`, sedan koden — och testfallet, se regeln nedan: fallet görs med `till-fall.cjs` och då blir rapporten **test** (fix → test går, fix → träning vägras) | — |
 | **Ett fall i Mat test** | mattans beteende: dubbletter, hopp, fel plats, kort till handen | `till-fall.cjs <kod> --mattest` | `dev/mattest/underlag/rapporter/<kod>/` (`fall.json` + `bordlogg.json.gz`); `node dev/mattest/kor.cjs --fall <kod>` |
 | **Ett bänkfall** | fel namn, missad remsa: en beskärning + rätt namn (en tyst rättelse) | `till-fall.cjs <kod> --bank` | `dev/remsa/rapportbank/` (`manifest.json` i `dev/embed/riktiga`-form); `~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/remsa/rapportbank dev/embed/modeller/mobileclip-s0-vision.onnx` |
 | **Träningsdata** | bilder + rätt namn som inte ska vara prov | `till-fall.cjs <kod> --traning` | `dev/material/arbete/markning/rapporter-traning-mesa/<kod>/markning.json` i mark.py:s form (MES-340); `dev/remsa/tran/dataset.py` läser den |
@@ -157,10 +157,22 @@ träningen — då mäter provet att modellen minns kortet. Samma regel som dete
 | Var | Regel |
 |---|---|
 | Tabellen | `anvandning` är `test` eller `traning`, aldrig båda. `till-fall.cjs` sätter den **först** (service role) och skriver sedan; `--mattest`/`--bank` = test, `--traning` = traning. När den väl är test eller traning byts den aldrig — inte heller via `fix` eller `slangd`, annars går det att tvätta test → slangd → traning. `null`/`fix` → test/traning går; `slangd` → ett fall kräver `satt.cjs` först |
-| Repot | koden får inte finnas på andra sidan: Mat test-underlaget och bänken mot träningsmaterialet. Håller också med `--lokal`, utan nät och om raden raderats |
+| Repot | koden — eller partiet, se nedan — får inte finnas på andra sidan: Mat test-underlaget och bänken mot träningsmaterialet. Håller också med `--lokal`, utan nät och om raden raderats. Saknas `dev/material/arbete/markning` (en worktree utan länken `dev/material`) kan spärren inte se träningssidan: **slutkod 2**, inget skrivet |
 
-Varje tyst rättelse är en egen rad med egen kod, så regeln gäller per rättelse. Säger spärren nej skrivs
-ingenting och slutkoden är 3. Träningsmappen heter `rapporter-traning-mesa` så att `delning.py` dömer den
+**Per parti, inte per kod.** Två rättelser av samma kort i samma parti, eller en rapport och en rättelse ur
+samma parti, är nästan samma bild. Blir den ena test och den andra träning mäter provet att modellen minns
+partiet — samma skäl som att detektorns spärr delar per inspelningstillfälle. Därför:
+
+| | |
+|---|---|
+| Partiets nyckel | `parti: { game_id, spelkod }` i `fall.json`, bänkens `manifest.json` och `markning.json`. `game_id` ur tabellen (annars rapportens `miljo.spelId` eller bordsloggens `spel`); `spelkod` ur `rattelse.json` eller rapportens `miljo.spel` |
+| Samma parti | delar `game_id` **eller** `spelkod` (en återanvänd spelkod ger en vägran för mycket, aldrig en för lite) |
+| Tabellen | `test`/`traning` vägras när en **annan rad** med samma `game_id` redan är på andra sidan (`till-fall.cjs` och `satt.cjs`) |
+| Repot | vägras när en kopia ur samma parti ligger på andra sidan, också under en annan kod |
+| Utan nyckel | (ingen `game_id`, ingen spelkod) spärren gäller per kod som förut, och `till-fall`/`satt` skriver **VARNING** |
+
+`fix` → `traning` vägras: en fix tar med sitt testfall (regeln ovan), och då är rapporten test.
+Säger spärren nej skrivs ingenting och slutkoden är 3. Träningsmappen heter `rapporter-traning-mesa` så att `delning.py` dömer den
 som träning; golden-lekens namn märks `utanfor_traning` och valideringens namn `val` som i mark.py.
 
 ### Facit för ett Mat test-fall: spelarens rättelser + orden
@@ -172,8 +184,8 @@ borttaget, samma namn på ett nytt spår inom 8 s = flytt). **Det spelaren ändr
 | Spelaren | Facit |
 |---|---|
 | byter namn | kortet hette det nya namnet hela tiden |
-| tar bort ett kort kameran lade dit medan ett med samma namn redan låg där (eller snabbvalet *A card appeared that I didn't play*) | utspelet stryks: en dubblett |
-| tar bort något annat | borttaget (kameran missade det) |
+| tar bort ett kort **från bordet** (`tar_bort`, inte en flytt till graveyard eller handen) som kameran lade dit medan ett med samma namn redan låg där — eller, med snabbvalet *A card appeared that I didn't play*, den borttagning som ligger **närmast trycket** (rapportens `frys`) | utspelet stryks: en dubblett |
+| tar bort något annat, eller flyttar ett kort till graveyard/handen | borttaget (kameran missade det) |
 | lägger tillbaka / flyttar tillbaka ett kort kameran tog bort inom 60 s | kamerans borttagning stryks |
 | lägger dit ett kort | utspel (kameran missade det) |
 | tappar/otappar tillbaka inom 60 s | kamerans tap stryks |
@@ -187,12 +199,29 @@ närmast `t` (±10 s). Det ingen rättade antas vara rätt: fallet **underskatta
 Exemplet: passet 2026-10-11 (inget rapportkod, Jespers röst):
 
     node dev/rapport/till-fall.cjs --mattest --logg dev/diagnos/pass-2026-10-11/pass-2026-10-11-2006.json \
-         --lek dev/rapport/pass-2026-10-11/lek.txt --orden dev/rapport/pass-2026-10-11/orden.tsv
+         --lek dev/rapport/pass-2026-10-11/lek.txt --orden dev/rapport/pass-2026-10-11/orden.tsv --skriv-over
     node dev/mattest/kor.cjs --fall p1011 --detalj p1011
 
 Fall ur rapporter har `slag: 'rapport'`, räknas per fall och inte i Mat tests totalt, och får måttet *Kort som
 inte blev något* (ett oframkallat kort eller en platshållare som stod ≥ 3 s och försvann utan att ett kort tog
 över — dubbletten "som inte kunde identifieras").
+
+**Grinden för rapportfallen** (`dev/mattest/rapportgrind.cjs`): varje fall har en egen baslinje,
+`underlag/rapporter/<id>/grind.json`, och `kor.cjs --jamfor` (med eller utan `--fall`) jämför fallet mot den:
+
+| | Mått |
+|---|---|
+| **Fäller** (slutkod 1) | *Kort som inte blev något* (`fantomer`) och *Fel till handen* (`felTillHanden`) när de blir fler än i `grind.json` |
+| Varnar bara | allt annat i fallet — facit ur en rapport underskattar (det ingen rättade antas rätt), så övriga mått är diagnos |
+| Fäller inget | ett fall utan `grind.json` (raden säger det) |
+
+`grind.json` skrivs med `node dev/mattest/kor.cjs --fall <id> --spara` (bara rapportfall valda: den gemensamma
+baslinjen rörs inte) eller av en vanlig `--spara` (alla fall). I regeln ovan: fallet fäller på koden före
+fixen, `--spara` på koden efter, och fallet, `grind.json` och fixen committas ihop. De gamla fallens mått och
+rader i `--jamfor` är oförändrade; rapportfallen skrivs i ett eget avsnitt efter dem.
+
+p1011:s orden har två rader som inte är rösten: ett kamerablink (ett Mountain-spår 234,59–237,04, 2,5 s) som
+annars blev ett utspel och en borttagning i facit och gav *Borttagna kort som står kvar* 1 på all kod.
 
 ### Raderade rapporter
 

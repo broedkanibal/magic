@@ -1,7 +1,10 @@
 {
  "id": "p1011",
  "rapport": null,
- "skapad": "2026-10-12T23:48:47.251Z",
+ "parti": {
+  "game_id": "61b3570b-3e33-4685-988a-929f3be2ada1"
+ },
+ "skapad": "2026-10-13T00:20:19.868Z",
  "namn": "passet pass-2026-10-11-2006, sek 0–1207.39",
  "kalla": "bordsloggen pass-2026-10-11-2006 (2026-10-11T20:06:17.657Z)",
  "bordStart": "2026-10-11T20:06:17.657Z",
@@ -163,6 +166,22 @@
     "kort": "Expel",
     "till": null,
     "text": "22:15:43–22:17:10: Expel låg kvar på bordet (flyttat åt höger); mattan skickade det till handen först 22:17:10, och det var fel"
+   },
+   {
+    "t": 234.59,
+    "gor": "stryk",
+    "typ": "spelar",
+    "kort": "Mountain",
+    "till": null,
+    "text": "kamerablink 234,59–237,04 (2,5 s), inte i rösten: inget Mountain spelades"
+   },
+   {
+    "t": 237.04,
+    "gor": "stryk",
+    "typ": "tar_bort",
+    "kort": "Mountain",
+    "till": null,
+    "text": "kamerablink 234,59–237,04 (2,5 s), inte i rösten: inget Mountain togs bort"
    }
   ]
  },
@@ -171,16 +190,6 @@
   {
    "t": 227.77,
    "typ": "spelar",
-   "kort": "Mountain"
-  },
-  {
-   "t": 234.59,
-   "typ": "spelar",
-   "kort": "Mountain"
-  },
-  {
-   "t": 237.04,
-   "typ": "tar_bort",
    "kort": "Mountain"
   },
   {
@@ -341,6 +350,20 @@
  ],
  "struket": [
   {
+   "t": 234.59,
+   "typ": "spelar",
+   "kort": "Mountain",
+   "kalla": "kamera",
+   "varfor": "orden: kamerablink 234,59–237,04 (2,5 s), inte i rösten: inget Mountain spelades"
+  },
+  {
+   "t": 237.04,
+   "typ": "tar_bort",
+   "kort": "Mountain",
+   "kalla": "kamera",
+   "varfor": "orden: kamerablink 234,59–237,04 (2,5 s), inte i rösten: inget Mountain togs bort"
+  },
+  {
    "t": 478.81,
    "typ": "tar_bort",
    "kort": "Island",
@@ -368,7 +391,9 @@
   "stryk tar_bort Island 478.81",
   "stryk spelar Island 525.2",
   "lagg flyttar Expel 565.3",
-  "stryk tar_bort Expel 573.46"
+  "stryk tar_bort Expel 573.46",
+  "stryk spelar Mountain 234.59",
+  "stryk tar_bort Mountain 237.04"
  ],
  "anm": "skapat av dev/rapport/till-fall.cjs (MES-368): facit = kameran minus det spelaren rättade (LÄS-MIG i dev/rapport). Det ingen rättade antas vara rätt."
 }

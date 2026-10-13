@@ -29,6 +29,7 @@ const fs = require('fs'), path = require('path'), crypto = require('crypto'), { 
 const { server, chrome, vantaApp, vanta, ROT } = require('./chrome.cjs');
 const { ALLA, fallId, lasFall } = require('./fall.cjs');
 const { MATT, berakna, totalt, samre, visa } = require('./matt.cjs');
+const RG = require('./rapportgrind.cjs');   // rapportfallens egen grind (MES-368)
 
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const har = n => process.argv.includes(n);
@@ -188,22 +189,29 @@ const BILDER = [
   if (arg('--bilder')) { const vid = arg('--vid') ? [...new Set(arg('--vid').split(',').map(x => x.split(':')[0]))] : null; const l = await visaren(vid || FALL || [...new Set(BILDER.map(b => b[0]))], path.resolve(arg('--bilder'))); console.log('mattest --bilder: ' + l.map(f => path.relative(process.cwd(), f)).join(', ')); return; }
 
   const t0 = Date.now();
-  const res = await korAlla(har('--jamfor') && !FALL && fs.existsSync(BASLINJE) ? JSON.parse(fs.readFileSync(BASLINJE, 'utf8')).fall.map(f => fallId(f.id)) : ids);
+  const lista = har('--jamfor') && !FALL && fs.existsSync(BASLINJE) ? JSON.parse(fs.readFileSync(BASLINJE, 'utf8')).fall.map(f => fallId(f.id)) : ids;
+  const extraRG = har('--jamfor') && !FALL ? RG.grindIds().filter(id => !lista.includes(id)) : [];   // rapportfall med grind.json, utanför den vanliga tabellen
+  const res = await korAlla(lista.concat(extraRG));
   const ok = res.filter(r => !r.fel);
   const tot = totalt(ok);
   const meta = { datum: new Date().toLocaleDateString('sv-SE'), html: path.relative(ROT, FIL) || FIL, sha: sha(FIL), commit: FIL === path.join(ROT, 'index.html') ? gitHead() : null };
   console.log(`Mat test: ${meta.html} (sha256 ${meta.sha}), ${ok.length} fall på ${((Date.now() - t0) / 1000).toFixed(1)} s, simulerad klocka`);
-  console.log(tabell(res, tot));
+  console.log(tabell(res.filter(r => !extraRG.includes(r.id)), tot));
   for (const id of (arg('--detalj', '') || '').split(',').filter(Boolean)) { const r = ok.find(r => r.id === id); if (r) console.log('\n' + detaljUt(r)); }
   if (arg('--json')) { fs.writeFileSync(path.resolve(arg('--json')), JSON.stringify({ meta, totalt: tot, fall: res }) + '\n'); console.log(`allt skrivet till ${arg('--json')}`); }
 
-  if (har('--spara')) {
+  if (har('--spara') && FALL && FALL.every(id => lasFall(id).slag === 'rapport')) {
+    /* bara rapportfall valda: deras egna grind.json, den gemensamma baslinjen rörs inte */
+    if (res.some(r => r.fel || r.n.fel.length)) { console.error('mattest --spara: ett fall gick inte att köra — ingen grind.json skriven'); process.exit(2); }
+    for (const r of ok) console.log(`grinden skriven: ${RG.sparaGrind(r, meta)}`);
+  } else if (har('--spara')) {
     if (res.some(r => r.fel || r.n.fel.length)) { console.error('mattest --spara: ett fall gick inte att köra eller gav fel under uppspelningen — ingen baslinje skriven'); process.exit(2); }
     fs.mkdirSync(path.dirname(BASLINJE), { recursive: true });
     const B = { meta, totalt: tot, fall: ok.map(r => ({ id: r.id, namn: r.namn, slag: r.slag, kalla: r.kalla, anm: r.anm, minuter: r.minuter, matt: r.matt, n: Object.assign({}, r.n, { fel: undefined, felAntal: r.n.fel.length }) })) };
     fs.writeFileSync(BASLINJE, JSON.stringify(B, null, 1) + '\n');
     fs.writeFileSync(path.join(path.dirname(BASLINJE), 'baslinje.md'), markdown(res, tot, meta));
     console.log(`baslinjen skriven: ${path.relative(process.cwd(), BASLINJE)} och baslinje.md`);
+    for (const r of ok.filter(r => r.slag === 'rapport')) console.log(`grinden skriven: ${RG.sparaGrind(r, meta)}`);
   }
 
   if (har('--jamfor')) {
@@ -247,7 +255,7 @@ const BILDER = [
       if (b && grind) battreN++;
       if (s || b || har('--alla')) console.log(`  ${pad(fall, 8)} ${pad(namn.length > 60 ? namn.slice(0, 59) + '…' : namn, 61)} ${lpad(visa(f), 8)} → ${pad(visa(e), 8)} ${s ? (grind ? 'SÄMRE' : 'VARNING (diagnos, fäller inte)') : b ? 'bättre' : ''}`);
     };
-    for (const bf of B.fall.filter(f => !FALL || FALL.includes(f.id))) {
+    for (const bf of B.fall.filter(f => f.slag !== 'rapport' && (!FALL || FALL.includes(f.id)))) {   // rapportfallen: egen grind, nedan
       const r = ok.find(r => r.id === bf.id);
       if (!r) { console.log(`  ${pad(bf.id, 8)} GICK INTE ATT KÖRA`); saknas++; continue; }
       for (const key of nycklar(bf.matt)) rad(bf.id, key, bf.matt[key], r.matt[key]);
@@ -256,7 +264,8 @@ const BILDER = [
     else console.log('  (--fall: bara de fallen jämförs, inte totalt)');
     console.log(`  → grinden (totalt, p0921, parti-kedjans geometri, hopp och zoomhopp): ${samreN} rader sämre, ${battreN} bättre; per fall: ${varnN} varningar${saknas ? `; ${saknas} fall gick inte att köra` : ''}${har('--alla') ? '' : ' (oförändrade rader visas med --alla)'}`);
     if (saknasMatt) console.log(`  → ${saknasMatt} mått i baslinjen räknas inte längre — spara om baslinjen på main om det är avsiktligt`);
+    const rg = RG.jamforRapporter(ok, { alla: har('--alla') });
     if (saknas || saknasMatt) process.exitCode = 2;
-    else if (samreN && process.exitCode !== 2) process.exitCode = 1;
+    else if ((samreN || rg.samre) && process.exitCode !== 2) process.exitCode = 1;
   }
 })().catch(e => { console.error('mattest: ' + (e && e.stack || e)); process.exit(2); });

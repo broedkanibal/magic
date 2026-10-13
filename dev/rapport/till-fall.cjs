@@ -38,9 +38,11 @@
    borta = borttaget, samma namn på ett nytt spår inom 8 s = flytt, tappat
    i minst 1 s = tap). Det spelaren ändrade är det rätta och vinner:
      - spelaren byter namn          → kortet hette det nya namnet hela tiden
-     - spelaren tar bort ett kort som kameran lade dit medan ett kort med
-       samma namn redan låg på mattan (eller med snabbvalet "A card appeared
-       that I didn't play")         → utspelet stryks: det var en dubblett
+     - spelaren tar bort ett kort från bordet (typ tar_bort — inte en flytt
+       till graveyard eller handen) som kameran lade dit medan ett kort med
+       samma namn redan låg på mattan, eller, med snabbvalet "A card appeared
+       that I didn't play", den borttagning som ligger närmast trycket
+                                    → utspelet stryks: det var en dubblett
      - spelaren tar bort något annat → borttaget (kameran missade det)
      - spelaren lägger dit / flyttar tillbaka ett kort kameran tagit bort
        inom 60 s                     → kamerans borttagning stryks
@@ -56,11 +58,26 @@
    (kamera | spelare | orden) och det som ströks; justera för hand där om
    det behövs, och skriv varför i `anm`.
 
+   ── Spärren per parti ───────────────────────────────────────────────────
+   Varje fall får partiets nyckel `parti: { game_id, spelkod }` (game_id ur
+   tabellen, annars rapportens miljo.spelId / bordsloggens spel; spelkoden ur
+   rattelse.json eller miljo.spel), och spärren vägrar när en annan rad eller
+   kopia ur samma parti ligger på andra sidan. Saknas båda: spärren gäller
+   per kod, och en VARNING skrivs.
+
    Inget här frågar Claude. Service role ur .env.local. */
 'use strict';
 const fs = require('fs'), path = require('path'), zlib = require('zlib'), crypto = require('crypto');
 const { supa, ROT } = require('./supa.cjs');
-const { kravLokal, sattAnvandning } = require('./sparr.cjs');
+const { kravLokal, sattAnvandning, harParti, partiNycklar } = require('./sparr.cjs');
+const KOD_RE = /^R-\d{4,}$/, ID_RE = /^[\w-]+$/;
+/* Partiets nyckel { game_id, spelkod } (null-fält tas bort), eller null. */
+function parti(game_id, spelkod) {
+  const p = {};
+  if (game_id && /^[0-9a-f-]{8,}$/i.test(String(game_id))) p.game_id = String(game_id).toLowerCase();
+  if (spelkod && /^[\w-]{2,}$/.test(String(spelkod))) p.spelkod = String(spelkod).toUpperCase();
+  return Object.keys(p).length ? p : null;
+}
 
 /* MESA_FALL_UT: en annan rot för allt som skrivs (provet prov-d.cjs skriver i en tillfällig mapp). */
 const UTROT = process.env.MESA_FALL_UT ? path.resolve(process.env.MESA_FALL_UT) : ROT;
@@ -142,6 +159,9 @@ function byggFacit(handelser, opt) {
   const rader = [], kort = new Map(), rattelser = [];
   const levande = (namn, utom) => [...kort.entries()].filter(([id, k]) => id !== utom && !k.borta && k.namn === namn);
   const senaste = (pred, s) => { for (let i = rader.length - 1; i >= 0; i--) { const r = rader[i]; if (s - r.t > ANGRA_S) break; if (!r.stryk && pred(r)) return r; } return null; };
+  /* dok_upp gäller EN borttagning: spelarens tar_bort närmast trycket (opt.tryck, sekunder; okänt = den sista) */
+  let dokE = null;
+  if (opt.dokUpp) { const tr = opt.tryck != null ? opt.tryck : Infinity; for (const e of handelser) if (e.av === 'spelare' && e.typ === 'tar_bort' && (!dokE || Math.abs(e.s - tr) <= Math.abs(dokE.s - tr))) dokE = e; }
   for (const e of handelser) {
     const s = +e.s.toFixed(2), spel = e.av === 'spelare';
     const k = e.id != null ? kort.get(e.id) : null;
@@ -167,7 +187,7 @@ function byggFacit(handelser, opt) {
       const till = e.typ === 'tar_bort' ? null : e.till;
       if (spel) {
         const fodd = rader.find(r => r.id === e.id && (r.typ === 'spelar' || r.typ === 'grav_till_bord') && !r.stryk);
-        if (fodd && fodd.kalla === 'kamera' && (fodd.tvilling || opt.dokUpp)) {
+        if (e.typ === 'tar_bort' && fodd && fodd.kalla === 'kamera' && (fodd.tvilling || e === dokE)) {
           fodd.stryk = `spelaren tog bort kortet ${s} s: ${fodd.tvilling ? 'ett kort med samma namn låg redan på mattan (dubblett)' : 'snabbvalet säger att kortet inte spelades'}`;
           rattelser.push({ t: s, vad: `tog bort dubbletten ${e.kort}` });
         } else { rader.push({ t: s, typ: 'tar_bort', kort: e.kort, till, kalla: 'spelare', id: e.id }); rattelser.push({ t: s, vad: `tog bort ${e.kort}${till ? ' till ' + till : ''} (kameran missade det)` }); }
@@ -242,7 +262,7 @@ function mattestFall(o) {
   const kamera = harMatta ? matta.filter(e => e.av !== 'spelare').map(e => Object.assign({}, e, { av: 'kamera' })) : kameranUrBordsloggen(rader);
   const spelare = harMatta ? matta.filter(e => e.av === 'spelare') : [];
   const alla = kamera.concat(spelare).sort((a, b) => a.s - b.s);
-  const F = byggFacit(alla, { dokUpp: K.tagg === 'dok_upp' });
+  const F = byggFacit(alla, { dokUpp: K.tagg === 'dok_upp', tryck: K.frys ? (K.frys - s0) / 1000 : null });
   const orden = o.orden ? lasOrden(o.orden) : [];
   const ordenGjort = tillampaOrden(F.rader, orden);
   const facit = F.rader.filter(r => !r.stryk).map(r => { const x = { t: r.t, typ: r.typ, kort: r.kort }; if (r.till) x.till = r.till; return x; });
@@ -251,7 +271,7 @@ function mattestFall(o) {
   const lek = o.lek ? lasLek(o.lek) : K.lek || null;
   return {
     fall: {
-      id: o.id, rapport: K.kod || null, skapad: new Date().toISOString(),
+      id: o.id, rapport: K.kod || null, parti: K.parti || null, skapad: new Date().toISOString(),
       namn: (K.kod ? `rapport ${K.kod}` : `passet ${K.passNamn || ''}`.trim()) + `, sek ${fran}–${till}` + (K.text ? ` — «${String(K.text).slice(0, 80)}»` : ''),
       kalla, bordStart: new Date(s0).toISOString(), fran, till, upplosning: K.upplosning || null, lek, lekFil: o.lek ? path.relative(ROT, path.resolve(o.lek)) : null,
       orden: { text: K.text || null, tagg: K.tagg || null, fil: o.orden ? path.relative(ROT, path.resolve(o.orden)) : null, rader: orden },
@@ -281,12 +301,15 @@ function kallaUrMapp(mapp, kod) {
   const bf = path.join(mapp, 'bordlogg.json');
   if (!fs.existsSync(bf)) throw new Error(`${path.relative(ROT, bf)} saknas — rapporten har ingen bordslogg (telefonen var inte ansluten?) och kan inte bli ett Mat test-fall`);
   const B = lasJsonFil(bf);
-  return { kod: kod || R.kod, text: R.text, tagg: R.tagg, start: Date.parse(B.start), rader: B.bordLogg, matta: (R.tidslinje || []).filter(e => e.slag === 'matta'), upplosning: null, kallaNamn: 'rapport' };
+  const m = R.miljo || {};
+  return { kod: kod || R.kod, text: R.text, tagg: R.tagg, frys: typeof R.frys === 'number' ? R.frys : null, start: Date.parse(B.start), rader: B.bordLogg, matta: (R.tidslinje || []).filter(e => e.slag === 'matta'), upplosning: null, kallaNamn: 'rapport',
+    parti: parti((R.rad && R.rad.game_id) || m.spelId || B.spel, m.spel) };
 }
 function kallaUrLogg(fil) {
   const L = lasJsonFil(fil);
   if (!L.bordLogg || !L.start) throw new Error(`${fil}: inte en bordslogg (väntade { start, bordLogg })`);
-  return { kod: L.rapport || null, start: Date.parse(L.start), rader: L.bordLogg, matta: null, passNamn: L.id || path.basename(fil), kallaNamn: `bordsloggen ${L.id || path.basename(fil)} (${L.start})` };
+  if (L.rapport != null && !KOD_RE.test(String(L.rapport))) throw Object.assign(new Error(`${fil}: rapportkoden ${JSON.stringify(L.rapport)} är inte R-NNNN — vägrar`), { kod: 2 });
+  return { kod: L.rapport || null, parti: parti(L.spel, null), start: Date.parse(L.start), rader: L.bordLogg, matta: null, passNamn: L.id || path.basename(fil), kallaNamn: `bordsloggen ${L.id || path.basename(fil)} (${L.start})` };
 }
 function idUrLogg(K) {
   const m = /(\d{4})-(\d{2})-(\d{2})(?:-(\d{4}))?/.exec(K.passNamn || '');
@@ -294,6 +317,11 @@ function idUrLogg(K) {
 }
 
 /* ── --bank och --traning ─────────────────────────────────────────────────── */
+function partiUrMapp(mapp, r) {
+  let R = null; try { R = lasJsonFil(path.join(mapp, 'rapport.json')); } catch (e) { /* en rättelse utan rapport.json */ }
+  const m = (R && R.miljo) || {};
+  return parti((R && R.rad && R.rad.game_id) || m.spelId, (r && r.spelkod) || m.spel);
+}
 function bildOchNamn(mapp, o) {
   const r = lasRattelse(mapp);
   if (o.bild || o.ratt) {
@@ -326,7 +354,7 @@ function skrivBank(kod, b, o) {
   const lista = fs.existsSync(man) ? JSON.parse(fs.readFileSync(man, 'utf8')) : [];
   if (lista.some(p => p.kod === kod) && !o.skrivOver) throw new Error(`${kod} finns redan i bänken (${path.relative(ROT, man)}) — --skriv-over`);
   const buf = fs.readFileSync(b.bild), st = jpegStorlek(buf);
-  const post = { fil, kod, namn: b.ratt, kalla: b.kalla, handelse: b.handelse, gissning: b.gissning, varfor: b.varfor, t: b.t, spar: b.spar,
+  const post = { fil, kod, parti: b.parti || null, namn: b.ratt, kalla: b.kalla, handelse: b.handelse, gissning: b.gissning, varfor: b.varfor, t: b.t, spar: b.spar,
     bredd: st.w, hojd: st.h, skymd: false, helbild: false, tillagd: new Date().toISOString().slice(0, 10) };
   fs.mkdirSync(BANK, { recursive: true });
   fs.writeFileSync(path.join(BANK, fil), buf);
@@ -358,7 +386,7 @@ function skrivTraning(kod, b, o) {
   const utanfor = goldenNamn().has(b.ratt) || b.ratt.split(' // ').some(d => goldenNamn().has(d));
   const M = {
     /* mark.py:s klippfält som dataset.py läser; källan är rapporten, inte ett klipp */
-    klipp: path.relative(ROT, mapp), pass: TRANPASS, mapp: path.relative(ROT, mapp), rapport: kod, kalla: b.kalla,
+    klipp: path.relative(ROT, mapp), pass: TRANPASS, mapp: path.relative(ROT, mapp), rapport: kod, parti: b.parti || null, kalla: b.kalla,
     remsor_ur: 'horn', beskar: { filer: 1, ur: 'rapport' }, regler: { kalla: 'dev/rapport/till-fall.cjs (MES-368)', val_var: 5, val_fro: 1 },
     spar: [{ id: kod, dom: 'saker_manuell', namn: b.ratt, varfor: `spelarens rättelse (${b.handelse || b.kalla})`, gissning: b.gissning, varfor_telefonen: b.varfor,
       utanfor_traning: utanfor, val: arVal(b.ratt), filer: 1, remsor: 0, filer_tel: 1 }],
@@ -383,6 +411,7 @@ function las(a) {
 async function kor(a) {
   const o = las(a);
   if (!o.lage) throw Object.assign(new Error('välj ett: --mattest, --bank eller --traning'), { kod: 2 });
+  if (o.id != null && !ID_RE.test(o.id)) throw Object.assign(new Error(`--id ${JSON.stringify(o.id)}: bara bokstäver, siffror, - och _`), { kod: 2 });
   if (!o.kod && !(o.lage === 'mattest' && o.logg)) throw Object.assign(new Error('en rapportkod (R-0412), eller --mattest --logg <fil> för ett pass utan kod'), { kod: 2 });
   const sida = o.lage === 'traning' ? 'traning' : 'test';
   const mapp = o.mapp ? path.resolve(o.mapp) : o.kod ? path.join(ROT, 'dev', 'diagnos', 'rapporter', o.kod) : null;
@@ -395,18 +424,24 @@ async function kor(a) {
   if (o.lage === 'mattest') {
     const K = o.logg ? kallaUrLogg(o.logg) : kallaUrMapp(mapp, o.kod);
     if (o.kod) K.kod = o.kod;
+    if (K.kod != null && !KOD_RE.test(K.kod)) throw Object.assign(new Error(`rapportkoden ${JSON.stringify(K.kod)} är inte R-NNNN — vägrar`), { kod: 2 });
     o.id = o.id || (K.kod ? K.kod : idUrLogg(K));
-    plan = { slag: 'mattest', ut: mattestFall(Object.assign({}, o, { kalla: K })), kod: K.kod };
-  } else plan = { slag: o.lage, b: bildOchNamn(mapp, o), kod: o.kod };
+    if (!ID_RE.test(o.id)) throw Object.assign(new Error(`fallets id ${JSON.stringify(o.id)}: bara bokstäver, siffror, - och _`), { kod: 2 });
+    plan = { slag: 'mattest', ut: mattestFall(Object.assign({}, o, { kalla: K })), kod: K.kod, parti: K.parti || null };
+  } else { const b = bildOchNamn(mapp, o); b.parti = partiUrMapp(mapp, b); plan = { slag: o.lage, b, kod: o.kod, parti: b.parti }; }
   const kod = plan.kod;
 
-  /* 3. Spärren i tabellen, som sätts före allt som skrivs. */
-  kravLokal(kod, sida);
+  /* 3. Spärren per parti i repot, och i tabellen, som sätts före allt som skrivs. */
+  kravLokal(kod, sida, plan.parti);
   let tab = null;
-  if (kod && !o.lokal) tab = await sattAnvandning(supa(), kod, sida, { franTillFall: true, torr: o.torr });
+  if (kod && !o.lokal) tab = await sattAnvandning(supa(), kod, sida, { franTillFall: true, torr: o.torr, parti: plan.parti });
+  /* tabellens game_id är nyckeln när den finns */
+  if (tab && tab.game_id) plan.parti = Object.assign({}, plan.parti || {}, { game_id: tab.game_id });
+  if (plan.slag === 'mattest') plan.ut.fall.parti = plan.parti || null; else plan.b.parti = plan.parti || null;
 
   /* 4. Skriv. */
   const rad = [];
+  rad.push(harParti(plan.parti) ? `partiet: ${partiNycklar(plan.parti).join(', ')} (spärren gäller per parti)` : `VARNING: inget parti (game_id eller spelkod) — spärren gäller bara per kod`);
   if (tab) rad.push(`tabellen: ${kod} anvandning ${tab.fore || 'null'} → ${tab.efter}${tab.redan ? ' (redan)' : ''}${tab.torr ? ' (torr — inte satt)' : ''}`);
   else if (kod) rad.push(`tabellen: inte rörd (--lokal)`);
   if (plan.slag === 'mattest') {
@@ -431,4 +466,4 @@ if (require.main === module) {
     process.exit(e.sparr ? 3 : e.kod || 1);
   });
 }
-module.exports = { kor, lasRattelse, kameranUrBordsloggen, byggFacit, mattestFall, lasOrden, tillampaOrden, arVal };
+module.exports = { kor, lasRattelse, parti, kameranUrBordsloggen, byggFacit, mattestFall, lasOrden, tillampaOrden, arVal };

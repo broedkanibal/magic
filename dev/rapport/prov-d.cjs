@@ -18,6 +18,7 @@ const ROT = path.join(__dirname, '..', '..');
 const har = n => process.argv.includes(n);
 const UT = fs.mkdtempSync(path.join(os.tmpdir(), 'mesa-prov-d-'));
 const IN = path.join(UT, 'hamtade');
+fs.mkdirSync(path.join(UT, 'dev', 'material', 'arbete', 'markning'), { recursive: true });   // som dev/material i repot (fynd 4: utan den vägrar spärren)
 let fel = 0;
 const ok = (villkor, text) => { console.log(`${villkor ? 'OK ' : 'FEL'} ${text}`); if (!villkor) fel++; };
 function kor(skript, args, env) {
@@ -28,16 +29,16 @@ const tillFall = (args, env) => kor('till-fall.cjs', args, Object.assign({ MESA_
 
 /* En hämtad tyst rättelse, som hamta.cjs lägger den (B:s kontrakt). */
 const MAN = JSON.parse(fs.readFileSync(path.join(ROT, 'dev', 'embed', 'riktiga', 'manifest.json'), 'utf8'));
-function rattelse(kod, i, handelse) {
+function rattelse(kod, i, handelse, spelkod, game_id) {
   const p = MAN[i], mapp = path.join(IN, kod);
   fs.mkdirSync(mapp, { recursive: true });
   fs.copyFileSync(path.join(ROT, 'dev', 'embed', 'riktiga', p.fil), path.join(mapp, 'beskarning.jpg'));
-  fs.writeFileSync(path.join(mapp, 'rattelse.json'), JSON.stringify({ gissning: 'Swamp', varfor: 'modell land', ratt: p.namn, spelkod: 'PROV00', t: 1790000000000 + i, spar: 7, handelse: handelse || 'namnbyte' }));
-  fs.writeFileSync(path.join(mapp, 'rapport.json'), JSON.stringify({ kod, text: null, tagg: null, tidslinje: [] }));
+  fs.writeFileSync(path.join(mapp, 'rattelse.json'), JSON.stringify({ gissning: 'Swamp', varfor: 'modell land', ratt: p.namn, spelkod: spelkod === undefined ? 'PROV' + i : spelkod, t: 1790000000000 + i, spar: 7, handelse: handelse || 'namnbyte' }));
+  fs.writeFileSync(path.join(mapp, 'rapport.json'), JSON.stringify({ kod, text: null, tagg: null, tidslinje: [], rad: game_id ? { kod, game_id } : null }));
   return { mapp, namn: p.namn };
 }
 /* En hämtad rapport med mattans ändringar: kameran och spelaren. */
-function rapport(kod) {
+function rapport(kod, game_id) {
   const mapp = path.join(IN, kod), t0 = 1790000000000;
   fs.mkdirSync(mapp, { recursive: true });
   const m = (s, x) => Object.assign({ slag: 'matta', sida: 'dator', t: t0 + s * 1000 }, x);
@@ -53,7 +54,7 @@ function rapport(kod) {
     m(60, { typ: 'tar_bort', kort: 'Shock', id: 'c3', av: 'kamera' }),
     m(61, { typ: 'flyttar', kort: 'Shock', id: 'c3', till: 'mattan', av: 'spelare' })            // tillbaka ur graveyard
   ];
-  fs.writeFileSync(path.join(mapp, 'rapport.json'), JSON.stringify({ kod, text: 'Expel came twice', tagg: 'dok_upp', tidslinje: tid }));
+  fs.writeFileSync(path.join(mapp, 'rapport.json'), JSON.stringify({ kod, text: 'Expel came twice', tagg: 'dok_upp', tidslinje: tid, rad: game_id ? { kod, game_id } : null }));
   const rader = [0, 10, 20, 30, 40, 50, 60, 70].map(s => ({ s, fas: 'kort', nollstall: false, grund: 90, spar: [] }));
   fs.writeFileSync(path.join(mapp, 'bordlogg.json'), JSON.stringify({ id: 'rapport-' + kod, start: new Date(t0).toISOString(), rapport: kod, bordLogg: rader }));
   return mapp;
@@ -89,7 +90,8 @@ function rapport(kod) {
   r = tillFall(['R-9992', '--traning', '--lokal', '--mapp', b.mapp]);
   ok(r.kod === 1 && /finns redan/.test(r.ut), `samma export två gånger vägras utan --skriv-over (slutkod ${r.kod})`);
   /* 4. En rapport med mattans ändringar blir ett Mat test-fall: facit = kameran minus spelarens rättelser. */
-  const c = rapport('R-9993');
+  const GID = '0b5e1d2c-0000-4000-8000-00000000abcd';
+  const c = rapport('R-9993', GID);
   r = tillFall(['R-9993', '--mattest', '--lokal', '--mapp', c]);
   const ff = path.join(UT, 'dev', 'mattest', 'underlag', 'rapporter', 'R-9993', 'fall.json');
   const F = fs.existsSync(ff) ? JSON.parse(fs.readFileSync(ff, 'utf8')) : null;
@@ -105,6 +107,60 @@ function rapport(kod) {
   r = tillFall(['R-9994', '--bank', '--lokal', '--mapp', d.mapp]);
   ok(r.kod === 1 && /inget rätt namn/.test(r.ut), `en borttagen-rättelse blir inget bänkfall (${r.ut.trim().split('\n')[0]})`);
 
+  /* 5b. Spärren per parti (granskningens fynd 1): samma parti på andra sidan vägras, också med en annan kod. */
+  ok(bank[0] && bank[0].parti && bank[0].parti.spelkod === 'PROV0' && M && M.parti && M.parti.spelkod === 'PROV1' && F && F.parti && F.parti.game_id === GID,
+    `partiet står i manifest.json (${JSON.stringify(bank[0] && bank[0].parti)}), markning.json (${JSON.stringify(M && M.parti)}) och fall.json (${JSON.stringify(F && F.parti)})`);
+  const p1 = rattelse('R-9995', 5, 'namnbyte', 'PROV0');   // samma parti som R-9991 (test)
+  r = tillFall(['R-9995', '--traning', '--lokal', '--mapp', p1.mapp]);
+  ok(r.kod === 3 && /samma parti/.test(r.ut) && /R-9991/.test(r.ut), `R-9995 (samma spelkod som bänkfallet R-9991) kan inte bli träning: slutkod ${r.kod} — ${r.ut.trim().split('\n')[0].slice(0, 160)}`);
+  const p2 = rattelse('R-9996', 6, 'namnbyte', 'PROV1');   // samma parti som R-9992 (träning)
+  r = tillFall(['R-9996', '--bank', '--lokal', '--mapp', p2.mapp]);
+  ok(r.kod === 3 && /samma parti/.test(r.ut) && /R-9992/.test(r.ut), `R-9996 (samma spelkod som träningen R-9992) kan inte bli ett bänkfall: slutkod ${r.kod}`);
+  const p3 = rattelse('R-9997', 7, 'namnbyte', 'ANNAT1', GID);   // samma game_id som Mat test-fallet R-9993
+  r = tillFall(['R-9997', '--traning', '--lokal', '--mapp', p3.mapp]);
+  ok(r.kod === 3 && /samma parti/.test(r.ut) && /R-9993/.test(r.ut), `R-9997 (samma game_id som Mat test-fallet R-9993) kan inte bli träning: slutkod ${r.kod}`);
+  const p4 = rattelse('R-9998', 8, 'namnbyte', 'ANNAT2');   // ett annat parti: går
+  r = tillFall(['R-9998', '--traning', '--lokal', '--mapp', p4.mapp]);
+  ok(r.kod === 0 && /partiet: spel:ANNAT2/.test(r.ut), `R-9998 ur ett annat parti blir träning: slutkod ${r.kod}`);
+  const p5 = rattelse('R-9999', 9, 'namnbyte', null);   // inget parti: per kod, med varning
+  r = tillFall(['R-9999', '--bank', '--lokal', '--mapp', p5.mapp]);
+  ok(r.kod === 0 && /VARNING: inget parti/.test(r.ut), `R-9999 utan parti: spärren per kod, med varning (slutkod ${r.kod})`);
+
+  /* 5c. dok_upp/tvilling (fynd 3): bara tar_bort är en dubblett, och dok_upp bara närmast trycket. */
+  const { byggFacit } = require('./till-fall.cjs');
+  const H = [
+    { s: 10, typ: 'spelar', kort: 'Opt', id: 'a', av: 'kamera' }, { s: 12, typ: 'spelar', kort: 'Opt', id: 'b', av: 'kamera' },
+    { s: 14, typ: 'spelar', kort: 'Shock', id: 'c', av: 'kamera' }, { s: 16, typ: 'spelar', kort: 'Expel', id: 'd', av: 'kamera' },
+    { s: 20, typ: 'flyttar', kort: 'Opt', id: 'b', till: 'graveyard', av: 'spelare' },   // tvilling men till graveyard: ingen dubblett
+    { s: 30, typ: 'tar_bort', kort: 'Shock', id: 'c', av: 'spelare' },                    // långt från trycket: kameran missade
+    { s: 50, typ: 'tar_bort', kort: 'Expel', id: 'd', av: 'spelare' }                     // närmast trycket 52: dubbletten
+  ];
+  const BF = byggFacit(H, { dokUpp: true, tryck: 52 });
+  const strk = BF.rader.filter(x => x.stryk).map(x => x.kort).join(',');
+  const kvar = BF.rader.filter(x => !x.stryk && x.typ === 'tar_bort').map(x => x.kort + (x.till ? '→' + x.till : '')).join(',');
+  ok(strk === 'Expel' && kvar === 'Opt→graveyard,Shock', `dok_upp stryker bara borttagningen närmast trycket (strukna: ${strk}; borttagna kvar: ${kvar})`);
+
+  /* 5d. Repokollen utan träningsmaterialet (fynd 4): slutkod 2, inget skrivet. */
+  const UT2 = fs.mkdtempSync(path.join(os.tmpdir(), 'mesa-prov-d2-'));
+  r = kor('till-fall.cjs', ['R-9991', '--bank', '--lokal', '--mapp', a.mapp], { MESA_FALL_UT: UT2 });
+  const r2 = kor('till-fall.cjs', ['R-9998', '--traning', '--lokal', '--mapp', p4.mapp, '--skriv-over'], { MESA_FALL_UT: UT2 });
+  ok(r.kod === 2 && r2.kod === 2 && /finns inte/.test(r.ut) && !fs.existsSync(path.join(UT2, 'dev', 'remsa')) && !fs.existsSync(path.join(UT2, 'dev', 'material')),
+    `utan dev/material/arbete/markning: --bank slutkod ${r.kod}, --traning slutkod ${r2.kod}, inget skrivet`);
+  fs.rmSync(UT2, { recursive: true, force: true });
+
+  /* 5e. fix → traning vägras (fynd 5). */
+  const { overgang } = require('./sparr.cjs');
+  ok(!overgang('fix', 'traning').ok && overgang('fix', 'test').ok && overgang(null, 'traning').ok, `fix → traning vägras, fix → test och null → traning går`);
+
+  /* 5f. Koden ur en bordsloggfil och --id valideras (fynd 6). */
+  const lf = path.join(UT, 'logg.json');
+  fs.writeFileSync(lf, JSON.stringify({ id: 'pass-2026-10-11-2006', start: new Date(1790000000000).toISOString(), rapport: '../../x', bordLogg: [{ s: 0, spar: [] }, { s: 5, spar: [] }] }));
+  r = tillFall(['--mattest', '--logg', lf, '--lokal']);
+  ok(r.kod === 2 && /inte R-NNNN/.test(r.ut), `en bordslogg med koden «../../x» vägras (slutkod ${r.kod})`);
+  fs.writeFileSync(lf, JSON.stringify({ id: 'pass-2026-10-11-2006', start: new Date(1790000000000).toISOString(), bordLogg: [{ s: 0, spar: [] }, { s: 5, spar: [] }] }));
+  r = tillFall(['--mattest', '--logg', lf, '--lokal', '--id', '../ut']);
+  ok(r.kod === 2 && !fs.existsSync(path.join(UT, 'dev', 'mattest', 'underlag', 'ut')), `--id «../ut» vägras (slutkod ${r.kod})`);
+
   /* 6. Bänken kör bänkfallet. */
   if (har('--bank-kor')) {
     const modell = path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx');
@@ -118,12 +174,12 @@ function rapport(kod) {
     const { supa } = require('./supa.cjs');
     const S = supa();
     const KOD = ['R-9989', 'R-9990'];
-    const [spel] = await S.rest('GET', 'games?select=vard&order=skapad.desc&limit=1');
+    const [spel] = await S.rest('GET', 'games?select=id,vard&order=skapad.desc&limit=1');
     try {
       const fore = await S.rest('GET', `rapporter?kod=in.(${KOD.join(',')})&select=kod`);
       if (fore.length) throw new Error('provraderna finns redan: ' + fore.map(x => x.kod).join(', '));
       /* koden satt för hand: rapport_kod() (och sekvensen rapporter_nr) anropas inte */
-      await S.rest('POST', 'rapporter', KOD.map(kod => ({ kod, user_id: spel.vard, kalla: 'rattelse', text: 'prov-d.cjs (MES-368) — tas bort direkt' })));
+      await S.rest('POST', 'rapporter', KOD.map(kod => ({ kod, user_id: spel.vard, game_id: spel.id, kalla: 'rattelse', text: 'prov-d.cjs (MES-368) — tas bort direkt' })));
       let l = kor('lista.cjs', ['--alla', '--nya']);
       ok(l.kod === 0 && KOD.every(k => l.ut.includes(k)), 'lista.cjs --alla --nya visar provraderna');
       l = kor('lista.cjs', ['--rattelser']);
@@ -137,14 +193,18 @@ function rapport(kod) {
       const e = rattelse('R-9990', 3);
       q = tillFall(['R-9990', '--traning', '--mapp', e.mapp]);
       ok(q.kod === 3 && !fs.existsSync(path.join(UT, 'dev', 'material', 'arbete', 'markning', 'rapporter-traning-mesa', 'R-9990')), `till-fall R-9990 --traning vägras av tabellen (test), inget skrivet: ${q.ut.trim()}`);
+      /* per parti (fynd 1): R-9989 är en annan rad ur SAMMA parti (game_id) som R-9990 (test) */
       const g = rattelse('R-9989', 4);
       q = tillFall(['R-9989', '--traning', '--mapp', g.mapp]);
-      ok(q.kod === 0 && /null → traning/.test(q.ut), `till-fall R-9989 --traning satte tabellen: ${q.ut.trim().split('\n')[0]}`);
-      q = s('R-9989', 'test'); ok(q.kod === 3, `satt R-9989 test vägras (slutkod ${q.kod})`);
+      ok(q.kod === 3 && /samma parti/.test(q.ut) && !fs.existsSync(path.join(UT, 'dev', 'material', 'arbete', 'markning', 'rapporter-traning-mesa', 'R-9989')), `till-fall R-9989 --traning vägras av tabellen (samma game_id som R-9990, test): ${q.ut.trim().split('\n')[0].slice(0, 170)}`);
+      q = s('R-9989', 'traning'); ok(q.kod === 3 && /samma parti/.test(q.ut), `satt R-9989 traning vägras (slutkod ${q.kod}) — samma parti som R-9990`);
+      q = s('R-9989', 'fix'); ok(q.kod === 0, `satt R-9989 fix: ${q.ut.trim()}`);
+      q = s('R-9989', 'traning'); ok(q.kod === 3, `satt R-9989 fix → traning vägras (slutkod ${q.kod})`);
       q = tillFall(['R-9989', '--bank', '--mapp', g.mapp, '--skriv-over']);
-      ok(q.kod === 3 && !JSON.parse(fs.readFileSync(bankMan, 'utf8')).some(p => p.kod === 'R-9989'), `till-fall R-9989 --bank vägras (träning), inget i bänken`);
+      const post = JSON.parse(fs.readFileSync(bankMan, 'utf8')).find(p => p.kod === 'R-9989');
+      ok(q.kod === 0 && post && post.parti && post.parti.game_id === spel.id, `till-fall R-9989 --bank går (samma sida) och tabellens game_id står i manifest.json: ${JSON.stringify(post && post.parti)}`);
       const rad = await S.rest('GET', `rapporter?kod=in.(${KOD.join(',')})&select=kod,anvandning&order=kod`);
-      ok(rad.map(x => x.kod + '=' + x.anvandning).join(' ') === 'R-9989=traning R-9990=test', `tabellen: ${rad.map(x => x.kod + '=' + x.anvandning).join(' ')}`);
+      ok(rad.map(x => x.kod + '=' + x.anvandning).join(' ') === 'R-9989=test R-9990=test', `tabellen: ${rad.map(x => x.kod + '=' + x.anvandning).join(' ')}`);
     } catch (e) { ok(false, 'tabellen: ' + e.message); }
     finally {
       await S.rest('DELETE', `rapporter?kod=in.(${KOD.join(',')})&text=like.prov-d*`);
