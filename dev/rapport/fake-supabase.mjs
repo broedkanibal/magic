@@ -7,15 +7,17 @@
    - rapporter: spelaren ser, uppdaterar och raderar bara sina rader (user_id); insert sätter kod
      (R-NNNN), sokvag (<uid>/rapporter/<kod>) och created_at; taket 20 rapporter per 24 h → rapport_tak.
    - raderingar: insert bara för en kod som tillhör en av spelarens EGNA rader som FINNS (därför måste
-     Delete skriva raderingar före raderingen); select ger inget (bara service role läser).
+     Delete skriva raderingar före raderingen); unique (kod) → 23505 (20261013170000); select ger inget
+     (bara service role läser).
    - storage scans: bara under <uid>/.
    Tillståndet ligger i globalThis.__sb och sparas i sessionStorage, så att det överlever en omladdning
-   (Agree and continue laddar om sidan). S.natNere = true: varje anrop svarar "Failed to fetch". */
+   (Agree and continue laddar om sidan). S.natNere = true: varje anrop svarar "Failed to fetch".
+   S.removeFel = N: hinkens remove fallerar de N nästa gångerna. S.updateFel = N: samma för auth.updateUser. */
 const NYCKEL = '__sbfake';
 const las = () => { try { return JSON.parse(sessionStorage.getItem(NYCKEL)); } catch (e) { return null; } };
 const S = globalThis.__sb = globalThis.__sb || Object.assign(
   { seq: 0, session: null, db: { rapporter: [], raderingar: [] }, filer: {}, logg: [], oauth: [], natNere: false, uppVanta: 0 }, las() || {});
-S.spara = () => { try { sessionStorage.setItem(NYCKEL, JSON.stringify({ seq: S.seq, session: S.session, db: S.db, filer: S.filer, logg: S.logg, oauth: S.oauth })); } catch (e) {} };
+S.spara = () => { try { sessionStorage.setItem(NYCKEL, JSON.stringify({ seq: S.seq, session: S.session, db: S.db, filer: S.filer, logg: S.logg, oauth: S.oauth, updateFel: S.updateFel || 0 })); } catch (e) {} };
 const fel = m => ({ data: null, error: { message: m } });
 const uid = () => S.session && S.session.user && S.session.user.id;
 const RLS = { rapporter: true, raderingar: true };
@@ -59,6 +61,7 @@ class Q {
           Object.assign(r, { user_id: jag, kalla, sokvag: jag + '/rapporter/' + r.kod, created_at: new Date().toISOString(), anvandning: null });
         } else if (this.t === 'raderingar') {
           if (!jag || !S.db.rapporter.some(x => x.kod === r.kod && x.user_id === jag)) return fel('new row violates row-level security policy for table "raderingar"');
+          if (tab.some(x => x.kod === r.kod) || ut.some(x => x.kod === r.kod)) return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "raderingar_kod_unik"' } };   // 20261013170000
           r.raderad_at = new Date().toISOString();
         }
         ut.push(r);
@@ -100,6 +103,7 @@ const hink = () => ({
   async remove(ps) {
     logga({ tab: 'storage', op: 'remove', n: ps.length });
     if (S.natNere) return fel('Failed to fetch');
+    if (S.removeFel > 0) { S.removeFel--; return fel('Failed to fetch'); }   // provet: hinken fallerar N gånger
     for (const p of ps) if (p.startsWith(uid() + '/')) delete S.filer[p];
     S.spara(); return { data: [], error: null };
   },
@@ -118,6 +122,7 @@ const klient = {
     async updateUser(o) {
       logga({ tab: 'auth', op: 'updateUser', data: o && o.data });
       if (S.natNere) return fel('Failed to fetch');
+      if (S.updateFel > 0) { S.updateFel--; S.spara(); return fel('Failed to fetch'); }
       if (!S.session) return fel('no user');
       Object.assign(S.session.user.user_metadata, (o && o.data) || {}); S.spara();
       return { data: { user: JSON.parse(JSON.stringify(S.session.user)) }, error: null };

@@ -182,6 +182,17 @@ async function chrome() {
     await ladda('?debug');
     u = await uppd();
     ok('5: efter rundturen med tom ruta: improve_pictures false i samma updateUser', u.length === 1 && u[0].data.terms_version === '2026-10-09' && u[0].data.improve_pictures === false, JSON.stringify(u));
+    /* Granskningens fynd 5: updateUser fallerar efter rundturen → spärren förväljer spelarens val, sthv.bilder ligger kvar. */
+    await ladda('?debug', satt({ seq: 0, session: null, db: { rapporter: [], raderingar: [] }, filer: {}, logg: [], oauth: [] }));
+    await ev(`$('#villkorBox').click(); $('#bildBox').click(); return true;`); await klicka('#loggaInBtn');
+    await ev(`__sb.session = ${JSON.stringify(anvandare({}))}; __sb.updateFel = 1; __sb.logg = []; __sb.spara(); return true;`);
+    await ladda('?debug');
+    const a5 = await ev(`return { rubrik: $('#startRubrik').textContent, bock: $('#bildBox').checked, kvar: sessionStorage.getItem('sthv.bilder'), fel: $('#startFel').textContent };`);
+    ok('5 (fynd 5): updateUser fallerar efter rundturen → spärren med spelarens val ibockat, sthv.bilder kvar', a5.rubrik === 'Before you continue' && a5.bock === true && a5.kvar === '1' && /Could not save/.test(a5.fel), JSON.stringify(a5));
+    await ev(`$('#villkorBox').click(); __sb.logg = []; __sb.spara(); $('#villkorOkBtn').click(); return true;`).catch(() => {});
+    await vanta(800); await ladda('?debug');
+    u = await uppd();
+    ok('5 (fynd 5): Agree and continue efter felet skickar valet (improve_pictures true), sthv.bilder borta efteråt', u.length === 1 && u[0].data.improve_pictures === true && await ev(`return sessionStorage.getItem('sthv.bilder') === null;`), JSON.stringify(u));
     await ladda('?debug', satt({ seq: 0, session: null, db: { rapporter: [], raderingar: [] }, filer: {}, logg: [], oauth: [] }));
     await ev(`visaStartLage('logga'); return true;`);
     ok('5: Sign in (befintligt konto): ingen bildruta', !(await syns('#bildRad')));
@@ -215,7 +226,6 @@ async function chrome() {
     for (let i = 0; i < 3; i++) { const k = nyRad('rapport', i === 0 ? 'test' : null); F[`u-prov/rapporter/${k}/paket.json.gz`] = 900; F[`u-prov/rapporter/${k}/bilder/s-1-0.jpg`] = 20000; F[`u-prov/rapporter/${k}/bilder/index.json`] = 300; }
     for (let i = 0; i < 41; i++) { const k = nyRad('rattelse', i === 5 ? 'traning' : null); F[`u-prov/rapporter/${k}/beskarning.jpg`] = 9000; F[`u-prov/rapporter/${k}/rattelse.json`] = 200; }
     const felKod = nyRad('fel'); const annan = nyRad('rapport', null, 'u-annan'); F[`u-annan/rapporter/${annan}/paket.json.gz`] = 900;
-    F['u-prov/rapporter/R-0999/paket.json.gz'] = 500;   // en mapp utan rad (Cancel som inte hann städa)
     const testKoder = R.filter(r => r.anvandning).map(r => r.kod);
     await ladda('?debug', satt({ seq: n, session: anvandare({ terms_version: '2026-10-09', improve_pictures: false, improve_pictures_at: '2026-10-11T09:00:00Z' }), db: { rapporter: R, raderingar: [] }, filer: F, logg: [], oauth: [] }));
     await ev(`window.__toasts = []; const t0 = window.toast; window.toast = function (m, k) { __toasts.push([m, k || '']); return t0.apply(this, arguments); }; return true;`);
@@ -261,6 +271,31 @@ async function chrome() {
     const d3 = await ev(`return { text: $('#instRuta').innerText.replace(/\\s+/g, ' ').trim(), del: $('#instRuta .btn.danger').disabled };`);
     ok('4: öppnad igen: "Nothing sent yet", knappen grå', d3.text.includes('Nothing sent yet') && d3.del, d3.text.slice(0, 200));
     await bild('C-Settings-NothingSent', ['#instRuta'], 30);
+    /* Fynd 3: en mapp utan rad (telefonens bilder som landade efter Delete) räknas, och Delete går att trycka. */
+    await ev(`__sb.filer['u-prov/rapporter/R-0999/bilder/s-1-0.jpg'] = 20000; __sb.spara(); Installningar.stang(); Installningar.oppna(); for (let i = 0; i < 50 && !/card pictures|Nothing sent/.test($('#instRuta').textContent); i++) await new Promise(r => setTimeout(r, 20)); return true;`);
+    const o1 = await ev(`return { text: $('#instRuta').innerText.replace(/\\s+/g, ' ').trim(), del: $('#instRuta .btn.danger').disabled };`);
+    ok('4 (fynd 3): en mapp utan rad räknas som rapport och Delete är aktiv', o1.text.includes('1 report and 0 card pictures') && !o1.del, o1.text.slice(0, 200));
+    await klicka('#instRuta .btn.danger'); await klicka('#instRuta [data-inst="radera"]');
+    await ev(`for (let i = 0; i < 200 && Installningar.lage !== 'raderat'; i++) await new Promise(r => setTimeout(r, 20)); return true;`);
+    ok('4 (fynd 3): Delete tar bort mappen utan rad', await ev(`return Installningar.lage === 'raderat' && !Object.keys(__sb.filer).some(f => f.startsWith('u-prov/'));`));
+    /* Fynd 3: telefonens bilder som kommer efter Delete till en raderad kod städas bort när rapport_bilder_klar kommer. */
+    const sen = testKoder[0];
+    await ev(`__sb.filer['u-prov/rapporter/${sen}/bilder/s-1-0.jpg'] = 20000; __sb.spara(); Rapport.datorTagEmot({ typ: 'rapport_bilder_klar', kod: '${sen}' }); for (let i = 0; i < 100 && __sb.filer['u-prov/rapporter/${sen}/bilder/s-1-0.jpg']; i++) await new Promise(r => setTimeout(r, 20)); return true;`);
+    ok('4 (fynd 3): sena bilder till en raderad kod städas bort', await ev(`return !Object.keys(__sb.filer).some(f => f.startsWith('u-prov/'));`));
+    ok('4 (fynd 3): Delete väntar in pågående rättelser och bilder (Rattelse.vanta/paus, Rapport.vantaBilder finns och löser ut)', await ev(`await Promise.all([Rattelse.vanta(500), Rapport.vantaBilder(500)]); return typeof Rattelse.paus === 'function' && Rattelse.aktiva === 0;`));
+    /* Fynd 1: hinken fallerar en gång mitt i Delete → koden står redan i raderingar; nästa tryck går igenom (23505 = skriven). */
+    await ev(`const u = 'u-prov', R = [{ kod: 'R-0901', user_id: u, kalla: 'rapport', anvandning: 'test', sokvag: u + '/rapporter/R-0901', created_at: '2026-10-12T20:00:00Z' }, { kod: 'R-0902', user_id: u, kalla: 'rattelse', anvandning: null, sokvag: u + '/rapporter/R-0902', created_at: '2026-10-12T20:00:00Z' }];
+      __sb.db.rapporter.push(...R); __sb.db.raderingar = []; __sb.filer[u + '/rapporter/R-0901/paket.json.gz'] = 900; __sb.filer[u + '/rapporter/R-0902/beskarning.jpg'] = 9000; __sb.removeFel = 1; __sb.spara();
+      Installningar.stang(); Installningar.oppna(); for (let i = 0; i < 50 && !/card picture/.test($('#instRuta').textContent); i++) await new Promise(r => setTimeout(r, 20)); return true;`);
+    await klicka('#instRuta .btn.danger'); await klicka('#instRuta [data-inst="radera"]');
+    await ev(`for (let i = 0; i < 200 && Installningar.lage === 'raderar'; i++) await new Promise(r => setTimeout(r, 20)); return true;`);
+    const x1 = await ev(`return { lage: Installningar.lage, fel: /Couldn't delete everything/.test($('#instRuta').textContent), rad: __sb.db.raderingar.map(r => r.kod), kvar: __sb.db.rapporter.filter(r => r.user_id === 'u-prov').length };`);
+    ok('4 (fynd 1): hinken fallerar → "Couldn\'t delete everything", koden står i raderingar, raderna kvar', x1.lage === 'fraga' && x1.fel && x1.rad.join() === 'R-0901' && x1.kvar === 2, JSON.stringify(x1));
+    await klicka('#instRuta [data-inst="radera"]');
+    await ev(`for (let i = 0; i < 200 && Installningar.lage === 'raderar'; i++) await new Promise(r => setTimeout(r, 20)); return true;`);
+    const x2 = await ev(`return { lage: Installningar.lage, text: $('#instRuta').innerText.replace(/\\s+/g, ' ').trim(), rad: __sb.db.raderingar.map(r => r.kod), kvar: __sb.db.rapporter.filter(r => r.user_id === 'u-prov').length, filer: Object.keys(__sb.filer).filter(f => f.startsWith('u-prov/')).length };`);
+    ok('4 (fynd 1): andra trycket går igenom: inga rader, inga filer, R-0901 en gång i raderingar', x2.lage === 'raderat' && x2.kvar === 0 && x2.filer === 0 && x2.rad.join() === 'R-0901' && x2.text.includes('1 report and 1 card picture were deleted'), JSON.stringify(x2).slice(0, 300));
+    await ev(`Installningar.stang(); Installningar.oppna(); for (let i = 0; i < 50 && !/Nothing sent|card picture/.test($('#instRuta').textContent); i++) await new Promise(r => setTimeout(r, 20)); return true;`);
     await ev(`__sb.natNere = true; return true;`); await klicka('#instBilder');
     await ev(`for (let i = 0; i < 50 && $('#instBilder').disabled; i++) await new Promise(r => setTimeout(r, 20)); return true;`);
     ok('3: nätet nere: växeln går tillbaka och säger att den inte sparades', await ev(`__sb.natNere = false; return $('#instBilder').getAttribute('aria-checked') === 'false' && /Couldn't save/.test($('#instRuta').textContent);`));
@@ -276,6 +311,17 @@ async function chrome() {
       return { syns: !b.hidden && rb.width > 0, vanster: !!rp && rb.right <= rp.left, text: b.textContent.trim(), flagga: !!b.querySelector('svg path[d^="M5 5a5"]') };`);
     ok('4: knappen i toppraden: Report a problem med flagga, till vänster om kamerapillret (Mirror)', k1.syns && k1.vanster && k1.text === 'Report a problem' && k1.flagga, JSON.stringify(k1));
     await bild('L9-BtnBar-dator', ['#app .topbar']);
+    /* Fynd 4: texten "Report a problem" syns också vid 1024 px, och toppraden bryts inte. */
+    const topp = async w => {
+      await c.cdp('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 1, mobile: false }); await vanta(300);
+      await ev(`renderAll(true); await new Promise(r => setTimeout(r, 200)); return true;`);
+      const r = await ev(`const b = $('#rapportKnapp'), s = b.querySelector('span'), t = $('#app .topbar'), p = $('#modeSlot .campill'); const rb = b.getBoundingClientRect(), rp = p && p.getBoundingClientRect();
+        return { text: !!s && getComputedStyle(s).display !== 'none' && s.getBoundingClientRect().width > 0, enRad: !!rp && Math.abs((rb.top + rb.bottom) / 2 - (rp.top + rp.bottom) / 2) < 6, bryts: t.scrollWidth > t.clientWidth + 1, h: Math.round(t.getBoundingClientRect().height) };`);
+      ok(`4 (fynd 4): ${w} px: knappens text syns, samma rad som kamerapillret, toppraden bryts inte`, r.text && r.enRad && !r.bryts, JSON.stringify(r));
+      await bild('C-toppraden-' + w, ['#app .topbar'], 0);
+    };
+    await topp(1024); await topp(1400);
+    await c.cdp('Emulation.clearDeviceMetricsOverride'); await vanta(200);
     await klicka('#rapportKnapp');
     const k2 = await ev(`const r = document.querySelector('.rapruta'); return { oppen: Rapport.oppen, kryss: r.querySelectorAll('input[type=checkbox]').length, fokus: document.activeElement && document.activeElement.id, text: r.innerText.replace(/\\s+/g, ' ').trim() };`);
     ok('4/8: knappen öppnar A:s ruta; inga kryssrutor i rutan; textfältet har fokus', k2.oppen && k2.kryss === 0 && k2.fokus === 'rapText', JSON.stringify(k2).slice(0, 200));
@@ -336,7 +382,8 @@ async function chrome() {
     await ev(`kameraEnhet = true; kamLage = { id: 'provC-spel', kod: 'K7QX' }; visaVy('kamera'); $('#kamSpel').textContent = 'K7QX'; $('#kamPrick').classList.add('pa'); $('#vyKamera').classList.add('visa');
       window.__kanal = []; window.__svara = 'kod'; const t0 = Moln.sandKam;
       Moln.sandKam = (typ, data) => { const m = Object.assign({ typ }, data || {}); __kanal.push(m);
-        if (typ === 'rapport' && __svara) setTimeout(() => Rapport.telefonKommando(__svara === 'kod' ? { typ: 'rapport_svar', id: m.id, kod: 'R-0412' } : { typ: 'rapport_svar', id: m.id, fel: __svara }), 400);
+        if (typ === 'rapport' && __svara === 'sakta') { setTimeout(() => Rapport.telefonKommando({ typ: 'rapport_svar', id: m.id, mottagen: 1 }), 300); setTimeout(() => Rapport.telefonKommando({ typ: 'rapport_svar', id: m.id, kod: 'R-0413' }), 12500); }
+        else if (typ === 'rapport' && __svara) setTimeout(() => Rapport.telefonKommando(__svara === 'kod' ? { typ: 'rapport_svar', id: m.id, kod: 'R-0412' } : { typ: 'rapport_svar', id: m.id, fel: __svara }), 400);
         return true; };
       await new Promise(r => setTimeout(r, 200)); return true;`);
     const t1 = await ev(`const b = $('#kamRapport'), d = $('#kamStang'); const rb = b.getBoundingClientRect(), rd = d.getBoundingClientRect(); return { syns: !b.hidden && rb.width > 0, bredvid: rb.right <= rd.left && Math.abs(rb.top - rd.top) < 4, text: b.textContent.trim() };`);
@@ -366,15 +413,39 @@ async function chrome() {
     await bild('L9-PhoneReportAlone', ['#vyKamera'], 0);
     await ev(`window.__svara = 'kod'; $('#kamPrick').classList.add('pa'); $('#telArk [data-ark="skicka"]').click(); for (let i = 0; i < 100 && TelefonArk.lage !== 'skickad'; i++) await new Promise(r => setTimeout(r, 20)); return true;`);
     ok('5: Try again när datorn svarar → Report sent', await ev(`return TelefonArk.lage === 'skickad';`));
+    ok('5 (fynd 2): Try again efter Can\'t reach skickar samma id (datorn svarar med samma rapport, ingen ny rad)', await ev(`const r = __kanal.filter(k => k.typ === 'rapport'); return r.length >= 3 && r[r.length - 1].id === r[r.length - 2].id && r[r.length - 2].id !== r[r.length - 3].id;`));
+    /* Fynd 2: datorn svarar mottagen direkt → arket står kvar i Sending efter 10 s, och koden kommer. */
+    await ev(`TelefonArk.stang(); window.__svara = 'sakta'; TelefonArk.oppna(); $('#telArk [data-ark="skicka"]').click(); return true;`);
+    await vanta(11000);
+    const m1 = await ev(`return TelefonArk.lage;`);
+    await ev(`for (let i = 0; i < 150 && TelefonArk.lage === 'skickar'; i++) await new Promise(r => setTimeout(r, 20)); return true;`);
+    const m2 = await ev(`return { lage: TelefonArk.lage, kod: $('#telArkKod') && $('#telArkKod').textContent };`);
+    ok('5 (fynd 2): datorn har tagit emot → Sending står kvar efter 10 s, sedan Report sent med koden', m1 === 'skickar' && m2.lage === 'skickad' && m2.kod === 'R-0413', m1 + ' ' + JSON.stringify(m2));
+    /* Fynd 2: en kod som kommer efter Can't reach byter arket till Report sent. */
+    await ev(`TelefonArk.stang(); window.__svara = null; TelefonArk.oppna(); $('#telArk [data-ark="skicka"]').click(); return true;`);
+    await vanta(10500);
+    const n1 = await ev(`return TelefonArk.lage;`);
+    await ev(`const r = __kanal.filter(k => k.typ === 'rapport').pop(); Rapport.telefonKommando({ typ: 'rapport_svar', id: r.id, kod: 'R-0414' }); await new Promise(r => setTimeout(r, 100)); return true;`);
+    const n2 = await ev(`return { lage: TelefonArk.lage, kod: $('#telArkKod') && $('#telArkKod').textContent };`);
+    ok('5 (fynd 2): sen kod medan arket står i Can\'t reach → Report sent', n1 === 'narInte' && n2.lage === 'skickad' && n2.kod === 'R-0414', n1 + ' ' + JSON.stringify(n2));
+    /* Fynd 7: rapporterna är av på datorn → bara Close. */
+    await ev(`TelefonArk.stang(); window.__svara = 'av'; TelefonArk.oppna(); $('#telArk [data-ark="skicka"]').click(); for (let i = 0; i < 100 && TelefonArk.lage === 'skickar'; i++) await new Promise(r => setTimeout(r, 20)); return true;`);
+    const v1 = await ev(`const a = $('#telArk'); return { lage: TelefonArk.lage, knappar: [...a.querySelectorAll('button')].map(b => b.textContent.trim()).join('|'), text: a.innerText.replace(/\\s+/g, ' ').trim() };`);
+    ok('5 (fynd 7): "Reports are turned off on your computer." bara med Close', v1.lage === 'av' && v1.knappar === 'Close' && v1.text.includes('Reports are turned off on your computer.'), JSON.stringify(v1));
     await ev(`TelefonArk.stang(); window.__svara = 'tak'; TelefonArk.oppna(); $('#telArk [data-ark="skicka"]').click(); for (let i = 0; i < 100 && TelefonArk.lage === 'skickar'; i++) await new Promise(r => setTimeout(r, 20)); return true;`);
     ok('5: datorn svarar tak → "You have sent 20 reports today." + Close', await ev(`return TelefonArk.lage === 'tak' && /You have sent 20 reports today\\./.test($('#telArk').textContent);`));
     await ev(`TelefonArk.stang(); return true;`);
     /* Datorns halva av telefonens rapport: orden och taggen in, raden ut, koden tillbaka. */
     const t5 = await ev(`kameraEnhet = false; kamLage = null; __kanal.length = 0; window.__svara = null;
       Rapport.datorTagEmot({ typ: 'rapport', id: 'tel-1', text: 'from the phone', tagg: 'tap' });
-      for (let i = 0; i < 200 && !__kanal.some(k => k.typ === 'rapport_svar'); i++) await new Promise(r => setTimeout(r, 20));
-      const s = __kanal.find(k => k.typ === 'rapport_svar'), r = __sb.db.rapporter.find(x => x.text === 'from the phone'); return { s, r: r && { kod: r.kod, tagg: r.tagg, kalla: r.kalla } };`);
+      for (let i = 0; i < 200 && !__kanal.some(k => k.typ === 'rapport_svar' && k.kod); i++) await new Promise(r => setTimeout(r, 20));
+      const s = __kanal.find(k => k.typ === 'rapport_svar' && k.kod), r = __sb.db.rapporter.find(x => x.text === 'from the phone'); return { forst: __kanal[0], s, r: r && { kod: r.kod, tagg: r.tagg, kalla: r.kalla } };`);
     ok('1: telefonens rapport på datorn: raden (text, tagg, kalla rapport) och rapport_svar med koden', t5.s && t5.r && t5.s.kod === t5.r.kod && t5.r.tagg === 'tap' && t5.r.kalla === 'rapport', JSON.stringify(t5));
+    ok('1 (fynd 2): datorn svarar { mottagen: 1 } först, innan lådan och uppladdningen', t5.forst && t5.forst.typ === 'rapport_svar' && t5.forst.mottagen === 1 && !t5.forst.kod, JSON.stringify(t5.forst));
+    const t6 = await ev(`__kanal.length = 0; Rapport.datorTagEmot({ typ: 'rapport', id: 'tel-1', text: 'from the phone', tagg: 'tap' });
+      for (let i = 0; i < 100 && !__kanal.some(k => k.kod); i++) await new Promise(r => setTimeout(r, 20));
+      return { s: __kanal.find(k => k.kod), rader: __sb.db.rapporter.filter(x => x.text === 'from the phone').length };`);
+    ok('1 (fynd 2): samma id igen → samma kod, ingen ny rad', t6.s && t6.s.kod === t5.s.kod && t6.rader === 1, JSON.stringify(t6));
     ok('Claude: ingen fråga till /api/identify i hela provet, inget annat nät', !(await ev(`return Lada.utdrag().some(e => e.slag === 'claude');`)), 'blockerade värdar: ' + [...blockerat].join(', '));
   } catch (e) { console.error('prov-c: ' + e.message); await c.stang(); srv.close(); process.exit(2); }
   await c.stang(); srv.close();

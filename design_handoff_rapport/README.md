@@ -159,8 +159,11 @@ Kvittensen på datorn kommer efter steg 2. Telefonens bilder går i bakgrunden: 
 telefonen inte är ansluten). Taket 15 MB per rapport (A): äldsta stillbilder släpps först.
 
 **Telefonens egen rapport:** arket skickar `{t:'rapport', text, tagg}`; datorn gör steg 1–2 och svarar
-`{t:'rapport_svar', kod}` eller `{t:'rapport_svar', fel}`; sedan steg 3 som ovan. Inget svar inom 10 s →
-*Can't reach your computer*, orden kvar. Dator och telefon kan rapportera oberoende; två tryck = två rader.
+`{t:'rapport_svar', kod}` eller `{t:'rapport_svar', fel}`; sedan steg 3 som ovan. Inget svar alls inom 10 s →
+*Can't reach your computer*, orden kvar. Datorn svarar `{t:'rapport_svar', mottagen: 1}` direkt när den tagit
+emot; då står arket kvar i *Sending* upp till 60 s. *Try again* skickar samma id, och datorn svarar med samma
+rapport (koden, eller samma frusna paket igen) i stället för en ny rad; en kod som kommer medan arket står i
+*Can't reach* byter till *Report sent*. Dator och telefon kan rapportera oberoende; två tryck = två rader.
 
 **Tak:** 20 rapporter per konto och rullande 24 h, räknat på servern (`kalla = 'rapport'`). Felrapporter:
 50 per konto och 24 h, och samma felmeddelande högst en gång per 10 min per sida (dedupe i lådan).
