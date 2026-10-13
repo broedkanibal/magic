@@ -30794,7 +30794,7 @@ const Kamera = (() => {
        vilka lådor som målas grå nedan, i analyspixlar — bara siffrorna, på beskärningens duk. Stillbilder.beskarning
        läser dem; läsningen och domen ser dem aldrig. */
     if (b && b.bild) { const kop = q => ({ x: q.x, y: q.y, w: q.w, h: q.h }), r = t.ram || t.box;
-      b.bild.lasFacit = { ruta: r ? kop(r) : null, maskade: b.geo && t.tackt && t.tackt.length ? t.tackt.map(kop) : [], aw: AW, ah: AH }; }
+      b.bild.lasFacit = { ruta: r ? kop(r) : null, maskade: b.geo && t.tackt && t.tackt.length ? t.tackt.map(kop) : [], aw: AW, ah: AH, rot: t.beskarRot != null ? t.beskarRot : null }; }
     if (!b || !b.geo || !t.tackt || !t.tackt.length) return false;
     const g = b.geo, x = b.bild.getContext('2d');
     /* beskar() lämnar kontexten vriden för ett liggande kort (translate +
@@ -39946,7 +39946,7 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
   function platsAv(t, canvas) {
     const f = canvas && canvas.lasFacit;
     if (!f || !f.ruta || !f.aw || !f.ah) return { ruta: null, maskade: null };
-    const ruta = Object.assign(andel(f.ruta, f.aw, f.ah), { bild: { w: f.aw, h: f.ah } });
+    const ruta = Object.assign(andel(f.ruta, f.aw, f.ah), { bild: { w: f.aw, h: f.ah }, rot: f.rot != null ? f.rot : null });   // rot: beskärningen är kortets vridna rektangel (beskarVridning), inte lådan
     const maskade = (f.maskade || []).map(q => {
       let bast = null, bv = 0.5;
       for (const u of sparNu || []) { if (!u || u === t || u.id === t.id || u.tillstand === 'skrap' || !u.box) continue; const v = iouL(u.box, q); if (v >= bv) { bv = v; bast = u; } }
@@ -40010,14 +40010,21 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
   /* kontext.jpg (uppföljning av MES-366/368): ringens bild av bordet med spåret, den som ligger närmast beskärningen
      i tid (utan beskärning: den nyaste), uppskalad till högst 720 px bredd, med spårets låda inritad (röd, tjock) och
      de maskade lådorna grå och streckade — så att den som läser facit ser vilket kort i högen som rättades. Görs ur
-     ringens färdiga JPEG (aldrig ur videon), först när rättelsen sparas: inget i analyssteget. */
+     ringens färdiga JPEG (aldrig ur videon), först när rättelsen sparas: inget i analyssteget.
+     Tidsgränsen (granskningen av 6c3fea8): beskärningens lådor ritas bara i en bild högst KONTEXT_DT_MS från
+     beskärningen (dt = ringbildens t − beskärningens t, båda telefonens klocka). Längre bort: ingen kontext, och
+     skälet följer med i svaret — en låda ur en annan tid i en bild av ett bord som hunnit ändras är ett falskt facit. */
+  const KONTEXT_DT_MS = 2000;
   async function kontextBild(sparId, f) {
     let bast = null;
     for (const b of ring) {
       if (!b.blob || !b.spar || !b.spar.some(s => s.id === sparId)) continue;
       if (!bast || (f ? Math.abs(b.t - f.t) < Math.abs(bast.t - f.t) : b.t > bast.t)) bast = b;
     }
-    if (!bast || typeof createImageBitmap !== 'function') return null;
+    if (!bast) return { blob: null, skal: 'spåret finns inte i ringens bilder', dt: null };
+    const dt = f ? bast.t - f.t : null;
+    if (dt != null && Math.abs(dt) > KONTEXT_DT_MS) return { blob: null, skal: `ringens närmaste bild med spåret är ${(dt / 1000).toFixed(1)} s från beskärningen (gränsen ±${KONTEXT_DT_MS / 1000} s)`, dt };
+    if (typeof createImageBitmap !== 'function') return { blob: null, skal: 'createImageBitmap saknas', dt };
     const bm = await createImageBitmap(bast.blob);
     const sk = Math.max(1, Math.min(2, 720 / bast.w)), W = Math.round(bast.w * sk), H = Math.round(bast.h * sk);
     const c = document.createElement('canvas'); c.width = W; c.height = H;
@@ -40037,29 +40044,35 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
     }
     { const [a, b, w, h] = px(ruta); x.lineWidth = 4; x.strokeStyle = '#ff2d55'; x.strokeRect(a, b, w, h); etikett('spår ' + sparId, a, b, '#ff2d55'); }
     const blob = await new Promise(res => { try { c.toBlob(res, 'image/jpeg', 0.85); } catch (e) { res(null); } });
-    if (!blob || !blob.size) return null;
-    return { blob, info: { fil: 'kontext.jpg', t: bast.t, w: W, h: H, bild: { w: bast.w, h: bast.h }, ruta, maskade } };
+    if (!blob || !blob.size) return { blob: null, skal: 'kodningen gav ingen bild', dt };
+    return { blob, info: { fil: 'kontext.jpg', t: bast.t, dt, w: W, h: H, bild: { w: bast.w, h: bast.h }, ruta, maskade } };
   }
 
   async function rattelseBild(m) {
     kollaAgare();
     const mapp = String((m && m.sokvag) || ''), f = m && m.spar != null ? besk.get(m.spar) : null;
     const iRingen = m && m.spar != null && ring.some(b => b.spar && b.spar.some(s => s.id === m.spar));
-    let ok = 0, nej = 0, kontext = null;
+    let ok = 0, nej = 0, kontext = null, kontextSkal = iRingen ? null : 'spåret finns inte i ringens bilder';
     try {
       /* Telefonen läser kontots inställning själv före uppladdningen (punkt 7): datorns ord räcker inte. */
       if (((f && f.blob) || iRingen) && Moln.minId() && mapp.startsWith(Moln.minId() + '/rapporter/')) {
         if (await Moln.bildInstallning()) {
-          if (f && f.blob) { await Moln.rapportFil(mapp, 'beskarning.jpg', f.blob, 'image/jpeg'); ok = 1; }
-          try {
-            const k = await kontextBild(m.spar, f);
-            if (k) { await Moln.rapportFil(mapp, 'kontext.jpg', k.blob, 'image/jpeg'); kontext = k.info; }
-          } catch (e) { Lada.skriv('fel', { kalla: 'rattelse', med: 'kontextbilden: ' + Lada.kap(e && e.message, 200) }); }
+          /* Beskärningens uppladdning och kontexten (bild + uppladdning) samtidigt, så att svaret hinner inom datorns 10 s. */
+          const upp = f && f.blob ? Moln.rapportFil(mapp, 'beskarning.jpg', f.blob, 'image/jpeg').then(() => { ok = 1; }) : null;
+          const kon = (async () => {
+            try {
+              const k = await kontextBild(m.spar, f);
+              if (k && k.blob) { await Moln.rapportFil(mapp, 'kontext.jpg', k.blob, 'image/jpeg'); kontext = k.info; kontextSkal = null; }
+              else if (k) kontextSkal = k.skal;
+            } catch (e) { kontextSkal = 'fel: ' + Lada.kap(e && e.message, 120); Lada.skriv('fel', { kalla: 'rattelse', med: 'kontextbilden: ' + Lada.kap(e && e.message, 200) }); }
+          })();
+          const [u] = await Promise.allSettled([upp, kon]);
+          if (u.status === 'rejected') throw u.reason;
         } else nej = 1;
       }
     } catch (e) { Lada.skriv('fel', { kalla: 'rattelse', med: 'beskärningen: ' + Lada.kap(e && e.message, 200) }); }
     Moln.sandKam('rapport_rattelse_klar', { kod: m && m.kod, ok, nej: nej || undefined, kort: f ? f.kort : null, varfor: f ? f.varfor : null, saker: f ? f.saker : null, tBesk: f ? f.t : null,
-                                            ruta: f && f.ruta ? f.ruta : null, maskade: f && f.maskade ? f.maskade : null, kontext });
+                                            ruta: f && f.ruta ? f.ruta : null, maskade: f && f.maskade ? f.maskade : null, kontext, kontextSkal: kontext ? null : kontextSkal });
   }
 
   function statNu() {
@@ -40102,7 +40115,8 @@ var Rattelse = (() => {   // var: se Rapport
   function platsPaBordet(spar) {
     const t = sparet(spar); if (!t || t.x == null) return { ruta: null, maskade: null };
     const ruta = { x: +(+t.x).toFixed(4), y: +(+t.y).toFixed(4), w: +(+t.w).toFixed(4), h: +(+t.h).toFixed(4), bild: null, kalla: 'bordet' };
-    const maskade = !t.maskad ? [] : (t.under || []).map(id => { const u = sparet(id); return u && u.x != null ? { spar: id, x: +(+u.x).toFixed(4), y: +(+u.y).toFixed(4), w: +(+u.w).toFixed(4), h: +(+u.h).toFixed(4) } : { spar: id }; });
+    /* maskad utan känt under = okänt (null), aldrig "inget ovanpå" (granskningen av 6c3fea8) */
+    const maskade = !t.maskad ? [] : !(t.under && t.under.length) ? null : t.under.map(id => { const u = sparet(id); return u && u.x != null ? { spar: id, x: +(+u.x).toFixed(4), y: +(+u.y).toFixed(4), w: +(+u.w).toFixed(4), h: +(+u.h).toFixed(4) } : { spar: id }; });
     return { ruta, maskade };
   }
   function egenBild(spar) {
@@ -40175,7 +40189,8 @@ var Rattelse = (() => {   // var: se Rapport
     const fran = bild === 'telefon' && s.ruta;
     const ruta = fran ? Object.assign({}, s.ruta, { kalla: 'beskarning', t: s.tBesk || null }) : bordet.ruta;
     const maskade = fran ? (s.maskade || null) : null;
-    const json = Object.assign({}, fakta, { bild, ruta, maskade, kontext: (s && s.kontext) || null, bordet });
+    const kontextSkal = s && s.kontext ? null : s ? (s.kontextSkal || 'telefonen gjorde ingen') : 'telefonen svarade inte';
+    const json = Object.assign({}, fakta, { bild, ruta, maskade, kontext: (s && s.kontext) || null, kontextSkal, bordet });
     await Moln.rapportFil(r.sokvag, 'rattelse.json', new Blob([JSON.stringify(json)], { type: 'application/json' }), 'application/json');
     Moln.rapportUppdatera(r.kod, { bilder: bild ? 'klar' : 'saknas' });
     stat.sparade++;

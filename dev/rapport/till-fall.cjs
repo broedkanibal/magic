@@ -126,7 +126,7 @@ function lasRattelse(mapp) {
     bild, ratt: r.ratt || null, gissning: r.gissning || null, varfor: r.varfor || null,
     handelse: r.handelse || null, spelkod: r.spelkod || null, t: r.t != null ? r.t : null, spar: r.spar != null ? r.spar : null,
     /* var kortet låg (uppföljning av MES-366/368); en äldre rättelse har inga av dem */
-    ruta: r.ruta || null, maskade: Array.isArray(r.maskade) ? r.maskade : null, kontext, kontextInfo: r.kontext || null, bildKalla: r.bild || null
+    ruta: r.ruta || null, maskade: Array.isArray(r.maskade) ? r.maskade : null, kontext, kontextInfo: r.kontext || null, kontextSkal: r.kontextSkal || null, bildKalla: r.bild || null
   };
 }
 
@@ -364,7 +364,7 @@ function bildOchNamn(mapp, o) {
   const varn = [];
   if (!r.ruta) varn.push('VARNING: rättelsen saknar ruta (sparad före uppföljningen av MES-366): vilket kort på bordet det gäller syns bara i bilden — bänkfall går, träning bara med --utan-ruta');
   else if (!r.maskade) varn.push(`VARNING: rättelsens maskade är okänt (bilden ${r.bildKalla === 'dator' ? 'är datorns kopia' : 'bar inga siffror'}; rutan ur ${r.ruta.kalla || '?'}) — träning bara med --utan-ruta`);
-  if (!r.kontext) varn.push('obs: ingen kontext.jpg (telefonen svarade inte, eller en äldre rättelse)');
+  if (!r.kontext) varn.push(`obs: ingen kontext.jpg (${r.kontextSkal || 'telefonen svarade inte, eller en äldre rättelse'})`);
   return Object.assign({ kalla: 'rattelse', varn, maskRegel: r.maskade ? 'beskärningens egna (maskaTackt i appen)' : null }, r);
 }
 
@@ -380,8 +380,10 @@ function bildOchNamn(mapp, o) {
 const MIN_TRAN_PX = 160;   // träningens minsta kortbredd: bildmodellens indata är 256 px (MobileCLIP-S0) — under 160 px förstoras kortet mer än 1,6×; läsningens beskärningar är 600–700 px, ett kort i ringens 360-px-bild ~50 px
 const PY = process.env.MESA_PY || path.join(os.homedir(), '.mesa', 'detektor-venv', 'bin', 'python');
 const NARA_S = 2;
+const KONTEXT_DT_MS = 2000;   // kontexten ritas bara ur en stillbild högst så långt från beskärningen (telefonens klocka), som appens kontextBild
+const harPillow = () => fs.existsSync(PY);
 function python(o) {
-  if (!fs.existsSync(PY)) throw kod2(`utsnittet kräver ${PY} (Pillow) — eller MESA_PY=<python med PIL>`);
+  if (!harPillow()) throw kod2(`utsnittet kräver ${PY} (Pillow) — eller MESA_PY=<python med PIL>`);
   const r = spawnSync(PY, [path.join(__dirname, 'utsnitt.py'), JSON.stringify(o)], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error('utsnitt.py: ' + ((r.stderr || '').trim().split('\n').pop() || 'slutkod ' + r.status));
   return JSON.parse(r.stdout);
@@ -403,15 +405,23 @@ function bordRad(mapp, s, id) {
   let B = null; try { B = lasJsonFil(path.join(mapp, 'bordlogg.json')); } catch (e) { return null; }
   let bast = null;
   for (const r of B.bordLogg || []) { const t = (r.spar || []).find(u => u.id === id); if (t && Math.abs(r.s - s) <= NARA_S && (!bast || Math.abs(r.s - s) < Math.abs(bast.r.s - s))) bast = { r, t }; }
-  if (bast) bast.ids = bast.t.maskad || (bast.t.under && bast.t.under.length) ? (bast.t.under || []) : [];
+  /* ids: spåren ovanpå. [] = inget ovanpå (inte maskad), null = OKÄNT: bordsloggen säger maskad men inte av vilka
+     (granskningen av 6c3fea8 — "maskad" utan under fick inte bli "inget ovanpå", då släpptes --traning igenom). */
+  if (bast) bast.ids = bast.t.under && bast.t.under.length ? bast.t.under.slice() : bast.t.maskad ? null : [];
   return bast;
 }
 /* De rutor som ligger ÖVER spåret i stillbilden st: bordsloggens under, annars alla som överlappar. */
 function maskadeI(mapp, st, id, ruta) {
   const br = bordRad(mapp, st.s, id);
+  if (br && br.ids == null) {
+    /* Okänt vilka som ligger ovanpå: utsnittet målar alla som överlappar (som utan bordslogg), men maskade är null
+       så att --traning vägras. */
+    const mala = (st.spar || []).filter(x => x.id !== id && overlapp(x, ruta) >= 0.05 * yta(ruta)).map(x => Object.assign({ spar: x.id }, lada(x)));
+    return { maskade: null, mala, regel: `okänt: bordsloggen säger att spår ${id} är maskat (raden vid ${br.r.s} s) men inte av vilka spår — utsnittet målar alla överlappande grå` };
+  }
   if (br) {
     const maskade = br.ids.map(u => { const i = (st.spar || []).find(x => x.id === u) || (br.r.spar || []).find(x => x.id === u); return i ? Object.assign({ spar: u }, lada(i)) : null; }).filter(Boolean);
-    return { maskade, regel: `bordsloggens under för spår ${id} (raden vid ${br.r.s} s; appens underAv över t.tackt)${br.t.maskad && !br.ids.length ? ' — maskad, men inget spår ovanpå känt' : ''}` };
+    return { maskade, regel: `bordsloggens under för spår ${id} (raden vid ${br.r.s} s; appens underAv över t.tackt)` };
   }
   const maskade = (st.spar || []).filter(x => x.id !== id && overlapp(x, ruta) >= 0.05 * yta(ruta)).map(x => Object.assign({ spar: x.id }, lada(x)));
   return { maskade, regel: 'ingen bordslogg vid bilden: alla rutor som överlappar spåret maskas (som appen när den inte kan avgöra vem som ligger överst)' };
@@ -425,19 +435,21 @@ function urSpar(mapp, o) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mesa-till-fall-')); TMP.push(tmp);   // kor() städar
   const varn = [];
   const medSpar = (S.bilder || []).filter(b => finns(b) && (b.spar || []).some(x => x.id === id));
-  let bild, ruta = null, maskade = null, regel = null, bildKalla, st, gissning = null, varfor = null, t = null;
+  let bild, ruta = null, maskade = null, mala = null, regel = null, bildKalla, st, gissning = null, varfor = null, t = null, dt = null, kontextSkal = null;
   const besk = o.bild ? [] : (S.beskarningar || []).filter(b => b.spar === id && finns(b));
   if (besk.length) {
     const b = narmast(besk, o.vid);
     bild = path.join(dir, b.fil); bildKalla = 'beskarning'; gissning = b.kort || null; varfor = b.varfor || null; t = b.t;
     /* stillbilden närmast beskärningen i tid: kontextens bakgrund (och rutan när beskärningen inte bar den) */
     st = medSpar.slice().sort((x, y) => Math.abs(x.t - b.t) - Math.abs(y.t - b.t))[0] || null;
+    dt = st && st.t != null && b.t != null ? st.t - b.t : null;   // stillbildens t − beskärningens t (index.json: båda telefonens klocka)
     if (b.ruta) ruta = Object.assign({}, b.ruta, { kalla: 'beskarning', t: b.t });
     else if (st) { ruta = Object.assign(lada(st.spar.find(x => x.id === id)), { bild: { w: st.w, h: st.h }, kalla: 'stillbild', t: st.t, fil: st.fil }); varn.push(`obs: beskärningen bar ingen ruta (äldre än uppföljningen av MES-366): rutan är spårets i stillbilden ${st.fil}, ${((st.t - b.t) / 1000).toFixed(1)} s från beskärningen`); }
     if (Array.isArray(b.maskade)) { maskade = b.maskade; regel = 'beskärningens egna (maskaTackt i appen)'; }
     else {
       const br = bordRad(mapp, b.s, id);
-      if (br) { maskade = br.ids.map(u => { const i = (br.r.spar || []).find(x => x.id === u); return i ? Object.assign({ spar: u }, lada(i)) : { spar: u }; }); regel = `bordsloggens under för spår ${id} (raden vid ${br.r.s} s) — beskärningen är appens, redan maskad av den`; }
+      if (br && br.ids == null) { regel = `okänt: bordsloggen säger att spår ${id} är maskat (raden vid ${br.r.s} s) men inte av vilka spår`; varn.push('VARNING: vilka kort som målades grå i beskärningen är okänt — träning bara med --utan-ruta'); }
+      else if (br) { maskade = br.ids.map(u => { const i = (br.r.spar || []).find(x => x.id === u); return i ? Object.assign({ spar: u }, lada(i)) : { spar: u }; }); regel = `bordsloggens under för spår ${id} (raden vid ${br.r.s} s) — beskärningen är appens, redan maskad av den`; }
       else { regel = 'okänt: beskärningen bar inga siffror och ingen bordslogg ligger vid den'; varn.push('VARNING: vilka kort som målades grå i beskärningen är okänt — träning bara med --utan-ruta'); }
     }
   } else {
@@ -449,19 +461,26 @@ function urSpar(mapp, o) {
     if (!st) throw kod2(`spår ${id} finns varken i läsningens beskärningar eller i någon stillbild i ${path.relative(ROT, mapp)}`);
     const i = st.spar.find(x => x.id === id);
     ruta = Object.assign(lada(i), { bild: { w: st.w, h: st.h }, kalla: 'stillbild', t: st.t, fil: st.fil });
-    ({ maskade, regel } = maskadeI(mapp, st, id, i));
-    gissning = i.kort || null; varfor = i.varfor || null; t = st.t; bildKalla = 'stillbild';
+    ({ maskade, mala, regel } = maskadeI(mapp, st, id, i));
+    gissning = i.kort || null; varfor = i.varfor || null; t = st.t; bildKalla = 'stillbild'; dt = 0;
     bild = path.join(tmp, `spar${id}${ext(st.fil)}`);
   }
-  /* Utsnittet (stillbild) och kontexten: rutan och de maskade rutorna ritas i samma stillbild. */
-  const kontext = st ? path.join(tmp, 'kontext.jpg') : null;
-  const ks = st ? lada(st.spar.find(x => x.id === id)) : null;
-  const km = st && maskade ? maskade.map(q => { const i = q.spar != null && st.spar.find(x => x.id === q.spar); return i ? Object.assign({ spar: q.spar }, lada(i)) : q; }).filter(q => q.w != null) : [];
-  const svar = st ? python({ bild: path.join(dir, st.fil), ut: bildKalla === 'stillbild' ? bild : null, kontext, ruta: ks, maskade: km, spar: id, marg: 0.08 }) : {};
-  if (!st) varn.push(`obs: spår ${id} finns inte i någon stillbild — ingen kontextbild`);
+  /* Utsnittet (stillbild) och kontexten: rutan och de maskade rutorna ritas i samma stillbild. Kontexten bara när
+     stillbilden ligger högst KONTEXT_DT_MS från beskärningen (granskningen av 6c3fea8: en låda ur en annan tid i en
+     bild av ett bord som hunnit ändras är ett falskt facit), och bara med Pillow (utan: en varning, ingen kontext —
+     utsnittet ur en stillbild kräver Pillow och vägras). */
+  if (!st) kontextSkal = `spår ${id} finns inte i någon stillbild`;
+  else if (dt != null && Math.abs(dt) > KONTEXT_DT_MS) kontextSkal = `stillbilden närmast beskärningen (${st.fil}) ligger ${(dt / 1000).toFixed(1)} s från den (gränsen ±${KONTEXT_DT_MS / 1000} s)`;
+  else if (bildKalla === 'beskarning' && !harPillow()) kontextSkal = `Pillow saknas (${PY}; MESA_PY=<python med PIL>)`;
+  const stK = kontextSkal ? null : st;
+  const kontext = stK ? path.join(tmp, 'kontext.jpg') : null;
+  const ks = stK ? lada(stK.spar.find(x => x.id === id)) : null;
+  const km = stK && (maskade || mala) ? (maskade || mala).map(q => { const i = q.spar != null && stK.spar.find(x => x.id === q.spar); return i ? Object.assign({ spar: q.spar }, lada(i)) : q; }).filter(q => q.w != null) : [];
+  const svar = stK ? python({ bild: path.join(dir, stK.fil), ut: bildKalla === 'stillbild' ? bild : null, kontext, ruta: ks, maskade: km, spar: id, marg: 0.08 }) : {};
+  if (kontextSkal) varn.push(`obs: ingen kontextbild — ${kontextSkal}`);
   if (bildKalla === 'stillbild') varn.push(`VARNING: lågupplöst — utsnittet ur stillbilden är ${svar.w}×${svar.h} px (stillbilden ${st.w} px bred)${Math.min(svar.w, svar.h) < MIN_TRAN_PX ? `, under träningens ${MIN_TRAN_PX} px` : ''}`);
   return { bild, ratt: o.ratt, gissning, varfor, handelse: 'rapport', t, spar: id, kalla: 'rapport', bildKalla, ruta, maskade, maskRegel: regel,
-           kontext, kontextInfo: st ? { fil: st.fil, t: st.t, w: svar.kontext && svar.kontext.w, h: svar.kontext && svar.kontext.h, ruta: ks, maskade: km } : null, varn, tmp };
+           kontext, kontextInfo: stK ? { fil: stK.fil, t: stK.t, dt, w: svar.kontext && svar.kontext.w, h: svar.kontext && svar.kontext.h, ruta: ks, maskade: km } : null, kontextSkal, varn, tmp };
 }
 const ext = f => path.extname(f).toLowerCase() || '.jpg';
 function jpegStorlek(buf) {
@@ -481,7 +500,7 @@ const fallNamn = (kod, b) => b.kalla === 'rapport' ? `${kod}-spar${b.spar}` : ko
 const sammaFall = (kod, b) => p => p.kod === kod && (b.kalla !== 'rapport' || p.spar === b.spar);
 /* Var kortet låg, som det skrivs i manifest.json och markning.json (LÄS-MIG i dev/rapport). */
 const plats = (b, kontextFil) => ({ bild_ur: b.kalla === 'rattelse' ? 'rattelse:' + (b.bildKalla || '?') : b.bildKalla || null, ruta: b.ruta || null, maskade: b.maskade || null, mask_regel: b.maskRegel || null,
-  kontext: kontextFil || null, kontext_bild: b.kontextInfo || null });
+  kontext: kontextFil || null, kontext_bild: b.kontextInfo || null, kontext_skal: kontextFil ? null : (b.kontextSkal || null) });
 function skrivBank(kod, b, o) {
   const namn = fallNamn(kod, b), fil = `${namn}${ext(b.bild)}`;
   const man = path.join(BANK, 'manifest.json');
@@ -607,7 +626,7 @@ async function korInre(a) {
     rad.push(`bilden: ${b.kalla === 'rattelse' ? `rättelsens ${path.basename(b.bild)} (${b.bildKalla || '?'})` : `${b.bildKalla} ${path.basename(b.bild)}`}${b.spar != null ? ` · spår ${b.spar}` : ''}`);
     rad.push(`ruta: ${b.ruta ? `x ${b.ruta.x} y ${b.ruta.y} w ${b.ruta.w} h ${b.ruta.h}${b.ruta.bild ? ` i ${b.ruta.bild.w}×${b.ruta.bild.h}` : ''} (${b.ruta.kalla || '?'})` : 'saknas'}`);
     rad.push(`maskade: ${b.maskade ? (b.maskade.length ? b.maskade.map(q => 'spår ' + (q.spar != null ? q.spar : '?')).join(', ') : 'inga') : 'okänt'}${b.maskRegel ? ' — regel: ' + b.maskRegel : ''}`);
-    rad.push(`kontext: ${b.kontext ? path.basename(b.kontext) + (b.kontextInfo && b.kontextInfo.fil ? ` (ur ${b.kontextInfo.fil})` : '') : 'ingen'}`);
+    rad.push(`kontext: ${b.kontext ? path.basename(b.kontext) + (b.kontextInfo && b.kontextInfo.fil ? ` (ur ${b.kontextInfo.fil}${b.kontextInfo.dt != null ? `, ${(b.kontextInfo.dt / 1000).toFixed(1)} s från beskärningen` : ''})` : '') : 'ingen' + (b.kontextSkal ? ' — ' + b.kontextSkal : '')}`);
   }
   if (plan.slag === 'mattest') { /* skrivet ovan */ } else if (plan.slag === 'bank') {
     rad.push(`bänkfall ${fallNamn(kod, plan.b)}: ${plan.b.ratt} (telefonen gissade ${plan.b.gissning || '–'}${plan.b.varfor ? ', ' + plan.b.varfor : ''})`);

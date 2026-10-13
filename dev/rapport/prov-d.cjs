@@ -314,6 +314,59 @@ print(json.dumps({'w':W,'h':H,'p':[im.getpixel((int(a*W),int(b*H))) for a,b in p
     fs.writeFileSync(path.join(rp3, 'rapport.json'), JSON.stringify({ kod: 'R-9975', text: null, tagg: null, tidslinje: [], miljo: { spel: 'SPAR73' }, rad: null }));
     r = tillFall(['R-9975', '--traning', '--lokal', '--mapp', rp3, '--spar', '77', '--ratt', 'Brainstorm']);
     ok(r.kod === 3 && /samma parti/.test(r.ut), `spärren per parti gäller --spar (R-9975 ur samma parti som bänkfallet R-9973 → träning vägras, slutkod ${r.kod})`);
+
+    /* 8d (granskningen av 6c3fea8, fynd 1): bordsloggen säger maskad men under är null → maskade okänt (null), aldrig
+       [] — --traning vägras. Beskärningen bär ruta men inga maskade (som en äldre), så bordsloggen är källan. */
+    const rp6 = path.join(IN, 'R-9976'); fs.cpSync(rp, rp6, { recursive: true });
+    fs.writeFileSync(path.join(rp6, 'rapport.json'), JSON.stringify({ kod: 'R-9976', text: null, tagg: null, tidslinje: [], miljo: { spel: 'SPAR76' }, rad: null }));
+    const besk6 = besk.map(b => { const c = Object.assign({}, b); delete c.maskade; return c; });
+    fs.writeFileSync(path.join(rp6, 'stillbilder.json'), JSON.stringify({ kod: 'R-9976', start: 1790000000000, frys: 1790000030000, bilder: still, beskarningar: besk6 }));
+    const bordRadOkand = s => ({ s, fas: 'kort', spar: [Object.assign({ id: 77, namn: 'Opt', maskad: true, under: null }, b77), Object.assign({ id: 63, namn: 'Shock', maskad: false, under: null }, b63)] });
+    fs.writeFileSync(path.join(rp6, 'bordlogg.json'), JSON.stringify({ id: 'rapport-R-9976', start: new Date(1790000000000).toISOString(), rapport: 'R-9976', bordLogg: [bordRadOkand(9.2), bordRadOkand(10.1)] }));
+    r = tillFall(['R-9976', '--traning', '--lokal', '--mapp', rp6, '--spar', '77', '--ratt', 'Brainstorm']);
+    ok(r.kod === 2 && /maskade är okänt/.test(r.ut) && !fs.existsSync(path.join(UT, 'dev', 'material', 'arbete', 'markning', 'rapporter-traning-mesa', 'R-9976-spar77')),
+      `8d: maskad utan under → --traning vägras, maskade okänt (slutkod ${r.kod}: ${r.ut.trim().split('\n').pop().slice(0, 120)})`);
+    r = tillFall(['R-9976', '--bank', '--lokal', '--mapp', rp6, '--spar', '77', '--ratt', 'Brainstorm', '--bild', 's-1790000010000-0.jpg']);
+    let p76 = manifest().find(p => p.kod === 'R-9976' && p.spar === 77);
+    ok(r.kod === 0 && p76 && p76.maskade === null && /okänt/.test(p76.mask_regel) && p76.kontext_bild && p76.kontext_bild.maskade.some(q => q.spar === 63),
+      `8d: stillbild med maskad utan under → maskade null i fallet, utsnitt och kontext målar ändå de överlappande (${p76 ? p76.mask_regel : r.ut.trim()})`);
+
+    /* 8e (fynd 2): stillbilden närmast beskärningen ligger 5 s bort → ingen kontext, skälet i fallet; dt sparas när den finns */
+    const rp7 = path.join(IN, 'R-9977'); fs.cpSync(rp, rp7, { recursive: true });
+    fs.renameSync(path.join(rp7, 'bilder', 'beskarning-spar77-1790000009000.jpg'), path.join(rp7, 'bilder', 'beskarning-spar77-1790000005000.jpg'));
+    const besk7 = besk.map(b => Object.assign({}, b, { fil: 'beskarning-spar77-1790000005000.jpg', t: 1790000005000, s: 5 }));
+    fs.writeFileSync(path.join(rp7, 'stillbilder.json'), JSON.stringify({ kod: 'R-9977', start: 1790000000000, frys: 1790000030000, bilder: still, beskarningar: besk7 }));
+    fs.writeFileSync(path.join(rp7, 'rapport.json'), JSON.stringify({ kod: 'R-9977', text: null, tagg: null, tidslinje: [], miljo: { spel: 'SPAR73' }, rad: null }));
+    r = tillFall(['R-9977', '--bank', '--lokal', '--mapp', rp7, '--spar', '77', '--ratt', 'Brainstorm']);
+    const p77 = manifest().find(p => p.kod === 'R-9977' && p.spar === 77);
+    ok(r.kod === 0 && p77 && p77.kontext === null && p77.kontext_bild === null && /5\.0 s/.test(p77.kontext_skal || '') && !fs.existsSync(path.join(BANKDIR, 'R-9977-spar77-kontext.jpg')) && /ingen kontextbild/.test(r.ut),
+      `8e: stillbilden 5 s från beskärningen → ingen kontext (${p77 ? p77.kontext_skal : r.ut.trim()})`);
+    r = tillFall(['R-9973', '--bank', '--lokal', '--mapp', rp, '--spar', '77', '--ratt', 'Brainstorm', '--skriv-over']);
+    p73 = manifest().find(p => p.kod === 'R-9973' && p.spar === 77);
+    ok(r.kod === 0 && p73 && p73.kontext_bild && p73.kontext_bild.dt === 1000 && p73.kontext === 'R-9973-spar77-kontext.jpg',
+      `8e: stillbilden 1 s från beskärningen → kontext med dt ${p73 && p73.kontext_bild ? p73.kontext_bild.dt : '?'} ms`);
+
+    /* 8e (fynd 3): hamta.cjs räknar kontextens ålder mot beskärningen på telefonens klocka (k.dt, annars k.t − ruta.t),
+       aldrig mot rättelsens t (datorns klocka, här 60 s ifrån). */
+    {
+      const H = require('./hamta.cjs'), hu = path.join(UT, 'hamta-8e');
+      const las = j => { fs.mkdirSync(hu, { recursive: true }); fs.writeFileSync(path.join(hu, 'rattelse.json'), JSON.stringify(j));
+        const logg = console.log; console.log = () => {}; try { H.rattelse({ kod: 'R-9978', created_at: '2026-10-14T00:00:00Z' }, hu, ['beskarning.jpg', 'kontext.jpg']); } finally { console.log = logg; }
+        return (fs.readFileSync(path.join(hu, 'LÄS-MIG.md'), 'utf8').split('\n').find(x => /^\| Kontext/.test(x)) || ''); };
+      const bas = { handelse: 'namnbyte', gissning: 'Opt', ratt: 'Brainstorm', spar: 77, t: 1790000069000, bild: 'telefon', maskade: [], ruta: Object.assign({ kalla: 'beskarning', t: 1790000009000 }, b77) };
+      const k1 = las(Object.assign({}, bas, { kontext: { fil: 'kontext.jpg', t: 1790000010500 } }));
+      const k2 = las(Object.assign({}, bas, { kontext: { fil: 'kontext.jpg', t: 1790000010500, dt: -800 } }));
+      ok(/1\.5 s från beskärningen/.test(k1) && /-0\.8 s från beskärningen/.test(k2), `8e: LÄS-MIG räknar kontextens ålder mot beskärningen (${k1.slice(0, 120)} | ${k2.slice(-60)})`);
+    }
+
+    /* 8f (fynd 6): utan Pillow går ett fall ur läsningens beskärning (varning, ingen kontext); ett utsnitt ur en stillbild vägras */
+    const utanPy = { MESA_PY: path.join(UT, 'finns-inte', 'python') };
+    r = tillFall(['R-9973', '--bank', '--lokal', '--mapp', rp, '--spar', '77', '--ratt', 'Brainstorm', '--skriv-over'], utanPy);
+    p73 = manifest().find(p => p.kod === 'R-9973' && p.spar === 77);
+    ok(r.kod === 0 && p73 && p73.bild_ur === 'beskarning' && p73.kontext === null && /Pillow saknas/.test(p73.kontext_skal || '') && /Pillow saknas/.test(r.ut),
+      `8f: utan Pillow → bänkfall ur beskärningen, ingen kontext (slutkod ${r.kod}${p73 ? ', ' + p73.kontext_skal : ''})`);
+    r = tillFall(['R-9973', '--bank', '--lokal', '--mapp', rp, '--spar', '77', '--ratt', 'Brainstorm', '--bild', 's-1790000010000-0.jpg', '--skriv-over'], utanPy);
+    ok(r.kod === 2 && /Pillow/.test(r.ut), `8f: utan Pillow vägras ett utsnitt ur en stillbild (slutkod ${r.kod})`);
   }
 
   /* 6. Bänken kör bänkfallet. */

@@ -367,6 +367,29 @@ const PROV = async () => {
       ok('3b: kontext.jpg har spårets ruta inritad (röd kant) och den maskade lådan grå', P.p[0][0] > 180 && P.p[0][1] < 110 && Math.abs(P.p[1][0] - P.p[1][2]) < 100 && P.p[1][0] < 170, JSON.stringify(P.p) + ' ' + JSON.stringify(K));
       window.__kontextB64 = await new Promise(res => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(kb); });
     } else ok('3b: kontext.jpg har spårets ruta inritad', false, 'ingen kontext');
+    ok('3b: kontexten bär dt (ringbildens t − beskärningens t, telefonens klocka) inom ±2 s, och inget skäl',
+       jr && jr.kontext && Number.isFinite(jr.kontext.dt) && Math.abs(jr.kontext.dt) <= 2000 && jr.kontextSkal === null, JSON.stringify(jr && { dt: jr.kontext && jr.kontext.dt, skal: jr.kontextSkal }));
+    /* Granskningen av 6c3fea8, fynd 2: ringens närmaste bild ligger 5 s från beskärningen → ingen kontext, skälet i svaret. */
+    {
+      const f77 = Stillbilder.besk.get(77), t0 = f77.t; f77.t = t0 - 5000;
+      const k0 = A.kanal.length;
+      await Stillbilder.rattelseBild({ kod: 'R-0881', sokvag: 'u-prov/rapporter/R-0881', spar: 77 });
+      f77.t = t0;
+      const sv = A.kanal.slice(k0).find(m => m.typ === 'rapport_rattelse_klar');
+      ok('3b: ringens bild 5 s från beskärningen → beskarning.jpg laddas upp men ingen kontext.jpg, skälet i svaret',
+         sv && sv.ok === 1 && sv.kontext === null && /5\.\d s/.test(sv.kontextSkal || '') && A.filer['u-prov/rapporter/R-0881/beskarning.jpg'] && !A.filer['u-prov/rapporter/R-0881/kontext.jpg'], JSON.stringify(sv && { ok: sv.ok, kontext: sv.kontext, skal: sv.kontextSkal }));
+    }
+    /* Fynd 4: en vriden beskärning (beskarVridning) — lasFacit och rutan bär vinkeln; rak = null. */
+    {
+      const vc = document.createElement('canvas'); vc.width = 300; vc.height = 420; vc.getContext('2d').fillStyle = '#3050c0'; vc.getContext('2d').fillRect(0, 0, 300, 420);
+      const t79 = { id: 79, namn: 'Opt', saker: true, tillstand: 'klar', box: { x: 200, y: 40, w: 50, h: 70 }, beskarRot: 12 };
+      maskaTackt({ bild: vc, kort: null, geo: null }, t79);
+      Stillbilder.beskarning(t79, vc, { namn: 'Opt', saker: true, varfor: 'remsa' });
+      for (let j = 0; j < 200 && Stillbilder.ko; j++) await vanta(1);
+      const p79 = Stillbilder.besk.get(79);
+      ok('3b: vriden beskärning → lasFacit.rot och ruta.rot = beskarRot; rak → rot null', vc.lasFacit && vc.lasFacit.rot === 12 && p79 && p79.ruta && p79.ruta.rot === 12 && kc.lasFacit.rot === null && post.ruta.rot === null,
+         JSON.stringify({ lasFacit: vc.lasFacit, ruta: p79 && p79.ruta, rak: kc.lasFacit.rot }));
+    }
     /* Telefonen svarar inte: datorns kopia, rutan ur bordet, maskade okänt, ingen kontext. */
     A.telefonSvarar = false;
     cropCache.set('spar-63@260', bc.toDataURL('image/jpeg', 0.8));
