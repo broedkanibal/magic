@@ -2030,6 +2030,10 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .ofrmark.aktuell,.ofretik.aktuell{z-index:901!important}   /* över strålkastarens dimning (.ofr.aktuell 900), före left/top/z-index inline */
 /* Knappen döljs medan sökrutan är öppen; etiketten när den inte får plats (ofrMarkLagg). */
 .ofrmark.dold,.ofretik.dold{visibility:hidden}
+/* Sökrutan är öppen (designytan "Mesa Name Which Card", D): etiketten på kortet säger NAMING i accentfärgen, och de
+   andra korten som väntar på ett namn tonas ned (ofrMarkLagg) — de går fortfarande att klicka på. */
+.ofretik.nu{background:var(--acc);border-color:var(--acc);color:#1a1206}
+.ofr.tonad,.ofrmark.tonad,.ofretik.tonad{opacity:.55}
 /* Pekaren på kortet, dess etikett eller knapp lyser upp kortet och knappen: där korten ligger tätt kan knappen
    stå en bit från sitt kort. */
 .ofr.pekad{outline:2px solid var(--acc);outline-offset:2px}
@@ -2043,6 +2047,20 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .ofrsok .sok-foto{height:168px;flex:none;border-radius:8px;background:#0b0f15;display:flex;align-items:center;justify-content:center}
 .ofrsok .sok-foto img{width:120px;height:158px;object-fit:cover;border-radius:5px;display:block}
 .ofrsok .sok-foto.vand img{transform:rotate(180deg)}
+/* Designytan "Mesa Name Which Card" (D): fotot med bordet runt kortet, kortets kontur i accentfärgen och resten
+   mörkat; samma färg som ringen runt kortet på mattan. Kortets del är lika stor som i det vanliga fotot. */
+.ofrsok .sok-foto.vid{height:206px}
+.ofrsok .sok-ram{position:relative;display:block;height:196px;border-radius:5px;overflow:hidden}
+.ofrsok .sok-ram img{display:block;height:100%;width:auto}
+.ofrsok .sok-kontur{position:absolute;box-sizing:border-box;border:2px solid var(--acc);border-radius:6px;box-shadow:0 0 0 400px #05070aa8;pointer-events:none}
+.ofrsok .sok-not{font:12px var(--sans);color:#9aa7b8;margin-top:-2px}
+.ofrsok .sok-not b{color:var(--acc);font-weight:600}
+/* Spetsen mot kortet (ofrSokPlacera): .h = kortet står till höger, .v = till vänster. */
+.ofrsok .sok-spets{display:none;position:absolute;width:12px;height:12px;box-sizing:border-box;background:#151b26;border:1px solid #3b485c;transform:rotate(45deg);pointer-events:none}
+.ofrsok .sok-spets.h{display:block;right:-7px;border-left-color:transparent;border-bottom-color:transparent}
+.ofrsok .sok-spets.v{display:block;left:-7px;border-right-color:transparent;border-top-color:transparent}
+/* Ringen runt kortet som namnges, i rutans lager (ofrSokOppna): syns runt hela kortet, också där ett annat ligger över. */
+.ofrsok-ring{position:absolute;z-index:973;box-sizing:border-box;border:2px solid var(--acc);border-radius:12px;box-shadow:0 0 0 4px #f0a52a2e,0 0 22px #f0a52a55;pointer-events:none}
 .ofrsok .sok-in{height:34px;border-radius:8px;border:1px solid #3b485c;background:#0b0f15;color:var(--txt);font:14px var(--sans);padding:0 10px;outline:none}
 .ofrsok .sok-in:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a22}
 .ofrsok .sok-res{display:flex;flex-direction:column;gap:8px}
@@ -8967,6 +8985,20 @@ function ofrMarkLagg() {
     const v = CSS.escape(o.dataset.ofr || '');
     if (![...gridEl.querySelectorAll(`[data-ofr="${v}"]`)].some(e => e.matches(':hover') && e.matches('.ofr.fraga, .ofrmark, .ofretik'))) o.classList.remove('pekad');
   }
+  /* Sökrutan är öppen (designytan "Mesa Name Which Card", D): kortets etikett säger NAMING, och de andra korten
+     som väntar på ett namn tonas ned — kortet, etiketten och knappen. Utläggningen nedan räknar NAMING med bredden
+     NOT IDENTIFIED hade (_bredd): annars fick en etikett som var dold för en krock plötsligt plats när rutan
+     öppnades, och grannarna hoppade (MES-351, läge 5: inget hoppar när rutan öppnas och stängs). */
+  for (const e of gridEl.querySelectorAll(':scope > .ofr.fraga[data-pend], :scope > .ofrmark[data-pend], :scope > .ofretik[data-pend]')) {
+    const detta = !!ofrSokPend && e.dataset.pend === ofrSokPend, tonad = !!ofrSokPend && !detta;
+    if (e.classList.contains('tonad') !== tonad) e.classList.toggle('tonad', tonad);
+    if (e.classList.contains('ofretik')) {
+      const txt = detta ? 'NAMING' : 'NOT IDENTIFIED';
+      if (detta && e.textContent !== txt) e._bredd = e.offsetWidth;
+      if (e.textContent !== txt) e.textContent = txt;
+      if (e.classList.contains('nu') !== detta) e.classList.toggle('nu', detta);
+    }
+  }
   if (!el.length && !et.length) return;
   const z = gridEl._matzMal || 1, ofr = new Map(ofrNu().map(q => [String(q.id), q]));
   const skar = (r, b, luft) => r.x0 < b.x1 + luft && b.x0 < r.x1 + luft && r.y0 < b.y1 + luft && b.y0 < r.y1 + luft;
@@ -8976,7 +9008,7 @@ function ofrMarkLagg() {
     const q = ofr.get(e.dataset.ofr), a = q && ofrEtikAnkare(q);
     let dold = !a || (ofrTappad(q) ? MATTA.CW : MATTA.CH) * z < OFR_ETIK_MIN;
     if (!dold) {
-      const cx = a.x * z, ty = a.y * z + OFR_ETIK_DY, w = e.offsetWidth, h = e.offsetHeight;
+      const cx = a.x * z, ty = a.y * z + OFR_ETIK_DY, w = e.classList.contains('nu') && e._bredd ? e._bredd : e.offsetWidth, h = e.offsetHeight;
       const r = { x0: cx - w / 2, x1: cx + w / 2, y0: ty, y1: ty + h };
       dold = krock(r, 0);
       if (!dold) { lagda.push(r); etiketter.push({ e, r }); }
@@ -14760,8 +14792,8 @@ let ofrSok = null;   // { pend, el, inp, res, traffar: [{ namn, sid }], idx, seq
 const OFR_SOK_N = 6;
 function ofrSokStang() {
   if (!ofrSok) return;
-  ofrSok.el.remove(); ofrSok = null;
-  ofrSokPend = null; ofrMarkLagg();   // knappen kommer tillbaka (MES-351)
+  ofrSok.el.remove(); ofrSok.ring.remove(); ofrSok = null;
+  ofrSokPend = null; ofrMarkLagg();   // knappen kommer tillbaka (MES-351), etiketten blir NOT IDENTIFIED igen
 }
 function ofrSokPlacera() {
   if (!ofrSok) return;
@@ -14770,9 +14802,18 @@ function ofrSokPlacera() {
   if (!zp || !el) return ofrSokStang();
   const R = zp.getBoundingClientRect(), r = el.getBoundingClientRect(), w = 280, h = ofrSok.el.offsetHeight || 262;
   const vanster = r.left - R.left, hoger = r.right - R.left;
-  const x = vanster >= w + 20 ? vanster - w - 12 : Math.min(R.width - w - 8, hoger + 12);
-  ofrSok.el.style.left = Math.round(Math.max(8, x)) + 'px';
-  ofrSok.el.style.top = Math.round(Math.max(8, Math.min(R.height - h - 8, r.top - R.top))) + 'px';
+  const x = Math.round(Math.max(8, vanster >= w + 20 ? vanster - w - 12 : Math.min(R.width - w - 8, hoger + 12)));
+  const y = Math.round(Math.max(8, Math.min(R.height - h - 8, r.top - R.top)));
+  ofrSok.el.style.left = x + 'px';
+  ofrSok.el.style.top = y + 'px';
+  /* Spetsen pekar mot kortet från den sida kortet står på, i höjd med kortets mitt (inom rutan); står rutan över
+     kortet (smal skärm) finns ingen sida att peka från. Ringen: kortets ruta, 3 px utanför. */
+  const s = ofrSok.el.querySelector('.sok-spets'), mitt = (r.top + r.bottom) / 2 - R.top - y;
+  const sida = x + w <= vanster + 1 ? 'h' : x >= hoger - 1 ? 'v' : '';
+  if (s) { s.className = 'sok-spets' + (sida ? ' ' + sida : ''); s.style.top = Math.round(Math.max(14, Math.min(h - 26, mitt - 6))) + 'px'; }
+  const g = ofrSok.ring.style;
+  g.left = Math.round(r.left - R.left - 3) + 'px'; g.top = Math.round(r.top - R.top - 3) + 'px';
+  g.width = Math.round(r.width + 6) + 'px'; g.height = Math.round(r.height + 6) + 'px';
 }
 /* Kortet fick namn (av kameran, Claude eller granskningen) eller gick: rutan stängs. Annars följer den kortet. */
 function ofrSokFolj(ofr) {
@@ -14786,16 +14827,26 @@ function ofrSokOppna(pend) {
   const el = document.createElement('div');
   /* MES-351: rubriken "Enter card name", och kamerans foto skarpt överst — det enda stället där ägaren ser kortet
      skarpt, så att namnet går att läsa av. */
+  /* Designytan "Mesa Name Which Card" (D): ligger kort omlott syns flera kort i fotot. Med bordet runt kortet
+     (ofrFotoVid) får kortet en kontur och resten mörkas, och raden under säger "Name the outlined card".
+     Konturen är kortets låda: marginalen marg per sida, alltså marg / (1 + 2·marg) av fotots bredd och höjd. */
   const post = ofrLista().find(o => o.pend === pend), foto = post && post.foto && OFR_BILD.test(post.foto) ? post.foto : null;
+  const vid = post && ofrFotoVid.get(post.spar), vand = ofrVand() ? ' vand' : '';
+  const kant = vid ? +(vid.marg / (1 + 2 * vid.marg) * 100).toFixed(2) : 0;
   el.className = 'ofrsok'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Enter card name');
-  el.innerHTML = '<div class="sok-hu"><label class="sok-l" for="ofrSokIn">Enter card name</label>'
+  el.innerHTML = '<i class="sok-spets" aria-hidden="true"></i><div class="sok-hu"><label class="sok-l" for="ofrSokIn">Enter card name</label>'
     + '<button type="button" class="sok-x" aria-label="Close" data-sokstang><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg></button></div>'
-    + (foto ? `<div class="sok-foto${ofrVand() ? ' vand' : ''}"><img src="${foto}" alt="The camera’s photo of the card"></div>` : '')
+    + (vid ? `<div class="sok-foto vid${vand}"><span class="sok-ram"><img src="${vid.b64}" alt="The camera’s photo of the card and the table around it"><i class="sok-kontur" style="inset:${kant}%"></i></span></div><div class="sok-not">Name the <b>outlined</b> card</div>`
+      : foto ? `<div class="sok-foto${vand}"><img src="${foto}" alt="The camera’s photo of the card"></div>` : '')
     + '<input id="ofrSokIn" class="sok-in" type="text" autocomplete="off" spellcheck="false" placeholder="Type a card name">'
     + '<div class="sok-res"></div>'
     + '<div class="sok-fot"><button type="button" class="sok-nej" data-soknej title="The camera stops asking about it">Not a card</button></div>';
   zp.appendChild(el);
-  ofrSok = { pend, el, inp: el.querySelector('.sok-in'), res: el.querySelector('.sok-res'), traffar: [], idx: 0, seq: 0, bekr: null };
+  /* Ringen runt kortet på mattan (D): i rutans lager, ovanpå korten, så att den syns runt hela kortet också när
+     ett annat kort ligger över det. ofrSokPlacera lägger den där kortet står. */
+  const ring = document.createElement('i'); ring.className = 'ofrsok-ring'; ring.setAttribute('aria-hidden', 'true');
+  zp.appendChild(ring);
+  ofrSok = { pend, el, ring, inp: el.querySelector('.sok-in'), res: el.querySelector('.sok-res'), traffar: [], idx: 0, seq: 0, bekr: null };
   ofrSok.inp.addEventListener('input', () => ofrSokSok());
   ofrSok.inp.addEventListener('keydown', ev => {
     ev.stopPropagation();
@@ -30679,16 +30730,18 @@ const Kamera = (() => {
     return avAxel >= T.beskarVridMin ? { rot: rotGrov, rikt: false } : null;
   }
 
-  /* Det oframkallade kortets foto (MES-344): kortets låda ur den fulla videon med 2 % marginal (mot
-     läsningens 8 %: fotot ska vara kortet, inte bordet runt det), rätat upp om det ligger ner, och redan
-     litet (FOTO_BREDD) — en enda nedskalning, ingen beskärning i läsningens storlek. */
-  const FOTO_BREDD = 160, FOTO_MARG = 0.02;
+  /* Det oframkallade kortets foto (MES-344): kortets låda ur den fulla videon, rätat upp om det ligger ner, och
+     redan litet — en enda nedskalning, ingen beskärning i läsningens storlek. Marginalen är 15 % (FOTO_MARG):
+     mattan visar kortet med 2 % (datorn skär till, ofrFotoTill), och rutan "Enter card name" visar hela fotot
+     med kortets kontur, så att det syns vilket kort rutan gäller när kort ligger omlott (designytan "Mesa Name
+     Which Card", D). Bredden är sådan att kortets del är 160 px, som förut (FOTO_BREDD). */
+  const FOTO_MARG = 0.15, FOTO_BREDD = Math.round(160 * (1 + 2 * FOTO_MARG) / (1 + 2 * 0.02));
   function skickaFoton() {
     if (cb.foto && video) for (const t of spar) {
       if (t.fotoSkickat || (t.tillstand === 'klar' && t.namn) || t.tillstand === 'skrap' || t.skymd || arHelbild(t) || arNedKort(t) || !skuggklar(t)) continue;   // inte arVila: datorn lägger kortet vid första kortlika rapporten (ofrSomKort, 2026-10-12), och fotot ska komma med den
       t.fotoSkickat = true;
       let c = null; try { c = fotoUr(t); } catch (e) {}
-      if (c) cb.foto(t.id, c);
+      if (c) cb.foto(t.id, c, FOTO_MARG);
     }
   }
   /* Datorn sa hej (laddades om, eller fick tillbaka telefonen): den har glömt fotona, och telefonen skickar
@@ -30701,10 +30754,17 @@ const Kamera = (() => {
     const bx = r.x + (b.x - b.w * m) * sx, by = r.y + (b.y - b.h * m) * sy, bw = b.w * (1 + 2 * m) * sx, bh = b.h * (1 + 2 * m) * sy;
     if (!(bw >= 4 && bh >= 4)) return null;
     const liggande = bw > bh, ow = FOTO_BREDD, oh = Math.round(FOTO_BREDD * (liggande ? bw / bh : bh / bw));
+    /* Marginalen kan gå utanför videon (ett kort vid bildkanten): bara delen inom videon ritas, på sin plats, och
+       resten blir mörk — kortet står kvar i mitten, så att datorns tillskärning och konturen stämmer. */
+    const x0 = Math.max(0, bx), y0 = Math.max(0, by), x1 = Math.min(vb, bx + bw), y1 = Math.min(vh, by + bh);
+    if (!(x1 - x0 >= 4 && y1 - y0 >= 4)) return null;
+    const W = liggande ? oh : ow, H = liggande ? ow : oh;   // målet i videons riktning
+    const dx = (x0 - bx) / bw * W, dy = (y0 - by) / bh * H, dw = (x1 - x0) / bw * W, dh = (y1 - y0) / bh * H;
     const c = document.createElement('canvas'); c.width = ow; c.height = oh;
     const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
-    if (liggande) { x.translate(ow / 2, oh / 2); x.rotate(-Math.PI / 2); x.drawImage(video, bx, by, bw, bh, -oh / 2, -ow / 2, oh, ow); }
-    else x.drawImage(video, bx, by, bw, bh, 0, 0, ow, oh);
+    x.fillStyle = '#11161e'; x.fillRect(0, 0, ow, oh);
+    if (liggande) { x.translate(ow / 2, oh / 2); x.rotate(-Math.PI / 2); x.drawImage(video, x0, y0, x1 - x0, y1 - y0, -W / 2 + dx, -H / 2 + dy, dw, dh); }
+    else x.drawImage(video, x0, y0, x1 - x0, y1 - y0, dx, dy, dw, dh);
     return c;
   }
   /* Beskär kortet ur den fulla videon, räta upp det om det ligger ner. */
@@ -32145,7 +32205,7 @@ async function oppnaKamera(gameId) {
          rådet om avståndet väntar då på Claudes svar innan det säger något. */
       aiPa: () => AI.mode === 'server' && !!prefs.aiAuto,
       helbild: (canvas, o) => kamHelbild(canvas, o),
-      foto: (id, canvas) => kamSkickaFoto(id, canvas),   // det oframkallade kortets foto till datorn (MES-344)
+      foto: (id, canvas, marg) => kamSkickaFoto(id, canvas, marg),   // det oframkallade kortets foto till datorn (MES-344)
       kedja: spar => Moln.sandKam('kedja', { spar })     // igenkänningskedjan per spår, bara ?debug (satKedja)
     });
   } catch (e) {
@@ -32827,12 +32887,13 @@ const kamAiNamnKapade = () => Math.max(0, [...new Set(namnUtanBaksida().filter(n
    alltid till Kamera.svarAI; spåret prövas under tiden (identifiera).
    false = frågan ställs inte (AI av, ingen pool, taket nått): den lokala
    domen är allt som finns, och ett osäkert kort går till granskningen. */
-/* Kamerans foto av ett nytt kort till datorn (MES-344, fotoUr i Kamera): 160 px brett — mattans kort är
-   178 px och de unika ytorna visas suddiga (12 px), men ramen ska se skarp ut i mattans vanliga zoom.
-   ~6–8 kB per kort, en gång per kort, på kontots privata kanal (MES-305). */
-function kamSkickaFoto(id, canvas) {
+/* Kamerans foto av ett nytt kort till datorn (MES-344, fotoUr i Kamera): kortets del 160 px bred — mattans kort
+   är 178 px och de unika ytorna visas suddiga (12 px), men ramen ska se skarp ut i mattans vanliga zoom. marg är
+   marginalen runt kortet (15 %): datorn skär till mattans foto ur det, och rutan "Enter card name" visar hela.
+   ~10–12 kB per kort, en gång per kort, på kontots privata kanal (MES-305). */
+function kamSkickaFoto(id, canvas, marg) {
   if (!canvas || !canvas.width || !canvas.height) return;
-  Moln.sandKam('foto', { spar: id, b64: canvas.toDataURL('image/jpeg', 0.65) });
+  Moln.sandKam('foto', { spar: id, b64: canvas.toDataURL('image/jpeg', 0.65), marg: typeof marg === 'number' ? marg : undefined });
 }
 function kamFragaAI(canvas, id) {
   if (AI.mode !== 'server' || !prefs.aiAuto || !Pool.idx || !canvas || aiPausad()) return false;
@@ -33945,6 +34006,13 @@ const OFR_FRAN_MS = 1500;  // ms: så länge bär ett nytt kort fotot det framka
 let ofrMinne = new Map();  // post-id (första spårets id) → { id, spar, vila, lagd, kam, tappad, pend, overTak, tak, namn, foto, dod }
 let ofrVila = new Map();   // spår-id → släppet: första rapporten där spåret låg still som ett kort
 let ofrFoto = new Map();   // spår-id → kamerans foto av kortet (telefonens 'foto', annars granskningens beskärning)
+/* spår-id → { b64, marg }: fotot med bordet runt kortet, marg = marginalen per sida (telefonens 15 %, granskningens
+   beskärning 8 %). Rutan "Enter card name" visar det med kortets kontur (designytan "Mesa Name Which Card", D). */
+let ofrFotoVid = new Map();
+function ofrFotoVidSatt(spar, b64, marg) {
+  if (spar == null || ofrFotoVid.has(spar) || !(marg > 0.02 && marg <= 0.5) || typeof b64 !== 'string' || !OFR_BILD.test(b64)) return;
+  ofrFotoVid.set(spar, { b64, marg });
+}
 let ofrFrister = [];       // när nästa oframkallade kort ska läggas ned, eller ett dött spårs post glömmas (avstamBord ställer timern)
 let ofrOver = new Map();   // spår-id → id:n på spåren telefonen sagt ligger ÖVER det (under, MES-331) — också efter att spåret dött (MES-346)
 const ofrVilar = t => t.vilar != null ? !!t.vilar : !!t.stilla;
@@ -34180,13 +34248,14 @@ function ofrSteg(spar, mig, nu, losa, flyttKan, vantaLas, kvar) {
   /* Släppet och fotot glöms med spåret — utom för ett spår som en post bär. */
   for (const id of [...ofrVila.keys()]) if (!synliga.has(id)) ofrVila.delete(id);
   for (const id of [...ofrFoto.keys()]) if (!synliga.has(id) && !iPost(id)) ofrFoto.delete(id);
+  for (const id of [...ofrFotoVid.keys()]) if (!synliga.has(id) && !iPost(id)) ofrFotoVid.delete(id);
   /* Relationen minns så länge spåret syns, bär ett kort (i väntan, eller före en gissad flytt: motsager) eller en post. */
   for (const id of [...ofrOver.keys()]) if (!synliga.has(id) && !iPost(id) && !kortPa(id) && !mig.cards.some(c => c.flyttFran && c.flyttFran.spar === id)) ofrOver.delete(id);
   return andrat;
 }
 /* De oframkallade korten just nu, i den ordning de lades ned. */
 function ofrLista() { return [...ofrMinne.values()].sort((a, b) => a.lagd - b.lagd || a.id - b.id); }
-function ofrGlom() { ofrMinne = new Map(); ofrVila = new Map(); ofrFoto = new Map(); ofrOver = new Map(); ofrFrister = []; }
+function ofrGlom() { ofrMinne = new Map(); ofrVila = new Map(); ofrFoto = new Map(); ofrFotoVid = new Map(); ofrOver = new Map(); ofrFrister = []; }
 
 /* ── sammanfattningen när auto stängs av ─────────────────────────────
    Vad hela passet kostade och gav: kort som hittades, hur de fick sitt
@@ -35757,7 +35826,7 @@ function tagEmotBeskarning(m) {
   if (q && m.namnLast) q.namnLast = m.namnLast;
   /* Det oframkallade kortets foto (MES-344), om telefonen inte redan skickat ett när kortet lades ned (en
      äldre telefon): läsningens beskärning har 8 % marginal runt kortet, fotot 2 % — den skärs till först. */
-  if (!ofrFoto.has(m.spar)) ofrFotoTill(m.b64, 0.08, b => { if (ofrFotoSatt(m.spar, b)) renderGrid(); });
+  if (!ofrFoto.has(m.spar)) { ofrFotoVidSatt(m.spar, m.b64, 0.08); ofrFotoTill(m.b64, 0.08, b => { if (ofrFotoSatt(m.spar, b)) renderGrid(); }); }
   if (q) renderAll(true);
 }
 /* En beskärning med marginalen marg runt kortet, som ett foto med telefonens 2 % (fotoUr), 160 px brett. */
@@ -35775,10 +35844,15 @@ function ofrFotoTill(b64, marg, fn) {
   img.src = b64;
 }
 /* Kamerans foto av ett nytt kort (MES-344): telefonen skickar det när kortet först ligger still, så att
-   ett oframkallat kort kan visa det om namnet dröjer (kamSkickaFoto). Kommer före bordet. */
+   ett oframkallat kort kan visa det om namnet dröjer (kamSkickaFoto). Kommer före bordet. Med marg (15 %) har
+   fotot bordet runt kortet: rutan "Enter card name" får hela, mattan kortet med 2 % (ofrFotoTill). Utan marg
+   (en äldre telefon) är fotot redan mattans. */
 function tagEmotFoto(m) {
   if (!m || m.spar == null || typeof m.b64 !== 'string' || !m.b64.startsWith('data:image/')) return;
-  if (ofrFotoSatt(m.spar, m.b64)) renderGrid();
+  const marg = typeof m.marg === 'number' && m.marg > 0.02 && m.marg <= 0.5 ? m.marg : null;
+  if (!marg) { if (ofrFotoSatt(m.spar, m.b64)) renderGrid(); return; }
+  ofrFotoVidSatt(m.spar, m.b64, marg);
+  ofrFotoTill(m.b64, marg, b => { if (ofrFotoSatt(m.spar, b)) renderGrid(); });
 }
 
 /* ── Statusfältet, ritat ────────────────────────────────────────────
