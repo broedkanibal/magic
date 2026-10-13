@@ -6,7 +6,7 @@
      node dev/rapport/till-fall.cjs R-0412 --mattest     ett fall i Mat test (mattans beteende)
      node dev/rapport/till-fall.cjs R-0413 --bank        ett bänkfall (fel namn): beskärningen + rätt namn
      node dev/rapport/till-fall.cjs R-0413 --traning     träningsdata i mark.py:s format (MES-340)
-     node dev/rapport/till-fall.cjs --mattest --logg pass.json [--orden orden.tsv] [--id p1011]
+     node dev/rapport/till-fall.cjs --mattest --logg pass.json [--orden orden.tsv] [--id p1011] [--spelkod CNA43K]
                                                          ett pass utan rapportkod (bordsloggen ur appen)
 
    Val:  --mapp <dir>   den hämtade mappen (förval dev/diagnos/rapporter/<kod>/)
@@ -61,7 +61,8 @@
    ── Spärren per parti ───────────────────────────────────────────────────
    Varje fall får partiets nyckel `parti: { game_id, spelkod }` (game_id ur
    tabellen, annars rapportens miljo.spelId / bordsloggens spel; spelkoden ur
-   rattelse.json eller miljo.spel), och spärren vägrar när en annan rad eller
+   rattelse.json, miljo.spel eller bordsloggens spelkod — för ett pass utan
+   rapport, där bordsloggen inte bär den: --spelkod <kod>), och spärren vägrar när en annan rad eller
    kopia ur samma parti ligger på andra sidan. Saknas båda: spärren gäller
    per kod, och en VARNING skrivs.
 
@@ -303,13 +304,14 @@ function kallaUrMapp(mapp, kod) {
   const B = lasJsonFil(bf);
   const m = R.miljo || {};
   return { kod: kod || R.kod, text: R.text, tagg: R.tagg, frys: typeof R.frys === 'number' ? R.frys : null, start: Date.parse(B.start), rader: B.bordLogg, matta: (R.tidslinje || []).filter(e => e.slag === 'matta'), upplosning: null, kallaNamn: 'rapport',
-    parti: parti((R.rad && R.rad.game_id) || m.spelId || B.spel, m.spel) };
+    parti: parti((R.rad && R.rad.game_id) || m.spelId || B.spel, m.spel || B.spelkod || B.spelKod) };
 }
-function kallaUrLogg(fil) {
+function kallaUrLogg(fil, spelkod) {
   const L = lasJsonFil(fil);
   if (!L.bordLogg || !L.start) throw new Error(`${fil}: inte en bordslogg (väntade { start, bordLogg })`);
   if (L.rapport != null && !KOD_RE.test(String(L.rapport))) throw Object.assign(new Error(`${fil}: rapportkoden ${JSON.stringify(L.rapport)} är inte R-NNNN — vägrar`), { kod: 2 });
-  return { kod: L.rapport || null, parti: parti(L.spel, null), start: Date.parse(L.start), rader: L.bordLogg, matta: null, passNamn: L.id || path.basename(fil), kallaNamn: `bordsloggen ${L.id || path.basename(fil)} (${L.start})` };
+  /* spelkoden: bordsloggens egen (spelkod/spelKod) om den finns, annars --spelkod */
+  return { kod: L.rapport || null, parti: parti(L.spel, L.spelkod || L.spelKod || spelkod || null), start: Date.parse(L.start), rader: L.bordLogg, matta: null, passNamn: L.id || path.basename(fil), kallaNamn: `bordsloggen ${L.id || path.basename(fil)} (${L.start})` };
 }
 function idUrLogg(K) {
   const m = /(\d{4})-(\d{2})-(\d{2})(?:-(\d{4}))?/.exec(K.passNamn || '');
@@ -320,7 +322,8 @@ function idUrLogg(K) {
 function partiUrMapp(mapp, r) {
   let R = null; try { R = lasJsonFil(path.join(mapp, 'rapport.json')); } catch (e) { /* en rättelse utan rapport.json */ }
   const m = (R && R.miljo) || {};
-  return parti((R && R.rad && R.rad.game_id) || m.spelId, (r && r.spelkod) || m.spel);
+  let B = null; try { B = lasJsonFil(path.join(mapp, 'bordlogg.json')); } catch (e) { /* ingen bordslogg */ }
+  return parti((R && R.rad && R.rad.game_id) || m.spelId || (B && B.spel), (r && r.spelkod) || m.spel || (B && (B.spelkod || B.spelKod)));
 }
 function bildOchNamn(mapp, o) {
   const r = lasRattelse(mapp);
@@ -402,7 +405,7 @@ function las(a) {
   const lage = ['--mattest', '--bank', '--traning'].filter(x => a.includes(x));
   return {
     kod: (a.find(x => /^R-\d{4,}$/i.test(x)) || '').toUpperCase() || null, lage: lage.length === 1 ? lage[0].slice(2) : null, lagen: lage,
-    logg: arg('--logg'), orden: arg('--orden'), lek: arg('--lek'), id: arg('--id'), mapp: arg('--mapp'), bild: arg('--bild'), ratt: arg('--ratt'),
+    logg: arg('--logg'), spelkod: arg('--spelkod'), orden: arg('--orden'), lek: arg('--lek'), id: arg('--id'), mapp: arg('--mapp'), bild: arg('--bild'), ratt: arg('--ratt'),
     fran: arg('--fran') != null ? +arg('--fran') : null, till: arg('--till') != null ? +arg('--till') : null,
     lokal: a.includes('--lokal'), torr: a.includes('--torr'), skrivOver: a.includes('--skriv-over')
   };
@@ -412,6 +415,7 @@ async function kor(a) {
   const o = las(a);
   if (!o.lage) throw Object.assign(new Error('välj ett: --mattest, --bank eller --traning'), { kod: 2 });
   if (o.id != null && !ID_RE.test(o.id)) throw Object.assign(new Error(`--id ${JSON.stringify(o.id)}: bara bokstäver, siffror, - och _`), { kod: 2 });
+  if (o.spelkod != null && !/^[\w-]{2,}$/.test(o.spelkod)) throw Object.assign(new Error(`--spelkod ${JSON.stringify(o.spelkod)}: bara bokstäver, siffror, - och _`), { kod: 2 });
   if (!o.kod && !(o.lage === 'mattest' && o.logg)) throw Object.assign(new Error('en rapportkod (R-0412), eller --mattest --logg <fil> för ett pass utan kod'), { kod: 2 });
   const sida = o.lage === 'traning' ? 'traning' : 'test';
   const mapp = o.mapp ? path.resolve(o.mapp) : o.kod ? path.join(ROT, 'dev', 'diagnos', 'rapporter', o.kod) : null;
@@ -422,7 +426,7 @@ async function kor(a) {
   /* 2. Läs och bygg allt i minnet: ett fel här lämnar tabellen orörd. */
   let plan;
   if (o.lage === 'mattest') {
-    const K = o.logg ? kallaUrLogg(o.logg) : kallaUrMapp(mapp, o.kod);
+    const K = o.logg ? kallaUrLogg(o.logg, o.spelkod) : kallaUrMapp(mapp, o.kod);
     if (o.kod) K.kod = o.kod;
     if (K.kod != null && !KOD_RE.test(K.kod)) throw Object.assign(new Error(`rapportkoden ${JSON.stringify(K.kod)} är inte R-NNNN — vägrar`), { kod: 2 });
     o.id = o.id || (K.kod ? K.kod : idUrLogg(K));
@@ -466,4 +470,4 @@ if (require.main === module) {
     process.exit(e.sparr ? 3 : e.kod || 1);
   });
 }
-module.exports = { kor, lasRattelse, parti, kameranUrBordsloggen, byggFacit, mattestFall, lasOrden, tillampaOrden, arVal };
+module.exports = { kor, lasRattelse, parti, partiUrMapp, kameranUrBordsloggen, byggFacit, mattestFall, lasOrden, tillampaOrden, arVal };

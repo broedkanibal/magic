@@ -2,9 +2,10 @@
  "id": "p1011",
  "rapport": null,
  "parti": {
-  "game_id": "61b3570b-3e33-4685-988a-929f3be2ada1"
+  "game_id": "61b3570b-3e33-4685-988a-929f3be2ada1",
+  "spelkod": "CNA43K"
  },
- "skapad": "2026-10-13T00:20:19.868Z",
+ "skapad": "2026-10-13T00:35:15.714Z",
  "namn": "passet pass-2026-10-11-2006, sek 0–1207.39",
  "kalla": "bordsloggen pass-2026-10-11-2006 (2026-10-11T20:06:17.657Z)",
  "bordStart": "2026-10-11T20:06:17.657Z",
@@ -173,7 +174,7 @@
     "typ": "spelar",
     "kort": "Mountain",
     "till": null,
-    "text": "kamerablink 234,59–237,04 (2,5 s), inte i rösten: inget Mountain spelades"
+    "text": "flytt, inte utspel: Mountain flyttades från x 0,29 (spår 3) till x 0,43 (spår 4, namn 234,59); inget nytt Mountain spelades"
    },
    {
     "t": 237.04,
@@ -181,7 +182,15 @@
     "typ": "tar_bort",
     "kort": "Mountain",
     "till": null,
-    "text": "kamerablink 234,59–237,04 (2,5 s), inte i rösten: inget Mountain togs bort"
+    "text": "flytt, inte borttagning: spår 3 (utan namn vid x 0,24 efter 233,8) var den gamla platsen; Mountain låg kvar på x 0,43"
+   },
+   {
+    "t": 234.59,
+    "gor": "lagg",
+    "typ": "flyttar",
+    "kort": "Mountain",
+    "till": null,
+    "text": "Mountain flyttades i sidled x 0,29 → 0,43 (spår 3 borta 231,8, spår 4 med namnet 234,59); inte i rösten"
    }
   ]
  },
@@ -190,6 +199,11 @@
   {
    "t": 227.77,
    "typ": "spelar",
+   "kort": "Mountain"
+  },
+  {
+   "t": 234.59,
+   "typ": "flyttar",
    "kort": "Mountain"
   },
   {
@@ -354,14 +368,14 @@
    "typ": "spelar",
    "kort": "Mountain",
    "kalla": "kamera",
-   "varfor": "orden: kamerablink 234,59–237,04 (2,5 s), inte i rösten: inget Mountain spelades"
+   "varfor": "orden: flytt, inte utspel: Mountain flyttades från x 0,29 (spår 3) till x 0,43 (spår 4, namn 234,59); inget nytt Mountain spelades"
   },
   {
    "t": 237.04,
    "typ": "tar_bort",
    "kort": "Mountain",
    "kalla": "kamera",
-   "varfor": "orden: kamerablink 234,59–237,04 (2,5 s), inte i rösten: inget Mountain togs bort"
+   "varfor": "orden: flytt, inte borttagning: spår 3 (utan namn vid x 0,24 efter 233,8) var den gamla platsen; Mountain låg kvar på x 0,43"
   },
   {
    "t": 478.81,
@@ -393,7 +407,8 @@
   "lagg flyttar Expel 565.3",
   "stryk tar_bort Expel 573.46",
   "stryk spelar Mountain 234.59",
-  "stryk tar_bort Mountain 237.04"
+  "stryk tar_bort Mountain 237.04",
+  "lagg flyttar Mountain 234.59"
  ],
  "anm": "skapat av dev/rapport/till-fall.cjs (MES-368): facit = kameran minus det spelaren rättade (LÄS-MIG i dev/rapport). Det ingen rättade antas vara rätt."
 }

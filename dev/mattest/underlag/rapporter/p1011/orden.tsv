@@ -7,7 +7,10 @@ t	gor	typ	kort	till	text
 525.2	stryk	spelar	Island	-	22:15:15 (video 6:32–7:00): ett Island syntes — det som felaktigt togs till handen; låg i spel igen. Inget nytt Island spelades
 565.3	lagg	flyttar	Expel	-	22:15:43 (video 7:00–7:37): flyttade Expel och Relic Sloth åt höger (Relic Sloth bara en bit, under en halv kortbredd i bilden, och står inte här); bara Relic Sloth flyttades på mattan, Expel laddades upp som en dubblett som inte kunde identifieras längst till höger
 573.46	stryk	tar_bort	Expel	-	22:15:43–22:17:10: Expel låg kvar på bordet (flyttat åt höger); mattan skickade det till handen först 22:17:10, och det var fel
-# Undantag från "bara rösten" (granskningen av MES-368, fynd 8): ett kamerablink, inte i rösten. Ett Mountain-spår syntes 2,5 s
-# (234,59–237,04) och försvann; inget kort spelades eller togs bort då. Utan raderna räknade facit ett utspel + en borttagning.
-234.59	stryk	spelar	Mountain	-	kamerablink 234,59–237,04 (2,5 s), inte i rösten: inget Mountain spelades
-237.04	stryk	tar_bort	Mountain	-	kamerablink 234,59–237,04 (2,5 s), inte i rösten: inget Mountain togs bort
+# Undantag från "bara rösten" (granskningen av MES-368, fynd 8, rättad i rättelserunda 2): en flytt av ett Mountain, inte i rösten.
+# Bordsloggen: Mountain på spår 3 vid x 0,29 (namn 227,77) försvinner 231,8; spår 4 dyker upp vid x 0,43 (232,1), får namnet Mountain
+# 234,59 och ligger kvar; spår 3 kommer tillbaka utan namn vid x 0,24 (233,8–237,0), läses av till-fall.cjs som samma spår efter ett
+# glapp och tas bort 237,04. Kamerans utspel 234,59 + borttagning 237,04 är alltså en flytt (x 0,29 → 0,43) av samma kort.
+234.59	stryk	spelar	Mountain	-	flytt, inte utspel: Mountain flyttades från x 0,29 (spår 3) till x 0,43 (spår 4, namn 234,59); inget nytt Mountain spelades
+237.04	stryk	tar_bort	Mountain	-	flytt, inte borttagning: spår 3 (utan namn vid x 0,24 efter 233,8) var den gamla platsen; Mountain låg kvar på x 0,43
+234.59	lagg	flyttar	Mountain	-	Mountain flyttades i sidled x 0,29 → 0,43 (spår 3 borta 231,8, spår 4 med namnet 234,59); inte i rösten

@@ -121,16 +121,23 @@ async function sattAnvandning(S, kod, efter, opt) {
   if (opt.franTillFall && fore === 'slangd') { const e = new Error(`${kod} är slangd — sätt om den med satt.cjs först om den ska bli ett fall`); e.sparr = true; throw e; }
   const g = overgang(fore, efter);
   if (!g.ok) { const e = new Error(`SPÄRREN: ${kod}: ${g.varfor}`); e.sparr = true; throw e; }
-  /* Per parti: ingen annan rad ur samma parti (game_id) på andra sidan, och
-     ingen kopia ur partiet på andra sidan i repot (med tabellens game_id). */
-  const parti = Object.assign({}, opt.parti || {}, game_id ? { game_id } : {});
+  /* Per parti: ingen annan rad ur samma parti på andra sidan, och ingen kopia
+     ur partiet på andra sidan i repot. Partiet är tabellens game_id OCH det
+     lokala (opt.parti, ur den hämtade mappen): en rad utan game_id (telefonens
+     rapporter, ett raderat parti — on delete set null) prövas ändå på partiet
+     den lokala kopian bär, och tabellen frågas på båda game_id. */
+  const lokal = opt.parti || {};
+  const parti = Object.assign({}, lokal, game_id ? { game_id } : {});
   if (LAST.has(efter)) {
     const andra = efter === 'test' ? 'traning' : 'test';
-    if (game_id) {
-      const ovr = await S.rest('GET', `rapporter?game_id=eq.${encodeURIComponent(game_id)}&kod=neq.${encodeURIComponent(kod)}&anvandning=eq.${andra}&select=kod`);
-      if (ovr && ovr.length) { const e = new Error(`SPÄRREN: ${kod}: samma parti (game_id ${game_id}) har redan ${ovr.map(x => x.kod).join(', ')} som ${andra} — ett parti är test eller träning, aldrig båda`); e.sparr = true; throw e; }
+    const gids = [...new Set([game_id, lokal.game_id].filter(Boolean).map(g => String(g).toLowerCase()))];
+    for (const g of gids) {
+      const ovr = await S.rest('GET', `rapporter?game_id=eq.${encodeURIComponent(g)}&kod=neq.${encodeURIComponent(kod)}&anvandning=eq.${andra}&select=kod`);
+      if (ovr && ovr.length) { const e = new Error(`SPÄRREN: ${kod}: samma parti (game_id ${g}) har redan ${ovr.map(x => x.kod).join(', ')} som ${andra} — ett parti är test eller träning, aldrig båda`); e.sparr = true; throw e; }
     }
     kravLokal(kod, efter, parti);
+    /* skiljer sig det lokala game_id från tabellens: pröva repot på det också */
+    if (lokal.game_id && game_id && String(lokal.game_id).toLowerCase() !== String(game_id).toLowerCase()) kravLokal(kod, efter, lokal);
   }
   const extra = { kalla: rad.kalla, game_id, utanParti: !harParti(parti) };
   if (g.redan) return Object.assign({ fore, efter, redan: true }, extra);

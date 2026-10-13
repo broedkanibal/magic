@@ -161,6 +161,49 @@ function rapport(kod, game_id) {
   r = tillFall(['--mattest', '--logg', lf, '--lokal', '--id', '../ut']);
   ok(r.kod === 2 && !fs.existsSync(path.join(UT, 'dev', 'mattest', 'underlag', 'ut')), `--id «../ut» vägras (slutkod ${r.kod})`);
 
+  /* 5g. satt.cjs läser partiet ur den hämtade mappen (rättelserunda 2, fynd 1): en rad utan
+     game_id i tabellen spärras ändå per parti — tabellen frågas på mappens game_id, och repot
+     prövas på mappens spelkod. Tabellen är en attrapp (ingen nätåtkomst); PATCH skrivs ut. */
+  const ATRAPP = String.raw`const { satt } = require(${JSON.stringify(path.join(__dirname, 'satt.cjs'))});
+const T = JSON.parse(process.env.ATRAPP);
+const S = { rest: async (m, v) => {
+  if (m === 'GET' && /^rapporter\?kod=eq\./.test(v)) return [T.rad];
+  if (m === 'GET' && /game_id=eq\./.test(v)) { const g = decodeURIComponent(/game_id=eq\.([^&]+)/.exec(v)[1]), a = /anvandning=eq\.(\w+)/.exec(v)[1]; console.log('FRÅGA game_id ' + g); return (T.ovr || []).filter(x => x.game_id === g && x.anvandning === a).map(x => ({ kod: x.kod })); }
+  if (m === 'PATCH') { console.log('PATCH ' + v); return [{}]; }
+  throw new Error('attrappen: ' + m + ' ' + v); } };
+satt(process.argv.slice(1), S).then(t => console.log(t)).catch(e => { console.error('satt: ' + e.message); process.exit(e.sparr ? 3 : e.kod || 1); });`;
+  const sattAtrapp = (args, T) => {
+    const k = spawnSync(process.execPath, ['-e', ATRAPP, ...args], { cwd: ROT, encoding: 'utf8', env: Object.assign({}, process.env, { MESA_FALL_UT: UT, ATRAPP: JSON.stringify(T) }) });
+    return { kod: k.status, ut: (k.stdout || '') + (k.stderr || '') };
+  };
+  const G2 = '22222222-2222-4222-8222-222222222222';
+  const s1 = rattelse('R-9980', 10, 'namnbyte', null, G2);   // mappen bär game_id G2, tabellens rad inget
+  r = sattAtrapp(['R-9980', 'traning', '--mapp', s1.mapp], { rad: { kod: 'R-9980', kalla: 'rattelse', anvandning: null, game_id: null }, ovr: [{ kod: 'R-9981', game_id: G2, anvandning: 'test' }] });
+  ok(r.kod === 3 && /samma parti \(game_id 2222/.test(r.ut) && /R-9981/.test(r.ut) && !/PATCH/.test(r.ut),
+    `satt R-9980 traning (raden utan game_id, mappen med game_id; R-9981 ur samma parti är test) vägras, inget satt: slutkod ${r.kod}${r.kod === 3 ? "" : " — " + r.ut.trim()}`);
+  const s2 = rattelse('R-9982', 11, 'namnbyte', 'PROV0');   // samma spelkod som bänkfallet R-9991 (test i repot)
+  r = sattAtrapp(['R-9982', 'traning', '--mapp', s2.mapp], { rad: { kod: 'R-9982', kalla: 'rattelse', anvandning: null, game_id: null } });
+  ok(r.kod === 3 && /samma parti/.test(r.ut) && /R-9991/.test(r.ut) && !/PATCH/.test(r.ut),
+    `satt R-9982 traning (raden utan game_id, kopian i repot bär bara spelkoden PROV0 som R-9991) vägras: slutkod ${r.kod}`);
+  r = sattAtrapp(['R-9982', 'test', '--mapp', s2.mapp], { rad: { kod: 'R-9982', kalla: 'rattelse', anvandning: null, game_id: null } });
+  ok(r.kod === 0 && /PATCH/.test(r.ut) && /partiet: spel:PROV0/.test(r.ut), `satt R-9982 test (samma sida som R-9991) går och visar partiet: slutkod ${r.kod}`);
+  const s3 = rattelse('R-9983', 12, 'namnbyte', 'ANNAT4', G2);
+  r = sattAtrapp(['R-9983', 'traning', '--mapp', s3.mapp], { rad: { kod: 'R-9983', kalla: 'rattelse', anvandning: null, game_id: null }, ovr: [] });
+  ok(r.kod === 0 && /FRÅGA game_id 2222/.test(r.ut) && /PATCH/.test(r.ut) && /partiet: game:2222.*spel:ANNAT4/.test(r.ut),
+    `satt R-9983 traning ur ett parti utan något på andra sidan går (tabellen frågad på mappens game_id): slutkod ${r.kod}`);
+  r = sattAtrapp(['R-9984', 'traning'], { rad: { kod: 'R-9984', kalla: 'rapport', anvandning: null, game_id: null } });
+  ok(r.kod === 0 && /VARNING/.test(r.ut), `satt R-9984 utan mapp och utan game_id: per kod, med VARNING (slutkod ${r.kod})`);
+
+  /* 5h. Ett pass ur --logg får spelkoden (fynd 4): --spelkod, och bordsloggens egen om den finns. */
+  fs.writeFileSync(lf, JSON.stringify({ id: 'pass-2026-10-11-2006', start: new Date(1790000000000).toISOString(), spel: G2, bordLogg: [{ s: 0, spar: [] }, { s: 5, spar: [] }] }));
+  r = tillFall(['--mattest', '--logg', lf, '--lokal', '--torr', '--spelkod', 'cna43k']);
+  ok(r.kod === 0 && /partiet: game:2222[^\n]*spel:CNA43K/.test(r.ut), `--logg --spelkod: partiet får game_id och spelkod (${(r.ut.match(/partiet: [^\n(]*/) || [r.ut.trim()])[0].trim()})`);
+  fs.writeFileSync(lf, JSON.stringify({ id: 'pass-2026-10-11-2006', start: new Date(1790000000000).toISOString(), spel: G2, spelkod: 'ABC123', bordLogg: [{ s: 0, spar: [] }, { s: 5, spar: [] }] }));
+  r = tillFall(['--mattest', '--logg', lf, '--lokal', '--torr']);
+  ok(r.kod === 0 && /spel:ABC123/.test(r.ut), `--logg utan --spelkod: bordsloggens egen spelkod läses (slutkod ${r.kod})`);
+  r = tillFall(['--mattest', '--logg', lf, '--lokal', '--torr', '--spelkod', '../x']);
+  ok(r.kod === 2, `--spelkod «../x» vägras (slutkod ${r.kod})`);
+
   /* 6. Bänken kör bänkfallet. */
   if (har('--bank-kor')) {
     const modell = path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx');

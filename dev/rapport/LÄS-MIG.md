@@ -35,7 +35,7 @@ Spelarens yta: `design_handoff_rapport/README.md` (§5 rutan, §9 detaljerna).
 | `… --rattelser` | bara de tysta rättelserna (`kalla = 'rattelse'`, del B); går att kombinera med `--nya` |
 | `node dev/rapport/satt.cjs R-0412 fix\|test\|traning\|slangd` | sätter vad rapporten blev. Spärren: test och traning byts aldrig (slutkod 3) |
 | `node dev/rapport/till-fall.cjs R-0412 --mattest\|--bank\|--traning` | gör rapporten till ett Mat test-fall, ett bänkfall eller träningsdata, och sätter `anvandning` (nedan) |
-| `node dev/rapport/till-fall.cjs --mattest --logg pass.json [--orden o.tsv] [--lek lek.txt]` | samma för ett pass utan rapportkod (bordsloggen ur appen) |
+| `node dev/rapport/till-fall.cjs --mattest --logg pass.json [--orden o.tsv] [--lek lek.txt] [--spelkod KOD]` | samma för ett pass utan rapportkod (bordsloggen ur appen; spelkoden står inte i den, så ge den med `--spelkod` för spärren per parti) |
 | `node dev/rapport/prov-d.cjs [--bank-kor] [--tabell]` | provet för del D: syntetiska rättelser och en rapport i en tillfällig mapp, spärren åt båda hållen, bänken på bänkfallet, och (`--tabell`) satt/lista/spärren mot produktionens tabell med två provrader som tas bort efteråt |
 | `node dev/rapport/prov.cjs` | provet: ett parti i huvudlös Chrome, fel, anrop, telefonens låda, rutans fem lägen, taket, hamta — utan nät och utan Claude |
 
@@ -156,7 +156,7 @@ träningen — då mäter provet att modellen minns kortet. Samma regel som dete
 
 | Var | Regel |
 |---|---|
-| Tabellen | `anvandning` är `test` eller `traning`, aldrig båda. `till-fall.cjs` sätter den **först** (service role) och skriver sedan; `--mattest`/`--bank` = test, `--traning` = traning. När den väl är test eller traning byts den aldrig — inte heller via `fix` eller `slangd`, annars går det att tvätta test → slangd → traning. `null`/`fix` → test/traning går; `slangd` → ett fall kräver `satt.cjs` först |
+| Tabellen | `anvandning` är `test` eller `traning`, aldrig båda. `till-fall.cjs` sätter den **först** (service role) och skriver sedan; `--mattest`/`--bank` = test, `--traning` = traning. När den väl är test eller traning byts den aldrig — inte heller via `fix` eller `slangd`, annars går det att tvätta test → slangd → traning. `null` → test eller traning går, `fix` → test går, men **`fix` → traning vägras** (se nedan); `slangd` → ett fall kräver `satt.cjs` först |
 | Repot | koden — eller partiet, se nedan — får inte finnas på andra sidan: Mat test-underlaget och bänken mot träningsmaterialet. Håller också med `--lokal`, utan nät och om raden raderats. Saknas `dev/material/arbete/markning` (en worktree utan länken `dev/material`) kan spärren inte se träningssidan: **slutkod 2**, inget skrivet |
 
 **Per parti, inte per kod.** Två rättelser av samma kort i samma parti, eller en rapport och en rättelse ur
@@ -165,9 +165,9 @@ partiet — samma skäl som att detektorns spärr delar per inspelningstillfäll
 
 | | |
 |---|---|
-| Partiets nyckel | `parti: { game_id, spelkod }` i `fall.json`, bänkens `manifest.json` och `markning.json`. `game_id` ur tabellen (annars rapportens `miljo.spelId` eller bordsloggens `spel`); `spelkod` ur `rattelse.json` eller rapportens `miljo.spel` |
+| Partiets nyckel | `parti: { game_id, spelkod }` i `fall.json`, bänkens `manifest.json` och `markning.json`. `game_id` ur tabellen (annars rapportens `miljo.spelId` eller bordsloggens `spel`); `spelkod` ur `rattelse.json`, rapportens `miljo.spel` eller bordsloggens `spelkod`. Ett pass utan rapport (`--mattest --logg`) bär ingen spelkod i bordsloggen: ge den med `--spelkod <kod>` (p1011: `--spelkod CNA43K`) |
 | Samma parti | delar `game_id` **eller** `spelkod` (en återanvänd spelkod ger en vägran för mycket, aldrig en för lite) |
-| Tabellen | `test`/`traning` vägras när en **annan rad** med samma `game_id` redan är på andra sidan (`till-fall.cjs` och `satt.cjs`) |
+| Tabellen | `test`/`traning` vägras när en **annan rad** med samma `game_id` redan är på andra sidan (`till-fall.cjs` och `satt.cjs`). Frågas på både radens `game_id` och det den hämtade mappen bär: `satt.cjs` läser partiet ur `dev/diagnos/rapporter/<kod>/` (eller `--mapp`) när mappen finns, så att en rad utan `game_id` — telefonens rapporter, ett raderat parti (`on delete set null`) — ändå spärras per parti |
 | Repot | vägras när en kopia ur samma parti ligger på andra sidan, också under en annan kod |
 | Utan nyckel | (ingen `game_id`, ingen spelkod) spärren gäller per kod som förut, och `till-fall`/`satt` skriver **VARNING** |
 
@@ -199,7 +199,8 @@ närmast `t` (±10 s). Det ingen rättade antas vara rätt: fallet **underskatta
 Exemplet: passet 2026-10-11 (inget rapportkod, Jespers röst):
 
     node dev/rapport/till-fall.cjs --mattest --logg dev/diagnos/pass-2026-10-11/pass-2026-10-11-2006.json \
-         --lek dev/rapport/pass-2026-10-11/lek.txt --orden dev/rapport/pass-2026-10-11/orden.tsv --skriv-over
+         --lek dev/rapport/pass-2026-10-11/lek.txt --orden dev/rapport/pass-2026-10-11/orden.tsv \
+         --spelkod CNA43K --skriv-over
     node dev/mattest/kor.cjs --fall p1011 --detalj p1011
 
 Fall ur rapporter har `slag: 'rapport'`, räknas per fall och inte i Mat tests totalt, och får måttet *Kort som
@@ -220,8 +221,12 @@ baslinjen rörs inte) eller av en vanlig `--spara` (alla fall). I regeln ovan: f
 fixen, `--spara` på koden efter, och fallet, `grind.json` och fixen committas ihop. De gamla fallens mått och
 rader i `--jamfor` är oförändrade; rapportfallen skrivs i ett eget avsnitt efter dem.
 
-p1011:s orden har två rader som inte är rösten: ett kamerablink (ett Mountain-spår 234,59–237,04, 2,5 s) som
-annars blev ett utspel och en borttagning i facit och gav *Borttagna kort som står kvar* 1 på all kod.
+p1011:s orden har tre rader som inte är rösten: en **flytt** av ett Mountain i sidled (x 0,29 → 0,43). I
+bordsloggen försvinner spår 3 (Mountain) 231,8, spår 4 får namnet 234,59 på nya platsen och ligger kvar, och
+spår 3 kommer tillbaka utan namn vid x 0,24 (233,8–237,0) — `till-fall.cjs` läser det som samma spår efter ett
+glapp, så kamerans händelser blev ett utspel 234,59 och en borttagning 237,04. Orden stryker de två och lägger
+`flyttar Mountain` vid 234,59; utan dem räknade facit ett utspel för mycket och *Borttagna kort som står kvar* 1
+på all kod.
 
 ### Raderade rapporter
 
