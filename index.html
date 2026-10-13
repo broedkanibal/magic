@@ -7272,29 +7272,40 @@ const Moln = (() => {
      lista.cjs --raderade), sedan alla filer under scans/<uid>/rapporter/ och alla spelarens rader, alla
      kalla. Inställningen rörs inte. Kastar om något steg misslyckas; ett nytt tryck gör om hela vägen, och
      det går eftersom en kod som redan står i raderingar (unique (kod), 20261013170000: felet 23505) räknas som
-     skriven — bara andra fel kastar. Mappar utan rad räknas som rapporter i svaret (rapportAntal gör samma). */
-  async function raderaMinaRapporter() {
+     skriven — bara andra fel kastar. Mappar utan rad räknas som rapporter i svaret (rapportAntal gör samma).
+     Bara det som fanns när Delete började tas bort (granskningen av c7f6991): mapparna listas FÖRST, sedan
+     läses raderna, och bara de lästa koderna (.in('kod', koder)) och de listade mapparna raderas — en rapport
+     som skickas under tiden (Rapport pausar sin väg, men en annan flik eller enhet gör det inte) överlever med
+     rad och filer. fore(koder) anropas med de lästa koderna innan något raderas (Rapport.glomKoder: bilder som
+     kommer mellan väntan och raderingen städas bort). */
+  async function raderaMinaRapporter(fore) {
     const s = await klient(); if (!s || !inloggad()) throw new Error('Not signed in');
     const jag = minId(), rot = jag + '/rapporter';
+    const lista = async d => { const { data, error: e } = await s.storage.from('scans').list(d, { limit: 1000 }); if (e) throw new Error(e.message || 'scans'); return data || []; };
+    const listade = new Set();
+    for (const f of await lista(rot)) if (f && f.name && !f.id) listade.add(rot + '/' + f.name);
     const { data: rader, error } = await s.from('rapporter').select('kod, sokvag, kalla, anvandning').eq('user_id', jag);
     if (error) throw new Error(error.message || 'rapporter');
+    const koder = (rader || []).map(r => r.kod);
+    try { if (typeof fore === 'function') fore(koder); } catch (e) {}
     const kopior = (rader || []).filter(r => r.anvandning === 'test' || r.anvandning === 'traning').map(r => ({ kod: r.kod }));
     for (const k of kopior) {   // en i taget: en kod från ett tidigare, halvfärdigt tryck får 23505 och är redan skriven
       const { error: e } = await s.from('raderingar').insert(k);
       if (e && e.code !== '23505' && !/duplicate key|raderingar_kod_unik/i.test(e.message || '')) throw new Error(e.message || 'raderingar');
     }
     const mappar = new Set((rader || []).map(r => r.sokvag).filter(m => m && String(m).startsWith(rot + '/')));
-    const lista = async d => { const { data, error: e } = await s.storage.from('scans').list(d, { limit: 1000 }); if (e) throw new Error(e.message || 'scans'); return data || []; };
     const medRad = mappar.size;
-    for (const f of await lista(rot)) if (f && f.name && !f.id) mappar.add(rot + '/' + f.name);   // mappar utan rad (Cancel som inte hann städa, sena bilder)
+    for (const m of listade) mappar.add(m);   // mappar utan rad (Cancel som inte hann städa, sena bilder) — bara de som fanns vid listningen
     const filer = [];
     for (const m of mappar) for (const d of [m, m + '/bilder']) for (const f of await lista(d)) if (f && f.id) filer.push(d + '/' + f.name);
     for (let i = 0; i < filer.length; i += 100) { const { error: e } = await s.storage.from('scans').remove(filer.slice(i, i + 100)); if (e) throw new Error(e.message || 'scans'); }
-    const { error: e3 } = await s.from('rapporter').delete().eq('user_id', jag);
-    if (e3) throw new Error(e3.message || 'rapporter');
+    for (let i = 0; i < koder.length; i += 100) {
+      const { error: e3 } = await s.from('rapporter').delete().eq('user_id', jag).in('kod', koder.slice(i, i + 100));
+      if (e3) throw new Error(e3.message || 'rapporter');
+    }
     const losa = mappar.size - medRad;   // mappar utan rad
     return { rapporter: (rader || []).filter(r => r.kalla === 'rapport').length + losa, bilder: (rader || []).filter(r => r.kalla === 'rattelse').length,
-             alla: (rader || []).length, filer: filer.length, raderingar: kopior.map(k => k.kod), koder: (rader || []).map(r => r.kod), losa };
+             alla: (rader || []).length, filer: filer.length, raderingar: kopior.map(k => k.kod), koder, losa };
   }
 
   /* ── Spelupplevelsen (supabase/migrations/20261009120000_spelupplevelse.sql) ──
@@ -39078,7 +39089,25 @@ var Rapport = (() => {
      Try again skickar samma paket: finns koden redan görs bara det som återstår. */
   const AVBRUTEN = 'rapport_avbruten';
   const stoppaOmAvbruten = p => { if (p.avbruten) throw Object.assign(new Error(AVBRUTEN), { avbruten: true }); };
+  /* C:s Delete (granskningen av c7f6991): medan Delete pågår väntar en ny rapport — från rutan och från
+     telefonens ark — tills Delete är klar, och Delete väntar in de rapporter som redan skickas. En rapport
+     under Delete raderas alltså aldrig; den skickas efteråt. Var paketets rad redan raderad (Try again efter
+     en Delete) får det en ny rad. */
+  let raderingKlar = null, slappRadering = null;
+  const skickarPagar = new Set();
+  function pausaForRadering(pa) {
+    if (pa && !raderingKlar) raderingKlar = new Promise(r => { slappRadering = r; });
+    else if (!pa && raderingKlar) { const r = slappRadering; raderingKlar = slappRadering = null; r(); }
+  }
+  const vantaSkick = ms => Promise.race([Promise.all([...skickarPagar]), new Promise(r => setTimeout(r, ms || 30000))]);
   async function skicka(p, text, tagg, kalla) {
+    while (raderingKlar) await raderingKlar;
+    if (p.kod && raderadKod(p.kod)) { p.kod = p.sokvag = null; p.uppladdat = false; p.bilderBegard = false; }
+    const lofte = skickaNu(p, text, tagg, kalla), tyst = lofte.catch(() => {});
+    skickarPagar.add(tyst); tyst.then(() => skickarPagar.delete(tyst));
+    return lofte;
+  }
+  async function skickaNu(p, text, tagg, kalla) {
     await p.telefonKlar;
     stoppaOmAvbruten(p);
     if (!p.kod) {
@@ -39169,7 +39198,7 @@ var Rapport = (() => {
       if (id) { telefonRapporter.set(id, t); setTimeout(() => telefonRapporter.delete(id), 30 * 60 * 1000); }
     } else if (!t.p.kod) { t.text = m.text; t.tagg = m.tagg; }   // raden finns inte än: spelarens ändrade ord gäller
     t.pagar = true;
-    try { const kod = await skicka(t.p, t.text, t.tagg, 'rapport'); t.kod = kod; Moln.sandKam('rapport_svar', { id: m.id, kod }); }
+    try { const kod = await skicka(t.p, t.text, t.tagg, 'rapport'); t.kod = kod; t.p = t.text = t.tagg = null; Moln.sandKam('rapport_svar', { id: m.id, kod }); }
     catch (e) { Moln.sandKam('rapport_svar', { id: m.id, fel: e && e.tak ? 'tak' : 'nat' }); }
     finally { t.pagar = false; }
   }
@@ -39184,17 +39213,19 @@ var Rapport = (() => {
   }
   /* Telefonens väg (del C:s ark anropar den): { kod, id } eller { fel: 'tak' | 'nat' | 'dator' | 'av', id } ('av' = rapporten är inte på hos datorn).
      Inget svar alls inom 10 s = Can't reach your computer, orden kvar hos arket. Har datorn svarat { mottagen }
-     väntar telefonen upp till 60 s på koden (datorn väntar på telefonens låda och laddar upp). id: Try again
-     efter Can't reach skickar samma id, så att datorn svarar med samma rapport i stället för en ny rad.
-     sen(svar): en kod som kommer efter att löftet gett { fel: 'dator' } (arket byter då till Report sent). */
+     väntar telefonen upp till 60 s på koden (datorn väntar på telefonens låda och laddar upp); kommer den inte
+     blir det { fel: 'nat' } = Couldn't send. id: Try again efter Can't reach eller Couldn't send skickar samma id,
+     så att datorn svarar med samma rapport i stället för en ny rad.
+     sen(svar): en kod som kommer efter att löftet gett ett fel (arket byter då till Report sent). */
   function franTelefon(text, tagg, id, sen) {
     id = id || Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     return new Promise(res => {
-      let klar = false, timer = null;
+      let klar = false, timer = null, mottagen = false;
+      /* Har datorn svarat mottagen är den nåbar (pricken grön): 60 s utan kod = Couldn't send ('nat'), inte Can't reach. */
       const slut = r => { if (!klar) { klar = true; clearTimeout(timer); res(Object.assign({ id }, r)); } };
-      const vanta = ms => { clearTimeout(timer); timer = setTimeout(() => slut({ fel: 'dator' }), ms); };
+      const vanta = ms => { clearTimeout(timer); timer = setTimeout(() => slut({ fel: mottagen ? 'nat' : 'dator' }), ms); };
       const lyss = m => {
-        if (m.mottagen && !m.kod && !m.fel) { if (!klar) vanta(TELEFON_SKICKAR_MS); return; }
+        if (m.mottagen && !m.kod && !m.fel) { if (!klar) { mottagen = true; vanta(TELEFON_SKICKAR_MS); } return; }
         if (telefonLyss.get(id) === lyss) telefonLyss.delete(id);
         if (!klar) slut(m.kod ? { kod: m.kod } : { fel: m.fel || 'nat' });
         else if (m.kod && typeof sen === 'function') sen({ kod: m.kod, id });
@@ -39208,6 +39239,7 @@ var Rapport = (() => {
   /* C:s Delete: väntar in telefonens bilder som är på väg (högst ms), och kommer ihåg koderna den tar bort. */
   const vantaBilder = ms => Promise.race([Promise.all([...bilderPagar]), new Promise(r => setTimeout(r, ms || 30000))]);
   const glomKoder = koder => { for (const k of koder || []) raderade.add(k); };
+  /* telefonRapporter håller bara id → kod när koden finns (paketet släpps, granskningen av c7f6991). */
   /* ── Rutan (README §5, tavlorna L9-Report*) ──────────────────────── */
   const IKON = {
     x: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
@@ -39403,7 +39435,7 @@ var Rapport = (() => {
   if (knapp) knapp.onclick = () => oppna();
   bevakaYtor();
 
-  const api = { oppna, stang, frys, skicka, franTelefon, vantaBilder, glomKoder, datorTagEmot, telefonKommando, mattaDiff, miljo, vy,
+  const api = { oppna, stang, frys, skicka, franTelefon, vantaBilder, glomKoder, pausaForRadering, vantaSkick, datorTagEmot, telefonKommando, mattaDiff, miljo, vy,
                 get lage() { return lage; }, get oppen() { return !!(el && !el.hidden); }, get paket() { return paket; },
                 stillbilder: null, TAGGAR };
   return api;
@@ -39460,6 +39492,10 @@ var Installningar, TelefonArk;
 .instruta .alert p{margin:0}
 .instruta .alert b{color:#fff;font-weight:650}
 .instruta .rad{display:flex;gap:8px}
+.instruta .bar2{height:6px;border-radius:999px;background:var(--bg4);overflow:hidden}
+.instruta .bar2 i{display:block;height:100%;width:46%;border-radius:999px;background:var(--acc);animation:instbar 1.4s ease-in-out infinite alternate}
+@keyframes instbar{from{margin-left:0}to{margin-left:54%}}
+.instruta .alert p.vant{color:var(--dim)}
 .instruta .note{margin:16px 0 0;font-size:12.5px;color:var(--dim)}
 .instruta .note a{color:#a9bcff}
 .telarkscrim{position:fixed;inset:0;z-index:499;background:#000a}
@@ -39532,6 +39568,7 @@ var Installningar, TelefonArk;
       const knapp = fraga
         ? `<div class="alert" role="alert"><p><b>Delete ${vad(antal)}?</b> They are deleted from Mesa right away. Pictures already used to train a model can't be taken out of that model.</p>`
           + (raderaFel ? `<p>Couldn't delete everything. Check your internet connection and try again.</p>` : '')
+          + (lage === 'raderar' ? `<div class="bar2" role="progressbar" aria-label="Deleting"><i></i></div><p class="vant" aria-live="polite">Deleting. This takes a few seconds.</p>` : '')
           + `<div class="rad"><button class="btn sm dangerfill" type="button" data-inst="radera"${lage === 'raderar' ? ' disabled' : ''}>Delete</button><button class="btn sm ghost" type="button" data-inst="avbryt"${lage === 'raderar' ? ' disabled' : ''}>Cancel</button></div></div>`
         : `<button class="btn danger" type="button" data-inst="fraga"${harSkickat && lage === 'vila' ? '' : ' disabled'}>Delete my reports and pictures</button>`;
       el.innerHTML = `<header class="hd2"><h2>Settings</h2><button class="x" type="button" data-inst="stang" aria-label="Close">${IK.x}</button></header>`
@@ -39558,14 +39595,20 @@ var Installningar, TelefonArk;
          raderats: nya rättelser stoppas, de pågående och bilderna väntas in (högst 30 s), och koderna som tas
          bort kommer Rapport ihåg så att ännu senare bilder städas bort när de kommer. */
       const R = typeof Rattelse !== 'undefined' && Rattelse, P = typeof Rapport !== 'undefined' && Rapport;
+      /* Rapporterna pausas också: en ny rapport (rutan, telefonens ark) väntar tills Delete är klar, och de som
+         redan skickas väntas in. Koderna glöms (P.glomKoder) innan något raderas, så att bilder som kommer efter
+         väntan städas bort. */
       try { if (R && R.paus) R.paus(true); } catch (e) {}
+      try { if (P && P.pausaForRadering) P.pausaForRadering(true); } catch (e) {}
       try {
-        await Promise.all([R && R.vanta ? R.vanta(30000) : null, P && P.vantaBilder ? P.vantaBilder(30000) : null]);
-        const r = await Moln.raderaMinaRapporter();
-        try { if (P && P.glomKoder) P.glomKoder(r.koder); } catch (e) {}
+        await Promise.all([R && R.vanta ? R.vanta(30000) : null, P && P.vantaBilder ? P.vantaBilder(30000) : null, P && P.vantaSkick ? P.vantaSkick(30000) : null]);
+        const r = await Moln.raderaMinaRapporter(koder => { if (P && P.glomKoder) P.glomKoder(koder); });
         raderat = { rapporter: r.rapporter, bilder: r.bilder }; antal = { rapporter: 0, bilder: 0, losa: 0 }; lage = 'raderat';
       } catch (e) { raderaFel = true; lage = 'fraga'; }
-      finally { try { if (R && R.paus) R.paus(false); } catch (e) {} }
+      finally {
+        try { if (R && R.paus) R.paus(false); } catch (e) {}
+        try { if (P && P.pausaForRadering) P.pausaForRadering(false); } catch (e) {}
+      }
       rita();
     }
     function klick(ev) {
@@ -39650,7 +39693,7 @@ var Installningar, TelefonArk;
       const id = lage === 'narInte' || lage === 'fel' ? sandId : null;
       lage = 'skickar'; rita();
       /* En kod som kommer efter Can't reach (datorn var långsam, inte borta) byter arket till Report sent. */
-      const sen = sv => { if (el && !el.hidden && lage === 'narInte' && sv && sv.id === sandId && sv.kod) { kod = sv.kod; lage = 'skickad'; text = ''; tagg = null; sandId = null; rita(); } };
+      const sen = sv => { if (el && !el.hidden && (lage === 'narInte' || lage === 'fel') && sv && sv.id === sandId && sv.kod) { kod = sv.kod; lage = 'skickad'; text = ''; tagg = null; sandId = null; rita(); } };
       let r;
       try { r = await Rapport.franTelefon(text.trim(), tagg, id, sen); } catch (e) { r = { fel: 'dator', id }; }
       if (mitt !== nr || !el || el.hidden) return;

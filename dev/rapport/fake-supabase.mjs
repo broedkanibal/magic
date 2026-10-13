@@ -12,7 +12,7 @@
    - storage scans: bara under <uid>/.
    Tillståndet ligger i globalThis.__sb och sparas i sessionStorage, så att det överlever en omladdning
    (Agree and continue laddar om sidan). S.natNere = true: varje anrop svarar "Failed to fetch".
-   S.removeFel = N: hinkens remove fallerar de N nästa gångerna. S.updateFel = N: samma för auth.updateUser. */
+   S.removeFel = N: hinkens remove fallerar de N nästa gångerna. S.listVanta = ms: varje list väntar så länge. S.updateFel = N: samma för auth.updateUser. */
 const NYCKEL = '__sbfake';
 const las = () => { try { return JSON.parse(sessionStorage.getItem(NYCKEL)); } catch (e) { return null; } };
 const S = globalThis.__sb = globalThis.__sb || Object.assign(
@@ -90,6 +90,7 @@ const hink = () => ({
     return { data: { path: p }, error: null };
   },
   async list(dir) {
+    if (S.listVanta) await new Promise(r => setTimeout(r, S.listVanta));   // provet: Delete tar tid (en rapport skickas under tiden)
     if (S.natNere) return fel('Failed to fetch');
     const pre = String(dir).replace(/\/$/, '') + '/', ut = new Map();
     for (const k of Object.keys(S.filer)) {
