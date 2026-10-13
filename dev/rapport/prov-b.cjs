@@ -46,6 +46,8 @@ function server() {
     const s = http.createServer((req, ut) => {
       const u = decodeURIComponent(new URL(req.url, 'http://x').pathname);
       if (u === '/index.html' || u === '/') { ut.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); return ut.end(fs.readFileSync(FIL)); }
+      /* Samma app med C:s flagga på (go-live): RAPPORT_FOR_ALLA är en const och går inte att slå på i sidan. */
+      if (u === '/flagga.html') { ut.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); return ut.end(fs.readFileSync(FIL, 'utf8').replace('const RAPPORT_FOR_ALLA = false;', 'const RAPPORT_FOR_ALLA = true;')); }
       ut.writeHead(404); ut.end();
     });
     s.listen(0, '127.0.0.1', () => res(s));
@@ -98,12 +100,28 @@ const PROV_AV = async () => {
   window.STILLBILDER_AV = true; Stillbilder.steg(c, 3e9, spar, 360, 203); await vanta(50);
   ok('fynd 4: --utan-stillbilder (STILLBILDER_AV) vinner över STILLBILDER_PA', Stillbilder.ring.length === 1);
   delete window.STILLBILDER_AV; delete window.STILLBILDER_PA; Stillbilder.glom();
-  window.RAPPORT_FOR_ALLA = true;   // C:s flagga
+  return { rad };
+};
+
+/* Fynd 4: samma app utan ?debug men med RAPPORT_FOR_ALLA på (go-live-grenen): ringen och rättelserna går. */
+const PROV_FLAGGA = async () => {
+  const rad = [], ok = (namn, villkor, detalj) => rad.push([namn, !!villkor, detalj || '']);
+  const vanta = ms => new Promise(r => setTimeout(r, ms));
+  let getUser = 0;
+  Moln.inloggad = () => true; Moln.minId = () => 'u-prov';
+  Moln.bildInstallning = async () => { getUser++; return true; };
+  Moln.rapportRad = async () => ({ kod: 'R-0999', sokvag: 'u-prov/rapporter/R-0999' });
+  Moln.rapportFil = async () => {}; Moln.rapportUppdatera = async () => true; Moln.sandKam = () => true;
+  const c = document.createElement('canvas'); c.width = 360; c.height = 203; c.getContext('2d').fillRect(0, 0, 50, 50);
+  const spar = [{ id: 1, namn: 'A', tillstand: 'klar', vilaX: 10, vilaY: 10, box: { x: 10, y: 10, w: 20, h: 30 } }];
+  visaVy('app');
+  const mig = player(); mig.lage = 'bord';
+  spelLage = { id: 'flagga-spel', kod: 'FLAGGA', vard: mig.id, mig: mig.id };
+  Stillbilder.glom();
   Stillbilder.steg(c, 4e9, spar, 360, 203); await vanta(50);
   const r2 = Rattelse.fran('namnbyte', { cid: 'z', spar: 1, name: 'A' }, 'D');
   await vanta(30);
-  ok('fynd 4: med RAPPORT_FOR_ALLA på igen: ringen och rättelserna', Stillbilder.ring.length === 1 && r2 !== null && getUser >= 1, `ring ${Stillbilder.ring.length}, getUser ${getUser}, lage ${typeof mittLage === 'function' ? mittLage() : '?'}`);
-  delete window.RAPPORT_FOR_ALLA;
+  ok('fynd 4: med RAPPORT_FOR_ALLA på (utan ?debug): ringen och rättelserna', RAPPORT_FOR_ALLA === true && DEBUG === false && Stillbilder.ring.length === 1 && r2 !== null && getUser >= 1, `flagga ${RAPPORT_FOR_ALLA}, DEBUG ${DEBUG}, ring ${Stillbilder.ring.length}, getUser ${getUser}`);
   return { rad };
 };
 
@@ -453,6 +471,19 @@ const PROV = async () => {
     const r2 = await c.cdp('Runtime.evaluate', { expression: '(' + PROV_AV.toString() + ')()', awaitPromise: true, returnByValue: true });
     if (r2.exceptionDetails) throw new Error((r2.exceptionDetails.exception || {}).description || r2.exceptionDetails.text);
     ut.rad = ut.rad.concat(r2.result.value.rad);
+    /* Fynd 4: samma app med flaggan på (go-live), utan ?debug. */
+    await c.cdp('Page.navigate', { url: `http://127.0.0.1:${srv.address().port}/flagga.html?debug=0` });
+    const t2 = Date.now();
+    for (;;) {
+      const q = await c.cdp('Runtime.evaluate', { expression: "document.readyState === 'complete' && typeof Stillbilder === 'object' && typeof avstamBord === 'function'", returnByValue: true }).catch(() => null);
+      if (q && q.result && q.result.value) break;
+      if (Date.now() - t2 > 30000) throw new Error('appen laddade inte (flaggan på)');
+      await vanta(100);
+    }
+    await vanta(300);
+    const r3 = await c.cdp('Runtime.evaluate', { expression: '(' + PROV_FLAGGA.toString() + ')()', awaitPromise: true, returnByValue: true });
+    if (r3.exceptionDetails) throw new Error((r3.exceptionDetails.exception || {}).description || r3.exceptionDetails.text);
+    ut.rad = ut.rad.concat(r3.result.value.rad);
   } catch (e) { console.error('prov-b: ' + e.message); await c.stang(); srv.close(); process.exit(2); }
   await c.stang(); srv.close();
   if (arg('--rattelse')) fs.writeFileSync(arg('--rattelse'), JSON.stringify(ut.sparad));
