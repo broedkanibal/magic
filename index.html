@@ -39504,11 +39504,20 @@ var Installningar, TelefonArk;
 .instruta .s{margin:4px 0 0;font-size:12.8px;color:var(--dim);line-height:1.5}
 .instruta .m{margin:6px 0 0;font-size:12px;color:var(--dim2)}
 .instruta .m.bad{color:#f3b3b8}
-.instruta .switch{position:relative;flex:none;width:42px;height:26px;border-radius:999px;background:#3a4558;margin-top:1px;border:0;padding:0;cursor:pointer}
-.instruta .switch::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#cfd6e2;transition:left .15s}
-.instruta .switch.on{background:var(--acc)}
-.instruta .switch.on::after{left:19px;background:#1a1205}
-.instruta .switch:disabled{opacity:.6;cursor:default}
+/* Växeln (role=switch): spåret mörkt med en tunn kant när den är av, accentfärgat när den är på; knoppen glider och får en bock. Fokusringen syns bara från tangentbordet. */
+.switch{position:relative;flex:none;width:44px;height:26px;margin-top:-1px;padding:0;border:0;border-radius:999px;background:var(--bg4);box-shadow:inset 0 0 0 1px #3a4558;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;transition:background .2s,box-shadow .2s}
+.switch::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#aeb7c6 center/12px 12px no-repeat;box-shadow:0 1px 2px #0007;transition:transform .22s cubic-bezier(.3,.7,.4,1),background-color .2s}
+.switch:hover:not(:disabled){box-shadow:inset 0 0 0 1px #4a5670}
+.switch:hover:not(:disabled)::after{background-color:#c4ccd8}
+.switch.on{background:var(--acc);box-shadow:none}
+.switch.on::after{transform:translateX(18px);background-color:#fff;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6l4.5-5' fill='none' stroke='%23b8770f' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.switch.on:hover:not(:disabled){background:#f5b545;box-shadow:none}
+.switch.on:hover:not(:disabled)::after{background-color:#fff}
+.switch:active:not(:disabled)::after{width:23px}
+.switch.on:active:not(:disabled)::after{transform:translateX(15px)}
+.switch:focus-visible{box-shadow:inset 0 0 0 1px #3a4558,0 0 0 3px var(--bg2),0 0 0 5px #f0a52a99}
+.switch.on:focus-visible{box-shadow:0 0 0 3px var(--bg2),0 0 0 5px #f0a52a99}
+.switch:disabled{opacity:.55;cursor:default}
 .instruta .btn.danger{align-self:flex-start;background:#2a1215;border:1px solid #6e2f36;color:#f0a0a6}
 .instruta .btn.danger:disabled{background:var(--bg3);border-color:var(--line);color:var(--dim2);opacity:1}
 .instruta .btn.dangerfill{background:#c94a55;border-color:#c94a55;color:#fff}
