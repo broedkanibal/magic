@@ -49,10 +49,19 @@ const RAPPORT = arg('--rapport', '');
    ändringar ur tidslinjen (rapport.json) är markeringarna. s = sekunder från bordsloggens start. */
 function rapportFall(mapp) {
   const abs = path.resolve(mapp), las = f => JSON.parse(fs.readFileSync(path.join(abs, f), 'utf8'));
-  if (!fs.existsSync(path.join(abs, 'bordlogg.json'))) throw new Error(`${mapp}: bordlogg.json saknas (kör hamta.cjs först)`);
-  const bl = las('bordlogg.json'), start = Date.parse(bl.start);
-  const sb = fs.existsSync(path.join(abs, 'stillbilder.json')) ? las('stillbilder.json') : { bilder: [], frys: null };
   let rap = null; try { rap = las('rapport.json'); } catch (e) {}
+  /* Ingen bordslogg: rapporten skickades utan telefon (granskning 1 punkt 10). Mattan visas ändå, med
+     mattans ändringar ur rapport.json som markeringar, men utan kamerans spår. */
+  let bl;
+  if (fs.existsSync(path.join(abs, 'bordlogg.json'))) bl = las('bordlogg.json');
+  else if (rap) {
+    const tl0 = (rap.tidslinje || []).map(e => e.t).filter(Number.isFinite);
+    const s0 = tl0.length ? Math.min(...tl0) : (rap.frys || Date.now()) - 60000;
+    bl = { start: new Date(s0).toISOString(), bordLogg: [] };
+    console.error(`mattest --rapport: ${mapp} har ingen bordlogg.json — rapporten skickades utan telefon, så kamerans spår saknas. Visar mattan med rapportens ändringar (${(rap.tidslinje || []).filter(e => e.slag === 'matta').length} st) som markeringar.`);
+  } else throw new Error(`${mapp}: varken bordlogg.json eller rapport.json (kör node dev/rapport/hamta.cjs R-NNNN först)`);
+  const start = Date.parse(bl.start);
+  const sb = fs.existsSync(path.join(abs, 'stillbilder.json')) ? las('stillbilder.json') : { bilder: [], frys: null };
   const rader = bl.bordLogg || [];
   const sek = t => +((t - start) / 1000).toFixed(2);
   const bilder = (sb.bilder || []).filter(b => b.finns !== false).map(b => ({ fil: b.fil, s: sek(b.t), orsak: b.orsak, w: b.w, h: b.h, spar: b.spar || [] }));

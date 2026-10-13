@@ -6303,6 +6303,7 @@ const Moln = (() => {
     await lamnaKanal();
     await s.auth.signOut();
     session = null;
+    try { if (typeof Stillbilder !== 'undefined') Stillbilder.glom(); if (typeof Rattelse !== 'undefined') Rattelse.glom(); } catch (e) {}   // MES-366: kontots bilder och rättelser stannar inte i minnet
   }
 
   const KODTECKEN = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // utan I,O,0,1
@@ -38940,11 +38941,11 @@ var Rapport = (() => {
     for (const b of bilder) { if (!b || !b.blob) continue; if (b.blob.size > budget) continue; budget -= b.blob.size; med.push(b); }
     /* Raden på telefonen, README §9: Sending pictures, 12 of 40 tills klart (B, MES-366). */
     const rad = typeof Stillbilder !== 'undefined' ? Stillbilder.sandRad(med) : null;
-    for (const b of med) {
+    let nasta = 0;   // fyra uppladdningar samtidigt: ~340 filer en i taget hann inte inom BILDER_VANTA_MS (B, granskning 1 punkt 3)
+    await Promise.all([0, 1, 2, 3].map(async () => { while (nasta < med.length) { const b = med[nasta++];
       try { await Moln.rapportFil(mapp + '/bilder', b.namn || ((b.t || Date.now()) + '.jpg'), b.blob, b.blob.type || 'image/jpeg'); antal++; }
       catch (e) { fel++; }
-      if (rad) rad.klar(b);
-    }
+      if (rad) rad.klar(b); } }));
     if (rad) rad.slut(fel);
     Moln.sandKam('rapport_bilder_klar', { kod: m.kod, antal, fel, slappta: bilder.length - med.length, sen: f.sen ? 1 : undefined });
   }
@@ -39024,7 +39025,7 @@ var Rapport = (() => {
   function datorTagEmot(m) {
     if (!m || typeof m.typ !== 'string' || m.typ.indexOf('rapport') !== 0) return false;
     if (m.typ === 'rapport_lada') { tagEmotLada(m); return true; }
-    if (m.typ === 'rapport_bilder_klar') { const r = bilderVantar.get(m.kod); if (r) { bilderVantar.delete(m.kod); r(m); } return true; }
+    if (m.typ === 'rapport_bilder_klar') { const r = bilderVantar.get(m.kod); if (r) { bilderVantar.delete(m.kod); r(m); } else if (/^R-\d+$/.test(String(m.kod || ''))) Moln.rapportUppdatera(m.kod, { bilder: m.fel ? 'delvis' : 'klar' }); return true; }   // B: ett sent svar (efter BILDER_VANTA_MS) rättar raden
     if (m.typ === 'rapport_rattelse_klar') { if (typeof Rattelse !== 'undefined') Rattelse.svar(m); return true; }   // B (MES-366): telefonens beskärning till en tyst rättelse
     if (m.typ === 'rapport') { telefonensRapport(m); return true; }
     return true;
@@ -39265,8 +39266,12 @@ function oppnaRapportRuta(opt) { return Rapport.oppna(opt); }
    annan sekund och en vid varje händelse på bordet (nytt kort, namn satt,
    kort borta, tap, flytt). Tak 300 bilder och 7,5 MB; det äldsta släpps
    först. Bilden tas ur den ruta detektorn redan fått ritad — ingen ny
-   drawImage ur videon — och kodningen (toBlob) går asynkront utanför
-   steget, högst två i taget (fler hoppas över, steget väntar aldrig).
+   drawImage ur videon. Steget gör bara en liten kopia (drawImage canvas →
+   canvas); kodningen (toBlob) körs i en egen uppgift efter steget
+   (setTimeout 0), eftersom WebKit kodar synkront. Högst två ringbilder i
+   kö (fler hoppas över, steget väntar aldrig); beskärningarna har en egen
+   kö och tappas inte av ringens. En händelsebild som inte kunde tas
+   (kön full, 300 ms-spärren) tas i nästa steg.
    Varje bild bär spårens rutor (andelar av bilden) och namn, så att
    uppspelaren kan rita dem ovanpå. Beskärningen som gav ett namn (läsningens,
    den som går till Claude när det händer) sparas per spår och namnsättning:
@@ -39285,18 +39290,33 @@ function oppnaRapportRuta(opt) { return Rapport.oppna(opt); }
    10 s tar datorn sin egen kopia (granskningens beskärning eller kamerans
    foto av kortet), annars bilder = 'saknas'.
 
+   Påslaget (granskning 1, punkt 4): ringen, beskärningarna och rättelserna
+   körs bara när rapporten finns för spelaren — samma villkor som A:s
+   rapportPa (?debug eller RAPPORT_FOR_ALLA, som C lägger). Golden kör
+   ringen PÅ som förval (window.STILLBILDER_PA, kor.html), så att golden
+   mäter kostnaden efter go-live; --utan-stillbilder (STILLBILDER_AV) stänger
+   av. Ringen tillhör ett konto och ett parti: byts något av dem töms den
+   innan nästa bild tas eller bilderna lämnar telefonen, och vid utloggning.
+   Taket för rättelser (servern) nås tyst: inga fler försök den sessionen.
+
    Claude är aldrig ett villkor: inget här frågar Claude eller skickar en
    bild dit. Avstängning för mätningen (golden --utan-stillbilder):
    window.STILLBILDER_AV = true. */
+/* Samma villkor som A:s rapportPa (privat i Rapport): rapporten finns för spelaren. */
+var rapportFinns = () => (typeof DEBUG !== 'undefined' && !!DEBUG) || (typeof RAPPORT_FOR_ALLA !== 'undefined' && !!RAPPORT_FOR_ALLA);
 var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar får inte döda krokarna)
   const VAR_MS = 2000, HAND_MIN_MS = 300, MAX_ANTAL = 300, MAX_BYTES = 7.5 * 1024 * 1024;
-  const BESK_ANTAL = 40, BESK_BYTES = 2.5 * 1024 * 1024, MAX_BREDD = 480, KVAL = 0.7, BESK_KVAL = 0.85, MAX_KO = 2;
+  const BESK_ANTAL = 40, BESK_BYTES = 2.5 * 1024 * 1024, MAX_BREDD = 480, KVAL = 0.7, BESK_KVAL = 0.85, MAX_KO = 2, BESK_KO = 8;
   const ring = [];            // { t, orsak, w, h, spar, blob }
   const besk = new Map();     // spår-id → { t, spar, kort, saker, varfor, w, h, blob }
-  let bytes = 0, beskBytes = 0, senast = -Infinity, senastHand = -Infinity, sig = null, ko = 0;
-  const stat = { tagna: 0, slappta: 0, hoppade: 0, beskTagna: 0, beskSlappta: 0, kodMs: 0, kodN: 0, stegMs: 0, stegN: 0 };
-  const av = () => { try { return window.STILLBILDER_AV === true; } catch (e) { return false; } };
-  let liten = null;
+  let bytes = 0, beskBytes = 0, senast = -Infinity, senastHand = -Infinity, sig = null, ko = 0, beskKo = 0, agarenNu = null;
+  const stat = { tagna: 0, slappta: 0, hoppade: 0, beskTagna: 0, beskSlappta: 0, beskHoppade: 0, kodMs: 0, kodN: 0, kodSyncMs: 0, kodSyncMax: 0, stegMs: 0, stegN: 0, stegMax: 0, tommda: 0 };
+  /* Av: golden --utan-stillbilder. På: golden (STILLBILDER_PA) eller när rapporten finns för spelaren. */
+  const av = () => { try { return window.STILLBILDER_AV === true || !(window.STILLBILDER_PA === true || rapportFinns()); } catch (e) { return true; } };
+  /* Ringens ägare: kontot och partiet. Byts något av dem töms ringen (punkt 5). */
+  const agare = () => { try { return (Moln.minId() || '') + '|' + ((typeof kamLage !== 'undefined' && kamLage && kamLage.kod) || ''); } catch (e) { return '|'; } };
+  function kollaAgare() { const a = agare(); if (agarenNu !== null && a !== agarenNu) { tom(); stat.tommda++; } agarenNu = a; }
+  const forrad = [];          // återanvända kopior (högst MAX_KO + BESK_KO)
 
   /* Händelserna på bordet, ur spåren: ett kort (namn, eller har vilat en gång) kom eller gick, fick ett namn, tappades eller
      flyttade sitt viloläge mer än 3 % av bildens bredd. Händer, skräp och korta glimtar ger ingen bild. */
@@ -39325,18 +39345,35 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
       besk.delete(aldst[0]); beskBytes -= aldst[1].blob.size; stat.beskSlappta++;
     }
   }
-  /* Kodar en canvas till JPEG utanför steget. toBlob tar en kopia av bilden direkt och kodar asynkront. */
-  function koda(canvas, kval, klar) {
-    if (ko >= MAX_KO) { stat.hoppade++; return false; }
-    ko++;
-    const t0 = performance.now();
+  /* Kodar en canvas till JPEG UTANFÖR steget och läsningen (punkt 1). I steget görs bara en kopia (drawImage
+     canvas → canvas, nedskalad till högst 480 px); toBlob körs i en egen uppgift efter steget, eftersom WebKit
+     (iPhone) kodar synkront i toBlob. kodSyncMs = den tid toBlob själv blockerar (utanför steget), kodMs = till
+     klar. besk = beskärningens egen kö, så att ringen aldrig tränger ut en beskärning (punkt 9). */
+  function koda(src, kval, klar, besk) {
+    if (besk ? beskKo >= BESK_KO : ko >= MAX_KO) { if (besk) stat.beskHoppade++; else stat.hoppade++; return false; }
+    const sk = src.width > MAX_BREDD ? MAX_BREDD / src.width : 1;
+    const w = Math.max(1, Math.round(src.width * sk)), h = Math.max(1, Math.round(src.height * sk));
+    let c = null;
     try {
-      canvas.toBlob(b => {
-        ko--;
-        stat.kodMs += performance.now() - t0; stat.kodN++;
-        if (b && b.size) { try { klar(b); } catch (e) {} }
-      }, 'image/jpeg', kval);
-    } catch (e) { ko--; return false; }
+      c = forrad.pop() || document.createElement('canvas');
+      if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+      c.getContext('2d').drawImage(src, 0, 0, w, h);
+    } catch (e) { return false; }
+    if (besk) beskKo++; else ko++;
+    const slut = () => { if (besk) beskKo--; else ko--; if (forrad.length < MAX_KO + BESK_KO) forrad.push(c); };
+    const t0 = performance.now();
+    setTimeout(() => {
+      const t1 = performance.now();
+      try {
+        c.toBlob(b => {
+          stat.kodMs += performance.now() - t0; stat.kodN++;
+          const ok = b && b.size;
+          slut();
+          if (ok) { try { klar(b, w, h); } catch (e) {} }
+        }, 'image/jpeg', kval);
+      } catch (e) { slut(); }
+      const d = performance.now() - t1; stat.kodSyncMs += d; if (d > stat.kodSyncMax) stat.kodSyncMax = d;
+    }, 0);
     return true;
   }
 
@@ -39345,45 +39382,40 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
     if (av() || !canvas || !canvas.width || !aw || !ah) return;
     const t0 = performance.now();
     try {
+      kollaAgare();
       const s = sigAv(spar || [], aw);
       const andrat = sig !== null && s !== sig;
-      sig = s;
       const orsak = nu - senast >= VAR_MS ? 'tid' : andrat && nu - senastHand >= HAND_MIN_MS ? 'handelse' : null;
-      if (!orsak) return;
-      let kalla = canvas;
-      /* En analysbredd över 480 (bara ?debug, och golden-fallens foton) skalas ned ur analysbilden — aldrig ur videon. */
-      if (canvas.width > MAX_BREDD) {
-        if (!liten) liten = document.createElement('canvas');
-        const w = MAX_BREDD, h = Math.max(1, Math.round(canvas.height * MAX_BREDD / canvas.width));
-        if (liten.width !== w || liten.height !== h) { liten.width = w; liten.height = h; }
-        liten.getContext('2d').drawImage(canvas, 0, 0, w, h);
-        kalla = liten;
-      }
-      const post = { t: Date.now(), orsak, w: kalla.width, h: kalla.height, spar: sparAv(spar || [], aw, ah), blob: null };
-      if (!koda(kalla, KVAL, b => { post.blob = b; ring.push(post); bytes += b.size; stat.tagna++; slappRing(); })) return;
+      if (!orsak) return;   // sig står kvar: en händelse inom 300 ms tas i nästa steg (punkt 9)
+      /* En analysbredd över 480 (bara ?debug, och golden-fallens foton) skalas ned ur analysbilden i koda — aldrig ur videon. */
+      const post = { t: Date.now(), orsak, w: 0, h: 0, spar: sparAv(spar || [], aw, ah), blob: null };
+      if (!koda(canvas, KVAL, (b, w, h) => { post.blob = b; post.w = w; post.h = h; ring.push(post); bytes += b.size; stat.tagna++; slappRing(); })) return;   // kön full: sig står kvar, händelsen tas nästa steg
+      sig = s;   // först när bilden är tagen (punkt 9)
       if (orsak === 'tid') senast = nu; else senastHand = nu;
       if (orsak === 'handelse' && nu - senast >= VAR_MS / 2) senast = nu;   // en händelsebild nyss räcker som tidsbild
     } catch (e) { /* lådan får aldrig stoppa analysen */ }
-    finally { stat.stegMs += performance.now() - t0; stat.stegN++; }
+    finally { const d = performance.now() - t0; stat.stegMs += d; stat.stegN++; if (d > stat.stegMax) stat.stegMax = d; }
   }
 
   /* Läsningens beskärning, per spår och namnsättning (identifiera, spekulera). Den senaste ersätter den förra för samma spår. */
   function beskarning(t, canvas, svar) {
     if (av() || !t || t.id == null || !canvas || !canvas.width) return;
     try {
+      kollaAgare();
       const post = { t: Date.now(), spar: t.id, kort: (svar && svar.namn) || null, saker: !!(svar && svar.saker), varfor: (svar && svar.varfor) || null,
-                     w: canvas.width, h: canvas.height, blob: null };
-      koda(canvas, BESK_KVAL, b => {
-        post.blob = b;
+                     w: 0, h: 0, blob: null };
+      koda(canvas, BESK_KVAL, (b, w, h) => {
+        post.blob = b; post.w = w; post.h = h;
         const f = besk.get(t.id); if (f) beskBytes -= f.blob.size;
         besk.set(t.id, post); beskBytes += b.size; stat.beskTagna++; slappBesk();
-      });
+      }, true);
     } catch (e) {}
   }
 
   /* A:s krok (Rapport.stillbilder): telefonens bilder vid trycket, plus index.json som säger vad varje bild är.
      A laddar upp dem till <kod>/bilder/ på rapport_bilder, nyast först inom 15 MB. */
   function stillbilder() {
+    kollaAgare();   // ett annat konto eller parti sedan bilderna togs: de följer inte med (punkt 5)
     const ut = [], bilder = [], beskarningar = [];
     ring.forEach((b, i) => { const namn = `s-${b.t}-${i}.jpg`; ut.push({ namn, t: b.t, blob: b.blob }); bilder.push({ fil: namn, t: b.t, orsak: b.orsak, w: b.w, h: b.h, spar: b.spar }); });
     for (const b of besk.values()) { const namn = `beskarning-spar${b.spar}-${b.t}.jpg`; ut.push({ namn, t: b.t, blob: b.blob }); beskarningar.push({ fil: namn, t: b.t, spar: b.spar, kort: b.kort, saker: b.saker, varfor: b.varfor, w: b.w, h: b.h }); }
@@ -39419,25 +39451,30 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
 
   /* En tyst rättelse på datorn ber om spårets beskärning (Rattelse): ladda upp den som beskarning.jpg i radens mapp. */
   async function rattelseBild(m) {
+    kollaAgare();
     const mapp = String((m && m.sokvag) || ''), f = m && m.spar != null ? besk.get(m.spar) : null;
-    let ok = 0;
+    let ok = 0, nej = 0;
     try {
+      /* Telefonen läser kontots inställning själv före uppladdningen (punkt 7): datorns ord räcker inte. */
       if (f && f.blob && Moln.minId() && mapp.startsWith(Moln.minId() + '/rapporter/')) {
-        await Moln.rapportFil(mapp, 'beskarning.jpg', f.blob, 'image/jpeg'); ok = 1;
+        if (await Moln.bildInstallning()) { await Moln.rapportFil(mapp, 'beskarning.jpg', f.blob, 'image/jpeg'); ok = 1; } else nej = 1;
       }
     } catch (e) { Lada.skriv('fel', { kalla: 'rattelse', med: 'beskärningen: ' + Lada.kap(e && e.message, 200) }); }
-    Moln.sandKam('rapport_rattelse_klar', { kod: m && m.kod, ok, kort: f ? f.kort : null, varfor: f ? f.varfor : null, tBesk: f ? f.t : null });
+    Moln.sandKam('rapport_rattelse_klar', { kod: m && m.kod, ok, nej: nej || undefined, kort: f ? f.kort : null, varfor: f ? f.varfor : null, saker: f ? f.saker : null, tBesk: f ? f.t : null });
   }
 
   function statNu() {
     return { antal: ring.length, bytes, beskAntal: besk.size, beskBytes, tak: { antal: MAX_ANTAL, bytes: MAX_BYTES, beskAntal: BESK_ANTAL, beskBytes: BESK_BYTES },
              tagna: stat.tagna, slappta: stat.slappta, hoppade: stat.hoppade, beskTagna: stat.beskTagna, beskSlappta: stat.beskSlappta,
-             kodMs: stat.kodN ? +(stat.kodMs / stat.kodN).toFixed(2) : null, stegMs: stat.stegN ? +(stat.stegMs / stat.stegN).toFixed(3) : null, stegN: stat.stegN,
+             kodMs: stat.kodN ? +(stat.kodMs / stat.kodN).toFixed(2) : null, kodSyncMs: stat.kodN ? +(stat.kodSyncMs / stat.kodN).toFixed(3) : null, kodSyncMax: +stat.kodSyncMax.toFixed(3),
+             stegMs: stat.stegN ? +(stat.stegMs / stat.stegN).toFixed(3) : null, stegMax: +stat.stegMax.toFixed(3), stegN: stat.stegN, beskHoppade: stat.beskHoppade, tommda: stat.tommda,
              aldst: ring.length ? ring[0].t : null, nyast: ring.length ? ring[ring.length - 1].t : null, av: av() };
   }
-  function glom() { ring.length = 0; besk.clear(); bytes = 0; beskBytes = 0; senast = -Infinity; senastHand = -Infinity; sig = null; for (const k in stat) stat[k] = 0; }
+  /* tom: bilderna bort (nytt konto eller parti, punkt 5). glom: också statistiken (utloggning, golden mellan fallen). */
+  function tom() { ring.length = 0; besk.clear(); bytes = 0; beskBytes = 0; senast = -Infinity; senastHand = -Infinity; sig = null; }
+  function glom() { tom(); agarenNu = null; for (const k in stat) stat[k] = 0; }
 
-  return { steg, beskarning, stillbilder, sandRad, rattelseBild, stat: statNu, glom, get ring() { return ring; }, get besk() { return besk; }, get ko() { return ko; } };
+  return { steg, beskarning, stillbilder, sandRad, rattelseBild, stat: statNu, glom, get pa() { return !av(); }, get ring() { return ring; }, get besk() { return besk; }, get ko() { return ko + beskKo; } };
 })();
 if (typeof Rapport !== 'undefined') Rapport.stillbilder = Stillbilder.stillbilder;
 
@@ -39445,8 +39482,10 @@ if (typeof Rapport !== 'undefined') Rapport.stillbilder = Stillbilder.stillbilde
 var Rattelse = (() => {   // var: se Rapport
   const SVAR_MS = 10000;
   const vantar = new Map();   // kod → resolve
-  const gjorda = new Set();   // samma rättelse av samma kort en gång (avstämningen kan anropa igen)
-  const stat = { forsok: 0, sparade: 0, av: 0, fel: 0 };
+  const gjorda = new Set();   // samma rättelse av samma kort en gång (avstämningen kan anropa igen); läggs till först när raden sparats (punkt 6)
+  const pagar = new Set();    // under tiden: ett andra anrop för samma rättelse väntar inte in det första
+  let takNatt = false;        // serverns tak för rättelser: tyst, inga fler försök den här sessionen (punkt 2)
+  const stat = { forsok: 0, sparade: 0, av: 0, fel: 0, tak: 0, avNar: 0 };
   const sparet = id => { try { return (senasteSpar || []).find(u => u.id === id) || null; } catch (e) { return null; } };
   /* Telefonens gissning och domskäl, tagna innan rättelsen ändrar kortet. */
   function gissningFor(handelse, obj) {
@@ -39473,20 +39512,25 @@ var Rattelse = (() => {   // var: se Rapport
     });
   }
   function svar(m) { const r = m && vantar.get(m.kod); if (r) { vantar.delete(m.kod); r(m); } }
+  const arTak = e => !!(e && (e.tak || /rattelse_tak|rapport_tak/.test(String(e.message || ''))));
 
   /* handelse: 'namnbyte' | 'name_this_card' | 'borttaget'; obj: kortet eller granskningsposten (spar); ratt: spelarens namn, null = inget kort. */
   function fran(handelse, obj, ratt) {
     try {
+      if (takNatt || !rapportFinns()) return null;   // punkt 4: bara där rapporten finns; punkt 2: taket nått
       if (!obj || obj.spar == null || !spelLage || !Moln.inloggad()) return null;
       if (typeof mittLage === 'function' && mittLage() !== 'bord') return null;
-      const nyckel = `${handelse}|${obj.cid || obj.id}|${ratt || ''}`;
-      if (gjorda.has(nyckel)) return null;
-      gjorda.add(nyckel);
+      const nyckel = `${Moln.minId()}|${spelLage.kod || ''}|${handelse}|${obj.cid || obj.id}|${ratt || ''}`;
+      if (gjorda.has(nyckel) || pagar.has(nyckel)) return null;
+      pagar.add(nyckel);
       const g = gissningFor(handelse, obj);
       const fakta = { gissning: g.gissning, varfor: g.varfor, ratt: ratt || null, spelkod: spelLage.kod || null, t: Date.now(), spar: obj.spar, handelse, saker: g.saker };
       const gameId = spelLage.id || null;
       stat.forsok++;
-      return spara(fakta, gameId).catch(e => { stat.fel++; Lada.skriv('fel', { kalla: 'rattelse', med: Lada.kap(e && e.message, 200) }); return null; });
+      return spara(fakta, gameId)
+        .then(r => { if (r) gjorda.add(nyckel); return r; },
+              e => { if (arTak(e)) { takNatt = true; stat.tak++; return null; } stat.fel++; Lada.skriv('fel', { kalla: 'rattelse', med: Lada.kap(e && e.message, 200) }); return null; })
+        .finally(() => pagar.delete(nyckel));
     } catch (e) { return null; }
   }
   async function spara(fakta, gameId) {
@@ -39494,6 +39538,18 @@ var Rattelse = (() => {   // var: se Rapport
     if (!(await Moln.bildInstallning())) { stat.av++; return null; }
     const r = await Moln.rapportRad({ game_id: gameId, kalla: 'rattelse', text: null, tagg: null, vy: { handelse: fakta.handelse, gissning: fakta.gissning, ratt: fakta.ratt, spar: fakta.spar }, bilder: null });
     const s = await fragaTelefon(r, fakta.spar);
+    /* Spåret kan vara borta på datorn: telefonens beskärning bär läsningens namn och domskäl (punkt 8). */
+    if (s) {
+      if (fakta.varfor == null && s.varfor) fakta.varfor = s.varfor;
+      if (fakta.saker == null && s.saker != null) fakta.saker = !!s.saker;
+      if (fakta.gissning == null && s.kort) fakta.gissning = s.kort;
+    }
+    /* Upp till 10 s har gått: läs inställningen igen före filerna (punkt 7). Av nu = raden bort, inga filer. */
+    if (!(s && s.ok) && !(await Moln.bildInstallning())) {
+      stat.avNar++;
+      try { await Moln.rapportRadera(r.kod); } catch (e) {}
+      return null;
+    }
     let bild = s && s.ok ? 'telefon' : null;
     if (!bild) {
       const b64 = egenBild(fakta.spar);
@@ -39506,7 +39562,7 @@ var Rattelse = (() => {   // var: se Rapport
     Lada.skriv('handling', { typ: 'rättelse sparad', kod: r.kod, handelse: fakta.handelse, bild });
     return { kod: r.kod, sokvag: r.sokvag, json };
   }
-  return { fran, svar, stat: () => Object.assign({}, stat), glom: () => { gjorda.clear(); for (const k in stat) stat[k] = 0; } };
+  return { fran, svar, stat: () => Object.assign({}, stat, { takNatt }), glom: () => { gjorda.clear(); pagar.clear(); takNatt = false; for (const k in stat) stat[k] = 0; } };
 })();
 
 /* Växeln i Developer-lådan (?debug): läser och skriver kontots improve_pictures (samma fält som C:s Settings). */

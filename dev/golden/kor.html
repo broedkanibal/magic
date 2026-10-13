@@ -323,7 +323,9 @@ async function laddaApp() {
   try { AUTO_FLYTT = w.eval('AUTO_FLYTT'); } catch (e) {}
   w.MESA_REF = REF_PA; w.MESA_REF_ANVAND = REF_ANVAND; w.MESA_LAR = LAR_PA;
   if (LASWORKER === '0') w.MESA_LASWORKER = false; else if (LASWORKER === 'kontroll') w.MESA_LASWORKER = 'kontroll';
-  if (PARAMS.get('stillbilder') === '0') w.STILLBILDER_AV = true;   // kor.cjs --utan-stillbilder: telefonens stillbilder (MES-366) av, för mätningen av vad de kostar
+  /* Telefonens stillbilder (MES-366): PÅ som förval, så att golden mäter kostnaden som den blir efter go-live (i appen bara med rapporten);
+     kor.cjs --utan-stillbilder stänger av, för mätningen av vad de kostar. */
+  if (PARAMS.get('stillbilder') === '0') w.STILLBILDER_AV = true; else w.STILLBILDER_PA = true;
   if (PARAMS.get('detlogg') === '1') w.MESA_DET_LOGG = true;   // kor.cjs --detlogg: detektorns lådor, remsor och täckningar i konsolen (MES-329, med --konsol)
   /* Sökvägarna räknas från appens dokument (repots rot). */
   /* Den tränade detektorn (MES-329) laddar onnxruntime lokalt när bildmodellens filer ligger lokalt (samma delade laddning); modellen själv ligger alltid i repot. */
