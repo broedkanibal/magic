@@ -119,7 +119,7 @@ async function sortera(b) {
   let k;
   try { k = await scryKort(namn); } catch (e) { return { ok: false, text: `Scryfall svarar inte (${e.message}) — försök igen` }; }
   if (!k) return { ok: false, text: `"${namn}" finns inte hos Scryfall — skriv kortets exakta engelska namn` };
-  if (k.namn !== j.ratt) args.push('--bild', 'beskarning.jpg', '--ratt', k.namn);
+  if (k.namn !== j.ratt) args.push('--ratt', k.namn);   // rättelsens beskärning, ruta och maskade gäller; bara namnet byts
   const r = await korNode('till-fall.cjs', args);
   return { ok: r.kod === 0, sparr: r.kod === 3, text: r.ut };
 }

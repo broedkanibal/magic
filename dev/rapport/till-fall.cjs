@@ -353,13 +353,17 @@ function partiUrMapp(mapp, r) {
 }
 const kod2 = m => Object.assign(new Error(m), { kod: 2 });
 function bildOchNamn(mapp, o) {
+  /* En rättelse med ett omskrivet namn (granska.cjs: spelaren eller granskaren rättar namnet): rättelsens egen
+     beskärning, ruta och maskade gäller, bara namnet byts. --bild beskarning.jpg är samma sak (äldre anrop). */
+  const rr = o.spar == null && o.ratt && (!o.bild || o.bild === 'beskarning.jpg') ? lasRattelse(mapp) : null;
+  if (rr) { o = Object.assign({}, o, { bild: null }); }
   /* En hel bordsbild med ett namn är aldrig facit (uppföljning av MES-366/368): vilket kort det gäller måste sägas. */
   if (o.bild && o.spar == null) throw kod2('--bild utan --spar vägras: en hel bordsbild med ett namn blir aldrig facit — välj spåret med --spar <id> (spårens id står i stillbilder.json och på bilderna i uppspelaren)');
-  if (o.spar != null || o.ratt) {
-    if (o.spar == null || !o.ratt) throw kod2('--spar och --ratt hör ihop');
+  if (o.spar != null || (o.ratt && !rr)) {
+    if (o.spar == null || !o.ratt) throw kod2('--spar och --ratt hör ihop (för en rättelse räcker --ratt <namn>)');
     return urSpar(mapp, o);
   }
-  const r = lasRattelse(mapp);
+  const r0 = rr || lasRattelse(mapp), r = r0 && rr ? Object.assign({}, r0, { ratt: o.ratt, rattOmskrivet: r0.ratt || null }) : r0;
   if (!r) throw new Error(`${path.relative(ROT, mapp)} har ingen rattelse.json — en rapport blir ett bänkfall bara med --spar <id> --ratt <namn>`);
   if (!r.bild) throw new Error(`rättelsen saknar beskarning.jpg`);
   if (!r.ratt) throw new Error(`rättelsen saknar det rätta namnet (ratt)${r.handelse === 'borttaget' ? ' — ett borttaget kort har inget rätt namn och blir inget bänkfall' : ''}`);
