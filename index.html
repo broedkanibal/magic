@@ -39205,8 +39205,17 @@ var Rapport = (() => {
       lage = e && e.tak ? 'tak' : 'fel'; rita();
     }
   }
+  /* Stängs rutan i Couldn't send (Cancel, X, Esc) efter att raden och koden skapats men filen
+     fallerat: samma radering som Cancel under Sending, så att raden inte räknas mot taket och
+     ingen kod blir kvar som spelaren aldrig såg. Try again skickar i stället samma paket (samma kod). */
   function stang() {
     if (!el || el.hidden) return;
+    const p = paket;
+    if (lage === 'fel' && p && p.kod) {
+      Lada.skriv('handling', { typ: 'rapport stängd osänd', kod: p.kod });
+      const stad = () => { Moln.rapportRadera(p.kod, p.sokvag).catch(() => {}); };
+      (p.pagar || Promise.resolve()).then(stad, stad);
+    }
     el.hidden = true; forsok++; paket = null; text = ''; tagg = null; lage = 'skriv';
     Lada.skriv('dialog', { id: 'rapruta', oppen: false });
   }

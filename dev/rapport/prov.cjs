@@ -250,12 +250,12 @@ const PROV = async () => {
   ok('Esc stänger inte medan den skickar', !ruta.hidden);
   for (let i = 0; i < 50 && Rapport.lage === 'skickar'; i++) await vanta(50);
   ok("Couldn't send: röd rad, orden kvar, Try again", Rapport.lage === 'fel' && /Couldn't send the report\./.test(ruta.textContent) && ruta.querySelector('#rapText').value === 'A minute ago a Forest disappeared from my mat' && /Try again/.test(ruta.textContent) && ruta.querySelector('.chip.on'));
-  const raderFore = A.rader.filter(r => r.kalla === 'rapport').length;
+  const raderFore = A.rader.filter(r => r.kalla === 'rapport').length, kodFel = Rapport.paket && Rapport.paket.kod;
   A.seg = 0;
   ruta.querySelector('[data-rap="skicka"]').click();
   for (let i = 0; i < 50 && Rapport.lage !== 'skickad'; i++) await vanta(50);
   const kod = Rapport.paket && Rapport.paket.kod;
-  ok('Try again skickar samma paket: samma kod, ingen ny rad', Rapport.lage === 'skickad' && A.rader.filter(r => r.kalla === 'rapport').length === raderFore, kod);
+  ok('Try again skickar samma paket: samma kod, ingen ny rad, inget raderat', Rapport.lage === 'skickad' && !!kodFel && kod === kodFel && A.rader.filter(r => r.kalla === 'rapport').length === raderFore && !A.raderade.includes(kod), `${kodFel} → ${kod}`);
   ok('Sent: Report sent, koden, Copy, Report something else, Done — ingen grön notis', /Report sent/.test(ruta.textContent) && ruta.querySelector('#rapKod').textContent === kod && /Copy/.test(ruta.textContent) && /Report something else/.test(ruta.textContent) && /Done/.test(ruta.textContent) && !/ok/.test(document.querySelector('#toast').className));
   const raden = A.rader.find(r => r.kalla === 'rapport');
   ok('raden: text, tagg, vy, kalla rapport — inga bilder i raden', raden && raden.text === 'A minute ago a Forest disappeared from my mat' && raden.tagg === 'forsvann' && raden.vy && raden.vy.synlig && raden.game_id === 'rapportprov' && !JSON.stringify(raden).includes('data:image'));
@@ -308,6 +308,28 @@ const PROV = async () => {
   ok('Cancel under Sending: rutan stängd, raden raderad, inget paket uppladdat, ingen begäran till telefonen, taket orört',
     ruta.hidden && !!avbrutenKod && !A.rader.some(r => r.kod === avbrutenKod) && !Object.keys(A.filer).some(k => k.includes('/' + avbrutenKod + '/')) && !A.kanal.slice(kanalC).some(m => m.typ === 'rapport_bilder') && A.idag === idagFore,
     `raderad ${avbrutenKod}, idag ${idagFore} → ${A.idag}`);
+
+  /* Couldn't send → stäng (rättelse 2): raden och koden finns men filen föll. Cancel, X och Esc
+     raderar raden med koden (efter att uppladdningen landat), så att den inte räknas mot taket. */
+  for (const [hur, gor] of [['Cancel', () => ruta.querySelector('.ft [data-rap="stang"]').click()],
+                            ['X', () => ruta.querySelector('.hd2 [data-rap="stang"]').click()],
+                            ['Esc', () => ruta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))]]) {
+    oppnaRapportRuta();
+    await vanta(30);
+    ruta.querySelector('#rapText').value = 'Filen föll'; ruta.querySelector('#rapText').dispatchEvent(new Event('input', { bubbles: true }));
+    const idag0 = A.idag;
+    A.felFil = 1;
+    ruta.querySelector('[data-rap="skicka"]').click();
+    for (let i = 0; i < 50 && Rapport.lage === 'skickar'; i++) await vanta(50);
+    const k = Rapport.paket && Rapport.paket.kod;
+    const fore = Rapport.lage === 'fel' && !!k && A.rader.some(r => r.kod === k) && A.idag === idag0 + 1;
+    gor();
+    await vanta(100);
+    ok(`Couldn't send → ${hur}: rutan stängd, raderingen anropad med koden, raden borta, taket orört`,
+      fore && ruta.hidden && A.raderade.includes(k) && !A.rader.some(r => r.kod === k) && A.idag === idag0,
+      `kod ${k}, före ${fore}, idag ${idag0} → ${A.idag}`);
+  }
+  A.felFil = 0;
 
   /* Taket: med 20 skickade visas Today's limit när rutan öppnas; den 21:a avvisas. */
   A.idag = 19;
