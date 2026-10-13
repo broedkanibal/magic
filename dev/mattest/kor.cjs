@@ -12,6 +12,11 @@
          node dev/mattest/kor.cjs --bilder <mapp>  skärmdumpar ur visaren (huvudlös): baslinjens tre,
                                        eller --vid g12:7.5,g12:7.85 (fall:sekund)
          node dev/mattest/kor.cjs --visa [--fall p0921]  visaren i ett fönster (videon/rutorna och mattan)
+         node dev/mattest/kor.cjs --visa --rapport dev/diagnos/rapporter/R-0412
+                                       en rapport (MES-366): telefonens stillbilder med spårens rutor till
+                                       vänster, mattan ur rapportens bordslogg till höger, på rapportens
+                                       klocka (hamta.cjs skriver mappen; --bilder <mapp> --vid rapport:12.5
+                                       ger skärmdumpar)
 
    Fallen (fall.cjs): golden 07, 09, 10, 11, 12 och passet 2026-09-22 —
    telefonens riktiga bordslogg — partiet 2026-09-21 sek 240–540, där
@@ -37,6 +42,37 @@ const FIL = path.resolve(arg('--fil', path.join(ROT, 'index.html')));
 const FALL = arg('--fall', '') ? arg('--fall').split(',').map(s => fallId(s.trim())).filter(Boolean) : null;
 const BASLINJE = path.join(__dirname, 'baslinje', 'baslinje.json');
 const SOLO = process.argv.includes('--solo');
+const RAPPORT = arg('--rapport', '');
+
+/* En hämtad rapport som fall för visaren (MES-366): bordsloggen (bordlogg.json) driver mattan, telefonens
+   stillbilder (stillbilder.json, på datorns klocka) visas till vänster med spårens rutor, och mattans
+   ändringar ur tidslinjen (rapport.json) är markeringarna. s = sekunder från bordsloggens start. */
+function rapportFall(mapp) {
+  const abs = path.resolve(mapp), las = f => JSON.parse(fs.readFileSync(path.join(abs, f), 'utf8'));
+  if (!fs.existsSync(path.join(abs, 'bordlogg.json'))) throw new Error(`${mapp}: bordlogg.json saknas (kör hamta.cjs först)`);
+  const bl = las('bordlogg.json'), start = Date.parse(bl.start);
+  const sb = fs.existsSync(path.join(abs, 'stillbilder.json')) ? las('stillbilder.json') : { bilder: [], frys: null };
+  let rap = null; try { rap = las('rapport.json'); } catch (e) {}
+  const rader = bl.bordLogg || [];
+  const sek = t => +((t - start) / 1000).toFixed(2);
+  const bilder = (sb.bilder || []).filter(b => b.finns !== false).map(b => ({ fil: b.fil, s: sek(b.t), orsak: b.orsak, w: b.w, h: b.h, spar: b.spar || [] }));
+  const tl = (rap && rap.tidslinje) || [];
+  const facit = tl.filter(e => e.slag === 'matta').map(e => ({ t: sek(e.t), typ: e.typ, kort: e.kort || null, till: e.till || null }));
+  const frys = rap && rap.frys ? sek(rap.frys) : sb.frys ? sek(sb.frys) : null;
+  const sista = Math.max(rader.length ? rader[rader.length - 1].s : 0, bilder.length ? bilder[bilder.length - 1].s : 0, frys || 0);
+  const tel = rap && rap.telefon && rap.telefon.miljo && rap.telefon.miljo.kamera;
+  const kod = (rap && rap.kod) || bl.rapport || path.basename(abs);
+  const filer = {};
+  for (const b of bilder) filer['/__upp/rapport/bilder/' + b.fil] = () => fs.readFileSync(path.join(abs, 'bilder', b.fil));
+  return {
+    id: 'rapport', namn: 'Rapport ' + kod, slag: 'rapport', rader, facit,
+    fran: rader.length ? Math.max(0, Math.floor(rader[0].s)) : 0, till: +(sista + 2).toFixed(2),
+    upplosning: (tel && tel.upplosning && tel.upplosning.w ? { w: tel.upplosning.w, h: tel.upplosning.h } : null) || { w: 3840, h: 2160 }, lek: null,
+    media: { slag: 'rapport', bilder, frys, offset: sb.offset != null ? sb.offset : null, offsetKand: !!sb.offsetKand },
+    anm: `telefonens stillbilder (${bilder.length}) och bordslogg (${rader.length} rader) ur rapporten, på datorns klocka` + (sb.offsetKand ? ` (telefonens klocka omräknad, offset ${sb.offset} ms)` : ' (offset okänd: telefonens klocka som den är)'),
+    filer
+  };
+}
 
 function gitHead() { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROT, encoding: 'utf8' }).trim(); } catch (e) { return null; } }
 const sha = f => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex').slice(0, 12);
@@ -144,10 +180,10 @@ function detaljUt(r) {
 }
 
 /* ── visaren ── */
-async function visaren(ids, bilder) {
-  const fall = ids.map(id => { try { return lasFall(id); } catch (e) { console.error(`mattest: ${id}: ${e.message}`); return null; } }).filter(Boolean);
+async function visaren(ids, bilder, fardiga, vidLista) {
+  const fall = fardiga || ids.map(id => { try { return lasFall(id); } catch (e) { console.error(`mattest: ${id}: ${e.message}`); return null; } }).filter(Boolean);
   const extra = { '/__upp/fall.json': () => JSON.stringify(fall.map(f => ({ id: f.id, namn: f.namn, slag: f.slag, fran: f.fran, till: f.till, media: f.media, anm: f.anm, facit: f.facit }))) };
-  for (const f of fall) { const data = JSON.stringify(Object.assign({}, f, { media: undefined })); extra[`/__upp/fall/${f.id}.json`] = () => data; }
+  for (const f of fall) { const data = JSON.stringify(Object.assign({}, f, { media: undefined, filer: undefined })); extra[`/__upp/fall/${f.id}.json`] = () => data; Object.assign(extra, f.filer || {}); }
   const srv = await server(FIL, extra);
   const url = `http://127.0.0.1:${srv.address().port}/dev/mattest/visa.html`;
   if (!bilder) {
@@ -160,7 +196,7 @@ async function visaren(ids, bilder) {
   const c = await chrome({ storlek: [1600, 900] });
   const ut = [];
   try {
-    const lista = arg('--vid') ? arg('--vid').split(',').map(x => { const [id, s] = x.split(':'); return [id, +s, `${id}-${s}.jpg`]; }) : BILDER.filter(b => ids.includes(b[0]));
+    const lista = vidLista || (arg('--vid') ? arg('--vid').split(',').map(x => { const [id, s] = x.split(':'); return [id, +s, `${id}-${s}.jpg`]; }) : BILDER.filter(b => ids.includes(b[0])));
     for (const [id, s, namn] of lista) {
       await c.cdp('Page.navigate', { url: `${url}?fall=${id}&t=${s}` });
       const t0 = Date.now();
@@ -183,6 +219,11 @@ const BILDER = [
 
 /* ── kör ── */
 (async () => {
+  if (RAPPORT) {
+    let f; try { f = rapportFall(RAPPORT); } catch (e) { console.error('mattest --rapport: ' + e.message); process.exit(2); }
+    if (arg('--bilder')) { const vid = arg('--vid') ? arg('--vid').split(',').map(x => +x.split(':').pop()) : [f.media.frys != null ? f.media.frys : f.till - 2]; const l = await visaren(['rapport'], path.resolve(arg('--bilder')), [f], vid.map(s => ['rapport', s, `rapport-${s}.jpg`])); console.log('mattest --bilder: ' + l.map(x => path.relative(process.cwd(), x)).join(', ')); return; }
+    await visaren(['rapport'], null, [f]); return;
+  }
   const ids = FALL || ALLA;
   for (const id of ids) if (!ALLA.includes(id)) { console.error(`mattest: okänt fall ${id} (finns: ${ALLA.join(', ')})`); process.exit(2); }
   if (har('--visa')) { await visaren(FALL || ['p0921']); return; }

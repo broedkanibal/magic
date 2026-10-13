@@ -68,6 +68,7 @@ const TRO = arg('--tro', '');   // "snabb:1,stillaMs:600" — valfria trösklar 
 const UTFIL = arg('--ut', '');   // fil att skriva körningens resultat till (samma form som senaste.json, utan rutloggen) — för felbok.cjs efter ett prov som inte får bli baslinje
 const RUTLOGG = arg('--rutlogg', '');   // fil att skriva videofallens ruta-för-ruta-logg till (utredningar; sparas aldrig i baslinjen)
 const DETLOGG = process.argv.includes('--detlogg');   // detektorns lådor, remsor och täckningar i appens konsol (MES-329) — med --konsol
+const UTAN_STILLBILDER = process.argv.includes('--utan-stillbilder');   // telefonens stillbilder (MES-366) av: mätningen av vad ringbufferten kostar (steg/s, ms per steg)
 const LASWORKER = arg('--lasworker', '');   // 0 | 1 | kontroll: läsningens räknetråd (MES-221) av, på (appens förval) eller i kontroll — tråden och huvudtråden räknar båda, skillnader loggas (--konsol)
 /* --video <fil>: videofallet körs mot en ANNAN videofil med samma facit och
    samma tider — samma klipp i en annan upplösning eller bithastighet (MES-331:
@@ -292,7 +293,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
   const param = [(AIFLAG || STUB_KAMERA) && 'ai=1', REFFLAG && (REFANVAND ? 'refanvand=1' : 'ref=1'), LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
                  UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')), LEK_SOM_DEN_AR && 'lekasis=1',
-                 (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER,
+                 (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER, UTAN_STILLBILDER && 'stillbilder=0',
                  FACIT_ERS && 'facit=' + encodeURIComponent(FACIT_ERS.split(',').map(x => x.trim().replace('=', ':')).join('|')),
                  VIDEO_URL && 'video=' + encodeURIComponent(VIDEO_URL), EMBED_LOKALT && !UTAN_MODELL && 'embedv=' + Math.round(fs.statSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')).mtimeMs), REMS_URL && 'remsmodell=' + encodeURIComponent(REMS_URL), MODELL_URL && 'modellfil=' + encodeURIComponent(MODELL_URL), NY_EMBED && 'nyembed=1'].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });

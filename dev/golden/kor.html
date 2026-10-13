@@ -323,6 +323,7 @@ async function laddaApp() {
   try { AUTO_FLYTT = w.eval('AUTO_FLYTT'); } catch (e) {}
   w.MESA_REF = REF_PA; w.MESA_REF_ANVAND = REF_ANVAND; w.MESA_LAR = LAR_PA;
   if (LASWORKER === '0') w.MESA_LASWORKER = false; else if (LASWORKER === 'kontroll') w.MESA_LASWORKER = 'kontroll';
+  if (PARAMS.get('stillbilder') === '0') w.STILLBILDER_AV = true;   // kor.cjs --utan-stillbilder: telefonens stillbilder (MES-366) av, för mätningen av vad de kostar
   if (PARAMS.get('detlogg') === '1') w.MESA_DET_LOGG = true;   // kor.cjs --detlogg: detektorns lådor, remsor och täckningar i konsolen (MES-329, med --konsol)
   /* Sökvägarna räknas från appens dokument (repots rot). */
   /* Den tränade detektorn (MES-329) laddar onnxruntime lokalt när bildmodellens filer ligger lokalt (samma delade laddning); modellen själv ligger alltid i repot. */
@@ -881,6 +882,8 @@ function avsluta(f, prov, tid, tak, takS) {
   } catch (e) { res.minne = null; }
   res.tidDelar = Object.fromEntries(Object.entries(prov.tidDelar).map(([k, l]) => { const q = l.slice().sort((a, b) => a - b); return [k, { median: q[q.length >> 1], max: q[q.length - 1], n: q.length }]; }));
   /* Räknetråden (MES-221): frågorna sedan sidan laddades — i tråden, på huvudtråden, fel, mot en gammal pool, olika i kontrollen — och trådens egen räknetid (median och max, ms). Räknas över hela körningen, inte per fall. */
+  /* Stillbilderna (MES-366): ringbuffertens storlek och kodningens tid i fallet; nollställs efter, så att nästa fall mäts för sig. */
+  try { const SB = w.eval('Stillbilder'); res.stillbilder = SB.stat(); SB.glom(); } catch (e) {}
   try { const s = w.eval('LasWorker.stat'), q = s.ms.slice().sort((a, b) => a - b); res.lasworker = { fragor: s.fragor, trad: s.trad, huvud: s.huvud, fel: s.fel, gammal: s.gammal, olika: s.olika, ms: q.length ? q[q.length >> 1] : null, msMax: q.length ? q[q.length - 1] : null, lage: LASWORKER || 'på' }; } catch (e) {}
   res.skarLogg = [...prov.skarAlla.values()].sort((a, b) => a.ruta - b.ruta);
   res.tidslinje = prov.tidslinje;
