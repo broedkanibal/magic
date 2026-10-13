@@ -193,10 +193,33 @@ function rattelse(rad, ut, sparade) {
     `| Spel · spår | ${(j && j.spelkod) || '–'} · ${j && j.spar != null ? j.spar : '–'} |`,
     `| Tid | ${j && j.t ? new Date(j.t).toISOString() : rad.created_at} |`,
     `| Bilden | ${harBild ? '`beskarning.jpg`' + (j && j.bild ? ` (från ${j.bild === 'telefon' ? 'telefonen: läsningens beskärning' : 'datorn: granskningens beskärning eller kamerans foto'})` : '') : 'saknas'} |`,
-    `| anvandning | ${rad.anvandning || '(osorterad)'} |`, '',
-    'Del D: `node dev/rapport/till-fall.cjs ' + rad.kod + ' --bank` gör den till ett bänkfall (spärren test/träning gäller).', ''];
+    `| anvandning | ${rad.anvandning || '(osorterad)'} |`,
+    ...rattelsePlats(j, sparade.includes('kontext.jpg')), '',
+    'Del D: `node dev/rapport/till-fall.cjs ' + rad.kod + ' --bank` gör den till ett bänkfall (spärren test/träning gäller; `--traning` kräver ruta och maskade).', ''];
   fs.writeFileSync(path.join(ut, 'LÄS-MIG.md'), L.join('\n'));
-  console.log(`${rad.kod} (rattelse, ${rad.created_at.slice(0, 16).replace('T', ' ')}): ${j ? `${H[j.handelse] || j.handelse}: ${j.gissning || '(ingen gissning)'} → ${j.ratt || '(borttaget)'} · ${j.varfor || '–'}` : 'rattelse.json saknas'} · beskärning ${harBild ? 'finns' : 'saknas'} → ${path.relative(process.cwd(), ut)}/`);
+  const harKontext = sparade.includes('kontext.jpg');
+  console.log(`${rad.kod} (rattelse, ${rad.created_at.slice(0, 16).replace('T', ' ')}): ${j ? `${H[j.handelse] || j.handelse}: ${j.gissning || '(ingen gissning)'} → ${j.ratt || '(borttaget)'} · ${j.varfor || '–'}` : 'rattelse.json saknas'} · beskärning ${harBild ? 'finns' : 'saknas'} · ruta ${j && j.ruta ? j.ruta.kalla || 'finns' : 'saknas'} · kontext ${harKontext ? 'finns' : 'saknas'} → ${path.relative(process.cwd(), ut)}/`);
+  if (j && !harKontext) console.log(`  ${rad.kod}: ingen kontext.jpg — ${j.kontextSkal ? j.kontextSkal : j.ruta ? (j.bild === 'dator' ? 'telefonen svarade inte (datorns kopia); rutan är bordets' : 'telefonen hade inte spåret i ringen') : 'en äldre rättelse (före ruta/maskade/kontext)'}`);
+}
+
+/* Var kortet låg (uppföljning av MES-366/368): rutan, de maskade rutorna och kontextbilden, som rader i LÄS-MIG. */
+const tal = v => (v == null ? '?' : (+v).toFixed(3));
+const rutaText = q => `x ${tal(q.x)} y ${tal(q.y)} w ${tal(q.w)} h ${tal(q.h)}`;
+/* Kontextens ålder mot beskärningen, på telefonens klocka: k.dt (telefonen räknade den), annars k.t − ruta.t
+   (tBesk). Aldrig mot rättelsens t, som är datorns klocka. null = okänt. */
+function kontextAlder(j) {
+  const k = j && j.kontext; if (!k) return null;
+  if (k.dt != null) return k.dt;
+  return k.t != null && j.ruta && j.ruta.kalla === 'beskarning' && j.ruta.t != null ? k.t - j.ruta.t : null;
+}
+function rattelsePlats(j, harKontext) {
+  if (!j) return [];
+  const r = j.ruta, m = j.maskade, k = j.kontext;
+  return [
+    `| Ruta | ${r ? `${rutaText(r)} (andelar${r.bild ? ` av ${r.bild.w}×${r.bild.h}` : ''}; ur ${r.kalla === 'beskarning' ? 'läsningens beskärning — exakt' : r.kalla === 'bordet' ? 'bordet på datorn — så gott det går' : r.kalla || '?'})` : 'saknas (äldre rättelse: bara bilden säger vilket kort)'} |`,
+    `| Maskade | ${m ? (m.length ? m.map(q => `spår ${q.spar != null ? q.spar : '?'}${q.x != null ? ` (${rutaText(q)})` : ''}`).join(', ') + ' — målade grå i beskärningen (de ligger ÖVER kortet)' : 'inga (inget kort ovanpå)') : 'okänt'} |`,
+    `| Kontext | ${harKontext ? '`kontext.jpg`: utsnitt runt kortet, spårets ruta röd och de maskade grå' + (k && k.utsnitt ? ` (utsnittet ${rutaText(k.utsnitt)} av ringbilden)` : ' (äldre: hela bordet)') + (kontextAlder(j) != null ? ` (ringens bild ${(kontextAlder(j) / 1000).toFixed(1)} s från beskärningen)` : '') : 'saknas' + (j.kontextSkal ? ` — ${j.kontextSkal}` : '')} |`
+  ];
 }
 
 async function main() {

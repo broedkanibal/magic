@@ -1,6 +1,6 @@
 /* Problemrapporten B (MES-366): provet i huvudlös Chrome, utan nät och utan Claude.
 
-   Kör:  node dev/rapport/prov-b.cjs [--fil index.html] [--rattelse ut.json]
+   Kör:  node dev/rapport/prov-b.cjs [--fil index.html] [--rattelse ut.json] [--kontext ut.jpg]
 
    1. Ringbufferten: 30 minuter stillbilder i accelererad takt (ett steg var
       150 ms, en händelse var femte sekund) på en slät bild — taket på 300
@@ -15,6 +15,12 @@
       kalla 'rattelse', beskarning.jpg (telefonens, eller datorns egen kopia
       när telefonen inte har den) och rattelse.json i kontraktets form; av
       igen → slutar direkt.
+   3b. Var kortet låg (uppföljning av MES-366/368): två kort omlott, det undre
+      rättas. Appens maskaTackt (utklippt ur filen) målar det övres låda grå;
+      rattelse.json får ruta, maskade (spåret som ligger över) och kontext,
+      kontext.jpg landar i mappen, och det grå i beskarning.jpg ligger där
+      ruta + maskade säger. Utan telefonen: bordets ruta, maskade null.
+      --kontext ut.jpg sparar provets kontext.jpg för att titta på.
    4. Växeln i Developer-lådan läser och skriver inställningen.
    5. Granskning 1 (fynd 1–9): kodningen utanför steget och läsningen
       (toBlob anropas aldrig synkront; stegMs och kodtiden mäts), taket för
@@ -71,6 +77,15 @@ async function chrome() {
   const cdp = (method, params) => new Promise((res, rej) => { const id = ++nr; svar.set(id, m => m.error ? rej(new Error(method + ': ' + m.error.message)) : res(m.result)); sock.send(JSON.stringify({ id, method, params: params || {} })); });
   const stang = async () => { try { await cdp('Browser.close'); } catch (e) {} for (let i = 0; i < 40 && p.exitCode == null; i++) await vanta(50); if (p.exitCode == null) p.kill(); try { fs.rmSync(profil, { recursive: true, force: true }); } catch (e) {} };
   return { cdp, stang };
+}
+
+/* En funktion ur källan, från dess första rad till den klammer som stänger den (strängar och kommentarer i
+   maskaTackt innehåller inga klamrar). */
+function utklipp(src, borjan) {
+  const i = src.indexOf(borjan); if (i < 0) throw new Error('hittar inte ' + borjan);
+  let d = 0;
+  for (let j = src.indexOf('{', i); j < src.length; j++) { if (src[j] === '{') d++; else if (src[j] === '}' && --d === 0) return src.slice(i, j + 1); }
+  throw new Error('ingen slutklammer för ' + borjan);
 }
 
 /* Fynd 4: sidan utan ?debug — rapporten finns inte för spelaren. */
@@ -284,6 +299,129 @@ const PROV = async () => {
   ok('AV igen: nästa rättelse sparar ingenting', A.rader.length === forr && Object.keys(A.filer).length === filer0);
   ok('ingen rättelse frågar Claude (inga anrop mot /api)', !Lada.utdrag().some(e => e.slag === 'claude'));
 
+  /* ── 3b. Var kortet låg (uppföljning av MES-366/368): två kort omlott, rättelsen av det undre ──
+     Spår 63 (Shock) ligger ÖVER spår 77 (Opt, fel namn). Läsningens beskärning av 77 görs som i appen: appens egen
+     maskaTackt (utklippt ur index.html, window.__maskaSrc) målar 63:s låda grå och lägger siffrorna på duken. */
+  {
+    const AW = 360, AH = 203;
+    const box63 = { x: 125, y: 90, w: 50, h: 70 }, box77 = { x: 100, y: 60, w: 50, h: 70 };
+    const t63 = { id: 63, namn: 'Shock', saker: true, tillstand: 'klar', vilaX: 150, vilaY: 125, box: box63 };
+    const t77 = { id: 77, namn: 'Opt', saker: true, tillstand: 'klar', vilaX: 125, vilaY: 95, box: box77, tackt: [Object.assign({}, box63)] };
+    /* Telefonens ring: en bild av bordet med båda spåren. */
+    const rc = document.createElement('canvas'); rc.width = AW; rc.height = AH; const rx = rc.getContext('2d');
+    rx.fillStyle = '#5a3a22'; rx.fillRect(0, 0, AW, AH); rx.fillStyle = '#3050c0'; rx.fillRect(box77.x, box77.y, box77.w, box77.h); rx.fillStyle = '#c03030'; rx.fillRect(box63.x, box63.y, box63.w, box63.h);
+    Stillbilder.steg(rc, 5e9, [t63, t77], AW, AH);
+    for (let j = 0; j < 200 && Stillbilder.ko; j++) await vanta(1);
+    /* Läsningens beskärning av 77 (beskar(): lådan + 8 % marginal, rak), målad blå, sedan appens maskaTackt. */
+    const m = 0.08, bx0 = box77.x - box77.w * m, by0 = box77.y - box77.h * m, bw0 = box77.w * (1 + 2 * m), bh0 = box77.h * (1 + 2 * m);
+    const ow = Math.round(bw0 * 5), oh = Math.round(bh0 * 5);
+    const kc = document.createElement('canvas'); kc.width = ow; kc.height = oh; const kx = kc.getContext('2d'); kx.fillStyle = '#3050c0'; kx.fillRect(0, 0, ow, oh);
+    const maskaTackt = new Function('AW', 'AH', 'modell', 'senasteGain', 'return ' + window.__maskaSrc)(AW, AH, null, 1);
+    const b = { bild: kc, kort: null, geo: { r: { x: 0, y: 0, w: AW, h: AH }, bx: bx0, by: by0, bw: bw0, bh: bh0, ow, oh, liggande: false } };
+    const maskad = maskaTackt(b, t77);
+    ok('3b: appens maskaTackt målade och lade siffrorna på duken (lasFacit)', maskad === true && kc.lasFacit && kc.lasFacit.maskade.length === 1 && kc.lasFacit.aw === AW, JSON.stringify(kc.lasFacit));
+    const t77nu = Object.assign({}, t77);   // spåret som läsningen ser det; ingen maskTackt-kopia i Stillbilder
+    Stillbilder.beskarning(t77nu, kc, { namn: 'Opt', saker: true, varfor: 'modell+orb' });
+    for (let j = 0; j < 200 && Stillbilder.ko; j++) await vanta(1);
+    const post = Stillbilder.besk.get(77);
+    ok('3b: beskärningen bär ruta (andelar + bildens mått) och maskade med spåret som ligger över (63)',
+       post && post.ruta && Math.abs(post.ruta.x - box77.x / AW) < 1e-3 && post.ruta.bild.w === AW && post.maskade && post.maskade.length === 1 && post.maskade[0].spar === 63 && Math.abs(post.maskade[0].x - box63.x / AW) < 1e-3,
+       JSON.stringify(post && { ruta: post.ruta, maskade: post.maskade }));
+    /* Datorn: samma två kort på bordet, 77 maskad under 63. */
+    const n = q => ({ x: q.x / AW, y: q.y / AH, w: q.w / AW, h: q.h / AH });
+    const sp = (id, namn, q, x) => Object.assign({ id, tillstand: 'klar', namn, saker: true, tappad: false, vilar: true, varfor: 'modell+orb' }, n(q), x || {});
+    kamTogsEmot({ typ: 'bord', av: 'u-prov', fran: 'kamera', spar: bord.concat([sp(63, 'Shock', box63), sp(77, 'Opt', box77, { maskad: true, under: [63] })]), fas: '' });
+    await vanta(1200);
+    ok('3b: två kort omlott på mattan', kort('Shock') && kort('Opt') && kort('Opt').spar === 77, mig.cards.map(k => k.name + ':' + k.spar).join(', '));
+    A.bildPa = true;
+    const n0 = rattelser().length;
+    await byt(kort('Opt'), 'Brainstorm');
+    await vantaRader(n0 + 1);
+    for (let i = 0; i < 100 && !(rattelser()[n0] && A.filer[`u-prov/rapporter/${rattelser()[n0].kod}/rattelse.json`]); i++) await vanta(20);
+    const rr = rattelser()[n0];
+    let jr = null; try { jr = JSON.parse(await A.filer[`u-prov/rapporter/${rr.kod}/rattelse.json`].text()); } catch (e) {}
+    const kb = rr && A.filer[`u-prov/rapporter/${rr.kod}/kontext.jpg`], bb = rr && A.filer[`u-prov/rapporter/${rr.kod}/beskarning.jpg`];
+    ok('3b: rattelse.json har ruta (kalla beskarning), maskade [spår 63] och kontext — och kontext.jpg ligger i mappen',
+       jr && jr.spar === 77 && jr.bild === 'telefon' && jr.ruta && jr.ruta.kalla === 'beskarning' && jr.ruta.bild && jr.ruta.bild.w === AW && Math.abs(jr.ruta.x - box77.x / AW) < 1e-3 && Math.abs(jr.ruta.h - box77.h / AH) < 1e-3
+       && jr.maskade && jr.maskade.length === 1 && jr.maskade[0].spar === 63 && jr.kontext && jr.kontext.fil === 'kontext.jpg' && kb && kb.type === 'image/jpeg' && kb.size > 2000,
+       JSON.stringify(jr && { ruta: jr.ruta, maskade: jr.maskade, kontext: jr.kontext && { w: jr.kontext.w, h: jr.kontext.h, ruta: jr.kontext.ruta, maskade: jr.kontext.maskade } }));
+    ok('3b: radens vy bär bordets ruta och maskade (datorns syn, kalla bordet)', rr && rr.vy && rr.vy.ruta && rr.vy.ruta.kalla === 'bordet' && rr.vy.maskade && rr.vy.maskade[0] && rr.vy.maskade[0].spar === 63, JSON.stringify(rr && rr.vy));
+    /* Masken stämmer med rutorna: räkna det grå området i beskarning.jpg UR rattelse.json (ruta + 8 % marginal,
+       maskade + 1 analyspixel som maskaTackt) och prova bildpunkter innanför och utanför. */
+    const pix = async (blob, pts) => { const bm = await createImageBitmap(blob); const c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; const x = c.getContext('2d'); x.drawImage(bm, 0, 0); return { w: bm.width, h: bm.height, p: pts(bm.width, bm.height).map(([u, v]) => Array.from(x.getImageData(Math.round(u), Math.round(v), 1, 1).data).slice(0, 3)) }; };
+    let maskOk = false, maskDet = '';
+    if (jr && jr.ruta && jr.maskade && bb) {
+      const R = jr.ruta, Q = jr.maskade[0], W = R.bild.w, H = R.bild.h;
+      const cx0 = (R.x - R.w * m) * W, cy0 = (R.y - R.h * m) * H, cw = R.w * (1 + 2 * m) * W, ch = R.h * (1 + 2 * m) * H;
+      const u0 = (Q.x * W - 1 - cx0) / cw, v0 = (Q.y * H - 1 - cy0) / ch;   // maskens övre vänstra hörn i beskärningen (0–1)
+      const P = await pix(bb, (w, h) => [[(u0 + 0.05) * w, (v0 + 0.05) * h], [(u0 + (1 - u0) / 2) * w, (v0 + (1 - v0) / 2) * h], [(u0 - 0.06) * w, (v0 - 0.06) * h], [0.1 * w, 0.1 * h], [(u0 - 0.04) * w, 0.95 * h]]);
+      const gra = c => Math.abs(c[0] - 128) < 18 && Math.abs(c[1] - 128) < 18 && Math.abs(c[2] - 128) < 18, bla = c => c[2] > 150 && c[0] < 90;
+      maskOk = gra(P.p[0]) && gra(P.p[1]) && bla(P.p[2]) && bla(P.p[3]) && bla(P.p[4]);
+      maskDet = `maskens hörn (${u0.toFixed(3)}, ${v0.toFixed(3)}) ur rattelse.json; bildpunkter ${JSON.stringify(P.p)}`;
+    }
+    ok('3b: masken i beskarning.jpg ligger där ruta + maskade säger (grått innanför, kortet utanför)', maskOk, maskDet);
+    /* kontext.jpg (Jespers beslut 2026-10-14): ett utsnitt runt kortet, inte hela bordet. Ringbilden är AW × AH;
+       utsnittet = rutan + en rutas bredd/höjd åt varje håll inom bilden, högst 480 px och högst ×2. */
+    if (kb && jr && jr.kontext) {
+      const K = jr.kontext, r = K.ruta, q = K.maskade[0], U = K.utsnitt;
+      const forv = { x: Math.max(0, box77.x - box77.w) / AW, y: Math.max(0, box77.y - box77.h) / AH, w: (Math.min(AW, box77.x + 2 * box77.w) - Math.max(0, box77.x - box77.w)) / AW, h: (Math.min(AH, box77.y + 2 * box77.h) - Math.max(0, box77.y - box77.h)) / AH };
+      const kd = await createImageBitmap(kb), ksz = { w: kd.width, h: kd.height }; try { kd.close(); } catch (e) {}
+      ok('3b: kontext.jpg är ett utsnitt: mindre del av ringbilden än hela, rutan + ett kortavstånd åt varje håll (utsnitt i rattelse.json)',
+         U && U.w < 1 && U.w * U.h < 0.5 && ['x', 'y', 'w', 'h'].every(k => Math.abs(U[k] - forv[k]) < 0.01) && K.bild && K.bild.w === AW
+         && r.x >= U.x && r.y >= U.y && r.x + r.w <= U.x + U.w + 1e-9 && r.y + r.h <= U.y + U.h + 1e-9,
+         JSON.stringify({ utsnitt: U, forvantat: forv, bild: K.bild }));
+      const srcW = U.w * AW, srcH = U.h * AH;
+      ok('3b: kontext.jpg högst 480 px åt längsta hållet, aldrig uppskalad mer än ×2, w/h i rattelse.json = bilden',
+         Math.max(ksz.w, ksz.h) <= 480 && ksz.w <= srcW * 2 + 1 && ksz.h <= srcH * 2 + 1 && ksz.w === K.w && ksz.h === K.h && Math.abs(ksz.w / ksz.h - srcW / srcH) < 0.02,
+         JSON.stringify({ jpg: ksz, kalla: [srcW, srcH], json: [K.w, K.h] }));
+      /* I utsnittets koordinater: rutans mitt hamnar där utsnittet säger, rutans kant röd, bordet utanför brunt. */
+      const iU = (X, Y) => [(X - U.x) / U.w, (Y - U.y) / U.h];
+      const [mx, my] = iU(r.x + r.w / 2, r.y + r.h / 2), [vx] = iU(r.x, 0), [, oy] = iU(0, r.y), [qx, qy] = iU(q.x + q.w * 0.7, q.y + q.h * 0.5), [ux] = iU(r.x - r.w * 0.5, 0);
+      const P = await pix(kb, (w, h) => [[vx * w + 1, my * h], [mx * w, oy * h + 1], [qx * w, qy * h], [ux * w, my * h], [mx * w - 6, my * h - 8]]);
+      const rod = c => c[0] > 180 && c[1] < 110, brun = c => Math.abs(c[0] - 0x5a) < 30 && Math.abs(c[1] - 0x3a) < 30 && Math.abs(c[2] - 0x22) < 30;
+      ok('3b: rutans mitt ligger där utsnittet säger: vänster och övre kant röd, den maskade lådan grå, bordet till vänster brunt, kortet blått innanför',
+         rod(P.p[0]) && rod(P.p[1]) && Math.abs(P.p[2][0] - P.p[2][2]) < 100 && P.p[2][0] < 170 && brun(P.p[3]) && P.p[4][2] > 150 && P.p[4][0] < 90,
+         JSON.stringify(P.p) + ' mitt ' + mx.toFixed(3) + ',' + my.toFixed(3));
+      window.__kontextB64 = await new Promise(res => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(kb); });
+    } else ok('3b: kontext.jpg har spårets ruta inritad', false, 'ingen kontext');
+    ok('3b: kontexten bär dt (ringbildens t − beskärningens t, telefonens klocka) inom ±2 s, och inget skäl',
+       jr && jr.kontext && Number.isFinite(jr.kontext.dt) && Math.abs(jr.kontext.dt) <= 2000 && jr.kontextSkal === null, JSON.stringify(jr && { dt: jr.kontext && jr.kontext.dt, skal: jr.kontextSkal }));
+    /* Granskningen av 6c3fea8, fynd 2: ringens närmaste bild ligger 5 s från beskärningen → ingen kontext, skälet i svaret. */
+    {
+      const f77 = Stillbilder.besk.get(77), t0 = f77.t; f77.t = t0 - 5000;
+      const k0 = A.kanal.length;
+      await Stillbilder.rattelseBild({ kod: 'R-0881', sokvag: 'u-prov/rapporter/R-0881', spar: 77 });
+      f77.t = t0;
+      const sv = A.kanal.slice(k0).find(m => m.typ === 'rapport_rattelse_klar');
+      ok('3b: ringens bild 5 s från beskärningen → beskarning.jpg laddas upp men ingen kontext.jpg, skälet i svaret',
+         sv && sv.ok === 1 && sv.kontext === null && /5\.\d s/.test(sv.kontextSkal || '') && A.filer['u-prov/rapporter/R-0881/beskarning.jpg'] && !A.filer['u-prov/rapporter/R-0881/kontext.jpg'], JSON.stringify(sv && { ok: sv.ok, kontext: sv.kontext, skal: sv.kontextSkal }));
+    }
+    /* Fynd 4: en vriden beskärning (beskarVridning) — lasFacit och rutan bär vinkeln; rak = null. */
+    {
+      const vc = document.createElement('canvas'); vc.width = 300; vc.height = 420; vc.getContext('2d').fillStyle = '#3050c0'; vc.getContext('2d').fillRect(0, 0, 300, 420);
+      const t79 = { id: 79, namn: 'Opt', saker: true, tillstand: 'klar', box: { x: 200, y: 40, w: 50, h: 70 }, beskarRot: 12 };
+      maskaTackt({ bild: vc, kort: null, geo: null }, t79);
+      Stillbilder.beskarning(t79, vc, { namn: 'Opt', saker: true, varfor: 'remsa' });
+      for (let j = 0; j < 200 && Stillbilder.ko; j++) await vanta(1);
+      const p79 = Stillbilder.besk.get(79);
+      ok('3b: vriden beskärning → lasFacit.rot och ruta.rot = beskarRot; rak → rot null', vc.lasFacit && vc.lasFacit.rot === 12 && p79 && p79.ruta && p79.ruta.rot === 12 && kc.lasFacit.rot === null && post.ruta.rot === null,
+         JSON.stringify({ lasFacit: vc.lasFacit, ruta: p79 && p79.ruta, rak: kc.lasFacit.rot }));
+    }
+    /* Telefonen svarar inte: datorns kopia, rutan ur bordet, maskade okänt, ingen kontext. */
+    A.telefonSvarar = false;
+    cropCache.set('spar-63@260', bc.toDataURL('image/jpeg', 0.8));
+    const n1 = rattelser().length;
+    const sh = kort('Shock');
+    kamAnsluten = false;   // fragaTelefon svarar null direkt i stället för efter 10 s
+    const pr = Rattelse.fran('namnbyte', sh, 'Lightning Bolt');
+    const rd = pr ? await pr : null;
+    kamAnsluten = true;
+    let jd = null; try { jd = JSON.parse(await A.filer[`${rd.sokvag}/rattelse.json`].text()); } catch (e) {}
+    ok('3b: telefonen svarar inte → ruta ur bordet (kalla bordet), maskade null (okänt), kontext null, ingen kontext.jpg',
+       jd && jd.bild === 'dator' && jd.ruta && jd.ruta.kalla === 'bordet' && jd.maskade === null && jd.kontext === null && !A.filer[`${rd.sokvag}/kontext.jpg`] && rattelser().length === n1 + 1, JSON.stringify(jd));
+    A.telefonSvarar = true;
+  }
+
   /* ── 5. Granskning 1 ── */
   /* Fynd 1: toBlob anropas aldrig inne i steget eller i läsningens beskarning, bara i en egen uppgift efter. */
   {
@@ -434,7 +572,7 @@ const PROV = async () => {
   ok('växeln: läser av, skriver på (improve_pictures), och visar "On since …"', av1 && A.satt[0] === true && A.bildPa === true && box.checked && /On since 13 Oct 2026/.test(document.getElementById('pbBilderTxt').textContent), document.getElementById('pbBilderTxt').textContent);
 
   const sparad = { rad: r1, rattelse: j1, beskarning: b1 ? await new Promise(res => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(b1); }) : null };
-  return { rad, minne, sparad };
+  return { rad, minne, sparad, kontext: window.__kontextB64 || null };
 };
 
 (async () => {
@@ -455,6 +593,8 @@ const PROV = async () => {
       await vanta(100);
     }
     await vanta(300);
+    /* 3b: appens egen maskaTackt (Kamera, privat) klipps ur filen och körs i sidan med provets AW/AH. */
+    await c.cdp('Runtime.evaluate', { expression: 'window.__maskaSrc = ' + JSON.stringify(utklipp(fs.readFileSync(FIL, 'utf8'), 'function maskaTackt(b, t) {')) });
     const r = await c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')()', awaitPromise: true, returnByValue: true });
     if (r.exceptionDetails) throw new Error((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text);
     ut = r.result.value;
@@ -487,6 +627,7 @@ const PROV = async () => {
   } catch (e) { console.error('prov-b: ' + e.message); await c.stang(); srv.close(); process.exit(2); }
   await c.stang(); srv.close();
   if (arg('--rattelse')) fs.writeFileSync(arg('--rattelse'), JSON.stringify(ut.sparad));
+  if (arg('--kontext') && ut.kontext) fs.writeFileSync(arg('--kontext'), Buffer.from(ut.kontext.split(',')[1], 'base64'));
   let fel = 0;
   for (const [namn, okk, detalj] of ut.rad) { if (!okk) fel++; console.log(`${okk ? 'OK ' : 'FEL'}  ${namn}${detalj ? '  (' + String(detalj).slice(0, 200) + ')' : ''}`); }
   console.log('minnet: ' + JSON.stringify(ut.minne));

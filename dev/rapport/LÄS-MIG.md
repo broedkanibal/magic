@@ -143,12 +143,45 @@ datorns klocka.
 | Var | `Stillbilder`, `Rattelse` och växeln: sista `<script>`-blocket i index.html. Krokar: Kamera `loop` → `efter()` (en rad), `identifiera`/`spekulera` (en rad var), fem rader hos rättelserna (arkSvar token, removeAt, ofrInteKort, namngePend, applyPick) |
 | Stillbilder | telefonen, ringbuffert i minnet: analysbilden (anaC, ≤ 360 px i förval; över 480 skalas ned ur anaC) som JPEG 0,7, en var 2:a s + en per händelse (kort kom/gick, namn, tap, viloläget flyttat > 3 %), högst en händelsebild per 300 ms. Tak 300 bilder / 7,5 MB. Läsningens beskärning per spår och namnsättning: 40 / 2,5 MB. Kodningen med toBlob, högst två i taget (fler hoppas över). Av: `window.STILLBILDER_AV = true` (golden `--utan-stillbilder`) |
 | I rapporten | `Rapport.stillbilder` = `Stillbilder.stillbilder`: `bilder/s-<t>-<i>.jpg`, `bilder/beskarning-spar<id>-<t>.jpg`, `bilder/index.json` (per bild: fil, t telefonens klocka, orsak tid/handelse, w, h, spar[{id, kort, saker, tappad, tillstand, varfor, x, y, w, h}] i andelar av bilden). Telefonen visar *Sending pictures, N of M* under uppladdningen |
-| hamta.cjs | skriver `stillbilder.json` (bilderna på datorns klocka: t = tTel − offset, s = sekunder i bordsloggen, rel = från trycket). En rättelse (`kalla = 'rattelse'`): `rattelse.json`, `beskarning.jpg` och en kort `LÄS-MIG.md` |
+| hamta.cjs | skriver `stillbilder.json` (bilderna på datorns klocka: t = tTel − offset, s = sekunder i bordsloggen, rel = från trycket). En rättelse (`kalla = 'rattelse'`): `rattelse.json`, `beskarning.jpg`, `kontext.jpg` och en kort `LÄS-MIG.md` med rutan, de maskade och kontexten (en rad i utskriften när kontext.jpg saknas) |
 | Uppspelaren | `node dev/mattest/kor.cjs --visa --rapport dev/diagnos/rapporter/R-0412` (fönster) eller `--bilder <mapp> --vid rapport:12.5` (skärmdumpar): stillbilden med spårens rutor till vänster, mattan ur bordsloggen till höger, markeringar = mattans ändringar, röd = trycket |
-| Rättelserna | namnbyte, Name this card, borttaget kort (bara kamerakort, läget `bord`): rad i `rapporter` (`kalla 'rattelse'`, `vy {handelse, gissning, ratt, spar}`), filerna `beskarning.jpg` och `rattelse.json` = `{ gissning, varfor, ratt, spelkod, t, spar, handelse, saker, bild }` (`bild`: 'telefon' / 'dator' / null). BARA när `user_metadata.improve_pictures === true`, läst från servern (`auth.getUser`) i ögonblicket |
-| Kanalen | dator → telefon `rapport_rattelse_bild {kod, sokvag, spar}`; telefon → dator `rapport_rattelse_klar {kod, ok, kort, varfor, tBesk}`. Inget svar på 10 s: datorns kopia (granskningens beskärning, annars kamerans foto); ingen alls: `bilder = 'saknas'` |
+| Rättelserna | namnbyte, Name this card, borttaget kort (bara kamerakort, läget `bord`): rad i `rapporter` (`kalla 'rattelse'`, `vy {handelse, gissning, ratt, spar, ruta, maskade}` — datorns syn på bordet), filerna `beskarning.jpg`, `kontext.jpg` och `rattelse.json` = `{ gissning, varfor, ratt, spelkod, t, spar, handelse, saker, bild, ruta, maskade, kontext, kontextSkal, bordet }` (`bild`: 'telefon' / 'dator' / null; se *Var kortet låg* nedan). BARA när `user_metadata.improve_pictures === true`, läst från servern (`auth.getUser`) i ögonblicket |
+| Kanalen | dator → telefon `rapport_rattelse_bild {kod, sokvag, spar}`; telefon → dator `rapport_rattelse_klar {kod, ok, kort, varfor, tBesk, ruta, maskade, kontext, kontextSkal}` (telefonen laddar upp `beskarning.jpg` och `kontext.jpg` själv). Inget svar på 10 s: datorns kopia (granskningens beskärning, annars kamerans foto), rutan ur bordet, maskade och kontext null; ingen bild alls: `bilder = 'saknas'` |
 | Växeln | Developer-lådan (`?debug`): *Share pictures of cards I correct*, läser/skriver `improve_pictures` + `improve_pictures_at` (`Moln.bildInstallning`, `Moln.sattBildInstallning`, `Moln.bildInstallningSedan`) |
 | Prov | `node dev/rapport/prov-b.cjs` (ringen 30 min accelererat, rapportens bilder, rättelserna av/på/av, växeln), `node dev/rapport/prov-b-uppspelaren.cjs --bilder <mapp>` (golden-video → ringen → hamta → uppspelaren), `node dev/rapport/prov-b-supabase.cjs <fil>` (rad + filer mot riktiga Supabase, hamta, städning) |
+
+### Var kortet låg: ruta, maskade och kontext.jpg (uppföljning av MES-366/368)
+
+Facit ska säga **vilket kort** som rättades, också i en hög — annars kan en modell tränas på grannens bild.
+**Spårens namn i stillbilderna är aldrig facit**: de är telefonens gissningar (spår 63 i R-0009 bar namnet
+Shock på fel kort). Facit är bara spelarens rättelser (`rattelse.json` → `ratt`) och spelarens ord.
+
+| Fält | Vad | Varifrån |
+|---|---|---|
+| `ruta` | spårets låda i kamerabilden: `{x, y, w, h}` i andelar (som stillbildernas spår) + `bild {w, h}` (analysbildens mått) + `kalla` | `'beskarning'` = kortets låda när läsningens beskärning gjordes (`t.ram`/`t.box`). Med `rot` null är beskärningen den lådan + 8 % marginal, −90° när den ligger; med `rot` satt (`beskarVridning`, MES-334) är beskärningen kortets **vridna** rektangel runt lådans mitt, vriden `rot` grader — inte lådan; `'bordet'` = datorns senaste bord när telefonen inte svarade (bild null); `'stillbild'` = spårets ruta i en stillbild (`--spar`) |
+| `maskade` | de lådor som målades grå i beskärningen — korten som ligger ÖVER spåret — med `spar` (null om inget spår hade lådan) | appens `maskaTackt` (t.tackt, en analyspixel större åt alla håll); spåret = det vars låda har IoU ≥ 0,5, samma regel som bordets `under`. `[]` = inget ovanpå, `null` = okänt — också när bordet säger *maskad* men inte av vilka (`--traning` vägras då) |
+| `kontext.jpg` | ett **utsnitt runt kortet** ur ringens bild närmast beskärningen i tid, aldrig hela bordet (Jespers beslut 2026-10-14): rutan plus en rutas bredd åt sidorna och en rutas höjd uppåt och nedåt, begränsat till bilden, högst 480 px åt längsta hållet och aldrig uppskalat mer än ×2; spårets ruta röd, de maskade grå och streckade. `rattelse.json.kontext` = `{t, dt, w, h, bild, utsnitt, ruta, maskade}`: `utsnitt` = utsnittets läge i ringbilden (andelar x, y, w, h), `ruta`/`maskade` är andelar av hela ringbilden — kortet ligger i kontext.jpg vid `(ruta.x − utsnitt.x) / utsnitt.w` osv., `dt` = ringbildens t − beskärningens t (telefonens klocka, ms) | telefonen, när rättelsen sparas (ur ringens JPEG, aldrig ur videon), och **bara när \|dt\| ≤ 2 s** — en låda ur en annan tid i ett bord som hunnit ändras vore ett falskt facit. Saknas den står skälet i `kontextSkal` (telefonen svarade inte, spåret fanns inte i ringen, bilden låg för långt bort) |
+| `bordet` | datorns syn: rutan och `under` ur senaste bordet | alltid med, också i radens `vy` |
+
+En rättelse sparad före 2026-10-13 kväll (R-0008) har inga av fälten: den blir bänkfall med en varning, men
+träning bara med `--utan-ruta` (och bara när du själv sett i bilden att det är rätt kort).
+
+**`--spar <id>`** — ett bänkfall eller en träningsbild ur en vanlig rapport:
+`node dev/rapport/till-fall.cjs R-0009 --bank --spar 77 --ratt "Shock" [--vid -12]`. Spårets id står på
+stillbilderna i uppspelaren och i `stillbilder.json`. Bilden blir i första hand läsningens beskärning av
+spåret (`bilder/beskarning-spar<id>-*.jpg`, närmast `--vid` = sekunder från trycket), annars spårets ruta
+utskuren ur stillbilden närmast `--vid` — med korten ovanpå målade grå efter **bordsloggens `under`** i raden
+högst 2 s från bilden (appens egen regel: `underAv` över `t.tackt`, vems kant eller remsa som syns över den
+andras). Finns ingen sådan rad maskas alla rutor som överlappar spåret, som appen gör när den inte kan avgöra
+vem som ligger överst. `--bild <stillbild>` tillsammans med `--spar` väljer bilden själv; `--bild` utan `--spar`
+vägras (slutkod 2). Ett utsnitt ur en stillbild är lågupplöst (ett kort ~50–120 px): varning, och `--traning`
+vägrar under 160 px kortbredd (bildmodellens indata är 256 px; läsningens beskärningar är 600–700 px).
+Fallet får `ruta`, `maskade`, `mask_regel` och `<fall>-kontext.jpg` (bänken) eller `kontext.jpg` (träningen).
+Kontexten är ett utsnitt runt kortet med samma regel som telefonens (se `kontext.jpg` ovan); fallets
+`kontext_bild.utsnitt` säger var i stillbilden (eller ringbilden) det ligger, i andelar.
+Utsnittet och kontexten ritas av `dev/rapport/utsnitt.py` (Pillow i `~/.mesa/detektor-venv`, eller `MESA_PY`).
+Kontexten görs bara ur en stillbild högst 2 s från beskärningen (annars `kontext_skal` i fallet). Utan Pillow
+går ett fall ur läsningens beskärning ändå (varning, ingen kontext); ett utsnitt ur en stillbild vägras.
 
 ## Del C (MES-367): knappen, telefonens ark, Settings och samtycket
 
@@ -173,8 +206,9 @@ Utan det här steget är rapporterna en hög. Varje rapport blir **en** av fyra 
 | **Träningsdata** | bilder + rätt namn som inte ska vara prov | `till-fall.cjs <kod> --traning` | `dev/material/arbete/markning/rapporter-traning-mesa/<kod>/markning.json` i mark.py:s form (MES-340); `dev/remsa/tran/dataset.py` läser den |
 | (inget) | inget att göra | `satt.cjs <kod> slangd` | `gallra.cjs` tar den efter 90 dagar |
 
-`--bank` och `--traning` ur en vanlig rapport (inte en rättelse) kräver `--bild bilder/<fil> --ratt "<namn>"`:
-vilken stillbild, och vilket namn spelaren sa. En rättelse av typen `borttaget` har inget rätt namn och blir
+`--bank` och `--traning` ur en vanlig rapport (inte en rättelse) kräver `--spar <id> --ratt "<namn>"`:
+vilket spår, och vilket namn spelaren sa (se *Var kortet låg* ovan) — en hel bordsbild blir aldrig facit.
+`--traning` kräver dessutom `ruta` och `maskade`. En rättelse av typen `borttaget` har inget rätt namn och blir
 inget bänkfall.
 
 ### Regeln: en fix ur en rapport tar med sitt testfall i samma commit
