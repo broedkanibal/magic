@@ -266,10 +266,17 @@ R-0008 och R-0010 inte kunde bli träning.)
 **Tabellen skiljer inte på Mat test och bänk** (`anvandning = 'test'` för båda). Slaget avgörs ur repot
 (`slagIRepot` i `sparr.cjs`): koden som `rapport` i ett Mat test-fall = Mat test, i bänkens `manifest.json` =
 bänk (ligger den på båda gäller bänken). En testrad ur samma parti **utan** kopia i repot är av okänt slag
-och spärrar som ett bänkfall, med ett meddelande som säger varför (ligger fallet på en annan gren: slå ihop
-den först). `satt.cjs <kod> traning` följer samma regel; `satt.cjs <kod> test` prövas per parti om inte
-koden redan är ett Mat test-fall i repot. `granska.cjs` visar samma sak i förväg (Träning grå bara för ett
-bänkfall eller en okänd testrad i partiet).
+och spärrar som ett bänkfall, med ett meddelande som säger varför. `satt.cjs <kod> traning` följer samma
+regel; `satt.cjs <kod> test` prövas per parti om inte koden redan är ett Mat test-fall i repot.
+
+Gränser (granskningen av f37f2a3):
+- **Slaget läses ur arbetsträdet som körs.** Ett fall som bara ligger på en gren som inte är ihopslagen syns
+  inte: slå ihop fallgrenar innan rapporter ur samma parti blir träning.
+- Tabellen frågas på `game_id`. En testrad som bara delar spelkod (ingen `game_id`) och saknar kopia i repot
+  syns inte som okänt slag.
+- `granska.cjs` visar en **förhandsvisning** (Träning grå för ett bänkfall eller en okänd testrad bland
+  rättelserna i partiet). Den läser inte repot och inte rapporternas bänkfall, så knappen kan vara grön där
+  `till-fall.cjs` sedan vägrar (slutkod 3, med skälet). `till-fall.cjs` har sista ordet.
 
 **Per parti, mellan bänken och träningen.** Två rättelser av samma kort i samma parti, eller en rapport och
 en rättelse ur samma parti, är nästan samma bild. Blir den ena bänkfall och den andra träning mäter bänken att
