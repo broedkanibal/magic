@@ -12,10 +12,14 @@
    SPÄRREN (sparr.cjs): test och traning är aldrig samma rapport. När raden
    väl är test eller traning byts den aldrig — inte heller via fix eller
    slangd. satt.cjs vägrar också test när koden redan finns i
-   träningsmaterialet, och traning när den finns i Mat test eller bänken —
-   per parti: en annan rad med samma game_id på andra sidan, eller en kopia
-   ur samma parti i repot, vägrar också. fix → traning vägras (en fix tar med
-   sitt testfall och blir test).
+   träningsmaterialet, och traning när den finns i Mat test eller bänken.
+   Mellan bänken och träningen gäller den per parti: en annan rad med samma
+   game_id på andra sidan, eller en kopia ur samma parti i repot, vägrar
+   också. Ett Mat test-fall ur partiet vägrar inte traning (Mat test kör
+   aldrig bildmodellen); tabellen säger test för båda, så slaget läses ur
+   repot, och en testrad utan kopia i repot vägrar (okänt slag). test
+   prövas per parti om koden inte redan är ett Mat test-fall i repot.
+   fix → traning vägras (en fix tar med sitt testfall och blir test).
 
    PARTIET läses ur den hämtade mappen dev/diagnos/rapporter/<kod>/ när den
    finns (eller --mapp <dir>): game_id och spelkod som till-fall.cjs läser dem
@@ -31,7 +35,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const { supa, ROT } = require('./supa.cjs');
-const { VARDEN, kravLokal, sattAnvandning, harParti, partiNycklar } = require('./sparr.cjs');
+const { VARDEN, kravLokal, sattAnvandning, harParti, partiNycklar, slagIRepot } = require('./sparr.cjs');
 
 /* S: tabellens klient (provet prov-d.cjs skickar en attrapp); annars supa(). */
 async function satt(a, S) {
@@ -44,7 +48,8 @@ async function satt(a, S) {
   let parti = null;
   if (fs.existsSync(mapp)) { const { partiUrMapp, lasRattelse } = require('./till-fall.cjs'); parti = partiUrMapp(mapp, lasRattelse(mapp)); }
   else if (mi >= 0) throw Object.assign(new Error(`${a[mi + 1]} finns inte`), { kod: 2 });
-  if (varde === 'test' || varde === 'traning') kravLokal(kod, varde, parti);
+  /* test: slaget ur repot (ett Mat test-fall som redan skrivits spärrar bara sin kod); okänt = bänken, den strängare */
+  if (varde === 'test' || varde === 'traning') kravLokal(kod, varde, parti, varde === 'test' ? (slagIRepot(kod) || 'bank') : null);
   const r = await sattAnvandning(S || supa(), kod, varde, { torr: a.includes('--torr'), parti });
   const lagt = varde === 'test' || varde === 'traning';
   const p = Object.assign({}, parti || {}, r.game_id ? { game_id: r.game_id } : {});

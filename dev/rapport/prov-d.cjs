@@ -114,13 +114,28 @@ function rapport(kod, game_id) {
     `partiet står i manifest.json (${JSON.stringify(bank[0] && bank[0].parti)}), markning.json (${JSON.stringify(M && M.parti)}) och fall.json (${JSON.stringify(F && F.parti)})`);
   const p1 = rattelse('R-9995', 5, 'namnbyte', 'PROV0');   // samma parti som R-9991 (test)
   r = tillFall(['R-9995', '--traning', '--lokal', '--mapp', p1.mapp]);
-  ok(r.kod === 3 && /samma parti/.test(r.ut) && /R-9991/.test(r.ut), `R-9995 (samma spelkod som bänkfallet R-9991) kan inte bli träning: slutkod ${r.kod} — ${r.ut.trim().split('\n')[0].slice(0, 160)}`);
+  ok(r.kod === 3 && /samma parti/.test(r.ut) && /R-9991/.test(r.ut), `(b) R-9995 (samma spelkod som bänkfallet R-9991) kan inte bli träning: slutkod ${r.kod} — ${r.ut.trim().split('\n')[0].slice(0, 160)}`);
   const p2 = rattelse('R-9996', 6, 'namnbyte', 'PROV1');   // samma parti som R-9992 (träning)
   r = tillFall(['R-9996', '--bank', '--lokal', '--mapp', p2.mapp]);
   ok(r.kod === 3 && /samma parti/.test(r.ut) && /R-9992/.test(r.ut), `R-9996 (samma spelkod som träningen R-9992) kan inte bli ett bänkfall: slutkod ${r.kod}`);
+  /* (a) Jespers beslut 2026-10-14: Mat test spärrar bara sin egen rapport — en annan rättelse ur partiet blir träning. */
   const p3 = rattelse('R-9997', 7, 'namnbyte', 'ANNAT1', GID);   // samma game_id som Mat test-fallet R-9993
   r = tillFall(['R-9997', '--traning', '--lokal', '--mapp', p3.mapp]);
-  ok(r.kod === 3 && /samma parti/.test(r.ut) && /R-9993/.test(r.ut), `R-9997 (samma game_id som Mat test-fallet R-9993) kan inte bli träning: slutkod ${r.kod}`);
+  ok(r.kod === 0 && /Mat test-fall ur samma parti: R-9993/.test(r.ut) && fs.existsSync(path.join(UT, 'dev', 'material', 'arbete', 'markning', 'rapporter-traning-mesa', 'R-9997')),
+    `(a) R-9997 (samma game_id som Mat test-fallet R-9993) blir träning — Mat test spärrar bara sin egen kod: slutkod ${r.kod}${r.kod === 0 ? '' : ' — ' + r.ut.trim().split('\n')[0].slice(0, 200)}`);
+  /* och omvänt: en rapport som är träning blir aldrig Mat test-fall, men partiets andra kan */
+  r = tillFall(['R-9992', '--mattest', '--lokal', '--mapp', b.mapp]);
+  ok(r.kod === 3 && /SPÄRREN/.test(r.ut) && /träning/.test(r.ut), `R-9992 (träning) kan inte bli ett Mat test-fall: slutkod ${r.kod}`);
+  const c2 = rapport('R-9965', GID);   // samma parti som träningen R-9997
+  r = tillFall(['R-9965', '--mattest', '--lokal', '--mapp', c2]);
+  ok(r.kod === 0 && fs.existsSync(path.join(UT, 'dev', 'mattest', 'underlag', 'rapporter', 'R-9965', 'fall.json')),
+    `rapporten R-9965 ur samma parti som träningen R-9997 blir ett Mat test-fall: slutkod ${r.kod}${r.kod === 0 ? '' : ' — ' + r.ut.trim().split('\n')[0].slice(0, 200)}`);
+  r = tillFall(['R-9993', '--traning', '--lokal', '--mapp', c]);
+  ok(r.kod === 3 && /Mat test-fall/.test(r.ut), `(c) Mat test-rapporten R-9993 själv vägras fortfarande träning: slutkod ${r.kod}`);
+  /* bänken mot träningen är fortfarande per parti: en rättelse ur träningens parti blir inget bänkfall */
+  const p3b = rattelse('R-9966', 13, 'namnbyte', 'ANNAT1b', GID);
+  r = tillFall(['R-9966', '--bank', '--lokal', '--mapp', p3b.mapp]);
+  ok(r.kod === 3 && /samma parti/.test(r.ut) && /R-9997/.test(r.ut), `R-9966 (samma game_id som träningen R-9997) kan inte bli ett bänkfall: slutkod ${r.kod}`);
   const p4 = rattelse('R-9998', 8, 'namnbyte', 'ANNAT2');   // ett annat parti: går
   r = tillFall(['R-9998', '--traning', '--lokal', '--mapp', p4.mapp]);
   ok(r.kod === 0 && /partiet: spel:ANNAT2/.test(r.ut), `R-9998 ur ett annat parti blir träning: slutkod ${r.kod}`);
@@ -181,7 +196,7 @@ satt(process.argv.slice(1), S).then(t => console.log(t)).catch(e => { console.er
   const G2 = '22222222-2222-4222-8222-222222222222';
   const s1 = rattelse('R-9980', 10, 'namnbyte', null, G2);   // mappen bär game_id G2, tabellens rad inget
   r = sattAtrapp(['R-9980', 'traning', '--mapp', s1.mapp], { rad: { kod: 'R-9980', kalla: 'rattelse', anvandning: null, game_id: null }, ovr: [{ kod: 'R-9981', game_id: G2, anvandning: 'test' }] });
-  ok(r.kod === 3 && /samma parti \(game_id 2222/.test(r.ut) && /R-9981/.test(r.ut) && !/PATCH/.test(r.ut),
+  ok(r.kod === 3 && /samma parti \(game_id 2222/.test(r.ut) && /R-9981/.test(r.ut) && /utan kopia i repot/.test(r.ut) && !/PATCH/.test(r.ut),
     `satt R-9980 traning (raden utan game_id, mappen med game_id; R-9981 ur samma parti är test) vägras, inget satt: slutkod ${r.kod}${r.kod === 3 ? "" : " — " + r.ut.trim()}`);
   const s2 = rattelse('R-9982', 11, 'namnbyte', 'PROV0');   // samma spelkod som bänkfallet R-9991 (test i repot)
   r = sattAtrapp(['R-9982', 'traning', '--mapp', s2.mapp], { rad: { kod: 'R-9982', kalla: 'rattelse', anvandning: null, game_id: null } });
@@ -195,6 +210,26 @@ satt(process.argv.slice(1), S).then(t => console.log(t)).catch(e => { console.er
     `satt R-9983 traning ur ett parti utan något på andra sidan går (tabellen frågad på mappens game_id): slutkod ${r.kod}`);
   r = sattAtrapp(['R-9984', 'traning'], { rad: { kod: 'R-9984', kalla: 'rapport', anvandning: null, game_id: null } });
   ok(r.kod === 0 && /VARNING/.test(r.ut), `satt R-9984 utan mapp och utan game_id: per kod, med VARNING (slutkod ${r.kod})`);
+
+  /* 5i. Tabellen skiljer inte på Mat test och bänk (anvandning test för båda): slaget ur repot (2026-10-14). */
+  const s4 = rattelse('R-9964', 14, 'namnbyte', 'ANNAT5', GID);
+  r = sattAtrapp(['R-9964', 'traning', '--mapp', s4.mapp], { rad: { kod: 'R-9964', kalla: 'rattelse', anvandning: null, game_id: GID }, ovr: [{ kod: 'R-9993', game_id: GID, anvandning: 'test' }] });
+  ok(r.kod === 0 && /FRÅGA game_id 0b5e/.test(r.ut) && /PATCH/.test(r.ut),
+    `(a) satt R-9964 traning: partiets testrad R-9993 är ett Mat test-fall i repot — spärrar inte: slutkod ${r.kod}${r.kod === 0 ? '' : ' — ' + r.ut.trim()}`);
+  const G3 = '33333333-3333-4333-8333-333333333333';
+  const s5 = rattelse('R-9963', 15, 'namnbyte', 'ANNAT6', G3);
+  r = sattAtrapp(['R-9963', 'traning', '--mapp', s5.mapp], { rad: { kod: 'R-9963', kalla: 'rattelse', anvandning: null, game_id: G3 }, ovr: [{ kod: 'R-9991', game_id: G3, anvandning: 'test' }] });
+  ok(r.kod === 3 && /R-9991 som bänkfall/.test(r.ut) && !/PATCH/.test(r.ut),
+    `(b) satt R-9963 traning: partiets testrad R-9991 är ett bänkfall i repot — vägras: slutkod ${r.kod}${r.kod === 3 ? '' : ' — ' + r.ut.trim()}`);
+  r = sattAtrapp(['R-9963', 'traning', '--mapp', s5.mapp], { rad: { kod: 'R-9963', kalla: 'rattelse', anvandning: null, game_id: G3 }, ovr: [{ kod: 'R-9962', game_id: G3, anvandning: 'test' }] });
+  ok(r.kod === 3 && /R-9962 som test i tabellen men utan kopia i repot/.test(r.ut) && /okänt/.test(r.ut) && !/PATCH/.test(r.ut),
+    `(d) satt R-9963 traning: partiets testrad R-9962 utan kopia i repot (okänt slag) — vägras med skälet: slutkod ${r.kod}`);
+  r = sattAtrapp(['R-9993', 'traning', '--mapp', c], { rad: { kod: 'R-9993', kalla: 'rapport', anvandning: null, game_id: GID } });
+  ok(r.kod === 3 && /Mat test-fall/.test(r.ut) && !/PATCH/.test(r.ut), `(c) satt R-9993 traning: Mat test-rapporten själv vägras (repot): slutkod ${r.kod}`);
+  r = sattAtrapp(['R-9993', 'test', '--mapp', c], { rad: { kod: 'R-9993', kalla: 'rapport', anvandning: null, game_id: GID }, ovr: [{ kod: 'R-9997', game_id: GID, anvandning: 'traning' }] });
+  ok(r.kod === 0 && !/FRÅGA/.test(r.ut) && /PATCH/.test(r.ut), `satt R-9993 test: ett Mat test-fall i repot prövas inte mot partiets träning R-9997: slutkod ${r.kod}${r.kod === 0 ? '' : ' — ' + r.ut.trim()}`);
+  r = sattAtrapp(['R-9964', 'test', '--mapp', s4.mapp], { rad: { kod: 'R-9964', kalla: 'rattelse', anvandning: null, game_id: GID }, ovr: [{ kod: 'R-9997', game_id: GID, anvandning: 'traning' }] });
+  ok(r.kod === 3 && /R-9997/.test(r.ut) && !/PATCH/.test(r.ut), `satt R-9964 test (inget Mat test-fall i repot = bänkens regel): partiets träning R-9997 vägrar: slutkod ${r.kod}`);
 
   /* 5h. Ett pass ur --logg får spelkoden (fynd 4): --spelkod, och bordsloggens egen om den finns. */
   fs.writeFileSync(lf, JSON.stringify({ id: 'pass-2026-10-11-2006', start: new Date(1790000000000).toISOString(), spel: G2, bordLogg: [{ s: 0, spar: [] }, { s: 5, spar: [] }] }));

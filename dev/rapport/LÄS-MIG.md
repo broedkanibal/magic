@@ -249,16 +249,38 @@ träningen — då mäter provet att modellen minns kortet. Samma regel som dete
 | Tabellen | `anvandning` är `test` eller `traning`, aldrig båda. `till-fall.cjs` sätter den **först** (service role) och skriver sedan; `--mattest`/`--bank` = test, `--traning` = traning. När den väl är test eller traning byts den aldrig — inte heller via `fix` eller `slangd`, annars går det att tvätta test → slangd → traning. `null` → test eller traning går, `fix` → test går, men **`fix` → traning vägras** (se nedan); `slangd` → ett fall kräver `satt.cjs` först |
 | Repot | koden — eller partiet, se nedan — får inte finnas på andra sidan: Mat test-underlaget och bänken mot träningsmaterialet. Håller också med `--lokal`, utan nät och om raden raderats. Saknas `dev/material/arbete/markning` (en worktree utan länken `dev/material`) kan spärren inte se träningssidan: **slutkod 2**, inget skrivet |
 
-**Per parti, inte per kod.** Två rättelser av samma kort i samma parti, eller en rapport och en rättelse ur
-samma parti, är nästan samma bild. Blir den ena test och den andra träning mäter provet att modellen minns
-partiet — samma skäl som att detektorns spärr delar per inspelningstillfälle. Därför:
+**Bänken mot träningen per parti, Mat test bara per kod** (Jespers beslut 2026-10-14):
+
+| Export | Spärras av |
+|---|---|
+| `--bank` (bänken, `dev/remsa/rapportbank/`) | koden **eller partiet** i träningen |
+| `--traning` | koden som Mat test-fall eller bänkfall, och **partiet** i bänken — inte partiets Mat test-fall |
+| `--mattest` (`dev/mattest/underlag/rapporter/`) | bara **koden själv** i träningen — partiets andra rapporter och rättelser får bli träning, och tvärtom |
+
+Varför Mat test inte läcker: ett Mat test-fall spelar upp telefonens färdiga läsningar och kör aldrig
+bildmodellen, så att modellen tränats på samma partis kort kan inte göra ett Mat test-prov missvisande.
+Bänken däremot mäter bildmodellen på bilden — där är två rättelser ur samma parti nästan samma bild.
+(Före beslutet låste Mat test-fallen R-0003, R-0009 och R-0013 hela partiet KWQHXB, så att rättelserna
+R-0008 och R-0010 inte kunde bli träning.)
+
+**Tabellen skiljer inte på Mat test och bänk** (`anvandning = 'test'` för båda). Slaget avgörs ur repot
+(`slagIRepot` i `sparr.cjs`): koden som `rapport` i ett Mat test-fall = Mat test, i bänkens `manifest.json` =
+bänk (ligger den på båda gäller bänken). En testrad ur samma parti **utan** kopia i repot är av okänt slag
+och spärrar som ett bänkfall, med ett meddelande som säger varför (ligger fallet på en annan gren: slå ihop
+den först). `satt.cjs <kod> traning` följer samma regel; `satt.cjs <kod> test` prövas per parti om inte
+koden redan är ett Mat test-fall i repot. `granska.cjs` visar samma sak i förväg (Träning grå bara för ett
+bänkfall eller en okänd testrad i partiet).
+
+**Per parti, mellan bänken och träningen.** Två rättelser av samma kort i samma parti, eller en rapport och
+en rättelse ur samma parti, är nästan samma bild. Blir den ena bänkfall och den andra träning mäter bänken att
+modellen minns partiet — samma skäl som att detektorns spärr delar per inspelningstillfälle. Därför:
 
 | | |
 |---|---|
 | Partiets nyckel | `parti: { game_id, spelkod }` i `fall.json`, bänkens `manifest.json` och `markning.json`. `game_id` ur tabellen (annars rapportens `miljo.spelId` eller bordsloggens `spel`); `spelkod` ur `rattelse.json`, rapportens `miljo.spel` eller bordsloggens `spelkod`. Ett pass utan rapport (`--mattest --logg`) bär ingen spelkod i bordsloggen: ge den med `--spelkod <kod>` (p1011: `--spelkod CNA43K`) |
 | Samma parti | delar `game_id` **eller** `spelkod` (en återanvänd spelkod ger en vägran för mycket, aldrig en för lite) |
-| Tabellen | `test`/`traning` vägras när en **annan rad** med samma `game_id` redan är på andra sidan (`till-fall.cjs` och `satt.cjs`). Frågas på både radens `game_id` och det den hämtade mappen bär: `satt.cjs` läser partiet ur `dev/diagnos/rapporter/<kod>/` (eller `--mapp`) när mappen finns, så att en rad utan `game_id` — telefonens rapporter, ett raderat parti (`on delete set null`) — ändå spärras per parti |
-| Repot | vägras när en kopia ur samma parti ligger på andra sidan, också under en annan kod |
+| Tabellen | `test` (bänk) vägras när en **annan rad** med samma `game_id` redan är `traning`, och `traning` när en annan rad är `test` och inte ett Mat test-fall i repot (`till-fall.cjs` och `satt.cjs`). Frågas på både radens `game_id` och det den hämtade mappen bär: `satt.cjs` läser partiet ur `dev/diagnos/rapporter/<kod>/` (eller `--mapp`) när mappen finns, så att en rad utan `game_id` — telefonens rapporter, ett raderat parti (`on delete set null`) — ändå spärras per parti |
+| Repot | vägras när en kopia ur samma parti ligger i bänken (för träning) eller i träningen (för bänken), också under en annan kod |
 | Utan nyckel | (ingen `game_id`, ingen spelkod) spärren gäller per kod som förut, och `till-fall`/`satt` skriver **VARNING** |
 
 `fix` → `traning` vägras: en fix tar med sitt testfall (regeln ovan), och då är rapporten test.

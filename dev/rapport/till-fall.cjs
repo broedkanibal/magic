@@ -32,8 +32,9 @@
    SPÄRREN (sparr.cjs): --mattest och --bank gör rapporten till test,
    --traning till träning, och en rapport är aldrig båda. Tabellens
    anvandning sätts FÖRST (med service role) och byts aldrig; koden får
-   inte heller finnas på andra sidan i repot. Säger spärren nej skrivs
-   ingenting och slutkoden är 3.
+   inte heller finnas på andra sidan i repot. --bank ↔ --traning gäller
+   per parti; --mattest bara sin egen rapport (ett Mat test-fall kör aldrig
+   bildmodellen). Säger spärren nej skrivs ingenting och slutkoden är 3.
 
    Rapportkoden skrivs i klartext i varje fall det skapar (fall.json,
    bänkens manifest.json, markning.json), så att lista.cjs --raderade +
@@ -92,7 +93,7 @@
 'use strict';
 const fs = require('fs'), path = require('path'), zlib = require('zlib'), crypto = require('crypto'), os = require('os'), { spawnSync } = require('child_process');
 const { supa, ROT } = require('./supa.cjs');
-const { kravLokal, sattAnvandning, harParti, partiNycklar } = require('./sparr.cjs');
+const { kravLokal, sattAnvandning, harParti, partiNycklar, kopiorDetalj } = require('./sparr.cjs');
 const KOD_RE = /^R-\d{4,}$/, ID_RE = /^[\w-]+$/;
 /* Partiets nyckel { game_id, spelkod } (null-fält tas bort), eller null. */
 function parti(game_id, spelkod) {
@@ -587,7 +588,8 @@ async function korInre(a) {
   if (mapp && !o.logg && !fs.existsSync(mapp)) throw Object.assign(new Error(`${path.relative(ROT, mapp)} finns inte — kör först: node dev/rapport/hamta.cjs ${o.kod}`), { kod: 2 });
 
   /* 1. Spärren i repot först (den säger nej oavsett vad rapporten innehåller). */
-  kravLokal(o.kod, sida);
+  const slag = o.lage === 'traning' ? null : o.lage;   // mattest | bank: Mat test spärrar bara sin egen rapport, bänken hela partiet
+  kravLokal(o.kod, sida, null, slag);
   /* 2. Läs och bygg allt i minnet: ett fel här lämnar tabellen orörd. */
   let plan;
   if (o.lage === 'mattest') {
@@ -601,7 +603,7 @@ async function korInre(a) {
   const kod = plan.kod;
 
   /* 3. Spärren per parti i repot, och i tabellen, som sätts före allt som skrivs. */
-  kravLokal(kod, sida, plan.parti);
+  kravLokal(kod, sida, plan.parti, slag);
   /* 3b. Träningens krav (uppföljning av MES-366/368), före tabellen: vilket kort det är ska stå i fallet, och bilden
      ska inte vara ett frimärke. --utan-ruta släpper bara rutans krav, aldrig bredden. */
   if (plan.slag === 'traning') {
@@ -610,14 +612,20 @@ async function korInre(a) {
     if (kort < MIN_TRAN_PX) throw kod2(`--traning vägrar: bilden är ${st.w}×${st.h} px, kortet under ${MIN_TRAN_PX} px brett (bildmodellens indata är 256 px) — ett bänkfall går`);
   }
   let tab = null;
-  if (kod && !o.lokal) tab = await sattAnvandning(supa(), kod, sida, { franTillFall: true, torr: o.torr, parti: plan.parti });
+  if (kod && !o.lokal) tab = await sattAnvandning(supa(), kod, sida, { franTillFall: true, torr: o.torr, parti: plan.parti, slag });
   /* tabellens game_id är nyckeln när den finns */
   if (tab && tab.game_id) plan.parti = Object.assign({}, plan.parti || {}, { game_id: tab.game_id });
   if (plan.slag === 'mattest') plan.ut.fall.parti = plan.parti || null; else plan.b.parti = plan.parti || null;
 
   /* 4. Skriv. */
   const rad = [];
-  rad.push(harParti(plan.parti) ? `partiet: ${partiNycklar(plan.parti).join(', ')} (spärren gäller per parti)` : `VARNING: inget parti (game_id eller spelkod) — spärren gäller bara per kod`);
+  rad.push(!harParti(plan.parti) ? `VARNING: inget parti (game_id eller spelkod) — spärren gäller bara per kod`
+    : `partiet: ${partiNycklar(plan.parti).join(', ')} (spärren gäller ${o.lage === 'mattest' ? 'bara koden för ett Mat test-fall' : 'per parti mot ' + (sida === 'test' ? 'träningen' : 'bänken')})`);
+  /* Mat test-fall ur samma parti spärrar inte träningen: säg det, så att ett ja inte ser ut som ett förbiseende. */
+  if (sida === 'traning' && harParti(plan.parti)) {
+    const mt = new Set(((tab && tab.mattestIPartiet) || []).concat(kopiorDetalj(null, plan.parti).mattest.map(x => x.kod || 'utan kod')));
+    if (mt.size) rad.push(`Mat test-fall ur samma parti: ${[...mt].join(', ')} — spärrar inte träningen (Mat test spelar upp telefonens läsningar och kör aldrig bildmodellen)`);
+  }
   if (tab) rad.push(`tabellen: ${kod} anvandning ${tab.fore || 'null'} → ${tab.efter}${tab.redan ? ' (redan)' : ''}${tab.torr ? ' (torr — inte satt)' : ''}`);
   else if (kod) rad.push(`tabellen: inte rörd (--lokal)`);
   if (plan.slag === 'mattest') {

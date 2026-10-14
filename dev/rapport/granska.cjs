@@ -8,7 +8,8 @@
    Ingen egen väg till tabellen eller repot: varje val kör samma verktyg som
    i terminalen — hamta.cjs (hämtar rättelsen till dev/diagnos/rapporter/<kod>/),
    till-fall.cjs --traning | --bank och satt.cjs slangd — så att spärren
-   mellan test och träning (sparr.cjs, per parti) gäller precis som där.
+   mellan test och träning (sparr.cjs: bänk ↔ träning per parti, Mat test
+   bara sin egen kod) gäller precis som där.
    Säger spärren nej visas dess text, och ingenting är skrivet.
 
    Ändrat namn: spelarens rätta namn kan vara fel. Ett nytt namn prövas mot
@@ -29,6 +30,7 @@
 const http = require('http'), fs = require('fs'), path = require('path'), os = require('os'), crypto = require('crypto');
 const { spawn } = require('child_process');
 const { supa, ROT } = require('./supa.cjs');
+const { slagIRepot } = require('./sparr.cjs');   // bara för förhandsvisningen av spärren; valen går genom till-fall/satt
 
 const argv = process.argv.slice(2), arg = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const PORT = +(arg('--port') || process.env.PORT || 8279);
@@ -94,6 +96,8 @@ async function lista() {
     ut.push({
       kod: r.kod, nar: r.created_at, vem: k ? (k.namn || k.epost) : r.user_id.slice(0, 8), game_id: r.game_id || null,
       anvandning: r.anvandning || null, bilder: r.bilder || null,
+      /* tabellen säger test för både Mat test och bänk: slaget ur repot (sparr.cjs), null = okänt — spärrar som bänken */
+      testSlag: r.anvandning === 'test' ? slagIRepot(r.kod) : null,
       handelse: j.handelse || vy.handelse || null, gissning: j.gissning || vy.gissning || null, ratt: j.ratt || vy.ratt || null,
       varfor: j.varfor || null, saker: j.saker != null ? !!j.saker : null, spelkod: j.spelkod || null, kalla: j.bild || null,
       harBild: fs.existsSync(path.join(mappFor(r.kod), 'beskarning.jpg')),
