@@ -326,7 +326,8 @@ async function laddaApp() {
   /* Telefonens stillbilder (MES-366): PÅ som förval, så att golden mäter kostnaden som den blir efter go-live (i appen bara med rapporten);
      kor.cjs --utan-stillbilder stänger av, för mätningen av vad de kostar. */
   if (PARAMS.get('stillbilder') === '0') w.STILLBILDER_AV = true; else w.STILLBILDER_PA = true;
-  if (PARAMS.get('detlogg') === '1') w.MESA_DET_LOGG = true;   // kor.cjs --detlogg: detektorns lådor, remsor och täckningar i konsolen (MES-329, med --konsol)
+  if (PARAMS.get('detlogg') === '1') w.MESA_DET_LOGG = true;
+  if (PARAMS.get('konsol') === '1') w.MESA_TITEL_LOGG = true;   // kor.cjs --konsol: '[titel efter modell+orb]' när titelraden inte väntats in (T.orbUtanTitel)   // kor.cjs --detlogg: detektorns lådor, remsor och täckningar i konsolen (MES-329, med --konsol)
   /* Sökvägarna räknas från appens dokument (repots rot). */
   /* Den tränade detektorn (MES-329) laddar onnxruntime lokalt när bildmodellens filer ligger lokalt (samma delade laddning); modellen själv ligger alltid i repot. */
   w.MESA_DETEKTOR = EMBED_LOKALT ? { ladda: { ort: 'dev/embed/node_modules/onnxruntime-web/dist/ort.webgpu.min.js', wasmPaths: 'dev/embed/node_modules/onnxruntime-web/dist/' } } : {};

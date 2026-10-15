@@ -31191,9 +31191,10 @@ const Kamera = (() => {
     if (!cb.lasRemsa) return null;
     const s = skarRemsa(t); if (!s) return null;
     /* Ett otäckt spår får minnet som vittne (T.remsaMinneOmfodd): bara nyss döda kort, som för ett täckt. */
-    const omfodd = !!T.remsaMinne && !arTackt(t, maskad) && !!T.remsaMinneOmfodd && !(o && o.vittneBara);
-    const m = !T.remsaMinne ? { minnen: [], skal: null } : arTackt(t, maskad) ? minnenFor(t, s.mx, s.my, s.L) : omfodd ? minnenFor(t, s.mx, s.my, s.L, T.remsaMinneOmfodRadie) : { minnen: [], skal: 'inte täckt' }, minnen = m.minnen;
-    if (T.remsaMinne) { minneStat.fragor++; if (minnen.length) minneStat.medMinne++; }
+    const forst = !!(o && o.forst);   // remsaForst: bara hela remsan, utan minne och utan att räknas i minneStat
+    const omfodd = !forst && !!T.remsaMinne && !arTackt(t, maskad) && !!T.remsaMinneOmfodd && !(o && o.vittneBara);
+    const m = !T.remsaMinne || forst ? { minnen: [], skal: null } : arTackt(t, maskad) ? minnenFor(t, s.mx, s.my, s.L) : omfodd ? minnenFor(t, s.mx, s.my, s.L, T.remsaMinneOmfodRadie) : { minnen: [], skal: 'inte täckt' }, minnen = m.minnen;
+    if (T.remsaMinne && !forst) { minneStat.fragor++; if (minnen.length) minneStat.medMinne++; }
     /* Minnets prov jämförs bara med samma skärning (granskningen fynd 6): ett prov taget ur geometrins remsa mot en
        fråga ur detektorns låda (återfallet) är två olika utsnitt av samma titel. Ett prov utan flaggan är från före
        geometrin — lådskuret. Geo-remsor döms som lådremsor: tröskeln 0,10 var länge bara mätt på lådremsor, och två
@@ -31207,7 +31208,7 @@ const Kamera = (() => {
     kedjaBorja(t, 'remsa');
     let rs;
     try {
-      rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo, tackt: s.tackt, utom: s.utom, vittneBara: !!(o && o.vittneBara), omfodd, forst: !!(o && o.forst),
+      rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo, tackt: s.tackt, utom: s.utom, vittneBara: !!(o && o.vittneBara), omfodd, forst,
                                           minnen: minnenLika.length ? minnenLika : null, minneSkal: m.skal || (minnen.length && !minnenLika.length ? 'annan skärning' : null) });
     } finally { kedjaKlar(t, 'remsa'); }
     if (rs && rs.saker && rs.varfor === 'remsa minne') minneStat.sakra++;
@@ -31434,11 +31435,16 @@ const Kamera = (() => {
      hela kortet läses EXAKT som förut, med medRemsas egen remsläsning. Granskningen 2026-10-15: de svagare vägarna
      (remsa+titel, remsa+namn, remsa minne) har bara mätts där hela kortet var osäkert — med dem först kringgicks
      'modell land mot remsa' (--utan-leken: Plains → Pacifism via remsa+titel 0,17–0,21) — och en återanvänd
-     remsläsning kunde vara tagen medan en hand höll ett kort över remsan. Priset: en extra modellkörning på remsan
-     (~100 ms) när den inte avgör. */
+     remsläsning kunde vara tagen medan en hand höll ett kort över remsan.
+     Bara ett spår som verkligen har något OVANPÅ (maskat, eller ett kort ovanpå enligt detektorn) — inte ett som
+     bara ligger omlott: det översta kortet i en hög är omlott men helt synligt, och där är hela kortet starkt och
+     har stoppat remsans kända blänkfel (Fencing Ace → Plains 0,225, golden 18 Pharika's Chosen → Plains 0,154;
+     granskningen runda 2). Läsningen tar bara hela remsan (o.forst i kamLasRemsa: ingen titeldel, inget minne,
+     ingen textläsare): det är den enda domen som används här, och priset när den inte avgör blir en modellkörning
+     (~100 ms). */
   async function remsaForst(t, maskad) {
-    if (!(T.remsa && T.remsaForst && cb.lasRemsa && t.remsaLada && !t.remsaSynt && arTackt(t, maskad))) return null;
-    let rs = null; try { rs = await lasRemsa(t, maskad, { vittneBara: true, forst: true }); } catch (e) { rs = null; }
+    if (!(T.remsa && T.remsaForst && cb.lasRemsa && t.remsaLada && !t.remsaSynt && (maskad || (t.tackt && t.tackt.length)))) return null;
+    let rs = null; try { rs = await lasRemsa(t, maskad, { forst: true }); } catch (e) { rs = null; }
     if (!(rs && rs.saker && rs.namn && rs.varfor === 'remsa' && !remsaDomSkal(t))) return null;
     return { namn: rs.namn, sid: rs.sid, saker: true, cands: rs.cands, varfor: 'remsa först', remsa: rs };
   }
@@ -32707,13 +32713,16 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   const utanTitel = !!(tro && tro.orbUtanTitel && v.modell && v.modell.bar && v.accept && c0v && c0v.name !== BAKSIDA_NAMN && !BASICS.has(c0v.name) && !(o && (o.tackt || o.tacktSpar)));
   let namn = null;
   /* Loggen räknar det som FÖRUT hade gett en annan dom: en säker titel med ett annat namn som finns i poolen
-     ('konflikt'), också läst vänd när bilden säger 180° (som omläsningen nedan). */
-  if (utanTitel) namnP.then(async n => {
+     ('konflikt'), också läst vänd när bilden säger 180° (som omläsningen nedan). Bara i golden --konsol
+     (MESA_TITEL_LOGG) och ?debug: den vända läsningen tar textläsaren 0,4–0,8 s, och i produktion vore det bara
+     en kö för nästa korts titelrad (granskningen runda 2). */
+  if (utanTitel && !(DEBUG || window.MESA_TITEL_LOGG)) namnP.catch(() => {});
+  else if (utanTitel) namnP.then(async n => {
     if ((!n || n.poang < 0.6) && !(n && n.hoppad)) {
       const rot = ((((v.rec && v.rec.rot) || 0) % 360) + 360) % 360;
       if (Math.abs(rot - 180) < 45) { const n2 = await Namn.las(canvas, namnUtanBaksida(), true); if (n2 && (!n || n2.poang > n.poang)) n = n2; }
     }
-    const nn = n && n.namn, sakert = nn && n.poang >= 0.6 && n.marginal >= 0.2;
+    const lt = n && n.namn && KamEmbed.redo() ? landTyp(n.namn) : null, nn = lt ? landVisning(lt).name : n && n.namn, sakert = nn && n.poang >= 0.6 && n.marginal >= 0.2;
     if (sakert && nn !== c0v.name && Pool.idx && Pool.idx.names.indexOf(nn) >= 0) console.log('[titel efter modell+orb]', id, c0v.name, '→ titeln', nn, n.poang, n.marginal, n.vand ? 'vänd' : '');
   }).catch(() => {});
   else { try { namn = await namnP; } catch (e) { namn = null; } }
@@ -32971,7 +32980,9 @@ async function kamLasRemsa(canvas, id, o) {
      överst som hela remsan och marginal > T.remsaTitelTroskel; annars
      sparas den som vittne. Före textläsaren: ~100 ms mot 0,4–1 s. */
   let titel = null, titelVek = null;
-  if (!saker && T.remsaTitel > 0 && canvas.width >= 8) {
+  /* o.forst (Kamera.remsaForst): bara hela remsans dom behövs — titeldelen, minnet och textläsaren hoppas över. */
+  const baraHel = !!(o && o.forst);
+  if (!saker && !baraHel && T.remsaTitel > 0 && canvas.width >= 8) {
     try {
       const cv = remsTitelDel(canvas, T.remsaTitel);
       const et = await Embed.identifiera(cv, KamEmbed.remsIdx, { marginal: false, troskel: T.remsaTitelTroskel, vektor: !!minnen });
@@ -33010,7 +33021,7 @@ async function kamLasRemsa(canvas, id, o) {
   let ocr = null;
   /* Textläsaren (0,4–1 s) bara när svaret ska dömas — inte när remsan läses som VITTNE åt 'modell land' (o.vittneBara,
      medRemsa): där räcker bildmodellens marginal (granskningen 2026-10-07, fynd 9). */
-  if (!saker && !(o && o.vittneBara)) { try { ocr = await Namn.lasBand(canvas, namnUtanBaksida()); } catch (x) { ocr = null; } }
+  if (!saker && !baraHel && !(o && o.vittneBara)) { try { ocr = await Namn.lasBand(canvas, namnUtanBaksida()); } catch (x) { ocr = null; } }
   const ocrNamn = ocr && ocr.namn ? typNamn(ocr.namn) : null;
   if (!saker && ocrNamn && ocrNamn === cands[0].name && ocr.poang >= 0.5 && ocr.marginal >= 0.15 && marginal >= T.remsaVittne) { saker = true; varfor = 'remsa+namn'; }
   if (saker && kamLekAntal) {
