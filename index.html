@@ -34500,6 +34500,8 @@ const KH_HANDLING = new Set(['tap_hand', 'flytt_hand', 'angrad', 'folj_kameran',
    underlaget när en rättelse av handlingar blir ett Mat test-fall: kamerans påståenden ur telefonens bordslogg,
    och det spelaren sa emot, härifrån (till-fall.cjs). Bara i minnet, de senaste JOURNAL_MS, töms vid nytt parti. */
 const KH_SPELARE = new Set(['namngiven', 'bytt', 'tillagd', 'borttagen', ...KH_HANDLING]), JOURNAL_MS = 10 * 60 * 1000;
+/* De journalrader som blir påståenden i till-fall.cjs (pastaendenUrJournalen) — de får en bild. */
+const KH_PASTAENDE = new Set(['tap_hand', 'grav_hand', 'borttagen', 'bytt', 'namngiven']);
 function khJournalfor(typ, kort, f) {
   const nu = Date.now(), j = KH.journal || (KH.journal = []);
   let spar = f.rapport && f.rapport.spar != null ? f.rapport.spar : null, namn = f.namn || null;
@@ -34509,8 +34511,13 @@ function khJournalfor(typ, kort, f) {
     if (spar == null) spar = c && c.spar != null ? c.spar : q && q.spar != null ? q.spar : null;
     if (!namn) namn = (c && c.name) || null;
   }
-  j.push(Object.assign({ t: nu, typ, cid: String(kort), spar, namn }, f.fran ? { fran: f.fran } : {}, f.rapport ? { rapport: f.rapport } : {}));
+  const id = String(kort).replace(/[^\w]/g, '') + '-' + nu;   // påståendets id (till-fall.cjs, granskningssidan, handling-<id>.jpg)
+  j.push(Object.assign({ t: nu, id, typ, cid: String(kort), spar, namn }, f.fran ? { fran: f.fran } : {}, f.rapport ? { rapport: f.rapport } : {}));
   while (j.length && j[0].t < nu - JOURNAL_MS) j.shift();
+  /* Ett påstående om ett kort med spår: telefonen noterar ögonblicket nu, så att den kan skära ut kortet ur sin bild
+     därifrån när paketet skickas (Stillbilder.handlingMarkera). Bara där rapporten finns; bilden laddas upp först
+     om kontots inställning är på. */
+  if (spar != null && KH_PASTAENDE.has(typ) && typeof rapportFinns === 'function' && rapportFinns()) { try { Moln.sandKam('rapport_handling_markera', { id, spar }); } catch (e) {} }
 }
 /* Journalens rader mellan fran och till (ms, datorns klocka), som kopior. */
 function khJournal(fran, till) { return ((KH.spel && KH.journal) || []).filter(r => r.t >= fran && r.t <= till).map(r => JSON.parse(JSON.stringify(r))); }
@@ -39456,6 +39463,7 @@ var Rapport = (() => {
     if (m.typ === 'rapport_lada') { tagEmotLada(m); return true; }
     if (m.typ === 'rapport_bilder_klar') { const r = bilderVantar.get(m.kod); if (r) { bilderVantar.delete(m.kod); r(m); } else if (/^R-\d+$/.test(String(m.kod || ''))) { if (raderadKod(m.kod)) stadaSent(m.kod); else Moln.rapportUppdatera(m.kod, { bilder: m.fel ? 'delvis' : 'klar' }); } return true; }   // B: ett sent svar (efter BILDER_VANTA_MS) rättar raden; C: efter en Delete städas bilderna bort
     if (m.typ === 'rapport_rattelse_klar') { if (typeof Rattelse !== 'undefined') Rattelse.svar(m); return true; }   // B (MES-366): telefonens beskärning till en tyst rättelse
+    if (m.typ === 'rapport_handling_bilder_klar') { if (typeof Rattelse !== 'undefined') Rattelse.handlingSvar(m); return true; }   // MES-385: bilderna till en rättelse av handlingar
     if (m.typ === 'rapport') { telefonensRapport(m); return true; }
     return true;
   }
@@ -39490,6 +39498,8 @@ var Rapport = (() => {
     if (m.typ === 'rapport_lada') { telefonFrys(m); return true; }
     if (m.typ === 'rapport_bilder') { telefonLaddaUpp(m); return true; }
     if (m.typ === 'rapport_rattelse_bild') { if (typeof Stillbilder !== 'undefined') Stillbilder.rattelseBild(m); return true; }   // B (MES-366)
+    if (m.typ === 'rapport_handling_markera') { if (typeof Stillbilder !== 'undefined') Stillbilder.handlingMarkera(m); return true; }   // MES-385
+    if (m.typ === 'rapport_handling_bilder') { if (typeof Stillbilder !== 'undefined') Stillbilder.handlingBilder(m); return true; }   // MES-385
     if (m.typ === 'rapport_svar') { const r = telefonLyss.get(m.id); if (r) r(m); return true; }   // lyssnaren tar bort sig själv (franTelefon)
     return true;
   }
@@ -40314,6 +40324,67 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
     return { blob, info: { fil: 'kontext.jpg', t: bast.t, dt, w: W, h: H, bild: { w: Wb, h: Hb }, utsnitt: U.utsnitt, ruta, maskade } };
   }
 
+  /* ── Handlingarna (MES-385, Jespers beslut 2026-10-15: bild per rättelse, bara godkända påståenden räknas) ──
+     Datorn säger till i samma ögonblick som spelaren rättar ett kort (rapport_handling_markera { id, spar }): telefonen
+     noterar sin egen tid — ingen klocka behöver räknas om. När paketet skickas (rapport_handling_bilder) skär telefonen
+     ut kortet ur ringens bild närmast det ögonblicket (högst KONTEXT_DT_MS bort), med samma utsnittsregel som kontext.jpg,
+     och laddar upp handling-<id>.jpg. Rutan: spårets låda i den bilden, annars i ringens bild närmast i tid som har
+     spåret (högst KONTEXT_UTAN_MS bort) — ett kort som just lämnat bordet syns då som platsen där det låg. Bilden är
+     till för Jesper: han ser den bredvid påståendet och godkänner eller kastar det. Inget här frågar Claude. */
+  const MARK_MAX = 300, markeringar = new Map();   // id → { spar, t } (telefonens klocka)
+  function handlingMarkera(m) {
+    if (av() || !m || m.id == null) return;
+    kollaAgare();
+    markeringar.set(String(m.id), { spar: m.spar, t: Date.now() });
+    while (markeringar.size > MARK_MAX) markeringar.delete(markeringar.keys().next().value);
+  }
+  async function handlingBild(mk) {
+    let bast = null;
+    for (const b of ring) if (b.blob && (!bast || Math.abs(b.t - mk.t) < Math.abs(bast.t - mk.t))) bast = b;
+    if (!bast) return { skal: 'ringen är tom' };
+    const dt = bast.t - mk.t;
+    if (Math.abs(dt) > KONTEXT_DT_MS) return { skal: `ringens närmaste bild är ${(dt / 1000).toFixed(1)} s från rättelsen (gränsen ±${KONTEXT_DT_MS / 1000} s)` };
+    const har = b => b.spar && b.spar.some(q => q.id === mk.spar);
+    let rutBild = har(bast) ? bast : null;
+    if (!rutBild) for (const b of ring) if (har(b) && Math.abs(b.t - mk.t) <= KONTEXT_UTAN_MS && (!rutBild || Math.abs(b.t - mk.t) < Math.abs(rutBild.t - mk.t))) rutBild = b;
+    if (!rutBild) return { skal: 'spåret finns inte i ringens bilder nära rättelsen' };
+    if (typeof createImageBitmap !== 'function') return { skal: 'createImageBitmap saknas' };
+    const egen = rutBild.spar.find(q => q.id === mk.spar), ruta = { x: egen.x, y: egen.y, w: egen.w, h: egen.h };
+    const bm = await createImageBitmap(bast.blob);
+    const Wb = bm.width || bast.w, Hb = bm.height || bast.h, U = kontextUtsnitt(ruta, Wb, Hb);
+    const c = document.createElement('canvas'); c.width = U.W; c.height = U.H;
+    const x = c.getContext('2d');
+    x.drawImage(bm, U.x0, U.y0, U.sw, U.sh, 0, 0, U.W, U.H); try { bm.close(); } catch (e) {}
+    const a = (ruta.x * Wb - U.x0) * U.sk, b = (ruta.y * Hb - U.y0) * U.sk, w = ruta.w * Wb * U.sk, h = ruta.h * Hb * U.sk;
+    x.lineWidth = 4; x.strokeStyle = '#ff2d55'; if (rutBild !== bast) x.setLineDash([8, 5]); x.strokeRect(a, b, w, h); x.setLineDash([]);
+    const text = 'spår ' + mk.spar + (rutBild !== bast ? ' (där det låg)' : '');
+    x.font = 'bold 13px system-ui, sans-serif'; const tw = x.measureText(text).width + 8, ty = Math.max(0, b - 18);
+    x.fillStyle = '#ff2d55'; x.fillRect(a, ty, tw, 17); x.fillStyle = '#fff'; x.fillText(text, a + 4, ty + 13);
+    const blob = await new Promise(res => { try { c.toBlob(res, 'image/jpeg', 0.85); } catch (e) { res(null); } });
+    return blob && blob.size ? { blob, dt, rutaUr: rutBild === bast ? 'bilden' : 'en bild ' + (rutBild.t - bast.t) + ' ms bort' } : { skal: 'kodningen gav ingen bild' };
+  }
+  async function handlingBilder(m) {
+    kollaAgare();
+    const mapp = String((m && m.sokvag) || ''), saknas = [];
+    let antal = 0, nej = 0;
+    try {
+      /* Telefonen läser kontots inställning själv före uppladdningen, som rattelseBild. */
+      if (Moln.minId() && mapp.startsWith(Moln.minId() + '/rapporter/') && await Moln.bildInstallning()) {
+        for (const p of ((m && m.poster) || []).slice(0, 150)) {
+          const id = String(p.id), mk = markeringar.get(id);
+          if (!/^[\w-]+$/.test(id)) continue;
+          if (!mk) { saknas.push({ id, skal: 'ingen markering på telefonen' }); continue; }
+          try {
+            const k = await handlingBild(mk);
+            if (k.blob) { await Moln.rapportFil(mapp, `handling-${id}.jpg`, k.blob, 'image/jpeg'); antal++; }
+            else saknas.push({ id, skal: k.skal });
+          } catch (e) { saknas.push({ id, skal: 'fel: ' + Lada.kap(e && e.message, 120) }); }
+        }
+      } else nej = 1;
+    } catch (e) { Lada.skriv('fel', { kalla: 'rattelse', med: 'handlingarnas bilder: ' + Lada.kap(e && e.message, 200) }); }
+    Moln.sandKam('rapport_handling_bilder_klar', { kod: m && m.kod, antal, saknas, nej: nej || undefined });
+  }
+
   async function rattelseBild(m) {
     kollaAgare();
     const mapp = String((m && m.sokvag) || ''), f = m && m.spar != null ? besk.get(m.spar) : null;
@@ -40349,10 +40420,10 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
              aldst: ring.length ? ring[0].t : null, nyast: ring.length ? ring[ring.length - 1].t : null, av: av() };
   }
   /* tom: bilderna bort (nytt konto eller parti, punkt 5). glom: också statistiken (utloggning, golden mellan fallen). */
-  function tom() { gen++; ring.length = 0; besk.clear(); bytes = 0; beskBytes = 0; senast = -Infinity; senastHand = -Infinity; sig = null; }
+  function tom() { gen++; ring.length = 0; besk.clear(); markeringar.clear(); bytes = 0; beskBytes = 0; senast = -Infinity; senastHand = -Infinity; sig = null; }
   function glom() { tom(); agarenNu = null; for (const k in stat) stat[k] = 0; }
 
-  return { steg, beskarning, stillbilder, sandRad, rattelseBild, stat: statNu, glom, get pa() { return !av(); }, get ring() { return ring; }, get besk() { return besk; }, get ko() { return ko + beskKo; } };
+  return { steg, beskarning, stillbilder, sandRad, rattelseBild, handlingMarkera, handlingBilder, stat: statNu, glom, get pa() { return !av(); }, get ring() { return ring; }, get besk() { return besk; }, get ko() { return ko + beskKo; } };
 })();
 if (typeof Rapport !== 'undefined') Rapport.stillbilder = Stillbilder.stillbilder;
 
@@ -40470,6 +40541,13 @@ var Rattelse = (() => {   // var: se Rapport
      HANDLING_MAX_MS från den första — så att ett parti med många tap inte äter taket. till-fall.cjs --mattest gör det
      till ett Mat test-fall: facit är kameran minus det spelaren rättade (byggFacit). Samma villkor som namnens:
      rapporten finns, kontots inställning på (läst från servern när paketet skickas), läget bord. Inget frågar Claude. */
+  const HANDLING_BILD_MS = 30000, bildVantar = new Map();   // kod → resolve för rapport_handling_bilder_klar
+  /* Telefonens svar: väntar någon på det, annars (sent, efter HANDLING_BILD_MS) rättar det raden. */
+  function handlingSvar(m) {
+    const r = m && bildVantar.get(m.kod);
+    if (r) { bildVantar.delete(m.kod); r(m); }
+    else if (m && /^R-\d+$/.test(String(m.kod || '')) && m.antal) Moln.rapportUppdatera(m.kod, { bilder: m.saknas && m.saknas.length ? 'delvis' : 'klar' });
+  }
   const HANDLING_FORE_MS = 60000, HANDLING_EFTER_MS = 20000, HANDLING_MAX_MS = 180000, HANDLING_RADER = 150;   // ~200 B per rad: vy håller sig under 64 kB
   let samling = null;   // { spel, spelkod, forsta, sista, rader, timer, till, agerFran }
   let senastTill = null;   // förra samlingens till (ms): nästa paket äger påståendena efter den
@@ -40512,20 +40590,30 @@ var Rattelse = (() => {   // var: se Rapport
     /* agerFran–till: påståendena paketet äger (MES-385) — från förra paketets slut (eller fönstrets början) till sitt eget.
        Det som ligger före följer med som underlag och räknas i förra paketets fall. */
     const vy = { handelse: 'handling', handlingar: S.rader, spelkod: S.spelkod, forsta: S.forsta, agerFran: S.agerFran, fran: S.forsta - HANDLING_FORE_MS, till };
-    const r = await Moln.rapportRad({ game_id: S.spel, kalla: 'rattelse', text: null, tagg: null, vy, bilder: 'saknas' });
+    const r = await Moln.rapportRad({ game_id: S.spel, kalla: 'rattelse', text: null, tagg: null, vy, bilder: null });   // null = bilderna på väg
     const json = JSON.stringify(Object.assign(p, { kod: r.kod, kalla: 'rattelse', text: null, tagg: null, frys: S.sista, frysIso: new Date(S.sista).toISOString(), vy }));
     const z = await Rapport.gz(json), blob = z || new Blob([json], { type: 'application/json' });
     await Moln.rapportFil(r.sokvag, z ? 'rapport.json.gz' : 'rapport.json', blob, z ? 'application/gzip' : 'application/json');
     Moln.rapportUppdatera(r.kod, { storlek: blob.size });
+    /* Bilderna: ett utsnitt per påstående som paketet äger (agerFran, till] och vars kort har ett spår. Telefonen
+       laddar upp dem; svarar den inte inom HANDLING_BILD_MS blir raden 'saknas' (ett sent svar rättar den). */
+    const poster = (p.spelare || []).filter(j => j.id && j.spar != null && KH_PASTAENDE.has(j.typ) && j.t > S.agerFran && j.t <= till).map(j => ({ id: j.id, spar: j.spar }));
+    const sv = !poster.length ? null : await new Promise(res => {
+      let ansl = false; try { ansl = !!kamAnsluten; } catch (e) {}
+      if (!ansl || !Moln.sandKam('rapport_handling_bilder', { kod: r.kod, sokvag: r.sokvag, poster })) { res(null); return; }
+      bildVantar.set(r.kod, res);
+      setTimeout(() => { if (bildVantar.delete(r.kod)) res(null); }, HANDLING_BILD_MS);
+    });
+    Moln.rapportUppdatera(r.kod, { bilder: sv && sv.antal ? (sv.antal < poster.length ? 'delvis' : 'klar') : 'saknas' });
     stat.sparade++;
-    Lada.skriv('handling', { typ: 'rättelse sparad', kod: r.kod, handelse: 'handling', antal: S.rader.length });
-    return { kod: r.kod, sokvag: r.sokvag };
+    Lada.skriv('handling', { typ: 'rättelse sparad', kod: r.kod, handelse: 'handling', antal: S.rader.length, bilder: sv ? sv.antal : 0, av: poster.length });
+    return { kod: r.kod, sokvag: r.sokvag, bilder: sv, poster };
   }
 
   /* C:s Delete: paus(true) stoppar nya rättelser, vanta() väntar in de som redan sparas (högst ms). */
   const paus = pa => { pausad = !!pa; if (pausad && samling) { clearTimeout(samling.timer); samling = null; } };
   const vanta = ms => Promise.race([Promise.all([...aktiva]), new Promise(r => setTimeout(r, ms || 30000))]);
-  return { fran, handling, skickaHandlingar: skickaSamling, svar, paus, vanta, get aktiva() { return aktiva.size; }, stat: () => Object.assign({}, stat, { takNatt, samlar: samling ? samling.rader.length : 0 }),
+  return { fran, handling, skickaHandlingar: skickaSamling, handlingSvar, svar, paus, vanta, get aktiva() { return aktiva.size; }, stat: () => Object.assign({}, stat, { takNatt, samlar: samling ? samling.rader.length : 0 }),
            glom: () => { gjorda.clear(); pagar.clear(); takNatt = false; if (samling) clearTimeout(samling.timer); samling = null; senastTill = null; for (const k in stat) stat[k] = 0; } };
 })();
 

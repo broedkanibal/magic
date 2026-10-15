@@ -129,6 +129,9 @@ datorns klocka.
 | telefon → dator | `rapport {id, text, tagg}` | telefonens ark (del C): datorn fryser och skickar |
 | dator → telefon | `rapport_svar {id, kod}` eller `{id, fel: 'tak' \| 'nat' \| 'av'}` | `av` = rapporten är inte på hos datorn (utan `?debug` / `RAPPORT_FOR_ALLA`) |
 | dator → telefon | `rapport_rattelse_bild {kod, sokvag, spar}` | B: ladda upp beskärningen till en tyst rättelse |
+| dator → telefon | `rapport_handling_markera {id, spar}` | MES-385: spelaren rättade kortet nu — notera tiden |
+| dator → telefon | `rapport_handling_bilder {kod, sokvag, poster: [{id, spar}]}` | MES-385: ladda upp `handling-<id>.jpg` per påstående |
+| telefon → dator | `rapport_handling_bilder_klar {kod, antal, saknas: [{id, skal}], nej}` | MES-385: radens `bilder` klar / delvis / saknas |
 | telefon → dator | `rapport_rattelse_klar {kod, ok, kort, varfor, tBesk}` | B: inget svar på 10 s = datorns kopia |
 
 ## För del B, C och D
@@ -186,6 +189,17 @@ räknas i förra paketets fall (eller inget, om det inte skickades — inställn
 paketet skickats ligger i ett senare paket: `till-fall.cjs --mattest` hämtar partiets senare paket ur tabellen — hela,
 så att en Undo där av ett tap där inte träffar det här paketets tap — och tar tillbaka påståendena även här. Med
 `--lokal` görs det inte, och fallet säger det (VARNING).
+
+**Bild per rättelse och godkännande** (Jespers beslut 2026-10-15): ett klick kan vara ett misstag eller ett prov av
+knappen, så klicket ensamt är inget facit. I samma ögonblick som spelaren rättar ett kort med spår säger datorn till
+telefonen (`rapport_handling_markera { id, spar }`), som noterar sin egen tid. När paketet sparats ber datorn om
+bilderna (`rapport_handling_bilder { kod, sokvag, poster }`): telefonen skär ut kortet ur ringens bild närmast
+ögonblicket (högst 2 s bort; rutan ur den bilden, eller där kortet låg om det just lämnat bordet — streckad), med
+samma utsnittsregel som `kontext.jpg`, och laddar upp `handling-<id>.jpg` (kontots inställning läses först, på
+telefonen). Svaret (`rapport_handling_bilder_klar`) sätter radens `bilder`. **Bara godkända påståenden räknas**:
+`godkant.json` i rättelsens mapp (`{ "<id>": "godkand" | "kastad" }`, skrivs av granskningssidan) eller
+`till-fall.cjs <kod> --mattest --godkand <id,…|alla>`. Utan godkännande mäter fallet ingenting, och till-fall säger det.
+Påståendets id = `<cid>-<t>` (journalens tid i ms), samma i journalen, i `fall.pastaenden[].id` och i bildens namn.
 
 Mat test mäter fallet med **"Spelarens rättelser som uppspelningen redan visade"**: visade uppspelningen påståendets
 läge vid dess tid hade rättelsen inte behövts. På koden som spelades är svaret nästan alltid 0 av N — det är just

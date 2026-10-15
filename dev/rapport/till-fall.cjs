@@ -217,7 +217,7 @@ function pastaendenUrJournalen(journal, s0, egnaFran, egnaTill) {
     else if (j.typ === 'borttagen') p = { typ: 'borta' };
     else if ((j.typ === 'bytt' || j.typ === 'namngiven') && j.namn) p = { typ: 'namn', namn: j.namn };
     if (p) {
-      Object.assign(p, { t, spar: j.spar != null ? j.spar : null, kort: j.namn || null, cid, kalla: j.typ });
+      Object.assign(p, { id: j.id || cid.replace(/[^\w]/g, '') + '-' + j.t, t, spar: j.spar != null ? j.spar : null, kort: j.namn || null, cid, kalla: j.typ });
       if (p.spar == null) p.ejAvgorbart = 'spåret okänt — kortet går inte att känna igen i uppspelningen';
       /* Paketet äger (egnaFran, egnaTill]: det före räknas i förra paketets fall, det efter (ur ett senare paket, med
          för att Undo och ⌘Z där ska träffa rätt påstående) i nästa. */
@@ -344,6 +344,7 @@ function lasLek(fil) {
 }
 
 /* ── --mattest ───────────────────────────────────────────────────────────── */
+function lasJsonEllerNull(fil) { try { return JSON.parse(fs.readFileSync(fil, 'utf8')); } catch (e) { return null; } }
 function lasJsonFil(fil) { const b = fs.readFileSync(fil); return JSON.parse((b[0] === 0x1f && b[1] === 0x8b ? zlib.gunzipSync(b) : b).toString('utf8')); }
 const klocka = ms => new Date(ms).toLocaleTimeString('sv-SE', { hour12: false });
 
@@ -362,6 +363,14 @@ function mattestFall(o) {
   /* Senare rättelser i partiet (K.senare: andra paket, hämtade ur tabellen) kan ta tillbaka ett påstående här — Undo,
      ⌘Z eller Follow camera efter att det här paketet skickats. */
   const pastaenden = exakt ? pastaendenUrJournalen(K.spelare.concat(K.senare || []), s0, K.agerFran, K.till).filter(p => p.t >= fran - 1e-9 && p.t <= till + 1e-9) : null;
+  /* Bilden och godkännandet per påstående: bara godkända räknas (tillbakatagna, osäkra och de utan spår räknas aldrig). */
+  for (const p of pastaenden || []) {
+    const fil = `handling-${p.id}.jpg`;
+    p.bild = K.bilder && K.bilder.has(fil) ? fil : null;
+    if (p.tillbaka || p.osaker || p.ejAvgorbart) continue;
+    const g = K.godkantAlla ? 'godkand' : (K.godkant || {})[p.id];
+    if (g === 'kastad') p.kastad = true; else if (g !== 'godkand') p.ejGodkand = true;
+  }
   const harMatta = !exakt && matta.length > 0;
   const kamera = exakt ? [] : harMatta ? matta.filter(e => e.av !== 'spelare').map(e => Object.assign({}, e, { av: 'kamera' })) : kameranUrBordsloggen(rader);
   const spelare = harMatta ? matta.filter(e => e.av === 'spelare') : [];
@@ -441,11 +450,25 @@ async function hamtaSenare(K, lokal, S) {
   return null;
 }
 /* Påståendenas antal, som terminalen och granskningssidan visar dem. */
+/* raknas = godkända (Jespers beslut 2026-10-15: bara godkända påståenden räknas); attBedoma = de som väntar på
+   godkänt eller kastat (inte tillbakatagna, osäkra eller utan spår). */
 function raknaPastaenden(P) {
-  return { alla: P.length, raknas: P.filter(p => !p.tillbaka && !p.osaker && !p.ejAvgorbart).length, tillbaka: P.filter(p => p.tillbaka).length,
-    osakra: P.filter(p => p.osaker).length, utanSpar: P.filter(p => p.ejAvgorbart).length };
+  const bedombar = p => !p.tillbaka && !p.osaker && !p.ejAvgorbart;
+  return { alla: P.length, attBedoma: P.filter(bedombar).length, raknas: P.filter(p => bedombar(p) && !p.kastad && !p.ejGodkand).length,
+    ejGodkanda: P.filter(p => bedombar(p) && p.ejGodkand).length, kastade: P.filter(p => bedombar(p) && p.kastad).length,
+    tillbaka: P.filter(p => p.tillbaka).length, osakra: P.filter(p => p.osaker).length, utanSpar: P.filter(p => p.ejAvgorbart).length, medBild: P.filter(p => p.bild).length };
 }
-const pastaendenText = P => { const n = raknaPastaenden(P); return `${n.alla} påståenden — ${n.raknas} räknas, ${n.tillbaka} tillbakatagna, ${n.osakra} osäkra, ${n.utanSpar} utan spår`; };
+const pastaendenText = P => { const n = raknaPastaenden(P); return `${n.alla} påståenden — ${n.raknas} godkända räknas, ${n.ejGodkanda} inte godkända, ${n.kastade} kastade, ${n.tillbaka} tillbakatagna, ${n.osakra} osäkra, ${n.utanSpar} utan spår; ${n.medBild} med bild`; };
+/* Godkännandet (MES-385, Jespers beslut 2026-10-15): bara påståenden Jesper godkänt — med bilden per rättelse framför
+   sig, på granskningssidan (godkant.json i rättelsens mapp) eller med --godkand <id,…|alla> — räknas. */
+function lasGodkant(K, mapp, o) {
+  if (!Array.isArray(K.spelare)) return;
+  o = o || {};
+  K.godkant = (mapp && lasJsonEllerNull(path.join(mapp, 'godkant.json'))) || {};
+  if (o.godkand === 'alla') K.godkantAlla = true;
+  else if (o.godkand) for (const id of o.godkand.split(',').map(x => x.trim()).filter(Boolean)) K.godkant[id] = 'godkand';
+  K.bilder = new Set(mapp && fs.existsSync(mapp) ? fs.readdirSync(mapp).filter(f => /^handling-[\w-]+\.jpg$/.test(f)) : []);
+}
 /* Fallet --mattest skulle ge, utan att något skrivs eller spärren prövas: granskningssidan visar det före klicket.
    Samma väg som korInre (kallaUrMapp, hamtaSenare, mattestFall). */
 async function forhandMattest(kod, mapp, opt) {
@@ -453,6 +476,7 @@ async function forhandMattest(kod, mapp, opt) {
   const K = kallaUrMapp(mapp, kod);
   K.kod = kod;
   const varning = await hamtaSenare(K, opt.lokal, opt.S);
+  lasGodkant(K, mapp, {});
   const F = mattestFall({ kalla: K, id: kod }).fall;
   return { pastaenden: F.pastaenden, antal: F.pastaenden ? raknaPastaenden(F.pastaenden) : null, text: F.pastaenden ? pastaendenText(F.pastaenden) : null,
     facit: F.facit.length, facitKalla: F.facitKalla, varning, start: K.start, fran: F.fran, till: F.till };
@@ -684,7 +708,7 @@ function las(a) {
     logg: arg('--logg'), spelkod: arg('--spelkod'), orden: arg('--orden'), lek: arg('--lek'), id: arg('--id'), mapp: arg('--mapp'), bild: arg('--bild'), ratt: arg('--ratt'),
     sort: arg('--sort'), spar: arg('--spar'), vid: arg('--vid') != null ? +arg('--vid') : null, utanRuta: a.includes('--utan-ruta'),
     fran: arg('--fran') != null ? +arg('--fran') : null, till: arg('--till') != null ? +arg('--till') : null,
-    lokal: a.includes('--lokal'), torr: a.includes('--torr'), skrivOver: a.includes('--skriv-over')
+    lokal: a.includes('--lokal'), torr: a.includes('--torr'), skrivOver: a.includes('--skriv-over'), godkand: arg('--godkand')
   };
 }
 
@@ -717,6 +741,7 @@ async function korInre(a) {
     o.id = o.id || (K.kod ? K.kod : idUrLogg(K));
     if (!ID_RE.test(o.id)) throw Object.assign(new Error(`fallets id ${JSON.stringify(o.id)}: bara bokstäver, siffror, - och _`), { kod: 2 });
     o.senareVarning = await hamtaSenare(K, o.lokal);
+    lasGodkant(K, mapp, o);
     plan = { slag: 'mattest', ut: mattestFall(Object.assign({}, o, { kalla: K })), kod: K.kod, parti: K.parti || null };
   } else { const b = bildOchNamn(mapp, o); b.parti = partiUrMapp(mapp, b); plan = { slag: o.lage, b, kod: o.kod, parti: b.parti }; }
   const kod = plan.kod;
@@ -750,6 +775,7 @@ async function korInre(a) {
   if (plan.slag === 'mattest') {
     const F = plan.ut.fall;
     if (o.senareVarning) rad.push('VARNING: ' + o.senareVarning);
+    if (F.pastaenden && !raknaPastaenden(F.pastaenden).raknas) rad.push('VARNING: inga godkända påståenden — fallet mäter ingenting. Godkänn dem på granskningssidan (godkant.json) eller med --godkand <id,…|alla>');
     rad.push(F.pastaenden ? `Mat test-fall ${o.id}: ${pastaendenText(F.pastaenden)} (${F.facitKalla}); ${plan.ut.bordlogg.bordLogg.length} bord, sek ${F.fran}–${F.till}`
       : `Mat test-fall ${o.id}: ${F.facit.length} facit-rader (${F.facitKalla}), ${F.struket.length} strukna, ${F.rattelser.length} rättelser, ${plan.ut.bordlogg.bordLogg.length} bord, sek ${F.fran}–${F.till}`);
     if (!o.torr) rad.push('skrivet: ' + path.relative(ROT, skrivMattest(plan.ut, o)) + '/ (fall.json, bordlogg.json.gz' + (o.orden ? ', orden.tsv' : '') + ')');

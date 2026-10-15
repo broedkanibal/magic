@@ -122,7 +122,7 @@ function lasMig(p, rad, linje, filer, konto) {
     const H = { tap_hand: 'tappade/otappade för hand', flytt_hand: 'flyttade för hand', angrad: 'Undo (kameran hade rätt)', folj_kameran: 'Follow camera', grav_hand: 'lade i en hög för hand' };
     L.push('## Spelarens rättelser av handlingar (MES-385)', '', '| tid | rättelse | kort | detaljer |', '|---|---|---|---|');
     for (const h of vy.handlingar || []) L.push(`| ${sek(h.t, fr)} | ${H[h.typ] || h.typ} | ${h.kort || '–'} | ${['spar', 'tappad', 'kamTap', 'av', 'zon'].filter(k => h[k] != null).map(k => k + ' ' + h[k]).join(', ') || '–'} |`);
-    L.push('', `Paketet täcker ${vy.fran ? klocka(vy.fran) : '–'}–${vy.till ? klocka(vy.till) : '–'}: telefonens bord och mattans ändringar, inga klick och ingen bild. Gör det till ett Mat test-fall: \`node dev/rapport/till-fall.cjs ${p.kod} --mattest\`.`, '');
+    L.push('', `Paketet täcker ${vy.fran ? klocka(vy.fran) : '–'}–${vy.till ? klocka(vy.till) : '–'}: telefonens bord, spelarens journal och mattans ändringar, inga klick. Bilderna per rättelse ligger bredvid (\`handling-<id>.jpg\`). Bara godkända påståenden räknas: granskningssidan (godkant.json) eller \`node dev/rapport/till-fall.cjs ${p.kod} --mattest --godkand <id,…|alla>\`.`, '');
   }
   L.push('## 2. Mesas logg inom vyn, 90 s före trycket', '');
   const mattaKort = new Map(((p.matta && p.matta.mig) || []).map(k => [k.id, k]));

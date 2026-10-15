@@ -327,14 +327,15 @@ function berakna(fall, logg) {
   /* ── spelarens påståenden (MES-385) ── Fall ur en rättelse av handlingar: facit är det spelaren rättade — hur
      ETT kort (spåret) låg i ETT ögonblick (till-fall.cjs pastaendenUrJournalen). Visade uppspelningen redan det
      läget då hade rättelsen inte behövts. Kortet = elementet som senast före tiden var bundet till spåret (motorns
-     sparBana). Ett påstående som togs tillbaka (Undo, ⌘Z) eller är osäkert räknas inte; ett vars kort inte går att
+     sparBana). Bara påståenden Jesper godkänt räknas (bilden per rättelse, granskningssidan); ett som togs tillbaka
+     (Undo, ⌘Z), är osäkert, kastat eller inte godkänt räknas inte; ett vars kort inte går att
      hitta i uppspelningen är "ej avgörbart" — aldrig gissat ur namnet. Borta = kortet har lämnat mattan eller tonas
      ned; till graveyard/exile måste det ha gått dit. */
   if (Array.isArray(fall.pastaenden)) {
     detalj.pastaenden = [];
     const vidBana = (bana, t, forval) => { let v = forval; for (const [x, val] of bana || []) { if (x > t + 1e-9) break; v = val; } return v; };
     for (const p of fall.pastaenden) {
-      let som = p.tillbaka ? 'tillbakatagen' : p.osaker ? 'osäker' : p.ejAvgorbart ? 'ej avgörbar' : null;
+      let som = p.tillbaka ? 'tillbakatagen' : p.osaker ? 'osäker' : p.ejAvgorbart ? 'ej avgörbar' : p.kastad ? 'kastad' : p.ejGodkand ? 'ej godkänd' : null;
       if (!som) {
         let k = null, kt = -Infinity;
         for (const c of kort) for (const [x, sp] of c.sparBana || [[c.fodd, c.sparFodd]]) if (x <= p.t + 1e-9 && sp != null && String(sp) === String(p.spar) && x >= kt) { k = c; kt = x; }
