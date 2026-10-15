@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Världsfilens ORB-par</title>
+<style>body{background:#0d1015;color:#e7ecf4;font:12px/1.5 ui-monospace,Menlo,monospace;padding:14px}</style>
+</head><body>
+<h1>ORB per par: beskärning × vridning × kandidatbild (MES-375)</h1>
+<!-- Samma ORB som dev/embed/varlden.html (appens kedja, cache/kedjan.js ur node dev/embed/utdrag.cjs), men
+     ett svar per PAR i stället för en dom per beskärning, så att dev/remsa/varldsfil.py kan cacha paren och
+     köra domen själv (orb_dom: orbSvep:s ordning och stopp, identifyMedModell:s bär/emot). ORB.verify är
+     deterministisk (fast slumpfrö i ransac) och räknar ett par i taget, så paren ger samma träffar som
+     poolen i varlden.html. Uppgifterna: [{fraga, bilder: [{url, rots}]}].
+
+       node dev/embed/webb.cjs varldsfil-orb.html "ORBPAR('<uppgifter.json, relativt repot>')" --port 8395 --tak 1800 -->
+<pre id="log"></pre>
+<script src="cache/kedjan.js"></script>
+<script>
+const log = m => { document.getElementById('log').textContent += m + '\n'; console.log(m); };
+const _mc = new MessageChannel(), _q = []; _mc.port1.onmessage = () => { const r = _q.shift(); if (r) r(); };
+const andas = () => new Promise(r => { _q.push(r); _mc.port2.postMessage(0); });
+const bildAv = async url => createImageBitmap(await (await fetch(url, { mode: 'cors' })).blob());
+const canvasAv = im => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; c.getContext('2d', { willReadFrequently: true }).drawImage(im, 0, 0); return c; };
+const MARGINAL = 0.08;   // Kamera.beskar: 8 % runt kortet, som varlden.html (marginalBeskarning)
+
+window.ORBPAR = async function (fil) {
+  const t0 = performance.now();
+  const uppg = await (await fetch('/' + fil)).json();
+  const ref = new Map();   // url → packad ORB (refFeatures 200, som poolen)
+  const ut = [];
+  for (let i = 0; i < uppg.length; i++) {
+    const u = uppg[i];
+    const q = canvasAv(await bildAv('/' + u.fraga)), f = MARGINAL / (1 + 2 * MARGINAL);
+    const box = { x: q.width * f, y: q.height * f, w: q.width * (1 - 2 * f), h: q.height * (1 - 2 * f) };
+    await Promise.all(u.bilder.filter(b => !ref.has(b.url)).map(async b => { ref.set(b.url, ORB.pack([ORB.refFeatures(await bildAv(b.url), 200)])); }));
+    const qf = new Map();
+    for (const b of u.bilder) {
+      for (const r of b.rots) {
+        if (!qf.has(r)) { const cv = cropCanvas(q, box, r, ORB.REF_W, ORB.REF_H); qf.set(r, cv ? ORB.queryFeatures(cv, 300) : null); }
+        const f2 = qf.get(r);
+        if (!f2) { ut.push({ fraga: u.fraga, rot: r, url: b.url, inliers: 0, skala: null }); continue; }
+        const ov = ORB.verify(f2, ORB.unpack(ref.get(b.url), 0), {});
+        ut.push({ fraga: u.fraga, rot: r, url: b.url, inliers: ov.inliers, skala: ov.model ? ov.model.scale : null });
+      }
+    }
+    if (i % 5 === 0) { log(`${i + 1}/${uppg.length}`); await andas(); }
+  }
+  return { ut, ms: performance.now() - t0 };
+};
+</script>
+</body></html>

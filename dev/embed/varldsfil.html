@@ -1,0 +1,59 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Världsfilens kontroller</title>
+<style>body{background:#0d1015;color:#e7ecf4;font:12px/1.5 ui-monospace,Menlo,monospace;padding:14px}</style>
+</head><body>
+<h1>Världsfilen: JS mot Python (MES-375, kontroll 5a och 5b)</h1>
+<!-- Körs av dev/remsa/varldsfil.py (kontroll-js, kontroll-modell) via webb.cjs:
+       KONTROLL_SOK(fil, fragor)        5a: varld.js söker med Pythons frågevektorer i filens gzippade form
+       KONTROLL_MODELL(fragor, bilder, backend)  5b: embed.js räknar vektorerna som appen (webbläsarens omskalning; 'wasm' eller 'webgpu')
+     Sökvägarna är relativa repot (servern dev/embed/server.cjs har repot som rot). -->
+<pre id="log"></pre>
+<script src="embed.js"></script>
+<script src="varld.js"></script>
+<script>
+const log = m => { document.getElementById('log').textContent += m + '\n'; console.log(m); };
+const _mc = new MessageChannel(), _q = []; _mc.port1.onmessage = () => { const r = _q.shift(); if (r) r(); };
+const andas = () => new Promise(r => { _q.push(r); _mc.port2.postMessage(0); });
+const median = a => { const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; };
+const bildAv = src => new Promise((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = () => rej(new Error('bild ' + src)); i.src = src; });
+
+window.KONTROLL_SOK = async function (fil, fragorFil) {
+  const t0 = performance.now();
+  const v = await Varld.ladda('/' + fil + '.gz');       // det som går över nätet: gzip, uppackat med DecompressionStream
+  const laddMs = performance.now() - t0;
+  const fr = (await (await fetch('/' + fragorFil)).json()).fragor;
+  const svar = [], tider = [];
+  for (const f of fr) {
+    const qs = f.q.map(a => Float32Array.from(a));
+    const t1 = performance.now();
+    const s = Varld.sok(v, qs, 5);
+    tider.push(performance.now() - t1);
+    svar.push({ fil: f.fil, rot: s.rot, marginal: s.marginal, topp: s.topp });
+    if (svar.length % 10 === 0) await andas();
+  }
+  return { svar, laddMs, sokMs: median(tider), N: v.N, D: v.D, variant: v.huvud.variant };
+};
+
+window.KONTROLL_MODELL = async function (fragor, bilder, backend) {
+  const lokal = '/dev/embed/modeller/mobileclip-s0-vision.onnx';   // samma fil som Pythons lib.MODELL
+  const info = await Embed.ladda({ backend: backend || 'wasm', modell: { webgpu16: null, webgpu: lokal, wasm: lokal }, remsModell: null });
+  log('modellen: ' + JSON.stringify(info));
+  const D = Embed.DIM, tom = { names: ['x'], ids: ['x'], rot: [0], medel: new Float32Array(D), vek: new Float32Array(D) };
+  const fq = [];
+  for (const f of fragor) {
+    const img = await bildAv('/' + f), per = [];
+    for (const rot of [0, 90, 180, 270]) per.push(Array.from((await Embed.identifiera(img, tom, { vektor: true, rot })).vektor));
+    fq.push(per);
+    if (fq.length % 10 === 0) log(`frågor ${fq.length}/${fragor.length}`);
+  }
+  /* Referenssidan: appens egen byggLek (8 vektorer per bild: skarp/sudd × 4 vridningar), utan förräknade. */
+  const kort = bilder.map(b => ({ id: b, name: b, normal: '/' + b }));
+  const idx = await Embed.byggLek('kontroll-' + Date.now(), kort, { forrakade: null, onProg: p => { if (p.done % 25 === 0) log(`referenser ${p.done}/${p.total}`); } });
+  const ref = [];
+  for (const b of bilder) {
+    const i = idx.ids.indexOf(b);   // första raden för bilden = skarp 0°, rad +4 = sudd 0°
+    ref.push(i < 0 ? null : { skarp: Array.from(idx.ra.subarray(i * D, i * D + D)), sudd: Array.from(idx.ra.subarray((i + 4) * D, (i + 4) * D + D)) });
+  }
+  return { backend: info.backend, fragor: fq, ref, fel: idx.fel };
+};
+</script>
+</body></html>
