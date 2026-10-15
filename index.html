@@ -26253,7 +26253,19 @@ const Kamera = (() => {
        Gorgon Flail → Ukud Cobra), som setts inom remsaMinneS sekunder
        (Ancestral Blade → Killing Glare på samma plats efter graveyard; 40 s
        gav 2 fel i MES-246), och vars remsmitt ligger inom remsaMinneRadie
-       remslängder från den nya remsans mitt (radie 1,0: 3 fel); bara för
+       remslängder (0,5) från den nya remsans mitt. Radien 1,0 provades
+       2026-10-15 och togs bort: bänken dev/remsa/remsminne_geo.py (2c4e525)
+       gav 0 fel på geo- och exakt-skurna remsor vid 1,0, men läget där bara
+       ett ANNAT korts minne tävlar (grannen som lyfts från platsen bredvid,
+       ~0,7–1,1 remslängder bort) var omätt där — rätt kort fanns nästan
+       alltid i minnet — och den gamla bänken (remsexp_larda.py, "täckta,
+       radie 1.0") hade 3 säkra fel just där (Maul of the Skyclaves → Fencing
+       Ace 0,44–0,48); golden 05/13/14/15/18 vann inget på utökningen. Känd
+       gräns: ett kort som tappas vrids 90° runt sin mitt, så remsans mitt
+       flyttar ~0,6 kortlängder och nås inte av minnet ("för långt bort" i
+       golden 18 --detalj). Bänkens rad "kortets mitt 0,5 kortlängder" gav 0
+       fel i geo och exakt, om någon vill bygga det med kortets mitt i
+       posten. Bara för
        TÄCKTA spår (maskad, omlott eller under ett annat kort) — ett helt
        synligt kort läses på hela kortet som i dag. Säkert ('remsa minne')
        bara när hela remsan OCH titeldelen pekar på samma minnesnamn med
@@ -26284,9 +26296,9 @@ const Kamera = (() => {
        namn. Bänken (remsexp.npz, minnen = helt synliga remsor inom 20 s, utan
        radie): utan kravet på remslekens etta 279 rätt/7 fel på de hörnexakta
        remsorna vid 0,10, och 28 rätt/39 fel när minnet bara rymmer ANDRA kort
-       (ett nytt kort där det gamla låg); med kravet 31/0 och 3/0. Gäller också
-       geo-skurna remsor, som minnet annars inte dömer på (minnets tröskel är
-       mätt på lådremsor) — vittnet är inte en dom. 0 stänger av. */
+       (ett nytt kort där det gamla låg); med kravet 31/0 och 3/0. Gäller
+       geo-skurna remsor som lådremsor (minnets tröskel är mätt på båda sedan
+       2026-10-15) — vittnet är inte en dom. 0 stänger av. */
     remsaMinneOmfodd: 1,
     remsaMinneOmfodRadie: 1.5,
     /* Utbränt av blänk (MES-351 läge 4, Jespers bild 2026-10-08): en beskärning
@@ -31175,18 +31187,20 @@ const Kamera = (() => {
     const m = !T.remsaMinne ? { minnen: [], skal: null } : arTackt(t, maskad) ? minnenFor(t, s.mx, s.my, s.L) : omfodd ? minnenFor(t, s.mx, s.my, s.L, T.remsaMinneOmfodRadie) : { minnen: [], skal: 'inte täckt' }, minnen = m.minnen;
     if (T.remsaMinne) { minneStat.fragor++; if (minnen.length) minneStat.medMinne++; }
     /* Minnets prov jämförs bara med samma skärning (granskningen fynd 6): ett prov taget ur geometrins remsa mot en
-       fråga ur detektorns låda (återfallet) är två olika utsnitt av samma titel, och minnets tröskel (0,10, pass 6)
-       mättes på lådremsor. Ett prov utan flaggan är från före geometrin — lådskuret. */
+       fråga ur detektorns låda (återfallet) är två olika utsnitt av samma titel. Ett prov utan flaggan är från före
+       geometrin — lådskuret. Geo-remsor döms som lådremsor: tröskeln 0,10 var länge bara mätt på lådremsor, och två
+       geo-remsor på samma plats är identiskt inramade (granskningen runda 2 höll därför minnet borta från dem — i
+       praktiken avstängt, sedan T.remsaGeo skär nästan varje remsa ur geometrin: golden 18 "geo: minnets tröskel
+       omätt" där Swamp hade kunnat kännas igen). Bänken dev/remsa/remsminne_geo.py (2026-10-15, remsornas modell
+       v2) mätte den: på geo-remsor, täckta och tappade frågor i 13b och MES-246, 0 säkra fel vid alla trösklar från
+       0,05; vid 0,10 (radie 0,5) 13b 62 säkra rätt av 73 frågor (63 hade minne), MES-246 214 av 380 (225 hade minne). */
     const geo = !!s.geo, provLika = e => (e.prov || []).filter(p => !!p.geo === geo);
-    /* …och på en geo-skuren remsa får minnet inte döma alls än (granskningen runda 2): två geo-remsor på samma plats är
-       identiskt inramade, så bakgrundslikheten mellan två OLIKA kort är högre än mellan två lådremsor, och minnets
-       tröskel (0,10) mättes på lådremsor (pass 6). Mäts om i remsexp innan 'remsa minne' får vara säker på geo-prov. */
-    const minnenLika = geo && !omfodd ? [] : minnen.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: provLika(e) })).filter(e => e.prov.length);
+    const minnenLika = minnen.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: provLika(e) })).filter(e => e.prov.length);
     kedjaBorja(t, 'remsa');
     let rs;
     try {
       rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo, tackt: s.tackt, utom: s.utom, vittneBara: !!(o && o.vittneBara), omfodd,
-                                          minnen: minnenLika.length ? minnenLika : null, minneSkal: m.skal || (minnen.length && !minnenLika.length ? (geo && !omfodd ? 'geo: minnets tröskel omätt' : 'annan skärning') : null) });
+                                          minnen: minnenLika.length ? minnenLika : null, minneSkal: m.skal || (minnen.length && !minnenLika.length ? 'annan skärning' : null) });
     } finally { kedjaKlar(t, 'remsa'); }
     if (rs && rs.saker && rs.varfor === 'remsa minne') minneStat.sakra++;
     if (rs && rs.minne && rs.minne.vittne) minneStat.vittnen++;   // ett otäckt spår som minnet känner igen (T.remsaMinneOmfodd)
@@ -32834,7 +32848,15 @@ function remsTitelDel(canvas, andel) {
    (qh mot prov.hel) och titeldelen (qt mot prov.titel) var för sig.
    Marginal = bästa namn minus näst bästa. Säkert bara när båda pekar på
    samma namn, namnet är ett MINNES namn, och den minsta marginalen är över
-   T.remsaMinneTroskel (0,10: 0 säkra fel i bänken på 13b och MES-246).
+   T.remsaMinneTroskel (0,10). Bänkarna på 13b och MES-246: 0 säkra fel på
+   geo-skurna remsor i remsminne_geo.py (2026-10-15, täckta och tappade
+   frågor, radierna 0,5/1,0/2,0); på lådremsor 0 fel i remsexp_larda.py
+   (2026-10-03) men 1 fel vid 0,10 i den nya bänkens lådkontroll (Maul of
+   the Skyclaves → Fencing Ace 0,183, synlig 0,31, vid både 0,5 och 1,0) —
+   den nya bänken målar inte kortet ovanpå, och på lådremsor gör appen det
+   bara för syntetiska remsors tackt (skarRemsa), så där är bänken nästan appen (den målar inte grannens remsa, remsaUtom).
+   Det är dagens beteende sedan pass 6, inte något geo-domen 2026-10-15
+   förde in; tröskeln och domen för lådremsor är orörda.
    Baslanden slås ihop per typ som i kamLasRemsa. */
 function remsMinnesDom(qh, qt, minnen, T) {
   const idx = KamEmbed.remsIdx, D = Embed.DIM, medel = idx.medel;

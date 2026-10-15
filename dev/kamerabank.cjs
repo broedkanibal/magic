@@ -1520,7 +1520,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       remsVektor: () => { fangster++; return Promise.resolve({ hel: vek(1), titel: vek(2), ms: 1 }); },
       lasRemsa: (c, id, o) => {
         const m = (o && o.minnen) || [];
-        remsFragor.push({ id, omfodd: !!(o && o.omfodd), minnen: m.map(e => e.namn + '#' + e.sparId + '×' + e.prov.length) });
+        remsFragor.push({ id, omfodd: !!(o && o.omfodd), geo: !!(o && o.geo), skal: (o && o.minneSkal) || null, minnen: m.map(e => e.namn + '#' + e.sparId + '×' + e.prov.length) });
         /* Ett otäckt spår (o.omfodd): minnet är bara ett vittne, som i kamLasRemsa — namnet och domen är remslekens. */
         if (m.length && o && o.omfodd) return Promise.resolve({ namn: m[0].namn, sid: m[0].sid, saker: false, varfor: 'remsa osäker', marginal: 0.02, cands: [{ name: m[0].namn, sid: m[0].sid, score: 0.3 }],
           minne: { provad: true, omfodd: true, namn: m[0].namn, saker: false, vittne: true, sparId: m[0].sparId, hel: 0.3, titel: 0.3, n: m.length } });
@@ -1639,6 +1639,59 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const q9c = remsFragor.find(f => f.id === (s[0] || {}).id);
     check(`RM9c remsaMinneOmfodd 0: spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}`, s.length === 1 && s[0].st === 'okand' && !!q9c && !q9c.omfodd && q9c.minnen.length === 0);
     Kamera.satTrosklar({ remsaMinneOmfodd: 1 });
+    // ── RG: minnet på geo-skurna remsor, och radiens gräns vid tap (golden-plattan 2026-10-15, punkt 2) ──
+    /* Sedan T.remsaGeo skärs nästan varje remsa ur kortets geometri, och
+       minnet fick inte döma på dem ('geo: minnets tröskel omätt') förrän
+       bänken dev/remsa/remsminne_geo.py (2c4e525) mätt tröskeln: 0 säkra
+       fel vid 0,10 på geo-remsor i 13b och MES-246. Geometrin kräver
+       kortets vinkel ur KortVinkel (t.vmRa, kalla 'remsa'), och videon här
+       är en attrapp utan bildpunkter — så KortVinkel.kortVinkel byts mot en
+       stubb som svarar "upprätt, ur remsan" (som VK), och återställs efter
+       RG1 (finally: också om ett check kastar). Lådan 30 × 42 har ett korts
+       kvot, så mätningen blir hel och säker (vm.helt, sakerLang) och remsGeo
+       tar kortets egna mått ur den. */
+    {
+      const KVm = vm.runInContext('KortVinkel', ctx), kvForra = KVm.kortVinkel;
+      KVm.kortVinkel = () => ({ axel: 0, vinkel: 0, phi: 0, styrka: 0.6, kalla: 'remsa' });
+      try {
+        // RG1: som RM3 — kortet lärs helt synligt (geo-prov), lyfts, och ett nytt täckt kort läggs på platsen: frågan är geo-skuren, och minnet får döma
+        s = await lagg({ spokMs: 2000 }); const idG = s[0] && s[0].id, provG = (Kamera.remsMinne[0] && Kamera.remsMinne[0].prov) || 0;
+        s = await lyft(LYFT);
+        namnSvar = osaker; remsFragor = [];
+        for (let i = 0; i < 20; i++) s = await rutaDet(bygg3, det3);
+        const cG = s.find(t => t.tackt) || {}, qG = remsFragor.find(f => f.id === cG.id);
+        const omatt = remsFragor.filter(f => f.skal === 'geo: minnets tröskel omätt').length;
+        check(`RG1 geo-skuren remsa får minnet: spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}, "tröskel omätt" ${omatt} ggr`,
+              s.length === 2 && cG.id !== idG && cG.st === 'klar' && cG.namn === 'Plains' && cG.varfor === 'remsa minne'
+              && !!qG && qG.geo && qG.skal === null && qG.minnen.length === 1 && qG.minnen[0] === 'Plains#' + idG + '×' + provG && omatt === 0);
+      } finally { KVm.kortVinkel = kvForra; }
+    }
+    /* RG2: tap — en känd gräns, inte en förmåga. Ett kort som tappas
+       eller otappas vrids 90° runt sin mitt, så remsans mitt flyttar ~0,6
+       kortlängder — utanför radien 0,5 remslängder (T.remsaMinneRadie;
+       golden 18 --detalj: "för långt bort"). Radien 1,0 provades 2026-10-15
+       och togs bort: bänken (2c4e525) gav 0 fel vid 1,0 på geo- och
+       exakt-skurna remsor, men läget där bara ett ANNAT korts minne tävlar
+       (grannen bredvid, ~0,7–1,1 remslängder bort) var omätt där och den
+       gamla bänken hade 3 säkra fel just där, och golden vann inget. Här
+       lärs kortet upprätt (som RM1), lyfts, och läggs tillbaka TAPPAT på
+       samma mitt — lådan 42 × 30, remsan stående längs kortsidan (som
+       fyndUrLador ser ett tappat kort) — under ett andra kort så att
+       läsningen går via minnet. Remsmitten flyttar från (75, 53) till
+       (93, 71): 25,5 px, 0,85 remslängder → minnet är 'för långt bort' och
+       spåret stannar okänt (spelaren får "Name this card", inget fel namn).
+       Provet rör inga trösklar; radien läses bara av. */
+    const A2 = { x: 54, y: 56, w: 42, h: 30 }, B2 = { x: 56, y: 70, w: 30, h: 42 };   // B:s remsa (y 70–76, mitt 71,73) ligger i A2:s låda; A2:s remsa (x 90–96) utanför B
+    const byggTap = g => { kort(g, W, A2.x, A2.y, A2.w, A2.h, 180); kort(g, W, B2.x, B2.y, B2.w, B2.h, 140); };
+    const detTap = det([lada(A2.x, A2.y, A2.w, A2.h), lada(B2.x, B2.y, B2.w, B2.h)], [remsa(A2.x + A2.w - 6, A2.y, 6, A2.h), remsa(B2.x, B2.y, B2.w, 6)]);
+    s = await lagg({ spokMs: 2000 }); const idTap = s[0] && s[0].id;
+    s = await lyft(LYFT);
+    namnSvar = osaker; remsFragor = [];
+    for (let i = 0; i < 20; i++) s = await rutaDet(byggTap, detTap);
+    const cTap = s.find(t => t.tackt) || {}, qTap = remsFragor.find(f => f.id === cTap.id), mTap = Kamera.remsMinne.find(e => e.sparId === idTap) || {};
+    check(`RG2 tappat på samma mitt, 0,85 remslängder (radie ${Kamera.trosklar.remsaMinneRadie}): spår ${JSON.stringify(s)}, remsfråga ${JSON.stringify(qTap)}, minne ${JSON.stringify(mTap)}`,
+          Kamera.trosklar.remsaMinneRadie === 0.5 && idTap != null && mTap.sparId === idTap
+          && s.length === 2 && cTap.id !== idTap && cTap.st === 'okand' && !!qTap && qTap.minnen.length === 0 && /\b1 för långt bort/.test(qTap.skal || ''));
     // RM6: avstängt (T.remsaMinne 0): ingen fångst, ingen kandidat
     fangster = 0;
     s = await lagg({ spokMs: 2000, remsaMinne: 0 }); s = await lyft(LYFT);
