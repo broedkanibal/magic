@@ -65,6 +65,12 @@ function stryk(kod) {
   }
   return n;
 }
+/* Ta bort en kopias rad (bankutgava.cjs --ta-bort: ett fall som tagits ur bänken). */
+function strykKopia(plats, id) {
+  const fil = indexFor(plats), r = lasIndex(fil), kvar = r.filter(x => !(x.plats === plats && x.id === id));
+  if (kvar.length !== r.length) skrivIndex(fil, kvar);
+  return r.length - kvar.length;
+}
 
 /* Raderna för en kopia, som till-fall.cjs skriver dem. */
 const radMattest = (kod, mapp, parti) => ({ kod, plats: 'mattest', id: path.basename(mapp), filer: [rel(mapp) + '/'], parti });
@@ -99,4 +105,4 @@ if (require.main === module) {
     console.log(r.length ? r.map(x => `${x.kod.padEnd(8)} ${x.plats.padEnd(8)} ${x.nar.slice(0, 10)}  ${x.filer.join(' ')}`).join('\n') : 'Indexet är tomt.');
   }
 }
-module.exports = { INDEX, lasIndex, alla, lagg, stryk, radMattest, radBank, radTraning, iPlatserna, fyll, rel };
+module.exports = { INDEX, lasIndex, alla, lagg, stryk, strykKopia, radMattest, radBank, radTraning, iPlatserna, fyll, rel };

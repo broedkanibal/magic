@@ -29,6 +29,7 @@ Spelarens yta: `design_handoff_rapport/README.md` (§5 rutan, §9 detaljerna).
 | `node dev/rapport/granska-matt.cjs` | granskningens mått i skugga ur beslutsloggen: förslaget följt, tid per kort, sorten ur bilden mot din, facits förtroende mot dina namnändringar — se *Beslutsloggen och facits förtroende* nedan |
 | `node dev/rapport/prov-granskning.cjs` | provet för beslutsloggen och förtroendet: vittnena och nivåerna, rapportens räkning, och granskningssidan som server mot en attrapp av tabellerna och Scryfall (inget nät, inget i produktionen) |
 | `node dev/rapport/bankutgava.cjs` | rapportbänken per sorts fel mot målet, och utgåvorna; `--klipp` fryser det inkommande som nästa utgåva |
+| `node dev/rapport/bankutgava.cjs --andra R-0008.jpg [--namn …] [--sort …]` · `--ta-bort R-0008.jpg` | byter namn eller sort på ett inkommande bänkfall, eller tar bort det (bilden, raden i manifest.json och kopieindexet; rättelsen står kvar som test). Ett fall i en fryst utgåva rörs inte. Loggas i `andringar.jsonl`. Samma sak på granskningssidan: klicka på en sort i bänken |
 | `node dev/rapport/lista.cjs` | de senaste 50 rapporterna: kod, när, vem (namn och e-post ur kontot), tagg, text, anvandning, bilder |
 | `… --nya` | bara de som inte sorterats (`anvandning` null) |
 | `… --alla` | också felrapporter (`kalla = 'fel'`) och rättelser (`'rattelse'`, del B) |

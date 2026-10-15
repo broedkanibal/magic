@@ -16,7 +16,9 @@
    osorterad rättelse och säger varför (reglerna står i granska.html,
    rekommendera()). Prov kräver en sorts fel (sorter.cjs), och sidan visar
    bänken per sort mot målet, så att det syns vilka sorter som behöver fler
-   prov. Bänkens utgåvor: bankutgava.cjs.
+   prov. Bänkens utgåvor: bankutgava.cjs. Klicka på en sort: sortens kort, där ett
+   inkommande fall kan få ett annat namn (prövat mot Scryfall), en annan sort
+   eller tas bort — bankutgava.cjs --andra / --ta-bort, som i terminalen.
 
    Ändrat namn: spelarens rätta namn kan vara fel. Ett nytt namn prövas mot
    Scryfall (exakt namn) och går till till-fall.cjs som --ratt, med
@@ -54,7 +56,7 @@ const { spawn } = require('child_process');
 const { supa, ROT } = require('./supa.cjs');
 const { slagIRepot, tillfallen, allaRader } = require('./sparr.cjs');   // bara för förhandsvisningen av spärren; valen går genom till-fall/satt
 const { SORT_ID } = require('./sorter.cjs');
-const { lage: bankLage } = require('./bankutgava.cjs');
+const { lage: bankLage, fallen: bankFallen, bildFor: bankBild, borttagna: bankBorttagna } = require('./bankutgava.cjs');
 const { goldenNamn, forhandMattest, raknaPastaenden } = require('./till-fall.cjs');
 const { bedom, skapaUnderlag, samma } = require('./fortroende.cjs');
 const beslutslogg = require('./beslutslogg.cjs');
@@ -124,7 +126,7 @@ async function lista() {
   await hamtaAlla(rader.map(r => r.kod));
   /* tillfället (sparr.cjs, tillfallen): över hela tabellen, som spärren räknar det */
   const T = tillfallen(await allaRader(S));
-  const bank = bankInfo(), golden = goldenNamn(), ut = [];
+  const bank = bankInfo(), urBanken = bankBorttagna(), golden = goldenNamn(), ut = [];
   for (const r of rader) {
     const j = lasJson(path.join(mappFor(r.kod), 'rattelse.json')) || {}, vy = r.vy || {};
     const k = await S.konto(r.user_id);
@@ -143,6 +145,7 @@ async function lista() {
       /* namnet träningen eller bänken faktiskt fick (kan vara ändrat här) */
       sattNamn: sp ? sp.namn : bk ? bk.namn : null,
       sort: bk ? bk.sort : null, utgava: bk ? bk.utgava : null,
+      urBanken: !bk && urBanken.has(r.kod) ? urBanken.get(r.kod).nar : null,   // togs bort ur bänken på sidan (andringar.jsonl)
       /* golden-lekens namn tränas aldrig (dataset.py) — sidan säger det före valet */
       golden: !!ratt && (golden.has(ratt) || ratt.split(' // ').some(d => golden.has(d)))
     });
@@ -257,6 +260,26 @@ async function sortera(b) {
     catch (e) { svar.loggFel = `Beslutsloggen gick inte att skriva (${e.message}). Valet är gjort, men det räknas inte i granska-matt.cjs.`; }
   }
   return svar;
+}
+
+/* Ett bänkfall ändrat eller borttaget (klicka på en sort): samma verktyg som i terminalen, bankutgava.cjs.
+   Ett nytt namn prövas mot Scryfall först, som vid Prov, och Scryfalls stavning är den som skrivs. */
+async function andraBankfall(b) {
+  const fil = String(b.fil || '');
+  if (!bankBild(fil)) return { ok: false, text: `${fil} finns inte i bänken` };
+  if (b.taBort) { const r = await korNode('bankutgava.cjs', ['--ta-bort', fil]); return { ok: r.kod === 0, text: r.ut }; }
+  const args = ['--andra', fil];
+  if (b.sort != null) { if (!SORT_ID.has(b.sort)) return { ok: false, text: 'välj en sorts fel' }; args.push('--sort', b.sort); }
+  if (b.namn != null) {
+    const namn = String(b.namn).trim();
+    if (!namn) return { ok: false, text: 'skriv kortets namn' };
+    let k;
+    try { k = await scryKort(namn); } catch (e) { return { ok: false, text: `Scryfall svarar inte (${e.message}) — försök igen` }; }
+    if (!k) return { ok: false, text: `"${namn}" finns inte hos Scryfall — skriv kortets exakta engelska namn` };
+    args.push('--namn', k.namn);
+  }
+  const r = await korNode('bankutgava.cjs', args);
+  return { ok: r.kod === 0, text: r.ut };
 }
 
 /* ── förtroendet för facit och beslutsloggen (steg 1–3, i skugga: räknas och visas, styr ingenting) ── */
@@ -489,6 +512,13 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/fortroende') return svara(res, 200, await fortroende());
     if (p === '/api/sortera' && req.method === 'POST') { const b = await lasKropp(req); return svara(res, 200, await iTur(() => sortera(b))); }
     if (p === '/api/bank') return svara(res, 200, bankLage());
+    if (p === '/api/bankfall') return svara(res, 200, bankFallen());
+    if (p === '/api/bankfall/andra' && req.method === 'POST') { const b = await lasKropp(req); return svara(res, 200, await iTur(() => andraBankfall(b))); }
+    const mb = p.match(/^\/api\/bankbild\/([^/]+)$/);
+    if (mb) {   // bara en fil som står i bänkens manifest.json
+      const f = bankBild(decodeURIComponent(mb[1]));
+      return f && fs.existsSync(f) ? svara(res, 200, fs.readFileSync(f), 'image/jpeg') : svara(res, 404, { fel: 'ingen bild' });
+    }
     if (p === '/api/traning') return svara(res, 200, await traning());
     if (p === '/api/bygg' && req.method === 'POST') return svara(res, 200, await iTur(bygg));
     if (p === '/api/prompt') {

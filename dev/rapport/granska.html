@@ -77,6 +77,13 @@ table.sorter td.tal2 { text-align: right; font-variant-numeric: tabular-nums; wh
 table.sorter tr.behovs td:first-child { font-weight: 600; }
 table.sorter tr.full td { color: var(--svag); }
 .sorttext { color: var(--svag); font-size: 11px; display: block; }
+table.sorter tr[data-banksort] { cursor: pointer; }
+table.sorter tr[data-banksort]:hover td, table.sorter tr[data-banksort]:focus-visible td { background: var(--yta2); }
+table.sorter tr[data-banksort]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+table.sorter tr.vald td { background: var(--test-bg); }
+table.sorter td.pil2 { color: var(--svag); width: 1%; padding-left: 0; }
+.bankhuvud { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.bankhuvud .svag { color: var(--svag); font-size: 12px; }
 button.liten { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--linje); background: var(--yta); color: var(--text); cursor: pointer; }
 .status { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
 .status.traning { background: var(--tran-bg); color: var(--tran); }
@@ -190,6 +197,12 @@ let rader = [], flik = 'nya';
 let handlingarFel = null;   // /api/handlingar svarade inte: visas i stället för en tom lista
 let handlingar = null;   // null tills den hämtats; /api/handlingar: rättelserna av handlingar, med påståendena ur till-fall.cjs
 let bank = null;   // /api/bank: utgåvorna och bänken per sort mot målet (bankutgava.cjs)
+/* Bänkens kort per sort (klicka på en sort i bänken): listan visar då sortens fall, där ett inkommande fall kan få
+   ett annat namn, en annan sort eller tas bort (bankutgava.cjs --andra / --ta-bort, via servern). */
+let bankVy;                      // undefined = vanliga listan; annars sortens id ('' = fallen utan sort)
+let bankFall = null, bankFallFel = null;   // /api/bankfall
+const bNamn = new Map(), bSort = new Map();   // fil → det som står i fälten, tills det sparats
+let bFraga = null;               // fil → "Ta bort?" väntar på ett ja
 try { flik = localStorage.getItem('granska-flik') || 'nya'; } catch (e) {}
 const noter = new Map();   // kod → { typ, text } efter ett val
 const skrivet = new Map();   // kod → det som står i namnfältet: överlever att listan ritas om efter varje val
@@ -217,7 +230,7 @@ async function hamta(u, opt) {
 const nar = iso => new Date(iso).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
 
 function ritaFlikar() {
-  $('#flikar').innerHTML = FLIKAR.map(f => `<button data-flik="${f.id}" aria-pressed="${f.id === flik}" ${f.handling ? 'title="Osorterade rättelser av handlingar"' : ''}>${f.namn}<span class="n">${f.handling ? (handlingar || []).filter(h => !h.anvandning).length : rader.filter(f.f).length}</span></button>`).join('');
+  $('#flikar').innerHTML = FLIKAR.map(f => `<button data-flik="${f.id}" aria-pressed="${bankVy === undefined && f.id === flik}" ${f.handling ? 'title="Osorterade rättelser av handlingar"' : ''}>${f.namn}<span class="n">${f.handling ? (handlingar || []).filter(h => !h.anvandning).length : rader.filter(f.f).length}</span></button>`).join('');
 }
 function parti(r) { return r.game_id || (r.spelkod ? 'kod:' + r.spelkod : 'utan:' + r.kod); }
 /* Tillfället (sparr.cjs, tillfallen; Jespers beslut 2026-10-15): samma spelare med under 6 h mellan matcherna, eller
@@ -244,7 +257,8 @@ function behallBilder(rita) {
 function ritaLista() {
   ritaFlikar();
   const F = FLIKAR.find(f => f.id === flik) || FLIKAR[0];
-  document.querySelector('main').classList.toggle('bara-lista', !!F.handling);
+  document.querySelector('main').classList.toggle('bara-lista', bankVy === undefined && !!F.handling);
+  if (bankVy !== undefined) return ritaBankVy();
   if (F.handling) return ritaHandlingar();
   const synliga = rader.filter(F.f);
   if (!synliga.length) {
@@ -523,7 +537,7 @@ function radHtml(r) {
       <div class="namnrad">${r.gissning ? `<span class="gissn">${esc(r.gissning)}</span>` : '<span class="gissn">(inget namn)</span>'}<span class="pil">→</span><span class="ratt">${visatNamn ? esc(visatNamn) : '(borttaget)'}</span> ${status}</div>
       ${r.gissning && !gissningOlik ? '<div class="lika">Telefonens gissning var rätt, men osäker — spelaren bekräftade den.</div>' : ''}
       ${sakertFel(r) ? '<div class="not fel">Säkert fel namn: telefonen var säker och hade fel.</div>' : ''}
-      <div class="meta"><span>${esc(r.kod)}</span><span>${esc(HANDELSE[r.handelse] || r.handelse || '–')}</span><span>${[r.saker == null ? '' : r.saker ? 'säker' : 'osäker', r.varfor && r.varfor !== 'osäker' ? esc(r.varfor) : ''].filter(Boolean).join(' · ')}</span><span>${esc(nar(r.nar))}</span>${r.sort ? `<span>sort: ${esc((bank && (bank.sorter.find(s => s.id === r.sort) || {}).namn) || r.sort)}</span>` : ''}${r.anvandning === 'test' && r.sort ? `<span>${r.utgava != null ? 'utgåva v' + r.utgava : 'inkommande (inte fryst)'}</span>` : ''}${facitHtml(r)}${r.val ? '<span title="Vart femte kortnamn hålls utanför träningen och används för att mäta modellen på kort den aldrig sett">valideringens namn: mäter, tränas inte</span>' : ''}</div>
+      <div class="meta"><span>${esc(r.kod)}</span><span>${esc(HANDELSE[r.handelse] || r.handelse || '–')}</span><span>${[r.saker == null ? '' : r.saker ? 'säker' : 'osäker', r.varfor && r.varfor !== 'osäker' ? esc(r.varfor) : ''].filter(Boolean).join(' · ')}</span><span>${esc(nar(r.nar))}</span>${r.sort ? `<span>sort: ${esc((bank && (bank.sorter.find(s => s.id === r.sort) || {}).namn) || r.sort)}</span>` : ''}${r.anvandning === 'test' && r.sort ? `<span>${r.utgava != null ? 'utgåva v' + r.utgava : 'inkommande (inte fryst)'}</span>` : ''}${r.urBanken ? `<span>borttagen ur bänken ${esc(nar(r.urBanken))}</span>` : ''}${facitHtml(r)}${r.val ? '<span title="Vart femte kortnamn hålls utanför träningen och används för att mäta modellen på kort den aldrig sett">valideringens namn: mäter, tränas inte</span>' : ''}</div>
       ${varningar.map(v => `<div class="not varn">${esc(v)}</div>`).join('')}
       ${kanSortera ? `<div class="falt"><label for="n-${esc(r.kod)}">Rätt namn</label><input id="n-${esc(r.kod)}" value="${esc(namnFor(r))}" data-namn="${esc(r.kod)}" placeholder="Kortets engelska namn" ${kanNamn ? '' : 'disabled'} autocomplete="off" spellcheck="false"></div>
       ${sortValj(r)}
@@ -742,18 +756,90 @@ async function laddaBank() {
   const B = bank, sorter = B.sorter.slice().sort((a, b) => (a.mal == null) - (b.mal == null) || (a.antal / (a.mal || 1)) - (b.antal / (b.mal || 1)));
   const behovs = B.sorter.filter(s => s.mal != null && s.antal < s.mal);
   $('#bank').innerHTML = `<h2>Bänken per sorts fel</h2>
-    <p>Prov mäter bildmodellen på kort den aldrig tränats på. Målet är ${B.mal} prov per sort, så att varje sort går att mäta. Sorterna som behöver flest står överst — leta efter dem när du granskar.</p>
+    <p>Prov mäter bildmodellen på kort den aldrig tränats på. Målet är ${B.mal} prov per sort, så att varje sort går att mäta. Sorterna som behöver flest står överst — leta efter dem när du granskar. Klicka på en sort för att se dess kort.</p>
     <table class="sorter">${sorter.map(s => {
       const kl = s.mal == null ? '' : s.antal >= s.mal ? 'full' : 'behovs';
       const pct = s.mal ? Math.min(100, Math.round(100 * s.antal / s.mal)) : 0;
-      return `<tr class="${kl}" title="${esc(s.text)}"><td>${esc(s.namn)}<span class="sorttext">${esc(s.text)}</span></td>
+      return `<tr class="${kl}${bankVy === (s.id || '') ? ' vald' : ''}" data-banksort="${esc(s.id || '')}" tabindex="0" role="button" aria-pressed="${bankVy === (s.id || '')}" title="Visa korten i ${esc(s.namn)}"><td>${esc(s.namn)}<span class="sorttext">${esc(s.text)}</span></td>
         <td>${s.mal ? `<div class="stapel"><i style="width:${pct}%"></i></div>` : ''}</td>
-        <td class="tal2">${s.antal}${s.mal ? ' / ' + s.mal : ''}</td></tr>`;
+        <td class="tal2">${s.antal}${s.mal ? ' / ' + s.mal : ''}</td><td class="pil2">›</td></tr>`;
     }).join('')}</table>
     <p>${behovs.length ? `${behovs.length} av ${B.sorter.filter(s => s.mal != null).length} sorter under målet.` : 'Alla sorter har nått målet: nya kort gör mest nytta i träningen, utom säkra fel namn.'}
       Säkra fel namn blir alltid prov, också när sorten är full.</p>
     <p><b>Utgåvor:</b> ${B.senaste ? `senaste v${B.senaste} (${B.utgavor[B.utgavor.length - 1].antal} prov)` : 'ingen än'} · ${B.inkommande} inkommande.
       Frys dem som nästa utgåva med <code>node dev/rapport/bankutgava.cjs --klipp</code> innan du jämför modeller, och mät med <code>--utgava N</code>.</p>`;
+}
+
+/* ── bänkens kort i en sort ── */
+async function laddaBankFall() {
+  try { bankFall = await hamta('/api/bankfall'); if (!Array.isArray(bankFall)) throw new Error((bankFall && bankFall.fel) || 'oväntat svar'); bankFallFel = null; }
+  catch (e) { bankFall = null; bankFallFel = e.message; }
+}
+async function visaBankSort(id) {
+  bankVy = id; bFraga = null; noter.delete('bank:vy'); laddaBank(); ritaLista();
+  window.scrollTo({ top: 0 });
+  await laddaBankFall(); ritaLista();
+}
+function stangBankVy() { bankVy = undefined; bFraga = null; noter.delete('bank:vy'); laddaBank(); ritaLista(); }
+function ritaBankVy() {
+  const S = bank && bank.sorter.find(s => (s.id || '') === bankVy) || { namn: bankVy || 'Utan sort', text: '', antal: 0, mal: null };
+  const huvud = `<div class="huvud bankhuvud"><button class="liten" data-bankstang>← Tillbaka till rättelserna</button>
+      <div><b>Bänken · ${esc(S.namn)}</b> <span class="svag">${S.antal}${S.mal ? ' av ' + S.mal : ''} prov${S.text ? ' · ' + esc(S.text) : ''}</span></div></div>`;
+  let kropp;
+  if (bankFallFel) kropp = `<div class="tom">Kunde inte hämta bänkens fall: ${esc(bankFallFel)}</div>`;
+  else if (!bankFall) kropp = '<div class="tom">Hämtar korten …</div>';
+  else {
+    const ff = bankFall.filter(p => (p.sort || '') === bankVy);
+    kropp = ff.length ? ff.map(bankRadHtml).join('') : `<div class="tom">Inga prov i ${esc(S.namn)} än.</div>`;
+  }
+  const not = noter.get('bank:vy');
+  behallBilder(() => { $('#lista').innerHTML = `<div class="parti">${huvud}${not ? `<div class="rad" style="display:block"><div class="not ${not.typ}">${esc(not.text)}</div></div>` : ''}${kropp}</div>`; });
+}
+function bankRadHtml(p) {
+  const not = noter.get('bank:' + p.fil), fryst = p.utgava != null;
+  const namn = bNamn.has(p.fil) ? bNamn.get(p.fil) : p.namn || '', sort = bSort.has(p.fil) ? bSort.get(p.fil) : p.sort || '';
+  const andrat = namn.trim() !== (p.namn || '') || sort !== (p.sort || '');
+  const ref = p.namn ? `<img src="/api/kort?namn=${encodeURIComponent(p.namn)}" alt="${esc(p.namn)} hos Scryfall" loading="lazy" onerror="bildFel(this, 'Ingen bild hos Scryfall')">` : '<div class="ingen">Inget namn</div>';
+  const sorter = bank ? bank.sorter.filter(s => s.mal != null) : [];
+  let val;
+  if (fryst) val = `<div class="lika">Ingår i den frysta utgåvan v${p.utgava}: ändras inte här, så att utgåvan mäter samma sak som när den frystes.</div>`;
+  else if (bFraga === p.fil) val = `<div class="not varn">Ta bort ${esc(p.kod || p.fil)} ur bänken? Bilden i bänken raderas. ${p.kod ? 'Rättelsen står kvar som Prov i tabellen, så tillfället förblir låst till prov och kortet blir inte träning.' : ''}</div>
+      <div class="knappar"><button class="val" data-btabort="${esc(p.fil)}" data-ja="1" ${upptagen ? 'disabled' : ''}>Ja, ta bort</button><button class="val" data-bavbryt="${esc(p.fil)}">Avbryt</button></div>`;
+  else val = `<div class="falt"><label for="bn-${esc(p.fil)}">Rätt namn</label><input id="bn-${esc(p.fil)}" value="${esc(namn)}" data-bnamn="${esc(p.fil)}" placeholder="Kortets engelska namn" autocomplete="off" spellcheck="false"></div>
+      <div class="falt"><label for="bs-${esc(p.fil)}">Sorts fel</label><select id="bs-${esc(p.fil)}" data-bsort="${esc(p.fil)}">
+        ${sort && !sorter.some(s => s.id === sort) ? `<option value="${esc(sort)}" selected>${esc(sort)}</option>` : ''}${!sort ? '<option value="" selected>— välj —</option>' : ''}
+        ${sorter.map(s => `<option value="${esc(s.id)}" ${s.id === sort ? 'selected' : ''}>${esc(s.namn)} (${s.antal}/${s.mal})</option>`).join('')}
+      </select></div>
+      <div class="knappar"><button class="val test" data-bspara="${esc(p.fil)}" ${andrat && !upptagen ? '' : 'disabled'}>Spara ändringen</button><button class="val" data-btabort="${esc(p.fil)}" ${upptagen ? 'disabled' : ''}>Ta bort ur bänken</button></div>`;
+  return `<div class="rad" data-bfil="${esc(p.fil)}">
+    <div class="bild"><img src="/api/bankbild/${encodeURIComponent(p.fil)}" alt="Bänkens bild" data-bzoom="${esc(p.fil)}" loading="lazy" onerror="bildFel(this, 'Bilden saknas i bänken')"><div class="etikett">Bänkens bild</div></div>
+    <div class="bild">${ref}<div class="etikett">${p.namn ? esc(p.namn) + ' hos Scryfall' : ''}</div></div>
+    <div class="info">
+      <div class="namnrad">${p.gissning ? `<span class="gissn">${esc(p.gissning)}</span>` : '<span class="gissn">(inget namn)</span>'}<span class="pil">→</span><span class="ratt">${esc(p.namn || '–')}</span></div>
+      <div class="meta"><span>${esc(p.kod || p.fil)}</span><span>${esc(HANDELSE[p.handelse] || p.handelse || '–')}</span>${p.varfor ? `<span>${esc(p.varfor)}</span>` : ''}${p.spelkod ? `<span>parti ${esc(p.spelkod)}</span>` : ''}<span>${fryst ? 'utgåva v' + p.utgava : 'inkommande (inte fryst)'}</span>${p.tillagd ? `<span>tillagd ${esc(p.tillagd)}</span>` : ''}${p.andrad ? `<span>ändrad ${esc(p.andrad)}</span>` : ''}</div>
+      ${val}
+      ${not ? `<div class="not ${not.typ}">${esc(not.text)}</div>` : ''}
+    </div>
+  </div>`;
+}
+async function andraBankfall(fil, kropp) {
+  upptagen++; ritaLista();
+  try {
+    const s = await hamta('/api/bankfall/andra', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ fil }, kropp)) });
+    /* ett borttaget kort finns inte kvar i vyn: beskedet står då överst */
+    noter.set(s.ok && kropp.taBort ? 'bank:vy' : 'bank:' + fil, { typ: s.ok ? 'ok' : 'fel', text: s.text });
+    if (s.ok) { bNamn.delete(fil); bSort.delete(fil); bFraga = null; if (kropp.sort) bankVy = kropp.sort; }   // vyn följer kortet till dess nya sort
+  } catch (e) { noter.set('bank:' + fil, { typ: 'fel', text: e.message }); }
+  upptagen--;
+  await laddaBankFall(); await laddaBank(); ritaLista();
+  laddaLista();   // Prov-fliken visar namnet och sorten bänken mäter
+}
+function sparaBankfall(fil) {
+  const p = (bankFall || []).find(x => x.fil === fil); if (!p) return;
+  const kropp = {};
+  if (bNamn.has(fil) && bNamn.get(fil).trim() !== (p.namn || '')) kropp.namn = bNamn.get(fil).trim();
+  if (bSort.has(fil) && bSort.get(fil) !== (p.sort || '')) kropp.sort = bSort.get(fil);
+  if (Object.keys(kropp).length) andraBankfall(fil, kropp);
 }
 
 /* ── träningen ── */
@@ -809,7 +895,18 @@ const rora = el => { const k = el && el.closest && el.closest('[data-kod]'); if 
 document.addEventListener('click', async e => {
   const t = e.target;
   rora(t);
-  if (t.dataset.flik) { flik = t.dataset.flik; try { localStorage.setItem('granska-flik', flik); } catch (x) {} ritaLista(); return; }
+  const bs = t.closest && t.closest('tr[data-banksort]');
+  if (bs) { visaBankSort(bs.dataset.banksort); return; }
+  if (t.dataset.bankstang != null) { stangBankVy(); return; }
+  if (t.dataset.bspara) { if (!upptagen) sparaBankfall(t.dataset.bspara); return; }
+  if (t.dataset.btabort) { if (upptagen) return; if (t.dataset.ja) andraBankfall(t.dataset.btabort, { taBort: true }); else { bFraga = t.dataset.btabort; noter.delete('bank:' + bFraga); ritaLista(); } return; }
+  if (t.dataset.bavbryt) { bFraga = null; ritaLista(); return; }
+  if (t.dataset.bzoom) {
+    const p = (bankFall || []).find(x => x.fil === t.dataset.bzoom);
+    $('#zoom').innerHTML = `<div class="par"><img src="/api/bankbild/${encodeURIComponent(t.dataset.bzoom)}" alt="Bänkens bild">${p && p.namn ? `<img src="/api/kort?namn=${encodeURIComponent(p.namn)}" alt="${esc(p.namn)}">` : ''}</div>`;
+    $('#zoom').classList.add('pa'); return;
+  }
+  if (t.dataset.flik) { flik = t.dataset.flik; bankVy = undefined; bFraga = null; laddaBank(); try { localStorage.setItem('granska-flik', flik); } catch (x) {} ritaLista(); return; }
   if (t.dataset.godk) { if (!upptagen) godkann(t.closest('.hrad').dataset.kod, t.dataset.pid, t.dataset.godk); return; }
   if (t.dataset.zoomsrc) { $('#zoom').innerHTML = `<img src="${esc(t.dataset.zoomsrc)}" alt="Utsnittet runt kortet">`; $('#zoom').classList.add('pa'); return; }
   if (t.dataset.hval) { if (!upptagen) sorteraHandling(t.closest('.hrad').dataset.kod, t.dataset.hval); return; }
@@ -825,9 +922,23 @@ document.addEventListener('click', async e => {
   }
   if (t.closest('#zoom')) $('#zoom').classList.remove('pa');
 });
-document.addEventListener('input', e => { rora(e.target); if (e.target.dataset.namn) skrivet.set(e.target.dataset.namn, e.target.value); });
-document.addEventListener('change', e => { rora(e.target); if (e.target.dataset.sort) { const k = e.target.dataset.sort; if (e.target.value) { valdSort.set(k, e.target.value); valdForst.set(k, sortForst.pa && !sett.has(k)); } else valdSort.delete(k); ritaLista(); } });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#zoom').classList.remove('pa'); });
+document.addEventListener('input', e => {
+  rora(e.target); if (e.target.dataset.namn) skrivet.set(e.target.dataset.namn, e.target.value);
+  /* bänkens namnfält: bara knappen ritas om, en omritning av listan tar fokus ur fältet */
+  if (e.target.dataset.bnamn) { const fil = e.target.dataset.bnamn; bNamn.set(fil, e.target.value); knappBank(fil); }
+});
+function knappBank(fil) {
+  const p = (bankFall || []).find(x => x.fil === fil), k = document.querySelector(`[data-bspara="${CSS.escape(fil)}"]`);
+  if (!p || !k) return;
+  const namn = bNamn.has(fil) ? bNamn.get(fil).trim() : p.namn || '', sort = bSort.has(fil) ? bSort.get(fil) : p.sort || '';
+  k.disabled = !!upptagen || (namn === (p.namn || '') && sort === (p.sort || ''));
+}
+document.addEventListener('change', e => { if (e.target.dataset.bsort) { bSort.set(e.target.dataset.bsort, e.target.value); knappBank(e.target.dataset.bsort); return; } rora(e.target); if (e.target.dataset.sort) { const k = e.target.dataset.sort; if (e.target.value) { valdSort.set(k, e.target.value); valdForst.set(k, sortForst.pa && !sett.has(k)); } else valdSort.delete(k); ritaLista(); } });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('#zoom').classList.remove('pa');
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset && e.target.dataset.banksort != null && e.target.matches('tr')) { e.preventDefault(); visaBankSort(e.target.dataset.banksort); }
+  if (e.key === 'Enter' && e.target.dataset && e.target.dataset.bnamn) { e.preventDefault(); sparaBankfall(e.target.dataset.bnamn); }
+});
 
 laddaBank().then(laddaSortForst).then(() => { laddaHandlingar(); return laddaLista(); }).then(laddaTraning);   // handlingarna räknas på servern: träningen väntar inte på dem
 </script>
