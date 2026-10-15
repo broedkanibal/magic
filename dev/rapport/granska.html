@@ -251,13 +251,15 @@ function ritaLista() {
 /* ── rekommendationen ──
    Reglerna prövas uppifrån; den första som slår till avgör. Sidan föreslår, du trycker:
    1. Ingen bild, eller borttaget utan namn          → Släng
-   2. Partiet är redan träning / prov                 → den sidan (spärren per parti)
-   3. Kortet är ett säkert fel namn                   → Prov (löftet: 0 säkra fel namn)
-   4. Ett annat osorterat kort i partiet är det       → Prov (hela partiet blir prov; sortera det först)
-   5. Ingen sorts fel vald                            → Träning, men välj sorten om kortet visar något bänken behöver
+   2. Partiet är redan träning                        → Träning (spärren per parti)
+   3. Partiet är redan prov                           → Prov om bänken behöver kortet (som 4–8, med taken), annars Släng
+   4. Kortet är ett säkert fel namn                   → Prov (löftet: 0 säkra fel namn), Träning om namnets tak är nått
+   5. Ett annat osorterat kort i partiet är det       → Prov (hela partiet blir prov; sortera det först)
+   6. Ingen sorts fel vald                            → Träning, men välj sorten om kortet visar något bänken behöver
                                                         (bilden mäts och föreslår sorten under listan, se signaler)
-   6. Sorten har färre prov än målet                  → Prov (bänken fylls jämnt, i den ordning korten kommer)
-   7. Sorten är full                                  → Träning
+   7. Sorten har färre prov än målet, och inget tak   → Prov (bänken fylls jämnt, i den ordning korten kommer)
+      är nått (namnHinder, sortHinder)
+   8. Sorten är full, eller ett tak är nått           → Träning
    Ögat behövs till två saker: Släng när du inte själv kan läsa kortet, och vilken sorts fel det är. */
 const sakertFel = r => !!(r.saker && r.gissning && r.ratt && r.gissning !== r.ratt);
 const sortFor = r => valdSort.get(r.kod) || '';
@@ -270,19 +272,50 @@ function rekommendera(r) {
   if (r.handelse === 'borttaget' && !namnFor(r)) return { val: 'slangd', varfor: 'Borttaget kort utan namn: inget rätt namn att mäta eller lära ut. Skriv namnet om det var ett riktigt kort.' };
   const { ovriga, lastTran, lastTest } = lasning(r);
   if (lastTest) return { val: 'traning', varfor: 'Partiet är redan träning, så Prov går inte.' + (sakertFel(r) ? ' Det säkra felet kan därför inte bli ett bänkprov.' : '') };
-  if (lastTran) return { val: 'test', varfor: 'Partiet är redan prov, så Träning går inte. Välj sorts fel.' };
-  if (sakertFel(r)) return { val: 'test', varfor: `Säkert fel namn: telefonen var säker på ${r.gissning}. Löftet är noll sådana, så det ska alltid mätas — oavsett sort och mål.` };
-  const annan = ovriga.find(x => !x.anvandning && x.harBild && sakertFel(x));
+  const hinder = namnHinder(r), id = sortFor(r), S = bank && bank.sorter.find(s => s.id === id);
+  if (lastTran) {
+    /* Träning är stängd: kvar är Prov eller Släng. Prov bara när bänken behöver kortet. */
+    const fore = 'Partiet är redan prov, så Träning går inte.';
+    if (hinder) return { val: 'slangd', varfor: `${fore} ${hinder}` };
+    if (sakertFel(r)) return { val: 'test', varfor: `${fore} Säkert fel namn: telefonen var säker på ${r.gissning}. Det ska mätas oavsett sortens mål — välj sorts fel.` };
+    if (!id || !S) return { val: 'slangd', utanSort: true, varfor: `${fore} Välj sorts fel: Prov om sorten behöver fler, annars Släng.` };
+    const sh = sortHinder(r, S);
+    if (sh) return { val: 'slangd', varfor: `${fore} ${sh}` };
+    return { val: 'test', varfor: `${fore} ${S.namn}: ${S.antal} av ${S.mal} prov — bänken behöver ${S.mal - S.antal} till.` };
+  }
+  if (sakertFel(r)) return hinder
+    ? { val: 'traning', varfor: `Säkert fel namn, men ${hinder.charAt(0).toLowerCase() + hinder.slice(1)} Felet är redan mätt, så kortet gör mer nytta i träningen.` }
+    : { val: 'test', varfor: `Säkert fel namn: telefonen var säker på ${r.gissning}. Löftet är noll sådana, så det ska alltid mätas — oavsett sort och mål.` };
+  const annan = ovriga.find(x => !x.anvandning && x.harBild && sakertFel(x) && !namnHinder(x));
   if (annan) return { val: 'test', varfor: `${annan.kod} i samma parti är ett säkert fel namn och blir prov — då blir hela partiet prov. Sortera ${annan.kod} först.` };
-  const id = sortFor(r), S = bank && bank.sorter.find(s => s.id === id);
   if (!id || !S) {
     const ss = signaler(r).map(s => bank.sorter.find(x => x.id === s.id)).filter(Boolean);
     return { val: 'traning', utanSort: true, varfor: ss.length
       ? `Ingen sorts fel vald. Bilden tyder på ${ss.map(s => `${s.namn} (${s.antal}/${s.mal})`).join(' eller ')} — tryck på den under listan om du ser samma sak. Annars träning.`
       : 'Ingen sorts fel vald. Visar kortet en sort som bänken behöver fler av (listan till höger): välj den. Annars träning.' };
   }
-  if (S.antal < S.mal) return { val: 'test', varfor: `${S.namn}: ${S.antal} av ${S.mal} prov — bänken behöver ${S.mal - S.antal} till.` };
-  return { val: 'traning', varfor: `${S.namn} är full (${S.antal} av ${S.mal} prov): kortet gör mer nytta i träningen.` };
+  const sh = hinder || sortHinder(r, S);
+  if (sh) return { val: 'traning', varfor: `${sh} Kortet gör mer nytta i träningen.` };
+  return { val: 'test', varfor: `${S.namn}: ${S.antal} av ${S.mal} prov — bänken behöver ${S.mal - S.antal} till.` };
+}
+/* Taken (sorter.cjs, TAK) mot bänkens prov (bankutgava.cjs): varför kortet inte ska bli ett prov till, eller null.
+   Ett säkert fel räknas per par (gissning → rätt namn) mot namnTotalt: ett nytt par är ett nytt fel att mäta. */
+const namnNyckel = s => String(s || '').trim().toLowerCase();
+function namnHinder(r) {
+  const namn = namnFor(r), n = namnNyckel(namn), T = bank && bank.tak;
+  if (!n || !T || !bank.prov) return null;
+  const samma = bank.prov.filter(x => namnNyckel(x.namn) === n);
+  const iPartiet = samma.filter(x => x.parti === parti(r)).length;
+  if (iPartiet >= T.namnPerParti) return `Partiet har redan ${iPartiet === 1 ? 'ett prov' : iPartiet + ' prov'} av ${namn}: ett till ur samma parti är nästan samma bild.`;
+  const par = sakertFel(r), totalt = par ? samma.filter(x => namnNyckel(x.gissning) === namnNyckel(r.gissning)).length : samma.length;
+  if (totalt >= T.namnTotalt) return `Bänken har redan ${totalt} prov av ${par ? `${r.gissning} → ${namn}` : namn} (taket är ${T.namnTotalt}): fler drar bänkens siffra mot ett enda kort.`;
+  return null;
+}
+function sortHinder(r, S) {
+  if (S.antal >= S.mal) return `${S.namn} är full (${S.antal} av ${S.mal} prov).`;
+  const T = bank.tak, iPartiet = (bank.prov || []).filter(x => x.sort === S.id && x.parti === parti(r)).length;
+  if (T && iPartiet >= T.sortPerParti) return `Partiet har redan ${iPartiet} prov av ${S.namn} (taket är ${T.sortPerParti} per parti).`;
+  return null;
 }
 function sortValj(r) {
   const val = sortFor(r);

@@ -14,6 +14,11 @@
 
 const MAL = 20;   // fall per sort som bänken ska ha
 
+/* Taken (Jespers beslut 2026-10-15): ett parti eller ett kortnamn får inte fylla bänken. Ett namn till ur samma
+   parti är nästan samma bild, och många prov av ett namn drar bänkens siffra mot det kortet. Ett säkert fel
+   räknas per par (gissning → rätt namn) mot namnTotalt. Bedömning, inte mätt — granskningssidan föreslår efter dem. */
+const TAK = { sortPerParti: 2, namnPerParti: 1, namnTotalt: 3 };
+
 const SORTER = [
   { id: 'blank', namn: 'Blänk', text: 'ljusreflex över namnraden eller bilden' },
   { id: 'vinkel', namn: 'Sned vinkel', text: 'kortet ses snett, perspektivet förvränger det' },
@@ -28,4 +33,4 @@ const SORTER = [
 const SORT_ID = new Set(SORTER.map(s => s.id));
 const sortNamn = id => (SORTER.find(s => s.id === id) || { namn: id || 'utan sort' }).namn;
 
-module.exports = { MAL, SORTER, SORT_ID, sortNamn };
+module.exports = { MAL, TAK, SORTER, SORT_ID, sortNamn };
