@@ -1642,7 +1642,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     // ── RG: minnet på geo-skurna remsor, och radiens gräns vid tap (golden-plattan 2026-10-15, punkt 2) ──
     /* Sedan T.remsaGeo skärs nästan varje remsa ur kortets geometri, och
        minnet fick inte döma på dem ('geo: minnets tröskel omätt') förrän
-       bänken dev/remsa/remsminne_geo.py (2c4e525) mätt tröskeln: 0 säkra
+       bänken dev/remsa/remsminne_geo.py (commiten 2026-10-15 som lägger till filen) mätt tröskeln: 0 säkra
        fel vid 0,10 på geo-remsor i 13b och MES-246. Geometrin kräver
        kortets vinkel ur KortVinkel (t.vmRa, kalla 'remsa'), och videon här
        är en attrapp utan bildpunkter — så KortVinkel.kortVinkel byts mot en
@@ -1670,7 +1670,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
        eller otappas vrids 90° runt sin mitt, så remsans mitt flyttar ~0,6
        kortlängder — utanför radien 0,5 remslängder (T.remsaMinneRadie;
        golden 18 --detalj: "för långt bort"). Radien 1,0 provades 2026-10-15
-       och togs bort: bänken (2c4e525) gav 0 fel vid 1,0 på geo- och
+       och togs bort: bänken (remsminne_geo.py) gav 0 fel vid 1,0 på geo- och
        exakt-skurna remsor, men läget där bara ett ANNAT korts minne tävlar
        (grannen bredvid, ~0,7–1,1 remslängder bort) var omätt där och den
        gamla bänken hade 3 säkra fel just där, och golden vann inget. Här
