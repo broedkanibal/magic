@@ -451,8 +451,8 @@ async function hamtaSenare(K, lokal, S) {
   return null;
 }
 /* Påståendenas antal, som terminalen och granskningssidan visar dem. */
-/* raknas = godkända (Jespers beslut 2026-10-15: bara godkända påståenden räknas); attBedoma = de som väntar på
-   godkänt eller kastat (inte tillbakatagna, osäkra eller utan spår). */
+/* raknas = godkända (Jespers beslut 2026-10-15: bara godkända påståenden räknas); attBedoma = alla som går att
+   bedöma (inte tillbakatagna, osäkra eller utan spår) — godkända, kastade och obedömda (ejGodkanda) tillsammans. */
 function raknaPastaenden(P) {
   const bedombar = p => !p.tillbaka && !p.osaker && !p.ejAvgorbart;
   return { alla: P.length, attBedoma: P.filter(bedombar).length, raknas: P.filter(p => bedombar(p) && !p.kastad && !p.ejGodkand).length,
