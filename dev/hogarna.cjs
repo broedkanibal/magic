@@ -221,12 +221,20 @@ const PROV = async steg => {
     sparaNu();
     const rad4 = W.__sparat[W.__sparat.length - 1].kort, post = rad4.find(k => k.hog === 'grav');
     ok('4 · bordsraden bär högens läge (inga namn — korten ligger i listan med zon grav)', !!post && post.cid === 'hog:grav' && post.name === undefined && post.x === Math.round(mig().gravHog.x), JSON.stringify(post));
-    /* Graveyard följer med (Jesper 2026-10-06): högen lyfts (telefonen: rutan tom) och läggs ner ovanför landen —
-       spåret med översta kortets namn är högen. Rutan flyttas dit, och inget Wood Elves hamnar i spel. */
+    /* Graveyard följer med (Jesper 2026-10-06), genom frågan (MES-388, Jesper 2026-10-15): högen lyfts (telefonen:
+       rutan tom) och läggs ner ovanför landen. Medan högen är lyft tas Wood Elves ur graveyard (fönstret), och appen
+       frågar "Is this your graveyard?" ovanför kortet. Yes: Wood Elves går tillbaka i högen, rutan flyttas dit, och
+       inget Wood Elves är i spel. */
     { const bas = [spar(23, 'Serra Angel', 0.8, 0.3), spar(24, 'Ukud Cobra', 0.18, 0.62)].concat(LAND);
       const gr0 = Object.assign({}, kamGravRad), n0 = gravSistaN || 0, g0 = Object.assign({}, mig().gravHog);
       await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
       await vanta(15); avstamBord(bas.concat([spar(91, 'Wood Elves', 0.45, 0.25)]), false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
+      renderAll(true); await stilla();
+      const fr = gravFragaNu(mig()), ruta0 = Object.assign({}, kamGravRad);
+      ok('graveyard följer med: frågan "Is this your graveyard?" över kortet ur den lyfta högen, rutan orörd före svaret',
+         !!fr && fr.q.flytt && fr.kort.length === 1 && fr.kort[0].name === 'Wood Elves' && ruta0.x === gr0.x && ruta0.y === gr0.y && !!gridEl.querySelector('.gravfraga'),
+         JSON.stringify({ fraga: fr && fr.kort.map(c => c.name), ritad: !!gridEl.querySelector('.gravfraga') }));
+      gravSvar('ja');
       await vanta(15); avstamBord(bas.concat([spar(91, 'Wood Elves', 0.45, 0.25)]), false, 'kort', undefined, '', { n: n0, sen: null, tom: true });   // telefonen har inte fått den nya rutan än
       renderAll(true); await stilla();
       const r = kamGravRad, mitt = r ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : null, gh = mig().gravHog;

@@ -76,6 +76,12 @@ const paMattan = e => { const z = zonAv(e); return z !== ZON_GRAV && z !== ZON_E
 /* Appens kamFoljer utan spelLage/kamSpeglar (bänken speglar alltid): kortet kameran följer, på mattan, inte bifogat.
    flyttaTill anropar den sedan 06a01c3 (MES-385: handflytt till en hög loggas som grav_hand). */
 const kamFoljer = c => !!c && c.spar != null && paMattan(c) && !c.attachedTo;
+/* Frågan om en flyttad graveyard-hög (gravFlyttSteg, MES-388): av utan graveyard-ruta (kamGravRad null), som i alla
+   prov utom GF-serien, som sätter app.gravRad. sparaGravZon minns rutorna i stället för att skicka dem till telefonen;
+   bänken speglar alltid, och bildandelar är rutans mått (gravRutaUrKam, kamBildAsp). */
+let kamGravRad = null, gravZoner = [];
+function sparaGravZon(r) { kamGravRad = r; gravZoner.push(r); }
+const kamSpeglar = () => true, gravRutaUrKam = r => r, kamBildAsp = () => 1;
 const Moln = { sandKam() {}, inloggad: () => false };
 const addEventListener = () => {};   // spelupplevelsens pagehide (khSkicka) ligger i utdraget
 const mittLage = () => 'bord';   // spelupplevelsens korthändelser (khLogga); Moln.inloggad ovan säger utloggad, så inget loggas
@@ -126,6 +132,9 @@ return {
   oppOppnasIgen,
   set gravFlode(v) { gravFlode = !!v; },
   set gravSpeglar(v) { gravSpeglar = !!v; },
+  set gravRad(v) { kamGravRad = v; }, get gravZoner() { return gravZoner; },
+  /* Frågan om en flyttad hög (MES-388) och svaret på den. */
+  get flyttFraga() { return gravFlyttFraga; }, flyttSvar: svar => gravFlyttSvar(state.players[0], svar, Date.now()),
   get grav() { return gravLageNu(); },
   set bib(h) { state.players[0].bibHog = h; },
   set vand(v) { kamVand = v; },
@@ -184,7 +193,7 @@ return {
      hör till spelet, inte nollställningen — de sätts om här, som när man
      lämnar spelet. */
   nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; handRad = []; kamFas = ''; kamGrund = 20; lekTal = new Map(); typRad = new Map(); kamFlaggar = false; kamBildRor = null; gravRorNu = false; delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false;
-    gravFlode = false; gravSpeglar = false; kamVand = 0; kamSpegel = false; gravLage = null; gravSedda = new Map(); gravOmstart = 0; delete state.players[0].bibHog; }
+    gravFlode = false; gravSpeglar = false; kamVand = 0; kamSpegel = false; gravLage = null; gravSedda = new Map(); gravOmstart = 0; delete state.players[0].bibHog; kamGravRad = null; gravZoner = []; }
 };`)({ now: () => klocka.t }, setTimeoutV, clearTimeoutV);
 
 const stam = (spar, fas = 'kort') => app.avstamBord(spar, false, fas);
@@ -3727,6 +3736,188 @@ prov('TH5 en hand i bilden (ett spår utan korts form som rör sig) håller kort
   assert.ok(iHanden(k), 'handen ute ur bild: till handen');
 });
 
+/* GF (MES-388): fönstret medan graveyard-högen är lyft. Telefonen säger att rutan är tom (grav.tom); tills högen syns
+   igen tas varje nytt kort på bordet ur appens graveyard om namnet finns där — också basland, med och utan lek. Appen
+   gissar inte om högen flyttats (Jespers beslut 2026-10-15): hamnar det översta kortet på bordet frågar den "Is this
+   your graveyard?". Yes flyttar högen dit, No eller inget svar lämnar kortet på bordet. Ingen klocka, ingen Claude. */
+const lyft = (tom, n = 0) => ({ n, sen: 0, tom });
+const GRAV_RUTA = box(0.05, 0.6, 0.08, 0.1);
+const gravHog = (...namn) => namn.forEach((m, i) => app.kort.push({ cid: 'g' + i, name: m, flipped: 0, zon: 'grav' }));
+const cobra = () => klar(1, 'Ukud Cobra', { sen: 20, vilar: true, ...LANGT });
+prov('GF1 högen lyft, leken har 4 Ukud Cobra och en ligger i graveyard: kortet på bordet är SAMMA kort, ingen dubblett', () => {
+  app.lek = new Map([['Ukud Cobra', 4]]);
+  gravHog('Ukud Cobra', 'Shock');
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));                                     // högen lyft
+  klocka.t += 1000; stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], lyft(true));
+  assert.equal(app.kort.length, 2, 'dubblett: ett nytt kort skapades bredvid det i högen');
+  assert.equal(iGrav('Ukud Cobra'), 0); assert.equal(app.kort.find(c => c.cid === 'g0').spar, 1);
+});
+prov('GF2 högen lyft, utan lek: kortet tas ur graveyard', () => {
+  gravHog('Shock', 'Ukud Cobra');
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], lyft(true));
+  assert.equal(app.kort.length, 2, 'dubblett'); assert.equal(iGrav('Ukud Cobra'), 0); assert.equal(iGrav('Shock'), 1);
+  assert.equal(app.kort.find(c => c.cid === 'g1').spar, 1);
+});
+prov('GF3 högen lyft, ett basland: Forest ur graveyard fast leken har fler Forest än bordet', () => {
+  app.lek = new Map([['Forest', 4]]);
+  gravHog('Forest', 'Shock');
+  stamG([klar(2, 'Forest', { sen: 20, ...LANGT })], lyft(false));
+  klocka.t += 1000; stamG([klar(2, 'Forest', { sen: 20, ...LANGT })], lyft(true));
+  klocka.t += 1000; stamG([klar(1, 'Forest', { sen: 20, ...PORT }), klar(2, 'Forest', { sen: 20, ...LANGT })], lyft(true));
+  assert.equal(app.kort.length, 3, 'ett tredje Forest skapades'); assert.equal(iGrav('Forest'), 0);
+});
+prov('GF3b två kort ur den lyfta högen, ett i taget: båda tas ur graveyard; frågan gäller bara det som låg överst', () => {
+  app.gravRad = GRAV_RUTA;
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([cobra()], lyft(true));
+  klocka.t += 1000; stamG([cobra(), klar(2, 'Expel', { sen: 20, vilar: true, ...PORT })], lyft(true));
+  assert.equal(app.kort.length, 3); assert.equal(iGrav('Ukud Cobra'), 0); assert.equal(iGrav('Expel'), 0); assert.equal(iGrav('Shock'), 1);
+  assert.equal(app.flyttFraga && app.flyttFraga.cid, 'g0', 'frågan gäller inte Cobra');
+  assert.equal(app.gravZoner.length, 0, 'högen flyttades utan svar');
+});
+prov('GF4 utanför fönstret: högen ligger kvar (eller har lagts tillbaka) — ett Forest ur handen är ett nytt kort', () => {
+  gravHog('Forest', 'Shock');
+  stamG([], lyft(false));
+  stam([klar(1, 'Forest', { sen: 20, ...PORT })]);                             // telefon utan högvakt: inget fönster
+  assert.equal(app.kort.length, 3); assert.equal(iGrav('Forest'), 1);
+  klocka.t += 1000; stamG([klar(1, 'Forest', { sen: 20, ...PORT })], lyft(true));
+  klocka.t += 1000; stamG([klar(1, 'Forest', { sen: 20, ...PORT })], lyft(false));   // högen tillbaka: fönstret stängt
+  klocka.t += 1000; stamG([klar(1, 'Forest', { sen: 20, ...PORT }), klar(2, 'Forest', { sen: 20, ...LANGT })], lyft(false));
+  assert.equal(app.kort.length, 4); assert.equal(iGrav('Forest'), 1, 'kortet togs ur högen utanför fönstret');
+});
+prov('GF5 det översta kortet spelas ur en lyft hög: frågan, men högen flyttar INTE; högen läggs tillbaka — frågan försvinner, kortet stannar', () => {
+  app.gravRad = GRAV_RUTA;
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([cobra()], lyft(true));
+  const k = app.kort.find(c => c.cid === 'g0');
+  assert.equal(k.zon, undefined); assert.equal(k.spar, 1); assert.equal(app.kort.length, 3); assert.equal(iGrav('Shock'), 1);
+  assert.ok(app.flyttFraga && app.flyttFraga.cid === 'g0', 'ingen fråga om kortet');
+  assert.equal(app.gravZoner.length, 0, 'högen flyttades utan svar');
+  klocka.t += 1000; stamG([cobra()], lyft(false));                                // högen tillbaka på sin plats
+  assert.equal(app.flyttFraga, null, 'frågan står kvar fast högen ligger på sin plats');
+  assert.equal(app.gravZoner.length, 0); assert.equal(k.spar, 1); assert.equal(k.zon, undefined);
+});
+prov('GF5b inget svar: ingenting flyttas, hur länge det än dröjer (ingen klocka)', () => {
+  app.gravRad = GRAV_RUTA; app.bildRor = false;
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  for (let i = 0; i < 30; i++) { klocka.t += 5000; tid(klocka.t); stamG([cobra()], lyft(true)); }
+  assert.equal(app.gravZoner.length, 0, 'högen flyttades'); assert.equal(app.kort.find(c => c.cid === 'g0').spar, 1);
+  assert.ok(app.flyttFraga, 'frågan försvann av sig själv');
+});
+prov('GF5c en hög med ett kort: ingen fråga (att ta kortet ur en graveyard med ett kort är aldrig en flyttad hög)', () => {
+  app.gravRad = GRAV_RUTA;
+  gravHog('Ukud Cobra');
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([cobra()], lyft(true));
+  assert.equal(iGrav('Ukud Cobra'), 0); assert.equal(app.flyttFraga, null);
+});
+prov('GF5d utan graveyard-ruta (graveyard ur spelet): ingen fråga om en flyttad hög', () => {
+  gravHog('Ukud Cobra', 'Shock');
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([cobra()], lyft(true));
+  assert.equal(app.flyttFraga, null);
+});
+prov('GF6 högen flyttad: Yes — rutan flyttas dit, kortet går tillbaka överst i högen som det låg, fönstret stängs', () => {
+  app.gravRad = GRAV_RUTA;
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  app.kort[0].cts = [{ t: '+1/+1', n: 1 }]; app.kort[0].flipped = 1;
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([cobra()], lyft(true));
+  const k = app.kort.find(c => c.cid === 'g0');
+  assert.equal(k.spar, 1);
+  assert.ok(app.flyttSvar('ja'));
+  assert.equal(app.gravZoner.length, 1, 'högen flyttade inte');
+  assert.ok(Math.abs(app.gravZoner[0].x - (LANGT.x + LANGT.w / 2)) < 1e-9);
+  assert.equal(k.zon, 'grav'); assert.equal(k.spar, undefined); assert.equal(k.flipped, 1); assert.deepEqual(k.cts, [{ t: '+1/+1', n: 1 }]);
+  assert.equal(app.kort.filter(c => c.zon === 'grav')[0], k, 'kortet ligger inte överst i högen igen');
+  assert.equal(app.flyttFraga, null);
+  klocka.t += 1000; stamG([cobra()], lyft(true));                                 // telefonen har inte fått den nya rutan än
+  klocka.t += 1000; stamG([cobra(), klar(3, 'Shock', { sen: 20, vilar: true, ...PORT })], lyft(true));
+  assert.equal(app.kort.length, 4, 'högens spår blev ett kort, eller Shock togs ur högen fast fönstret är stängt');
+  assert.equal(iGrav('Ukud Cobra'), 1); assert.equal(iGrav('Shock'), 1); assert.equal(app.flyttFraga, null);
+});
+prov('GF6b No: kortet stannar på bordet, frågan kommer inte igen för det; fönstret står öppet — nästa kort ur högen tas också', () => {
+  app.gravRad = GRAV_RUTA;
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([cobra()], lyft(true));
+  assert.ok(app.flyttSvar('nej'));
+  klocka.t += 1000; stamG([cobra()], lyft(true));
+  assert.equal(app.flyttFraga, null, 'frågan kom igen'); assert.equal(app.gravZoner.length, 0);
+  assert.equal(app.kort.find(c => c.cid === 'g0').zon, undefined);
+  /* Högen läggs ner annanstans med Shock överst: nu gäller frågan Shock. */
+  klocka.t += 1000; stamG([cobra(), klar(2, 'Shock', { sen: 20, vilar: true, ...PORT })], lyft(true));
+  assert.equal(iGrav('Shock'), 0); assert.equal(app.flyttFraga && app.flyttFraga.cid, 'g1');
+  assert.ok(app.flyttSvar('ja')); assert.equal(iGrav('Shock'), 1); assert.equal(app.gravZoner.length, 1);
+  assert.ok(Math.abs(app.gravZoner[0].x - (PORT.x + PORT.w / 2)) < 1e-9);
+});
+prov('GF6c kortet lyfts från bordet medan frågan står: frågan försvinner', () => {
+  app.gravRad = GRAV_RUTA;
+  gravHog('Ukud Cobra', 'Shock');
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([cobra()], lyft(true));
+  assert.ok(app.flyttFraga);
+  klocka.t += 150; stamG([], lyft(true));
+  klocka.t += 6000; tid(klocka.t); stamG([], lyft(true));
+  assert.equal(app.flyttFraga, null, 'frågan står kvar över ett kort som inte ligger där');
+});
+prov('GF9 ångra medan högen är lyft byter ut kortobjekten: fönstret står kvar, och Yes lägger tillbaka kortet på cid', () => {
+  app.gravRad = GRAV_RUTA;
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([cobra()], lyft(true));
+  const nya = JSON.parse(JSON.stringify(app.kort)); app.kort.length = 0; app.kort.push(...nya);   // som angra: p.cards = JSON.parse(…)
+  klocka.t += 1000; stamG([cobra()], lyft(true));
+  assert.ok(app.flyttSvar('ja')); assert.equal(iGrav('Ukud Cobra'), 1); assert.equal(app.kort.length, 3, 'ett kort försvann eller dubblerades');
+});
+
+prov('GF2b ett kort som las ut före lyftet men läses först efter: inte ur högen', () => {
+  gravHog('Ukud Cobra', 'Shock');
+  stamG([{ id: 1, tillstand: 'ny', namn: null, saker: false, tappad: false, sen: 20, kortlik: true, vilar: true, ...PORT }], lyft(false));
+  klocka.t += 2000; stamG([{ id: 1, tillstand: 'stilla', namn: null, saker: false, tappad: false, sen: 20, kortlik: true, vilar: true, ...PORT }], lyft(true));
+  klocka.t += 1000; stamG([klar(1, 'Ukud Cobra', { sen: 20, vilar: true, ...PORT })], lyft(true));
+  assert.equal(iGrav('Ukud Cobra'), 1, 'kortet ur handen togs ur graveyard');
+});
+prov('GF6d Yes: ett kort som fästs vid kortet på bordet ligger kvar, löst', () => {
+  app.gravRad = GRAV_RUTA;
+  gravHog('Ukud Cobra', 'Shock');
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([cobra()], lyft(true));
+  app.kort.push({ cid: 'aura', name: 'Rancor', flipped: 0, attachedTo: 'g0' });
+  assert.ok(app.flyttSvar('ja'));
+  const a = app.kort.find(c => c.cid === 'aura');
+  assert.ok(a && a.attachedTo === undefined && a.zon === undefined, JSON.stringify(a));
+});
+prov('GF2c kameran nollställs medan högen är lyft: fönstret öppnas inte igen förrän högen setts i sin ruta (spåren föds om utan sin historia)', () => {
+  gravHog('Ukud Cobra', 'Shock');
+  const olast = t => ({ id: 1, tillstand: t, namn: null, saker: false, tappad: false, sen: 20, kortlik: true, vilar: true, ...PORT });
+  stamG([olast('ny')], lyft(false));
+  klocka.t += 2000; stamG([olast('stilla')], lyft(true));
+  klocka.t += 500; app.avstamBord([], true, 'kort');                           // nollställning
+  klocka.t += 500; stamG([olast('stilla')], lyft(true));
+  klocka.t += 1000; stamG([klar(1, 'Ukud Cobra', { sen: 20, vilar: true, ...PORT })], lyft(true));
+  assert.equal(iGrav('Ukud Cobra'), 1, 'kortet som låg där före lyftet togs ur graveyard');
+  klocka.t += 1000; stamG([klar(1, 'Ukud Cobra', { sen: 20, vilar: true, ...PORT })], lyft(false));   // högen i sin ruta
+  klocka.t += 1000; stamG([klar(1, 'Ukud Cobra', { sen: 20, vilar: true, ...PORT })], lyft(true));    // lyft igen
+  klocka.t += 1000; stamG([klar(1, 'Ukud Cobra', { sen: 20, vilar: true, ...PORT }), klar(2, 'Ukud Cobra', { sen: 20, vilar: true, ...LANGT })], lyft(true));
+  assert.equal(iGrav('Ukud Cobra'), 0, 'fönstret öppnades inte efter nollställningen');
+});
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);
