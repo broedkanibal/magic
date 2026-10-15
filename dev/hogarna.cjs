@@ -464,6 +464,7 @@ const PROV = async steg => {
       g && b ? `kortet x ${Math.round(fx)} → graveyard x ${Math.round(g.x)}, library x ${Math.round(b.x)}, kortbredd ${MATTA.CW}` : JSON.stringify({ g, b }));
     if (foreSrc) pi.src = foreSrc; else pi.removeAttribute('src');
     pbMatt = forePb; kamUpplosning = foreUpp;
+    kamGravRad = null; nollGrav(); mig().cards = []; mig().gravHog = null; renderAll(true);
   }
   if (steg === 7) {
     /* Kameran tappad i Mirror my table (Jesper i produktionen 2026-10-05: graveyard och "Pick up 40" i hörnet):

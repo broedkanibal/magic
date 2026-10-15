@@ -37540,6 +37540,9 @@ function frasktBord() {
 }
 /* En bildruta från telefonen. Måtten är telefonens egna; pbW/pbH följer dem. */
 let kamBildW = 0, kamBildH = 0;
+/* Bildens mått på raden (bildbredd, bildhojd): strömmens, som varje bord bär — förhandsbildens står kvar när panelen
+   stängs och var stående på en telefon som sedan vreds (2026-10-15). */
+const kamRadMatt = () => kamUpplosning && kamUpplosning.w && kamUpplosning.h ? [kamUpplosning.w, kamUpplosning.h] : [kamBildW || 0, kamBildH || 0];
 /* Felrapportens bild (Match the camera, MES-357): den senaste bildrutan när den är färsk, annars ber datorn
    telefonen om förhandsbilden en stund och tar första rutan. null om ingen kommer inom KAM_BILD_VANTA. */
 const KAM_BILD_VANTA = 4000;
@@ -37747,7 +37750,7 @@ const grundSkiljer = (a, b) => { const d = (((a - b) % 180) + 180) % 180; return
 async function skrivGrundRad(g) {
   if (!spelLage) return;
   const id = spelLage.id;
-  const ok = await Moln.sparaKalibrering(id, kamRutaRad({ grund: g }), null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, kamRutaRad({ grund: g }), null, ...kamRadMatt());
   if (spelLage && spelLage.id === id && ok) { kamGrundRad = g; visaKamGrund(); }
 }
 function grundTillRad() {
@@ -37777,7 +37780,7 @@ async function tagEmotGrundSvar(m) {
   oppSatt({ grundOm: false });
   renderMode();
   const id = spelLage.id;
-  const ok = await Moln.sparaKalibrering(id, kamRutaRad({ grund: m.grund }), null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, kamRutaRad({ grund: m.grund }), null, ...kamRadMatt());
   if (spelLage && spelLage.id === id && ok) kamGrundRad = m.grund;
   if (!ok) toast('The untapped angle could not be saved to the game. It applies until the phone reloads', 'err');
 }
@@ -37790,7 +37793,7 @@ async function sparaGravZon(r) {
   ritaPbLager(); renderMode();
   if (!spelLage) return;
   const id = spelLage.id;
-  const ok = await Moln.sparaKalibrering(id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, kamRutaRad(), null, ...kamRadMatt());
   if (!ok) toast('The graveyard zone could not be saved', 'err');
 }
 /* Rester från uppstartens steg 4 (kamRutaRest): ett spel som körde steget bär graveyard- och library-rutan
@@ -37804,7 +37807,7 @@ async function rensaOppstartsRutor() {
   try {
     kamRutaRest = false; kamGravRad = null;
     ritaPbLager(); renderMode();
-    await Moln.sparaKalibrering(spelLage.id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
+    await Moln.sparaKalibrering(spelLage.id, kamRutaRad(), null, ...kamRadMatt());
   } finally { rensarRutor = false; }
 }
 /* Vrid/spegla kameravyn (lägespanelen): raden får orienteringen, mattan
@@ -37814,7 +37817,7 @@ async function sparaKamOrientering() {
   renderGrid(true);
   if (!spelLage) return;
   const id = spelLage.id;
-  await Moln.sparaKalibrering(id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
+  await Moln.sparaKalibrering(id, kamRutaRad(), null, ...kamRadMatt());
 }
 /* Mattan vrids efter de första korten (MES-359, designytan Mesa Camera Panel sida 1 D). Telefonen säger
    åt vilket kvartsvarv namnraderna pekar i bilden (riktningVakt: två kort överens, eller ett ensamt kort
@@ -37830,7 +37833,7 @@ function autoVandUrKorten(q) {
   const v = kamSpegel ? q : (360 - q) % 360;
   kamVandKalla = 'auto';
   if (v !== kamVand) { kamVand = v; sparaKamOrientering(); }
-  else Moln.sparaKalibrering(spelLage.id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);   // samma vridning: bara att den är bestämd
+  else Moln.sparaKalibrering(spelLage.id, kamRutaRad(), null, ...kamRadMatt());   // samma vridning: bara att den är bestämd
   renderMode();
 }
 /* En telefon med äldre kod väntar på en ruta ('ingen') eller beskär efter en
@@ -37857,7 +37860,7 @@ async function normaliseraKamRad(forsok) {
   /* Gick skrivningen inte fram står en telefon med äldre kod kvar i 'ingen'
      hela kvällen: ingen annan skriver raden. Några försök till, sedan får
      chippet och tomrutan säga åt en att ladda om telefonen. */
-  const ok = await Moln.sparaKalibrering(id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, kamRutaRad(), null, ...kamRadMatt());
   if (!ok && (forsok || 0) < 3 && kamAnsluten && spelLage && spelLage.id === id)
     setTimeout(() => normaliseraKamRad((forsok || 0) + 1), 5000);
 }
