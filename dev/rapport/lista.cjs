@@ -6,7 +6,7 @@
          node dev/rapport/lista.cjs --rattelser   bara de tysta rättelserna (del B); går att kombinera med --nya
          node dev/rapport/lista.cjs --antal 200   fler rader
          node dev/rapport/lista.cjs --kontaktad R-0412   sätter kontaktad_at = nu (du har skrivit till spelaren)
-         node dev/rapport/lista.cjs --raderade    koderna i raderingar: ta bort kopiorna i repot för hand
+         node dev/rapport/lista.cjs --raderade    koderna i raderingar (kopiorna tas bort med radera.cjs)
 
    Visar kod, när, vem (namn och e-post ur kontot), tagg, text, anvandning.
    Service role ur .env.local. */
@@ -26,7 +26,7 @@ const { supa } = require('./supa.cjs');
   if (a.includes('--raderade')) {
     const r = await S.rest('GET', 'raderingar?select=kod,raderad_at&order=raderad_at.desc&limit=500');
     if (!r.length) { console.log('Inga raderade rapporter med fall i repot.'); return; }
-    console.log('Raderade av spelaren — ta bort fallen med de här koderna i repot (grep -r <kod> dev/):');
+    console.log('Raderade av spelaren — ta bort kopiorna med node dev/rapport/radera.cjs --torr, sedan utan:');
     console.table(r.map(x => ({ kod: x.kod, raderad: x.raderad_at.slice(0, 16).replace('T', ' ') })));
     return;
   }

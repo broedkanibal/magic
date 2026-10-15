@@ -79,6 +79,19 @@ function avsnitt(titel, rader) {
 
   avsnitt('BLOCKED (' + i_ar('Blocked').length + ')', i_ar('Blocked').map(rad));
 
+  /* Rapporter spelaren raderat, vars kopior inte tagits bort än (granskningen i skala, steg 5). Privacy-texten
+     lovar att de tas bort: node dev/rapport/radera.cjs --torr, sedan utan. */
+  console.log('\nRADERADE RAPPORTER — kopiorna inte borttagna');
+  try {
+    const env = require('./rapport/supa.cjs').lasEnv();
+    if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) console.log('  ? ingen service role-nyckel (.env.local) — kan inte läsa raderingar');
+    else {
+      const r = await require('./rapport/radera.cjs').ohanterade(require('./rapport/supa.cjs').supa());
+      console.log(r.rader.length ? '  ' + r.rader.length + ' ohanterade: ' + r.rader.map(x => x.kod).join(', ') + ' — node dev/rapport/radera.cjs --torr' : '  —');
+      if (r.migrationSaknas) console.log('  (kolumnen hanterad_at saknas: kör supabase/migrations/20261015120000_raderingar_hanterad.sql — till dess räknas alla raderingar)');
+    }
+  } catch (e) { console.log('  ? kunde inte läsa raderingar: ' + e.message); }
+
   const grenar = sh('git for-each-ref --format="%(refname:short)" refs/heads')
     .split('\n').filter(g => g && g !== 'main')
     .map(g => ({ g, n: parseInt(sh('git rev-list --count origin/main..' + g) || '0', 10) }))

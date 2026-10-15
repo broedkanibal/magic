@@ -286,7 +286,7 @@ främlingar spelar.
 | 2 | **Bildmåtten och den gissade sorten,** i skugga | träffen mot Jespers sort: gränser på 100 kort, prövade på nästa 100. Grinden: 80 % / 70 % per sort |
 | 3 | **Förtroendet** (grön/gul/röd), i skugga | 0 av Jespers namnändringar bland de gröna, på ≥ 200 |
 | 4 | **Kön, vyerna och tangentbordet** | tid per kort: < 3 s i rutnätet, < 10 s i en rad; Jespers tid per vecka |
-| 5 | **Raderingen och gallringen:** verktyget, `hanterad_at`, gallring efter export | raderingsprovet: 0 träffar; hinkens storlek per vecka |
+| 5 | ✓ **Raderingen och gallringen:** verktyget, `hanterad_at`, gallring efter export — byggt 2026-10-15: `radera.cjs`, `kopior.cjs` (indexet), `gallra.cjs` utökad, `prov-radera.cjs` (0 träffar). Migrationen `20261015120000` körs av Jesper | raderingsprovet: 0 träffar; hinkens storlek per vecka |
 | 6 | **Automatiken för träning:** gröna partier efter 24 h, taken, stickprovet som grind före *Bygg dataset* | stickprovet ≤ 2 fel av 50; fördelningen i datasetet; andelen oanvända på grund av spärren; bildmodellens grind (CLAUDE.md) som alltid |
 | 7 | **Prov i skala:** säkra fel per par, taken per spelare och parti i bänken | antal spelare och partier per sort i bänken |
 | 8 | **Grupperna för problemrapporterna** | 30 grupper handgranskade: för grov / för fin |
