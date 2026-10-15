@@ -172,12 +172,14 @@ def bygg(variant):
         if len(hb) == hlen:
             break
         hlen = len(hb)
+    assert len(hb) <= hlen, 'huvudets längd stabiliserades inte'
     hb = hb.ljust(hlen)
     os.makedirs(UT, exist_ok=True)
     f = filnamn(variant)
     with open(f + '.tmp', 'wb') as ut:
         ut.write(MAGI + struct.pack('<I', len(hb)) + hb)
         for namn, _typ, arr in delar:
+            assert ut.tell() <= huvud['delar'][namn]['start'], namn
             ut.write(b'\0' * (huvud['delar'][namn]['start'] - ut.tell()))
             ut.write(np.ascontiguousarray(arr).astype(arr.dtype.newbyteorder('<')).tobytes())
         ut.write(b'\0' * ((-ut.tell()) % 8))
@@ -267,7 +269,13 @@ def konstanter():
             'DEL_MARGINAL': float(re.search(r'\nconst DEL_MARGINAL = ([\d.]+);', html)[1])}
 
 
-ORBCACHE = os.path.join(UT, 'orb-par.json')
+def _kedjans_hash():
+    # ORB-svaren gäller bara för den ORB-kod de räknades med: cachen nycklas på kedjan.js (utdrag.cjs ur index.html)
+    f = os.path.join(ROT, 'dev', 'embed', 'cache', 'kedjan.js')
+    return hashlib.sha256(open(f, 'rb').read()).hexdigest()[:8] if os.path.exists(f) else 'utan-kedja'
+
+
+ORBCACHE = os.path.join(UT, f'orb-par-{_kedjans_hash()}.json')
 
 
 def nyckel_par(fraga, rot, url):

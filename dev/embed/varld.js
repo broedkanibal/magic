@@ -65,6 +65,9 @@
     const hlen = dv.getUint32(4, true);
     const huvud = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hlen)));
     if (huvud.format !== 'mesa-varld' || huvud.formatV !== 1) throw new Error('okänt världsformat ' + huvud.format + ' v' + huvud.formatV);
+    // Världens vektorer är bara jämförbara med frågor från samma modell och recept (Embed.MODELL)
+    const modell = o.modell || (global.Embed && global.Embed.MODELL);
+    if (modell && huvud.modell !== modell) throw new Error('världsfilen är byggd för ' + huvud.modell + ', inte ' + modell);
     const del = namn => { const x = huvud.delar[namn]; if (!x) return null; const T = TYPER[x.typ]; return new T(buf, x.start, x.bytes / T.BYTES_PER_ELEMENT); };
     const N = huvud.antal, D = huvud.dim;
     let vek = del('vek');
@@ -138,4 +141,4 @@
   }
 
   global.Varld = { ladda, sok, VRIDNINGAR, idAv };
-})(window);
+})(typeof self !== 'undefined' ? self : window);

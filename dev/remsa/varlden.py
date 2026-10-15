@@ -330,7 +330,8 @@ def listorna(m):
 
 def domen(lista, facit):
     a, b = lista[0], lista[1]
-    return {'namn': a[0], 'poang': round(a[1], 4), 'marginal': round(a[1] - b[1], 4), 'ratt': samma_kort(a[0], facit),
+    # Oavrundat: domen (> 0,11, ≥ 0,15) ska fällas på samma tal som telefonen ser; avrunda bara i utskriften (MES-375)
+    return {'namn': a[0], 'poang': float(a[1]), 'marginal': float(a[1] - b[1]), 'ratt': samma_kort(a[0], facit),
             'nast': b[0], 'topp': [n for n, _ in lista[:5]]}
 
 

@@ -80,7 +80,7 @@ $PY dev/remsa/varldsfil.py bygg --variant alla            # alla varianter (+ .g
 $PY dev/remsa/varldsfil.py matt --variant A,B --port 8395 # mät ur filen, ORB bara för nya par
 $PY dev/remsa/varldsfil.py sammanfatta                    # tabellen + sammanfattning.json
 $PY dev/remsa/varldsfil.py kontroll-js --variant B --port 8395     # 5a
-$PY dev/remsa/varldsfil.py kontroll-modell --port 8395             # 5b (~200 världsbilder)
+$PY dev/remsa/varldsfil.py kontroll-modell --port 8395             # 5b (förval 100 världsbilder, --stickprov N)
 ```
 
 `matt` ger per variant: storlek rå/gzip, rätt överst, bildmodellen ensam vid 0,11, och trappans
@@ -90,10 +90,10 @@ regel för alla 61, de 48 oskymda och **första försöket** (nya, oskymda kort 
 ## Ladda upp
 
 ```sh
-node dev/remsa/varldsfil-ladda-upp.cjs dev/material/arbete/2026-10-15-mes-375-varldsfil/varld-C.bin.gz             # torrt
-node dev/remsa/varldsfil-ladda-upp.cjs dev/material/arbete/2026-10-15-mes-375-varldsfil/varld-C.bin.gz --ladda-upp
+node dev/remsa/varldsfil-ladda-upp.cjs dev/material/arbete/2026-10-15-mes-375-varldsfil/varld-E3.bin.gz             # torrt
+node dev/remsa/varldsfil-ladda-upp.cjs dev/material/arbete/2026-10-15-mes-375-varldsfil/varld-E3.bin.gz --ladda-upp
 ```
 
 Lägger filen i bucketen `modeller` under ett namn med innehållets hash
-(`varld-mobileclip-s0-v1-C-<sha8>.bin.gz`), skriver aldrig över, och skriver den publika URL:en.
+(`varld-mobileclip-s0-v1-E3-<sha8>.bin.gz`), skriver aldrig över, och skriver den publika URL:en.
 Supabase tar som förval högst 50 MB per fil.
