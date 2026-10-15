@@ -47,8 +47,47 @@ ligger i fall 05, 13, 17 och 18. Fall 14 och 15 har varsitt dolt kort, som inte 
 Ungefär 10 av de 22 är länder i högar (13: 2, 17: 5, 18: 3), som i första titten. Men de fördelar sig på fyra olika
 vägar. Den största gruppen som går att rätta lokalt är "namnet fanns och tappades".
 
-## Rättelsen
+## Rättelsen som prövades: ORB som vittne åt `modell land` (INTE ihopslagen)
 
-**ORB som vittne för `modell land` på ett täckt kort.** Ändringen är på en rad i `medRemsa`, se commit-meddelandet.
-Bilden och ORB är två oberoende vittnen, och för ett kort som inte är ett land räcker `modell+orb` redan på ett täckt
-spår. Resultatet står i `dev/golden/historik.md`.
+**Idé.** `remsaLandVittne` (cc16800, MES-340) kräver att remsan eller titelraden vittnar när ett säkert `modell land`
+ligger på ett täckt spår. Regeln kom för v2-modellens två säkra fel, och de felen hade varken remsa eller ORB. Idén var
+att också låta ORB:s stöd på samma landtyp vara vittne (`bild.orbVittne`: ≥ ORB_EMOT inliers på hel skala,
+`orbNamn === svar.namn`).
+
+**Mätt (4c3858c, alla 18 fall i fyra satser, port 8293, pool 171, sats 4 klar 09:19 före MES-375:s GPU-prov).**
+- Golden: 97 → **98/119** (läsbara 97 → 98/114), 0 säkra fel namn, falska 1 → 1.
+- Fall 18: 2 → 3. Spår #5, det översta Swamp i hög A, blev `modell land+orb`.
+- Fall 13: utlagda med namn 4 → 5. Swamp nr 2 blev säkert vid 55,5 s, men slutmåttet ändrades inte.
+- Kamerabanken: 261 → 263 OK, 0 FEL.
+
+**Varför den inte slogs ihop: tre fristående granskningar (Opus), tre hål.** Alla hål är samma mekanism som golden 05
+(MES-329): beskärningen av ett undre kort som inte maskats visar kortet ovanpå, och där gav ORB ett säkert Plains på 16
+inliers åt ett Swamp. För basland skyddar varken lekens antal eller `sammaKortSom`.
+
+| Version | Villkor | Hålet granskaren fann |
+|---|---|---|
+| 4c3858c | ORB på varje täckt spår | ORB-inliers kan komma från kortet ovanpå |
+| 5cee07b | inget kort ovanpå (`!maskad && !t.tackt`), och ingen osäker remsa med annat namn ≥ 0,08 | "inget ovanpå" är frånvaro av motbevis. Saknas det övre kortets remsa (blänk, NMS) är båda korten omlott utan `tackt` |
+| 46c448d | bevis: ett annat spår har det här spårets låda i sin `tackt` (IoU ≥ 0,5) | (A) Utan det övre kortets remsa kan relationen bli **omvänd**: remsmittsregeln (~28044) lägger det undre kortet "över" när förskjutningen är under en halv remsa (golden 04-geometri). (B) I en hög med tre kort bevisar relationen bara att något ligger under, inte att inget ligger ovanpå. (C) Ett spår som inte matchats behåller sin gamla `tackt` |
+
+**Slutsatsen.** Högens ordning (`tackt`/`under`) är bara säker när båda korten har en egen, riktig remsa. Det är just
+det som saknas i landhögarna på 0,5×. Ett ORB-vittne som ska hålla 0 säkra fel kräver ett bevis på läget: att
+referenskortets mitt efter RANSAC hamnar i beskärningens mitt (`ORB.verify` via `orbSvep` sparar i dag bara skalan).
+Det är en större ändring än en rad, och vinsten i golden är ett kort.
+
+**Koden finns kvar** på den lokala grenen `golden-platan-orb-vittne` (f640b8d → 4c3858c → 5cee07b → 46c448d), med
+kamerabankens prov RL1–RL7. Den är inte ihopslagen.
+
+## Vad som återstår, i ordning
+
+1. **ORB-vittnet med lägesbevis** (ovan). Det tar 18 #5 och troligen 13:s Swamp nr 2 under förloppet, och gör
+   landhögarna lika med andra kort. Måste provas mot granskningens tre lägen A–C i kamerabanken.
+2. **Namnet som tappas vid tap och otap** (13 TM, 18 Swamp ×2, 18 Plains). Minnet av remsor når inte dit av tre skäl.
+   Minnesposter som lever räknas inte. En tappad remsa hamnar "för långt bort". Och geo-remsor ger
+   "minnets tröskel omätt", eftersom minnets tröskel 0,10 är mätt på lådremsor. Mät om tröskeln för geo-remsor i
+   `remsexp`; det är redan ett känt "mäts om".
+3. **Hålet som granskarna såg utanför uppdraget:** `medRemsa` returnerar orört när `!t.remsaLada`. Ett täckt spår
+   utan remslåda får alltså ett säkert `modell land` utan något vittne. Det är ett äldre och större hål än det
+   prövade. Mät hur ofta det slår till (golden `--detalj`: `modell land` på ett täckt spår utan remsa).
+4. Remsan under tröskeln (5 kort) och detektorn (3 kort i 17) går inte att rätta med trösklar. Det kräver
+   upplösning (4K, MES-331) eller träning av detektorn.
