@@ -165,8 +165,10 @@ Sedan: `node dev/rapport/hamta.cjs R-0412` hämtar den som en rapport (`rapport.
 `node dev/rapport/till-fall.cjs R-0412 --mattest` gör den till ett Mat test-fall — **prov, aldrig träning**: handlingarna är regler i
 avstämningen, ingen modell lär sig dem. Granskningssidan (`granska.cjs`) visar dem inte (ingen bild, inget namn); `lista.cjs --rattelser` gör det.
 
-I facit (`byggFacit`) gäller dessutom: vrider spelaren tillbaka **sitt eget** tap inom 60 s (Undo, Follow camera) hade kameran rätt — spelarens
-tap stryks, eller kamerans tap som det strök gäller igen. En flytt på mattan räknas fortfarande inte i facit (spelaren kan ha ordnat mattan
+I facit (`byggFacit`) gäller dessutom: vrider spelaren tillbaka **sitt eget** tap med Undo eller Follow camera hade kameran rätt — spelarens
+tap stryks, eller kamerans tap som det strök gäller igen. Undo/Follow camera = en `angrad`/`folj_kameran` för kortet inom 2 s i
+`vy.handlingar`, annars inom 10 s (toasten står i 4 s); ett untap senare är ett riktigt untap och står kvar.
+`grav_hand` loggas inte för en flytt mellan högarna (graveyard → exile): draget började i en hög. En flytt på mattan räknas fortfarande inte i facit (spelaren kan ha ordnat mattan
 utan att röra det riktiga kortet); `flytt_hand` mäts bara i `kort_handelser`.
 
 Mattans logg (`slag 'matta'`, `av` spelare/kamera) förs fram direkt efter varje sådan rättelse, inte först vid nästa `renderAll` — annars kunde

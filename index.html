@@ -8639,12 +8639,14 @@ function aurorFoljer(cards, vard) {
     else { k.zon = ZON_GRAV; delete k.attachedTo; }
   }
 }
-function flyttaTill(i, zon) {
+function flyttaTill(i, zon, fraHog) {
   const c = hand(), e = c[i];
   if (!e || zonAv(e) === zon) return false;
   /* MES-385: spelaren lade ett kort kameran följer i en hög själv. Bara spelaren anropar flyttaTill; kamerans
-     egna graveyard-regler skriver zon direkt (avstamBord: gravAuto, spellAuto). */
-  if ((zon === ZON_GRAV || zon === ZON_EXIL) && kamFoljer(e)) khHandling('grav_hand', e, { zon: zon === ZON_GRAV ? 'grav' : 'exil' });
+     egna graveyard-regler skriver zon direkt (avstamBord: gravAuto, spellAuto). fraHog: draget började i en hög
+     (spawnFromGrave tar bort zon under draget, och spåret lever kvar på ett kort som ligger i högen) — en flytt
+     mellan högarna säger inte emot kameran. */
+  if (!fraHog && (zon === ZON_GRAV || zon === ZON_EXIL) && kamFoljer(e)) khHandling('grav_hand', e, { zon: zon === ZON_GRAV ? 'grav' : 'exil' });
   angraPunkt();
   e.zon = zon;
   const hog = zon === ZON_GRAV || zon === ZON_EXIL;
@@ -15781,7 +15783,7 @@ function matDndSlut(ev, avbryt) {
     c.x = d.start.x; c.y = d.start.y;
     matValda.delete(c.cid);
     if (matHover === c.cid) matHover = null;
-    utanAngra(() => flyttaTill(h.indexOf(c), ZON_EXIL));
+    utanAngra(() => flyttaTill(h.indexOf(c), ZON_EXIL, !!d.fraZon));
     fjarrIkapp(); return;
   }
   if (d.over) {
@@ -15791,7 +15793,7 @@ function matDndSlut(ev, avbryt) {
     /* Hovern och markeringen följer inte med ner i högen (§3). */
     matValda.delete(c.cid);
     if (matHover === c.cid) matHover = null;
-    utanAngra(() => flyttaTill(h.indexOf(c), ZON_GRAV));
+    utanAngra(() => flyttaTill(h.indexOf(c), ZON_GRAV, !!d.fraZon));
     gravSlappt();
     fjarrIkapp(); return;
   }
@@ -40444,6 +40446,8 @@ var Rattelse = (() => {   // var: se Rapport
   }
   async function sparaHandlingar(S) {
     if (pausad) return null;
+    /* Partiet bytt eller lämnat: bordsloggen är ett annat partis (eller borta) — inget fall hellre än fel underlag. */
+    if (!spelLage || spelLage.id !== S.spel) { stat.bytt = (stat.bytt || 0) + 1; return null; }
     if (!(await Moln.bildInstallning())) { stat.av++; return null; }
     const till = Date.now(), p = Rapport.handlingsPaket(S.forsta - HANDLING_FORE_MS, till);
     if (!p) { stat.utanLogg = (stat.utanLogg || 0) + 1; return null; }   // ingen telefon, inget bord: inget fall att göra

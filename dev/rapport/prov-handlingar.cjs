@@ -134,6 +134,11 @@ const PROV = async () => {
   /* To the graveyard själv. */
   klick(); flyttaTill(idx('Serra Angel'), ZON_GRAV); await vanta(100);
   ok('To the graveyard för hand: grav_hand { zon: grav }', handl().some(r => r.typ === 'grav_hand' && r.namn === 'Serra Angel' && r.rapport.zon === 'grav'));
+  /* Ur graveyard till exile (draget började i högen, som släppet i dndSlapp skickar fraZon): ingen rättelse. */
+  const g0 = handl().length;
+  const serra = kort('Serra Angel'); delete serra.zon;   // som spawnFromGrave under draget
+  klick(); flyttaTill(idx('Serra Angel'), ZON_EXIL, true); await vanta(100);
+  ok('en flytt mellan högarna (graveyard → exile) säger inte emot kameran: ingen grav_hand', handl().length === g0 && zonAv(serra) === ZON_EXIL, JSON.stringify(handl().slice(g0)));
   Rattelse.skickaHandlingar(); await vanta(300);
   ok('inställningen AV: ingen tyst rättelse, ingen fil', A.rader.length === 0 && !Object.keys(A.filer).length, JSON.stringify(Rattelse.stat()));
 
@@ -201,6 +206,16 @@ const PROV = async () => {
          fall && JSON.stringify(fall.struket));
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   } else ok('hela vägen till ett fall', false, 'inget paket ur steg 2');
+
+  /* byggFacit direkt (granskningen av eefd7bc): ett riktigt untap långt efter spelarens tap är inget Undo. */
+  const { byggFacit } = require('./till-fall.cjs');
+  const ev = (s, typ) => ({ s, typ, kort: 'Forest', id: 'f1', av: 'spelare' });
+  const fa = byggFacit([ev(5, 'tappar'), ev(40, 'otappar')], {});
+  ok('facit: spelarens tap vid 5 s och untap vid 40 s (det riktiga kortet vreds tillbaka) står båda kvar', fa.rader.filter(r => !r.stryk).map(r => r.typ).join(',') === 'tappar,otappar', JSON.stringify(fa.rader));
+  const fb = byggFacit([ev(5, 'tappar'), ev(40, 'otappar')], { angrade: [{ id: 'f1', s: 40.3 }] });
+  ok('facit: samma untap med Follow camera (angrade) ångrar tapet', fb.rader.every(r => r.stryk), JSON.stringify(fb.rader));
+  const fc = byggFacit([ev(5, 'tappar'), ev(7, 'otappar')], {});
+  ok('facit: untap inom 10 s utan rättelserna (en vanlig rapport) räknas som Undo', fc.rader.every(r => r.stryk), JSON.stringify(fc.rader));
 
   let fel = 0;
   for (const [namn, okk, detalj] of rad) { if (!okk) fel++; console.log(`${okk ? 'OK ' : 'FEL'}  ${namn}${detalj ? '  (' + String(detalj).slice(0, 300) + ')' : ''}`); }

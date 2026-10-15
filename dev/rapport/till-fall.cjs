@@ -58,9 +58,13 @@
      - spelaren lägger dit ett kort → utspel (kameran missade det)
      - spelaren tappar/otappar      → kamerans motsatta tap inom 60 s stryks,
                                        annars är spelarens tap facit
-     - spelaren vrider tillbaka sitt eget tap inom 60 s (Undo i toasten,
-       Follow camera, MES-385)       → kameran hade rätt: spelarens tap stryks,
-                                       eller kamerans tap som det strök gäller igen
+     - spelaren vrider tillbaka sitt eget tap med Undo i toasten eller
+       Follow camera (MES-385)       → kameran hade rätt: spelarens tap stryks,
+                                       eller kamerans tap som det strök gäller igen.
+       Undo/Follow camera = en rad angrad eller folj_kameran för kortet inom
+       2 s i en rättelse av handlingar (vy.handlingar), annars att det skedde
+       inom EGET_ANGRA_S (10 s; toasten står i 4 s). Ett untap senare är ett
+       riktigt untap: det riktiga kortet vreds tillbaka
    Orden (--orden, en TSV) är samma sak med spelarens röst: kolumnerna
    t (sekund i bordsloggen), gor (stryk | lagg), typ (spelar, tar_bort,
    flyttar, tappar, otappar), kort, till, text. `stryk` tar bort kamerans
@@ -113,7 +117,7 @@ const BANK = path.join(UTROT, 'dev', 'remsa', 'rapportbank');
 const MARKNING = path.join(UTROT, 'dev', 'material', 'arbete', 'markning');
 const TRANPASS = 'rapporter-traning-mesa';   // passmappens namn: '-traning-' gör den till träning för delning.py
 
-const FLYTT_S = 8, TAPP_S = 1, ANGRA_S = 60, STRYK_S = 10;
+const FLYTT_S = 8, TAPP_S = 1, ANGRA_S = 60, STRYK_S = 10, EGET_ANGRA_S = 10;
 
 /* ── B:s rättelse (MES-366) ───────────────────────────────────────────────
    Kontraktet: en rad i rapporter med kalla 'rattelse', och under radens
@@ -236,7 +240,8 @@ function byggFacit(handelser, opt) {
         const mot = e.typ === 'tappar' ? 'otappar' : 'tappar';
         /* Spelaren vrider tillbaka sitt eget tap: kameran hade rätt. Det spelarens tap gjorde tas tillbaka. */
         const f = e.id != null ? egetTap.get(e.id) : null;
-        if (f && f.typ === mot && s - f.s <= ANGRA_S) {
+        const angrat = f && (s - f.s <= EGET_ANGRA_S || (opt.angrade || []).some(a => a.id === e.id && Math.abs(a.s - s) <= 2));
+        if (f && f.typ === mot && s - f.s <= ANGRA_S && angrat) {
           egetTap.delete(e.id);
           if (f.struk) delete f.rad.stryk; else f.rad.stryk = `spelaren vred tillbaka sitt eget tap ${s} s (Undo eller Follow camera)`;
           rattelser.push({ t: s, vad: `ångrade sitt tap av ${e.kort} (kameran hade rätt)` });
@@ -303,7 +308,9 @@ function mattestFall(o) {
   const kamera = harMatta ? matta.filter(e => e.av !== 'spelare').map(e => Object.assign({}, e, { av: 'kamera' })) : kameranUrBordsloggen(rader);
   const spelare = harMatta ? matta.filter(e => e.av === 'spelare') : [];
   const alla = kamera.concat(spelare).sort((a, b) => a.s - b.s);
-  const F = byggFacit(alla, { dokUpp: K.tagg === 'dok_upp', tryck: K.frys ? (K.frys - s0) / 1000 : null });
+  /* En rättelse av handlingar (MES-385) bär spelarens Undo och Follow camera: de skiljer ett ångrat tap från ett riktigt untap. */
+  const angrade = (K.handlingar || []).filter(h => (h.typ === 'angrad' || h.typ === 'folj_kameran') && h.cid && h.t).map(h => ({ id: h.cid, s: (h.t - s0) / 1000 }));
+  const F = byggFacit(alla, { dokUpp: K.tagg === 'dok_upp', tryck: K.frys ? (K.frys - s0) / 1000 : null, angrade });
   const orden = o.orden ? lasOrden(o.orden) : [];
   const ordenGjort = tillampaOrden(F.rader, orden);
   const facit = F.rader.filter(r => !r.stryk).map(r => { const x = { t: r.t, typ: r.typ, kort: r.kort }; if (r.till) x.till = r.till; return x; });
@@ -343,7 +350,7 @@ function kallaUrMapp(mapp, kod) {
   if (!fs.existsSync(bf)) throw new Error(`${path.relative(ROT, bf)} saknas — rapporten har ingen bordslogg (telefonen var inte ansluten?) och kan inte bli ett Mat test-fall`);
   const B = lasJsonFil(bf);
   const m = R.miljo || {};
-  return { kod: kod || R.kod, text: R.text, tagg: R.tagg, frys: typeof R.frys === 'number' ? R.frys : null, start: Date.parse(B.start), rader: B.bordLogg, matta: (R.tidslinje || []).filter(e => e.slag === 'matta'), upplosning: null, kallaNamn: 'rapport',
+  return { kod: kod || R.kod, text: R.text, tagg: R.tagg, frys: typeof R.frys === 'number' ? R.frys : null, handlingar: R.vy && R.vy.handelse === 'handling' ? R.vy.handlingar || null : null, start: Date.parse(B.start), rader: B.bordLogg, matta: (R.tidslinje || []).filter(e => e.slag === 'matta'), upplosning: null, kallaNamn: 'rapport',
     parti: parti((R.rad && R.rad.game_id) || m.spelId || B.spel, m.spel || B.spelkod || B.spelKod) };
 }
 function kallaUrLogg(fil, spelkod) {
