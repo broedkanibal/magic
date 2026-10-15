@@ -622,3 +622,66 @@ slutsats som ovan följer: ett filter som sparar 40–60 % av sökningen räddar
    på de kort som faktiskt är liggande.
 5. Golden mot världen i appens kedja (etapp 2) står kvar, och fingeravtryckens storlek är det som
    filtret på färg skulle kunna hjälpa mest med (57 % vid tre färger).
+
+## Resultat: världens fingeravtryck i en fil (MES-375, 2026-10-15)
+
+### Svaret först
+
+| Fråga | Svar |
+|---|---|
+| Ryms världen i 50 MB utan att telefonen blir sämre? | **Ja.** Variant E3 är 31 MB över nätet (41 MB uppackad) och klarar lika många nya kort som G1: **24 av 37 (65 %), 0 säkra fel**. |
+| Vad kostar ~25 MB? | **Ett kort av 37.** E1 är 22 MB över nätet och klarar 23 av 37 (62 %), 0 säkra fel. Skillnaden är en beskärning, inom bruset för 37 fall. |
+| Räknar telefonen samma vektorer som bänken? | **Ja.** Samma fil ger samma topp-5 i JS och Python för alla 61 beskärningar. Bildmodellen i webbläsaren (embed.js) och i Python ger cos 0,999 i median, och 0 av 100 världsbilder under 0,98. |
+| Var ligger filen? | Inte uppladdad än. Skriptet är klart. Uppladdningen till Supabase-bucketen `modeller` stoppades av behörighetsspärren för produktion, och görs av Jesper (kommandot nedan). |
+
+### Varianterna
+
+Mätt ur själva filen (det som skickas), med G1:s regel (ORB måste bära bildmodellens etta) på samma 61
+beskärningar. "Första försöket" = nya, oskymda kort som inte är basland (37). Kod: `dev/remsa/varldsfil.py`,
+läsaren i telefonen `dev/embed/varld.js`, beskrivning `dev/remsa/LÄS-MIG-varldsfil.md`.
+
+| Variant | Över nätet (gzip) | Uppackad | Rätt överst /61 | Första försöket /37 | Säkra fel |
+|---|---|---|---|---|---|
+| A fp16, skarp + sudd (= G1) | 95 MB | 104 MB | 40 | 24 (65 %) | 0 |
+| B int8, skarp + sudd | 45 MB | 53 MB | 40 | 24 (65 %) | 0 |
+| **E3 PCA 384 + int8** | **31 MB** | **41 MB** | 39 | **24 (65 %)** | **0** |
+| E1 PCA 256 + int8 | 22 MB | 28 MB | 38 | 23 (62 %) | 0 |
+| E4 PCA 192 + int8 | 17 MB | 22 MB | 36 | 21 (57 %) | 0 |
+| E2 PCA 128 + int8 | 12 MB | 15 MB | 37 | 21 (57 %) | 0 |
+| C bara sudd | 23 MB | 27 MB | 11 | 0 | 0 |
+| D en referens per namn | 16 MB | 19 MB | 24 | 12 | 0 |
+| F1 skarp och sudd ihopslagna per konstverk | 24 MB | 27 MB | 26 | 12 | 0 |
+
+- **Det som går att krympa är talen och dimensionerna**, inte antalet referenser. int8 (ett tal per vektor
+  som skala) kostar ingenting. PCA ner till 384 dimensioner kostar ingenting, till 256 ett kort.
+- **Skarp och sudd måste båda finnas**, som separata referenser. Utan den skarpa (C) eller med de två
+  ihopslagna (F1, D) faller första försöket till 0–12 av 37: de liggande navkorten tar över (se G1).
+- **Valet: E3.** Den håller G1:s nivå och ligger under 50 MB med marginal. E1 är ett kommando bort om
+  telefonen visar att minnet (41 MB) eller sökningen är för tung — det mäts i MES-377.
+
+### Tid (Macen, huvudlös Chrome; telefonen inte mätt)
+
+| Steg | Tid |
+|---|---|
+| packa upp och läsa filen (gzip, lokalt) | 0,4–0,8 s |
+| en sökning bland 99 092 referenser, fyra vridningar | 0,11–0,24 s |
+| hämtningen över nätet | inte mätt; 31 MB är ~10–15 s på 4G (J3), en gång |
+
+### Förbehåll
+
+- Samma 61 beskärningar som G1, och E3 valdes bland tolv varianter på dem. Dess 24/37 är därför något
+  optimistiskt; E1:s 23/37 är lika troligt det sanna värdet för båda.
+- En av 61 frågor gav cos 0,959 mellan webbläsarens och Pythons bildmodell (median 0,998). Referenssidan,
+  som är den förräknade filen, ligger på 0,996 eller bättre.
+- Basland och remsor ingår inte i måttet. Remsornas fil väntar på lekfotots session 3.
+- Bänkens dom fälldes tidigare på en marginal avrundad till fyra decimaler. Det är rättat (en Plains på
+  0,14996 räknades som ≥ 0,15). G1:s siffror ändras inte av det.
+
+### Ladda upp (Jesper)
+
+```bash
+node dev/remsa/varldsfil-ladda-upp.cjs dev/material/arbete/2026-10-15-mes-375-varldsfil/varld-E3.bin.gz --ladda-upp
+```
+
+Filen hamnar på
+`https://rtoejcafnssypnysjmey.supabase.co/storage/v1/object/public/modeller/varld-mobileclip-s0-v1-E3-792fefcb.bin.gz`.

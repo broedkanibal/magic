@@ -63,7 +63,9 @@ function env() {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, apikey: SUPABASE_SERVICE_ROLE_KEY,
-      'Content-Type': gz ? 'application/gzip' : 'application/octet-stream',
+      // Bucketen tar bara application/octet-stream (application/gzip ger 415 invalid_mime_type). varld.js
+      // känner igen gzip på de två första byten, och utan Content-Encoding packar webbläsaren inte upp den själv.
+      'Content-Type': 'application/octet-stream',
       'Cache-Control': 'max-age=31536000, immutable', 'x-upsert': 'false',
     },
     body: data,

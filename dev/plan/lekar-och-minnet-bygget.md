@@ -43,7 +43,7 @@ redan är klar.
 | G1, G2 | världen, nya kort per parti | **mätt** (MES-361) | underlag för 2a/2b. G1 steg 2 (golden mot världen) = acceptansprov i 2b |
 | G3 | Claude som lärare | **mätt** (MES-364) | underlag för 3 |
 | G4 | hur snabbt den aktiva leken hittar rätt | **inte mätt** | bänken före 1b |
-| T1 | världens fingeravtryck på telefonen | gap | 2a |
+| T1 | världens fingeravtryck på telefonen | **byggt** (MES-375): E3, 31 MB, 24/37, 0 fel | 2b |
 | T2 | ORB mot Scryfall-bilder vid behov | gap | 2b |
 | T3 | minnet i datan | gap | 1a |
 | T4 | learned och complete | gap | 1a |
