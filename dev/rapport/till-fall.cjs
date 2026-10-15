@@ -201,7 +201,7 @@ const UT = new Set(['graveyard', 'exile', 'hand', 'handen', 'library', 'borta'])
    tapet var ett misstag eller om det riktiga kortet vreds fram och tillbaka går inte att skilja, så påståendet
    märks osaker och räknas inte. En flytt på mattan är inget påstående (spelaren kan ha ordnat mattan), inte heller
    ett tillagt kort (inget spår att känna igen det på). */
-function pastaendenUrJournalen(journal, s0, egnaFran) {
+function pastaendenUrJournalen(journal, s0, egnaFran, egnaTill) {
   const alla = [], stack = new Map();   // cid → spelarens påståenden om kortet, nyast sist
   const aktiva = cid => (stack.get(cid) || []).filter(p => !p.tillbaka && !p.osaker).reverse();   // nyast först
   for (const j of (journal || []).slice().sort((a, b) => a.t - b.t)) {
@@ -214,8 +214,9 @@ function pastaendenUrJournalen(journal, s0, egnaFran) {
     if (p) {
       Object.assign(p, { t, spar: j.spar != null ? j.spar : null, kort: j.namn || null, cid, kalla: j.typ });
       if (p.spar == null) p.ejAvgorbart = 'spåret okänt — kortet går inte att känna igen i uppspelningen';
-      /* Före paketets första rättelse: påståendet hör till förra paketets fall och räknas där, inte här. */
-      if (egnaFran != null && j.t < egnaFran) p.forraFallet = true;
+      /* Paketet äger (egnaFran, egnaTill]: det före räknas i förra paketets fall, det efter (ur ett senare paket, med
+         för att Undo och ⌘Z där ska träffa rätt påstående) i nästa. */
+      if ((egnaFran != null && j.t <= egnaFran) || (egnaTill != null && j.t > egnaTill)) p.annatFall = true;
       alla.push(p); (stack.get(cid) || stack.set(cid, []).get(cid)).push(p);
       continue;
     }
@@ -231,7 +232,7 @@ function pastaendenUrJournalen(journal, s0, egnaFran) {
       if (f) f.osaker = `mattan fick följa kameran igen ${t} s (${j.typ === 'folj_kameran' ? 'Follow camera' : 'tap tillbaka för hand'}): ett misstag eller ett riktigt tap och untap går inte att skilja`;
     }
   }
-  return alla.filter(p => !p.forraFallet);
+  return alla.filter(p => !p.annatFall);
 }
 
 function byggFacit(handelser, opt) {
@@ -355,7 +356,7 @@ function mattestFall(o) {
   const exakt = Array.isArray(K.spelare);
   /* Senare rättelser i partiet (K.senare: andra paket, hämtade ur tabellen) kan ta tillbaka ett påstående här — Undo,
      ⌘Z eller Follow camera efter att det här paketet skickats. */
-  const pastaenden = exakt ? pastaendenUrJournalen(K.spelare.concat(K.senare || []), s0, K.forsta).filter(p => p.t >= fran - 1e-9 && p.t <= till + 1e-9) : null;
+  const pastaenden = exakt ? pastaendenUrJournalen(K.spelare.concat(K.senare || []), s0, K.agerFran, K.till).filter(p => p.t >= fran - 1e-9 && p.t <= till + 1e-9) : null;
   const harMatta = !exakt && matta.length > 0;
   const kamera = exakt ? [] : harMatta ? matta.filter(e => e.av !== 'spelare').map(e => Object.assign({}, e, { av: 'kamera' })) : kameranUrBordsloggen(rader);
   const spelare = harMatta ? matta.filter(e => e.av === 'spelare') : [];
@@ -403,7 +404,7 @@ function kallaUrMapp(mapp, kod) {
   if (!fs.existsSync(bf)) throw new Error(`${path.relative(ROT, bf)} saknas — rapporten har ingen bordslogg (telefonen var inte ansluten?) och kan inte bli ett Mat test-fall`);
   const B = lasJsonFil(bf);
   const m = R.miljo || {};
-  return { kod: kod || R.kod, text: R.text, tagg: R.tagg, frys: typeof R.frys === 'number' ? R.frys : null, spelare: Array.isArray(R.spelare) ? R.spelare : null, forsta: R.vy && R.vy.forsta != null ? R.vy.forsta : null, skapad: (R.rad && R.rad.created_at) || null, handlingar: R.vy && R.vy.handelse === 'handling' ? R.vy.handlingar || null : null, start: Date.parse(B.start), rader: B.bordLogg, matta: (R.tidslinje || []).filter(e => e.slag === 'matta'), upplosning: null, kallaNamn: 'rapport',
+  return { kod: kod || R.kod, text: R.text, tagg: R.tagg, frys: typeof R.frys === 'number' ? R.frys : null, spelare: Array.isArray(R.spelare) ? R.spelare : null, agerFran: R.vy ? (R.vy.agerFran != null ? R.vy.agerFran : R.vy.forsta != null ? R.vy.forsta - 1 : null) : null, till: R.vy && R.vy.till != null ? R.vy.till : null, skapad: (R.rad && R.rad.created_at) || null, handlingar: R.vy && R.vy.handelse === 'handling' ? R.vy.handlingar || null : null, start: Date.parse(B.start), rader: B.bordLogg, matta: (R.tidslinje || []).filter(e => e.slag === 'matta'), upplosning: null, kallaNamn: 'rapport',
     parti: parti((R.rad && R.rad.game_id) || m.spelId || B.spel, m.spel || B.spelkod || B.spelKod) };
 }
 function kallaUrLogg(fil, spelkod) {
@@ -678,9 +679,11 @@ async function korInre(a) {
       if (o.lokal || !gid || !K.skapad) o.senareVarning = `senare rättelser i partiet är inte kontrollerade (${o.lokal ? '--lokal' : 'partiet eller tiden okänd'}) — en Undo eller ⌘Z efter paketet syns inte`;
       else {
         const rader = await supa().rest('GET', `rapporter?game_id=eq.${encodeURIComponent(gid)}&kalla=eq.rattelse&created_at=gt.${encodeURIComponent(K.skapad)}&select=kod,vy&order=created_at.asc`);
+        /* Hela de senare paketens rättelser (inte bara Undo): deras egna tap ligger då i kortets stack, så att en Undo
+           där tar tillbaka sitt eget tap och inte det här paketets. Bara det som ligger efter det här paketet. */
         K.senare = [];
         for (const r of rader || []) for (const h of (r.vy && r.vy.handelse === 'handling' && r.vy.handlingar) || [])
-          if (h.typ === 'angrad' || h.typ === 'folj_kameran') K.senare.push({ t: h.t, typ: h.typ, cid: h.cid, rapport: h });
+          if (K.till == null || h.t > K.till) K.senare.push({ t: h.t, typ: h.typ, cid: h.cid, spar: h.spar != null ? h.spar : null, namn: h.kort || null, rapport: h });
       }
     }
     plan = { slag: 'mattest', ut: mattestFall(Object.assign({}, o, { kalla: K })), kod: K.kod, parti: K.parti || null };

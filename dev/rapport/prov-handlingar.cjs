@@ -175,7 +175,7 @@ const PROV = async () => {
      && paket.spelare.every(j => j.spar != null && j.cid && j.t), jt && jt.join(','));
   ok('paketet: ingen bild, inga anrop, inget som frågar Claude', paket && !JSON.stringify(paket).includes('data:image') && !Lada.utdrag().some(e => e.slag === 'claude'));
   const vh = r ? r.vy.handlingar.map(h => h.typ + ':' + h.kort) : [];
-  ok('raden bär rättelserna sedan förra sändningen (vy.handlingar: Forest … Giant Growth, inte Mountain) och forsta', vh.length === 14 && vh[0] === 'tap_hand:Forest' && vh[13] === 'angrad:Giant Growth' && !vh.some(x => /Mountain/.test(x)) && r.vy.forsta > 0, vh.join(','));
+  ok('raden bär rättelserna sedan förra sändningen (vy.handlingar: Forest … Giant Growth, inte Mountain) och forsta', vh.length === 14 && vh[0] === 'tap_hand:Forest' && vh[13] === 'angrad:Giant Growth' && !vh.some(x => /Mountain/.test(x)) && r.vy.forsta > 0 && r.vy.agerFran >= r.vy.forsta - 60000 && r.vy.agerFran < r.vy.forsta && r.vy.till >= r.vy.forsta, vh.join(','));
   return { rad, paket };
 };
 
@@ -272,6 +272,8 @@ const PROV = async () => {
   const z5 = pj([j(1, 'tap_hand', { tappad: 1 }), j(30, 'tap_hand', { tappad: 1 }, 'Swamp')], 0, 20000);
   ok('ett påstående före paketets första rättelse hör till förra fallet och räknas inte här', z5.length === 1 && z5[0].kort === 'Swamp', JSON.stringify(z5));
   const z6 = pj([j(1, 'tap_hand', { tappad: 1 }), j(30, 'tap_hand', { tappad: 1 }, 'Swamp'), j(40, 'angrad', { av: 'tap' })], 0, null);
+  const z7 = pj([j(5, 'tap_hand', { tappad: 1 }), j(50, 'tap_hand', { tappad: 1 }), j(52, 'angrad', { av: 'tap' })], 0, null, 30000);
+  ok('en Undo i nästa paket av ett tap i nästa paket rör inte det här paketets tap', status(z7) === 'tappad:räknas', status(z7));
   ok('en senare Undo (ur nästa paket) tar tillbaka påståendet i det här fallet', status(z6) === 'tappad:tillbaka,tappad:räknas' || status(z6) === 'tappad:räknas,tappad:tillbaka', status(z6));
 
   let fel = 0;

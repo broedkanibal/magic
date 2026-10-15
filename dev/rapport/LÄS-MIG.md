@@ -177,10 +177,13 @@ och ett tap tillbaka för hand säger bara att mattan följer kameran **nu**: om
 riktiga kortet vreds fram och tillbaka går inte att skilja, så påståendet märks `osaker` och räknas inte. Ett påstående
 utan spår (`ejAvgorbart`) räknas inte heller. En flytt på mattan och ett tillagt kort blir inga påståenden.
 
-**Varje påstående hör till ett fall:** paketet räknar bara påståenden från sin första rättelse (`vy.forsta`); de före
-följer med som underlag och räknas i förra paketets fall (eller inget, om det inte skickades — inställningen av, ett
-annat parti). En Undo, ⌘Z eller Follow camera som kommer efter att paketet skickats ligger i ett senare paket:
-`till-fall.cjs --mattest` hämtar partiets senare rättelser ur tabellen och tar tillbaka påståendena även här. Med
+**Varje påstående hör till ett fall:** paketet äger påståendena i (`vy.agerFran`, `vy.till`] — från förra paketets
+slut (eller fönstrets början, 60 s före första rättelsen) till sitt eget slut, som sätts när paketet lämnar samlingen
+(innan något väntas in, så att en rättelse under sändningen hamnar i nästa paket). Det före följer med som underlag och
+räknas i förra paketets fall (eller inget, om det inte skickades — inställningen av, ett annat parti, eller mer än
+60 s före: ett namnbyte eller Remove startar inget paket själv). En Undo, ⌘Z eller Follow camera som kommer efter att
+paketet skickats ligger i ett senare paket: `till-fall.cjs --mattest` hämtar partiets senare paket ur tabellen — hela,
+så att en Undo där av ett tap där inte träffar det här paketets tap — och tar tillbaka påståendena även här. Med
 `--lokal` görs det inte, och fallet säger det (VARNING).
 
 Mat test mäter fallet med **"Spelarens rättelser som uppspelningen redan visade"**: visade uppspelningen påståendets

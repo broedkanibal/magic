@@ -341,7 +341,8 @@ function berakna(fall, logg) {
         const levande = k && k.fodd <= p.t + 1e-9 && (k.dod == null || k.dod > p.t);
         const nedtonad = k && k.lyft.some(([a, b]) => a <= p.t + 1e-9 && (b == null || b > p.t));
         /* Ett levande kort som bundits om till ett annat spår före t är inte kortet påståendet gäller. */
-        const omband = k && levande && k.sparBana && String(vidBana(k.sparBana, p.t, k.sparFodd)) !== String(p.spar);
+        const spNu = k && k.sparBana ? vidBana(k.sparBana, p.t, k.sparFodd) : null;   // null = spåret släppt, kortet kvar (nedtonat)
+        const omband = k && levande && spNu != null && String(spNu) !== String(p.spar);
         if (!k || omband) som = 'ej avgörbar';
         else if (p.typ === 'tappad') { const b = levande ? vid(k, p.t) : null; som = !levande ? 'visade inte' : !b ? 'ej avgörbar' : b[5] === p.varde ? 'visade' : 'visade inte'; }
         else if (p.typ === 'borta') {
