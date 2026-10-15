@@ -154,6 +154,7 @@ code { font-size: 12px; background: var(--yta2); padding: 1px 4px; border-radius
   <h1>Granska rättelser</h1>
   <p class="under">Rättelserna spelarna gjort med <i>Share pictures of cards I correct</i> på. Kontrollera att beskärningen och det rätta namnet stämmer, och välj <b>Träning</b> (bildmodellen lär sig av kortet), <b>Prov</b> (bänken mäter modellen mot det) eller <b>Släng</b>. Sidan föreslår ett val och säger varför; Prov kräver en sorts fel. Valet går inte att ändra efteråt, och ett tillfälle (samma spelare, matcher med under 6 timmar emellan) hamnar aldrig både i träning och prov. Fliken <b>Handlingar</b> har rättelserna av tap, flyttar till graveyard/exile/hand, Undo och Follow camera: de blir <b>Mat test</b>-fall eller slängs, aldrig träning.</p>
   <div class="sortforst" id="sortforst"></div>
+  <div class="not fel" id="nere" hidden>Granskningens server svarar inte, så bilderna och valen kan inte hämtas. Starta den igen (<code>node dev/rapport/granska.cjs</code>) och ladda om sidan.</div>
   <nav id="flikar"></nav>
 </header>
 <main>
@@ -224,6 +225,22 @@ function parti(r) { return r.game_id || (r.spelkod ? 'kod:' + r.spelkod : 'utan:
 const tillf = r => r.tillfalle || parti(r);
 const provTillf = x => { const r = x.kod && rader.find(y => y.kod === x.kod); return r ? tillf(r) : x.parti; };
 
+/* En bild som inte kommer: är det servern som är borta säger sidan det, i stället för "Ingen bild hos Scryfall". */
+async function bildFel(img, text) {
+  let uppe = true;
+  try { await fetch('/', { method: 'HEAD', cache: 'no-store' }); } catch (e) { uppe = false; }
+  if (!uppe) $('#nere').hidden = false;
+  if (img.isConnected) img.replaceWith(Object.assign(document.createElement('div'), { className: 'ingen', textContent: uppe ? text : 'Servern svarar inte' }));
+}
+/* Listan ritas om efter varje sortval och namn: bilderna som redan kommit flyttas in i den nya listan, så att de inte
+   hämtas på nytt (och står kvar om servern skulle ha stannat). */
+function behallBilder(rita) {
+  const klara = new Map();
+  for (const img of $('#lista').querySelectorAll('img')) if (img.complete && img.naturalWidth) klara.set(img.getAttribute('src'), img);
+  rita();
+  for (const img of $('#lista').querySelectorAll('img')) { const g = klara.get(img.getAttribute('src')); if (g) { img.replaceWith(g); klara.delete(g.getAttribute('src')); } }
+}
+
 function ritaLista() {
   ritaFlikar();
   const F = FLIKAR.find(f => f.id === flik) || FLIKAR[0];
@@ -236,7 +253,7 @@ function ritaLista() {
   }
   const grupper = new Map();
   for (const r of synliga) { const p = parti(r); if (!grupper.has(p)) grupper.set(p, []); grupper.get(p).push(r); }
-  $('#lista').innerHTML = [...grupper.entries()].map(([p, rr]) => {
+  behallBilder(() => { $('#lista').innerHTML = [...grupper.entries()].map(([p, rr]) => {
     const alla = rader.filter(x => parti(x) === p), iTillf = rader.filter(x => tillf(x) === tillf(rr[0]));
     const sidor = new Set(iTillf.map(x => x.anvandning).filter(a => a === 'traning' || a === 'test'));
     const matcher = new Set(iTillf.map(parti)).size;
@@ -250,7 +267,7 @@ function ritaLista() {
         ${osort.length > 1 && !iTillf.some(x => x.anvandning === 'test' && x.testSlag !== 'mattest') && !osort.some(x => rekommendera(x).val === 'test') ? `<button class="liten" ${upptagen ? 'disabled' : ''} data-alla="${esc(p)}">Alla ${osort.length} osorterade → Träning</button>` : ''}</div>
       ${rr.map(radHtml).join('')}
     </div>`;
-  }).join('');
+  }).join(''); });
   folj();
   matSynliga();
 }
@@ -481,8 +498,8 @@ async function laddaFortroende() {
 function radHtml(r) {
   const andrad = r.sattNamn && r.sattNamn !== r.ratt;
   const visatNamn = r.sattNamn || r.ratt;
-  const bild = r.harBild ? `<img src="/api/bild/${esc(r.kod)}" alt="Beskärningen" data-zoom="${esc(r.kod)}" loading="lazy">` : '<div class="ingen">Beskärningen saknas</div>';
-  const ref = visatNamn ? `<img src="/api/kort?namn=${encodeURIComponent(visatNamn)}" alt="${esc(visatNamn)} hos Scryfall" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ingen',textContent:'Ingen bild hos Scryfall'}))">` : '<div class="ingen">Inget rätt namn</div>';
+  const bild = r.harBild ? `<img src="/api/bild/${esc(r.kod)}" alt="Beskärningen" data-zoom="${esc(r.kod)}" loading="lazy" onerror="bildFel(this, 'Beskärningen gick inte att hämta')">` : '<div class="ingen">Beskärningen saknas</div>';
+  const ref = visatNamn ? `<img src="/api/kort?namn=${encodeURIComponent(visatNamn)}" alt="${esc(visatNamn)} hos Scryfall" loading="lazy" onerror="bildFel(this, 'Ingen bild hos Scryfall')">` : '<div class="ingen">Inget rätt namn</div>';
   const gissningOlik = r.gissning && r.gissning !== r.ratt;
   const status = r.anvandning ? `<span class="status ${r.anvandning}">${STATUS[r.anvandning] || r.anvandning}</span>` : '<span class="status osorterad">Osorterad</span>';
   const kanSortera = !r.anvandning;
