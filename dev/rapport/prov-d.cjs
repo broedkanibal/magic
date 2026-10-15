@@ -202,6 +202,7 @@ function rapport(kod, game_id) {
 const T = JSON.parse(process.env.ATRAPP);
 const S = { rest: async (m, v) => {
   if (m === 'GET' && /^rapporter\?kod=eq\./.test(v)) return [T.rad];
+  if (m === 'GET' && /^rapporter\?select=kod,user_id,created_at/.test(v)) return T.alla || [];   // tillfällena (sparr.cjs, allaRader)
   if (m === 'GET' && /game_id=eq\./.test(v)) { const g = decodeURIComponent(/game_id=eq\.([^&]+)/.exec(v)[1]), a = /anvandning=eq\.(\w+)/.exec(v)[1]; console.log('FRÅGA game_id ' + g); return (T.ovr || []).filter(x => x.game_id === g && x.anvandning === a).map(x => ({ kod: x.kod })); }
   if (m === 'PATCH') { console.log('PATCH ' + v); return [{}]; }
   throw new Error('attrappen: ' + m + ' ' + v); } };
@@ -248,6 +249,42 @@ satt(process.argv.slice(1), S).then(t => console.log(t)).catch(e => { console.er
   r = sattAtrapp(['R-9964', 'test', '--mapp', s4.mapp], { rad: { kod: 'R-9964', kalla: 'rattelse', anvandning: null, game_id: GID }, ovr: [{ kod: 'R-9997', game_id: GID, anvandning: 'traning' }] });
   ok(r.kod === 3 && /R-9997/.test(r.ut) && !/PATCH/.test(r.ut), `satt R-9964 test (inget Mat test-fall i repot = bänkens regel): partiets träning R-9997 vägrar: slutkod ${r.kod}`);
 
+  /* 5j. Tillfället (Jespers beslut 2026-10-15): samma spelare med under 6 h mellan matcherna, eller samma match. */
+  {
+    const { tillfallen } = require('./sparr.cjs');
+    const tid = h => new Date(Date.parse('2026-10-15T18:00:00Z') + h * 3600e3).toISOString();
+    const T = tillfallen([
+      { kod: 'A1', user_id: 'u1', created_at: tid(0), game_id: 'g1' }, { kod: 'A2', user_id: 'u1', created_at: tid(4), game_id: 'g2' },
+      { kod: 'A3', user_id: 'u1', created_at: tid(9.5), game_id: 'g3' },   // 5,5 h efter A2: samma tillfälle (kedjan)
+      { kod: 'A4', user_id: 'u1', created_at: tid(16), game_id: 'g4' },    // 6,5 h efter A3: nytt tillfälle
+      { kod: 'B1', user_id: 'u2', created_at: tid(30), game_id: 'g2' },    // annan spelare men samma match som A2
+      { kod: 'C1', user_id: 'u3', created_at: tid(0), game_id: null }, { kod: 'C2', user_id: 'u3', created_at: tid(1), game_id: null }
+    ], [['C2', 'g4']]);
+    ok(T.get('A1') === T.get('A2') && T.get('A2') === T.get('A3'), 'tillfallen: matcher 4 h och 5,5 h isär är ett tillfälle (kedjan är transitiv)');
+    ok(T.get('A3') !== T.get('A4'), 'tillfallen: 6,5 h isär är ett nytt tillfälle');
+    ok(T.get('B1') === T.get('A1'), 'tillfallen: en annan spelare i samma match hör till tillfället');
+    ok(T.get('C2') === T.get('A4') && T.get('C1') === T.get('A4'), 'tillfallen: en lokal kopias game_id (lankar) knyter raden till matchen');
+  }
+  {
+    const tid = h => new Date(Date.parse('2026-10-15T18:00:00Z') + h * 3600e3).toISOString();
+    const G6 = '66666666-6666-4666-8666-666666666666', G7 = '77777777-7777-4777-8777-777777777777';
+    const t1 = rattelse('R-9959', 16, 'namnbyte', 'ANNAT7', G6);
+    const rad = { kod: 'R-9959', kalla: 'rattelse', anvandning: null, game_id: G6, user_id: 'u-t', created_at: tid(0) };
+    /* R-9991 är ett bänkfall i repot, ur en annan match men samma spelare 3 h senare */
+    r = sattAtrapp(['R-9959', 'traning', '--mapp', t1.mapp], { rad, alla: [rad, { kod: 'R-9991', user_id: 'u-t', created_at: tid(3), game_id: G7, anvandning: 'test' }] });
+    ok(r.kod === 3 && /samma tillfälle/.test(r.ut) && /R-9991 som bänkfall/.test(r.ut) && /ett tillfälle är bänkfall eller träning/.test(r.ut) && !/PATCH/.test(r.ut),
+      `satt R-9959 traning: samma spelares bänkfall R-9991 ur nästa match (3 h senare) vägrar: slutkod ${r.kod}${r.kod === 3 ? '' : ' — ' + r.ut.trim()}`);
+    r = sattAtrapp(['R-9959', 'traning', '--mapp', t1.mapp], { rad, alla: [rad, { kod: 'R-9991', user_id: 'u-t', created_at: tid(7), game_id: G7, anvandning: 'test' }] });
+    ok(r.kod === 0 && /PATCH/.test(r.ut), `satt R-9959 traning: samma bänkfall 7 h senare är ett annat tillfälle — går: slutkod ${r.kod}${r.kod === 0 ? '' : ' — ' + r.ut.trim()}`);
+    r = sattAtrapp(['R-9959', 'traning', '--mapp', t1.mapp], { rad, alla: [rad, { kod: 'R-9958', user_id: 'u-t', created_at: tid(5), game_id: null, anvandning: null },
+      { kod: 'R-9991', user_id: 'u-t', created_at: tid(10), game_id: G7, anvandning: 'test' }] });
+    ok(r.kod === 3 && /samma tillfälle/.test(r.ut) && !/PATCH/.test(r.ut), `satt R-9959 traning: bänkfallet 10 h senare men med en rad emellan (5 h + 5 h) vägrar: slutkod ${r.kod}`);
+    r = sattAtrapp(['R-9959', 'test', '--mapp', t1.mapp], { rad, alla: [rad, { kod: 'R-9957', user_id: 'u-t', created_at: tid(2), game_id: G7, anvandning: 'traning' }] });
+    ok(r.kod === 3 && /samma tillfälle .* har redan R-9957 som traning/.test(r.ut) && !/PATCH/.test(r.ut), `satt R-9959 test: samma tillfälles träning R-9957 vägrar: slutkod ${r.kod}`);
+    r = sattAtrapp(['R-9959', 'test', '--mapp', t1.mapp], { rad, alla: [rad, { kod: 'R-9957', user_id: 'u-annan', created_at: tid(2), game_id: G7, anvandning: 'traning' }] });
+    ok(r.kod === 0 && /PATCH/.test(r.ut), `satt R-9959 test: en annan spelares träning i en annan match spärrar inte: slutkod ${r.kod}`);
+  }
+
   /* 5h. Ett pass ur --logg får spelkoden (fynd 4): --spelkod, och bordsloggens egen om den finns. */
   fs.writeFileSync(lf, JSON.stringify({ id: 'pass-2026-10-11-2006', start: new Date(1790000000000).toISOString(), spel: G2, bordLogg: [{ s: 0, spar: [] }, { s: 5, spar: [] }] }));
   r = tillFall(['--mattest', '--logg', lf, '--lokal', '--torr', '--spelkod', 'cna43k']);
@@ -273,6 +310,15 @@ satt(process.argv.slice(1), S).then(t => console.log(t)).catch(e => { console.er
     ok(r.kod === 2 && /kräver ruta och maskade/.test(r.ut) && !fs.existsSync(path.join(UT, 'dev', 'material', 'arbete', 'markning', 'rapporter-traning-mesa', 'R-9971')), `--traning av en rättelse utan ruta vägras (slutkod ${r.kod}): ${r.ut.trim().split('\n').pop().slice(0, 120)}`);
     r = tillFall(['R-9971', '--traning', '--lokal', '--mapp', g1.mapp, '--utan-ruta']);
     ok(r.kod === 0, `… och går med --utan-ruta uttryckligen (slutkod ${r.kod})`);
+    /* 8a2. Repot på tillfällets koder (kravLokal, koder): R-9971 är träning, R-9970 bänkfall — utan gemensamt parti. */
+    {
+      const ev = kod => spawnSync(process.execPath, ['-e', `const s = require(${JSON.stringify(path.join(__dirname, 'sparr.cjs'))}); try { ${kod}; console.log('JA'); } catch (e) { console.log(e.message); }`], { encoding: 'utf8', env: Object.assign({}, process.env, { MESA_FALL_UT: UT }) }).stdout.trim();
+      const u1 = ev(`s.kravLokal('R-9956', 'test', null, 'bank', ['R-9971'])`), u2 = ev(`s.kravLokal('R-9956', 'test', null, 'bank', [])`);
+      const u3 = ev(`s.kravLokal('R-9956', 'traning', null, null, ['R-9970'])`), u4 = ev(`s.kravLokal('R-9956', 'test', null, 'mattest', ['R-9971'])`);
+      ok(/samma tillfälle: R-9971/.test(u1) && /ett tillfälle är bänkfall eller träning/.test(u1) && u2 === 'JA', `repot: ett bänkfall vägras när tillfällets R-9971 är träning, går utan tillfället (${u1.slice(0, 90)})`);
+      ok(/samma tillfälle: R-9970/.test(u3), `repot: träning vägras när tillfällets R-9970 är bänkfall (${u3.slice(0, 90)})`);
+      ok(u4 === 'JA', `repot: ett Mat test-fall prövas bara på sin egen kod, inte tillfället (${u4.slice(0, 60)})`);
+    }
     /* 8b. En rättelse MED ruta, maskade och kontext.jpg: allt följer med in i bänken. */
     const g2 = rattelse('R-9972', 12, 'namnbyte', 'NYARE1');
     const rj = JSON.parse(fs.readFileSync(path.join(g2.mapp, 'rattelse.json'), 'utf8'));

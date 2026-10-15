@@ -52,7 +52,7 @@
 const http = require('http'), fs = require('fs'), path = require('path'), os = require('os'), crypto = require('crypto');
 const { spawn } = require('child_process');
 const { supa, ROT } = require('./supa.cjs');
-const { slagIRepot } = require('./sparr.cjs');   // bara för förhandsvisningen av spärren; valen går genom till-fall/satt
+const { slagIRepot, tillfallen, allaRader } = require('./sparr.cjs');   // bara för förhandsvisningen av spärren; valen går genom till-fall/satt
 const { SORT_ID } = require('./sorter.cjs');
 const { lage: bankLage } = require('./bankutgava.cjs');
 const { goldenNamn, forhandMattest, raknaPastaenden } = require('./till-fall.cjs');
@@ -122,6 +122,8 @@ async function lista() {
   /* En rättelse av handlingar (MES-385) har ingen bild och inget namn: den har en egen lista (listaHandlingar). */
   const rader = (await rattelseRader()).filter(r => !arHandling(r));
   await hamtaAlla(rader.map(r => r.kod));
+  /* tillfället (sparr.cjs, tillfallen): över hela tabellen, som spärren räknar det */
+  const T = tillfallen(await allaRader(S));
   const bank = bankInfo(), golden = goldenNamn(), ut = [];
   for (const r of rader) {
     const j = lasJson(path.join(mappFor(r.kod), 'rattelse.json')) || {}, vy = r.vy || {};
@@ -131,7 +133,7 @@ async function lista() {
     const ratt = j.ratt || vy.ratt || null;
     ut.push({
       kod: r.kod, nar: r.created_at, vem: k ? (k.namn || k.epost) : r.user_id.slice(0, 8), game_id: r.game_id || null,
-      anvandning: r.anvandning || null, bilder: r.bilder || null,
+      tillfalle: T.get(r.kod) || r.kod, anvandning: r.anvandning || null, bilder: r.bilder || null,
       /* tabellen säger test för både Mat test och bänk: slaget ur repot (sparr.cjs), null = okänt — spärrar som bänken */
       testSlag: r.anvandning === 'test' ? slagIRepot(r.kod) : null,
       handelse: j.handelse || vy.handelse || null, gissning: j.gissning || vy.gissning || null, ratt: j.ratt || vy.ratt || null,

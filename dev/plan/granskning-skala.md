@@ -35,8 +35,11 @@ Det är ett förslag (beslut 1 nedan).
 
 ## Fyra principer
 
-1. **Partiet är enheten, inte kortet.** Spärren gör ett parti till antingen prov
-   eller träning. Automatiken väntar därför tills partiet är klart (24 h efter
+1. **Tillfället är enheten, inte kortet.** Spärren gör ett tillfälle till antingen
+   prov eller träning. Ett tillfälle är samma spelare med under 6 timmar mellan
+   matcherna, eller samma match (Jespers beslut 2026-10-15: matcher i rad vid samma
+   bord delar bord, ljus och lek; `tillfallen` i `sparr.cjs`). Nedan står ofta
+   "parti" — läs tillfälle. Automatiken väntar därför tills partiet är klart (24 h efter
    sista rättelsen) och bestämmer partiet i ett svep. Ett säkert fel namn i
    partiet gör hela partiet till prov, innan något i det hinner bli träning.
 2. **Prov får alltid ögon. Träning får stickprov.**

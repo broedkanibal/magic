@@ -40,8 +40,9 @@ function lage() {
   }
   const inkommande = fall.filter(p => p.utgava == null).length;
   const senaste = utgavor.length ? utgavor[utgavor.length - 1].utgava : 0;
-  /* Varje provs namn, sort och parti: sidan räknar taken mot dem. Partiets nyckel som parti() i granska.html. */
-  const prov = fall.map(p => ({ namn: p.namn || null, gissning: p.gissning || null, sort: p.sort || null,
+  /* Varje provs kod, namn, sort och parti: sidan räknar taken per tillfälle (koden → radens tillfälle), annars per parti
+     (nyckeln som parti() i granska.html). */
+  const prov = fall.map(p => ({ kod: p.kod || null, namn: p.namn || null, gissning: p.gissning || null, sort: p.sort || null,
     parti: p.parti ? p.parti.game_id || (p.parti.spelkod ? 'kod:' + p.parti.spelkod : null) : null }));
   return { antal: fall.length, inkommande, senaste, utgavor, sorter, mal: MAL, tak: TAK, prov };
 }
