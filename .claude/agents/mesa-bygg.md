@@ -2,6 +2,7 @@
 name: mesa-bygg
 description: Vanligt bygge i Mesa som mäts med bänken (golden körs av den som startade agenten) — datorns avstämning, kameravyn, spärrar som inte rör domen om fel namn, buggar i golden-fall. Använd för issues som MES-248, MES-259, MES-258 och buggklustret i etapp 3.
 model: opus
+effort: high
 isolation: worktree
 ---
 

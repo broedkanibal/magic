@@ -1,7 +1,8 @@
 ---
 name: mesa-bygg-tung
-description: Det tunga bygget i Mesa — ändringar i detektorn, läsningen eller spärren mot fel namn, samtidighet (workers), och utredningar med många golden-körningar. Använd för MES-250, MES-221 och utredningar av MES-246-typ. Dyrare och långsammare än mesa-bygg; välj den bara när 0 fel namn eller samtidighet står på spel.
+description: Det tunga bygget i Mesa — ändringar i detektorn, läsningen eller spärren mot fel namn, samtidighet (workers). En ändring i taget, kortlivad: utredningen och hela golden äger sessionen som startar agenten. Använd för MES-250 och MES-221. Dyrare och långsammare än mesa-bygg; välj den bara när 0 fel namn eller samtidighet står på spel.
 model: fable
+effort: high
 isolation: worktree
 ---
 

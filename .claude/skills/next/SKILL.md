@@ -85,16 +85,17 @@ bekräftade issuen:
 
 | Sorts arbete | Agent | Modell | Effort |
 |---|---|---|---|
-| Mäta, köra golden, analysera en rapport — ingen kod | `mesa-matning` | Sonnet | medium |
+| Mäta, köra golden, läsa av en rapport — ingen kod | `mesa-matning` | Sonnet | medium |
 | Vanligt bygge: vyer, menyer, spelvyn, buggar i appen | `mesa-bygg` | Opus | high |
 | Designyta med varianter | `general-purpose` med designskillen | Opus | high |
 | Detektorn, läsningen, spärren mot fel namn, samtidighet | `mesa-bygg-tung` | Fable | high |
 | Datamodell, säkerhet, RLS, inloggning, dold information | `mesa-bygg` | Opus | high |
-| Utredning med många golden-körningar | `mesa-bygg-tung` | Fable | high |
+| Utredning med många golden-körningar | sessionen själv (golden via `ko.sh` i bakgrunden), `mesa-bygg-tung` bara för varje ändring | Opus, Fable för ändringen | high |
+| Granskningen av diffen | ny `general-purpose`-agent | Opus | high |
 
-Modellen sätts med agentens `model`. Effort ärvs från sessionen: skiljer sig
-Jespers val från sessionens, byt den med `set_session_effort` (ladda den med
-ToolSearch) innan agenten startas, eller säg åt Jesper att byta.
+Modellen och effort står i agentens frontmatter (`model:`, `effort:`).
+Vill Jesper något annat för just den här issuen: skicka `model` och
+`effort` när agenten startas.
 
 ## 4. Starta
 

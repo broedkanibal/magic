@@ -1,7 +1,8 @@
 ---
 name: mesa-matning
-description: Mätningar utan kodändring i Mesa — golden-körningar, baslinjer, nya golden-fall, analys av latensrapporter. Använd för issues som svarar på en fråga med siffror (MES-249, MES-257, rapportanalyser).
+description: Mätningar utan kodändring i Mesa — golden-körningar, baslinjer, nya golden-fall, analys av latensrapporter. Använd för issues som svarar på en fråga med siffror (MES-249, MES-257, rapportanalyser). Inte diagnos av varför ett kort missas — den gör sessionen (Opus).
 model: sonnet
+effort: medium
 isolation: worktree
 ---
 

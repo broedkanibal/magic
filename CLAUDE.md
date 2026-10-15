@@ -328,9 +328,10 @@ reglerna här.
 
 `mesa-matning` (Sonnet, mäter utan kod), `mesa-bygg` (Opus, vanligt bygge)
 och `mesa-bygg-tung` (Fable, detektorn, läsningen, spärren mot fel namn,
-samtidighet). Effort ärvs från sessionen som startar dem — kör
-orkestrerande sessioner på **high**, inte xhigh eller ultracode: det som
-kostar är hur länge agenterna lever, inte hur hårt orkestreraren tänker.
+samtidighet). Effort står i varje agents frontmatter (`effort:`), så en
+mätagent kör medium också när sessionen kör high. Kör orkestrerande
+sessioner på **high**, inte xhigh eller ultracode: det som kostar är hur
+länge agenterna lever, inte hur hårt orkestreraren tänker.
 Agenterna slår aldrig ihop med main och pushar aldrig; det gör
 orkestreraren efter bänk och golden. Planen för orkestreringen:
 `dev/plan/orkestrering.md`.
@@ -366,15 +367,29 @@ för en byggare på 900 000 tokens är det en hel dagslön per väntan.
    andra är klar. Vill Jesper veta hur det går: `/overview`, inte en
    session som pollar.
 
-**Modell och effort per sorts arbete** (förslag, Jesper väljer):
+**Modell och effort per sorts arbete** (förslag, Jesper väljer; omprövad
+2026-10-15):
 
-| Sorts arbete | Modell | Effort |
-|---|---|---|
-| Frågor, `/overview`, förklaringar, mätningar, analys av siffror | Sonnet | medium |
-| Planering och designval | Opus | medium–high |
-| Vanligt bygge (`mesa-bygg`) | Opus | high |
-| Detektorn, spärren mot fel namn (`mesa-bygg-tung`) | Fable | high |
-| Orkestrerande session över natten | Opus | high |
+| Sorts arbete | Vem | Modell | Effort |
+|---|---|---|---|
+| Köra golden eller bänken och rapportera siffror | `mesa-matning` | Sonnet | medium |
+| Frågor, `/overview`, förklaringar | sessionen | Sonnet | medium |
+| Diagnos: varför missas eller felläses ett kort, spårat till vägen i koden | sessionen | Opus | high |
+| Planering och designval | sessionen | Opus | medium–high |
+| Vanligt bygge | `mesa-bygg` | Opus | high |
+| Ändring i detektorn, läsningen, spärren mot fel namn, workers | `mesa-bygg-tung`, en ändring och sedan slut | Fable | high |
+| Granskning före sammanslagning | ny agent varje gång, inte byggaren | Opus | high |
+| Orkestrerande session över natten | sessionen | Opus | high |
+
+**En utredning med många golden-körningar ägs av sessionen**, inte av en
+agent: huvudsessionen har 1 h cache och kör golden i bakgrunden via
+`ko.sh`, en agent tappar sin cache efter 5 min väntan. Fable-agenten får
+en ändring i taget med fynden som en kort lista. Diagnos är inte mätning:
+att läsa av en siffra är Sonnet, att säga *varför* den blev så är där ett
+svar som ser riktigt ut utan att vara mätt brukar uppstå.
+
+Ingen mätning finns ännu av om Fable bygger bättre än Opus här, eller om
+Haiku räcker för att köra golden — tabellen är bedömning, inte siffror.
 
 ### Etikett och kolumn när en issue skapas
 
