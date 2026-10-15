@@ -39,8 +39,8 @@
    namnet ändrades, tiden på kortet och facits förtroende (fortroende.cjs: grön/gul/röd ur vittnen som inte är
    Jesper). Sidan visar nivån diskret på raden; ingenting av det styr förslaget eller valet. Rapporten:
    node dev/rapport/granska-matt.cjs. Går loggen inte att skriva är valet ändå gjort, och sidan säger det.
-   Blint läge (Jespers beslut 2026-10-15): /api/blint räknar Prov med sort valda innan sidan visat sin sortgissning
-   (granska-matt.cjs blindaProv); under 100 döljer sidan gissningen tills en sort valts.
+   Din sort först (Jespers beslut 2026-10-15): /api/sortforst räknar Prov där sorten valdes innan sidan visat sin
+   sortgissning (granska-matt.cjs provSortForst); under 100 visar sidan gissningen först efter att en sort valts.
 
    MESA_RAPPORTER: en annan mapp än dev/diagnos/rapporter för de hämtade rättelserna (provet); den går till
    hamta.cjs som --ut och till till-fall.cjs och satt.cjs som --mapp.
@@ -58,7 +58,7 @@ const { lage: bankLage } = require('./bankutgava.cjs');
 const { goldenNamn, forhandMattest, raknaPastaenden } = require('./till-fall.cjs');
 const { bedom, skapaUnderlag, samma } = require('./fortroende.cjs');
 const beslutslogg = require('./beslutslogg.cjs');
-const { blindaProv, BLINT_MAL } = require('./granska-matt.cjs');
+const { provSortForst, SORT_FORST_MAL } = require('./granska-matt.cjs');
 
 const argv = process.argv.slice(2), arg = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const PORT = +(arg('--port') || process.env.PORT || 8279);
@@ -312,9 +312,9 @@ async function beslutsRad(kod, b, info, svar) {
     forslagSort: Array.isArray(b.forslagSort) ? b.forslagSort.filter(x => typeof x === 'string').slice(0, 9).map(x => x.slice(0, 20)) : null,
     matt: m ? { kort: tal(m.kort), ljus: tal(m.ljus), blank: tal(m.blank), skarpa: tal(m.skarpa), skymt: tal(m.skymt) } : null,
     val: b.val, sort: b.val === 'test' ? kap(b.sort, 20) : null,
-    /* Blint läge (Jespers beslut 2026-10-15): sorten valdes innan sidan visat sin gissning — bara då räknas Provet
-       i steg 2:s träff och mot de 100 blinda. För övriga val: om sidan var i blint läge. */
-    blint: typeof b.blint === 'boolean' ? b.blint : null,
+    /* Din sort först (Jespers beslut 2026-10-15): sorten valdes innan sidan visat sin gissning — bara då räknas Provet
+       i steg 2:s träff och mot de 100. För övriga val: om sidan höll gissningen till efter valet. */
+    sortForst: typeof b.sortForst === 'boolean' ? b.sortForst : null,
     namn: { spelarens, valt, andrat: !!valt && !lika(valt, spelarens) },
     kandidater: kand && kand.length ? { antal: kand.length, spelarensBland: kand.some(x => lika(x.namn, spelarens)), valtBland: kand.some(x => lika(x.namn, valt)) } : null,
     tid: { ms: tal(t.ms), msSedd: tal(t.msSedd), msRord: tal(t.msRord) }, svep: !!b.svep,
@@ -483,7 +483,7 @@ const server = http.createServer(async (req, res) => {
       const buf = await scryBild(String(u.searchParams.get('namn') || '').slice(0, 200));
       return buf ? svara(res, 200, buf, 'image/jpeg') : svara(res, 404, { fel: 'ingen bild' });
     }
-    if (p === '/api/blint') { const L = beslutslogg.las(); return svara(res, 200, { antal: blindaProv(L.rader).length, mal: BLINT_MAL, trasiga: L.trasiga }); }
+    if (p === '/api/sortforst') { const L = beslutslogg.las(); return svara(res, 200, { antal: provSortForst(L.rader).length, mal: SORT_FORST_MAL, trasiga: L.trasiga }); }
     if (p === '/api/fortroende') return svara(res, 200, await fortroende());
     if (p === '/api/sortera' && req.method === 'POST') { const b = await lasKropp(req); return svara(res, 200, await iTur(() => sortera(b))); }
     if (p === '/api/bank') return svara(res, 200, bankLage());
