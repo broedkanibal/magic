@@ -325,8 +325,14 @@ pass, \`--utan-basvikt\`, samma valideringsklipp.
 4. **Mät** (grinden): \`git diff --stat\` på index.html före. Golden baslinjen EN gång, v${v} TVÅ gånger med
    \`--rems-modell\` (remsvägen, det appen kör) och, om den håller, två med \`--modell\`; port enligt
    \`dev/golden/SNABBGUIDE.md\`, golden i kö via \`dev/golden/ko.sh\`. 0 säkra fel namn hårt; totalen bättre än baslinjen.
-   Bänkarna (\`helkort_jamfor.py\`, \`remsregel.py\` och \`helkort_jamfor.py --bank dev/remsa/rapportbank\`) är diagnos.
-5. **Skriv** resultatet i \`dev/golden/historik.md\` och en rapport i \`dev/material/arbete/markning/v${v}-resultat.md\`.
+   Bänkarna (\`helkort_jamfor.py\`, \`remsregel.py\` och rapportbänken nedan) är diagnos, ingen grind.
+   **Rapportbänken** (spelarnas prov, per sorts fel): kör först \`node dev/rapport/bankutgava.cjs\`. Finns
+   inkommande prov: frys dem med \`node dev/rapport/bankutgava.cjs --klipp\` (en ny utgåva, vN). Mät sedan på den
+   senaste utgåvan med appens nuvarande modell och v${v} i SAMMA körning — jämför aldrig mot en gammal siffra:
+   \`~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/remsa/rapportbank --utgava N <appens modell> dev/embed/modeller/mobileclip-s0-mesa-v${v}.onnx\`.
+   Är bänken tom (ingen utgåva och inget inkommande): hoppa över den och skriv det.
+5. **Skriv** resultatet i \`dev/golden/historik.md\` (rapportbänken med sin utgåva och per sort, t.ex. "rapportbänken v2:
+   31/38 → 34/38, blänk 5/9 → 7/9") och en rapport i \`dev/material/arbete/markning/v${v}-resultat.md\`.
    Ingen modell in i appen utan Jespers ja.
 
 Datasetets mapp: \`${kn}\`. Granskningssidan: \`node dev/rapport/granska.cjs\`.
