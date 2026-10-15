@@ -65,7 +65,7 @@ const RAPPORTER = process.env.MESA_RAPPORTER ? path.resolve(process.env.MESA_RAP
 const UTROT = process.env.MESA_FALL_UT ? path.resolve(process.env.MESA_FALL_UT) : ROT;
 const MATTEST = path.join(UTROT, 'dev', 'mattest', 'underlag', 'rapporter');   // till-fall.cjs MATTEST
 const TRAN = path.join(UTROT, 'dev', 'material', 'arbete', 'markning', 'rapporter-traning-mesa');   // till-fall.cjs TRANPASS
-const BANK_MAN = path.join(UTROT, 'dev', 'remsa', 'rapportbank', 'manifest.json');
+const BANK_MAN = path.join(UTROT, 'dev', 'material', 'rapportbank', 'manifest.json');
 const MODELLER = path.join(ROT, 'dev', 'embed', 'modeller');
 const CACHE = path.join(os.homedir(), 'Library', 'Caches', 'mesa');
 const SCRY = path.join(CACHE, 'granska-scryfall');
@@ -415,7 +415,7 @@ pass, \`--utan-basvikt\`, samma valideringsklipp.
    **Rapportbänken** (spelarnas prov, per sorts fel): kör först \`node dev/rapport/bankutgava.cjs\`. Finns
    inkommande prov: frys dem med \`node dev/rapport/bankutgava.cjs --klipp\` (en ny utgåva, vN). Mät sedan på den
    senaste utgåvan med appens nuvarande modell och v${v} i SAMMA körning — jämför aldrig mot en gammal siffra:
-   \`~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/remsa/rapportbank --utgava N <appens modell> dev/embed/modeller/mobileclip-s0-mesa-v${v}.onnx\`.
+   \`~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/material/rapportbank --utgava N <appens modell> dev/embed/modeller/mobileclip-s0-mesa-v${v}.onnx\`.
    Är bänken tom (ingen utgåva och inget inkommande): hoppa över den och skriv det.
 5. **Skriv** resultatet i \`dev/golden/historik.md\` (rapportbänken med sin utgåva och per sort, t.ex. "rapportbänken v2:
    31/38 → 34/38, blänk 5/9 → 7/9") och en rapport i \`dev/material/arbete/markning/v${v}-resultat.md\`.

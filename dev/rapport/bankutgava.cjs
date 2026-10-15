@@ -1,4 +1,4 @@
-/* Bänkens utgåvor: rapportbänken (dev/remsa/rapportbank/) växer med varje
+/* Bänkens utgåvor: rapportbänken (dev/material/rapportbank/) växer med varje
    granskning, så en siffra från förra månaden mäter en annan bänk än i dag.
    En utgåva fryser bänken som den är: v1, v2, … Varje utgåva innehåller den
    förras fall plus det som kommit in sedan dess, och dess fall skrivs aldrig
@@ -10,7 +10,7 @@
 
    Mät på en utgåva, med den gamla och den nya modellen i SAMMA körning —
    jämför aldrig mot en gammal siffra:
-     ~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/remsa/rapportbank --utgava 2 \
+     ~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/material/rapportbank --utgava 2 \
          dev/embed/modeller/mobileclip-s0-mesa-v4.onnx dev/embed/modeller/mobileclip-s0-mesa-v5.onnx
    Historik-raden skriver utgåvan ("rapportbänken v2: 31/38 → 34/38").
 
@@ -25,7 +25,7 @@ const { MAL, SORTER, sortNamn } = require('./sorter.cjs');
 
 const ROT = path.join(__dirname, '..', '..');
 const UTROT = process.env.MESA_FALL_UT ? path.resolve(process.env.MESA_FALL_UT) : ROT;   // som i till-fall.cjs
-const BANK = path.join(UTROT, 'dev', 'remsa', 'rapportbank');
+const BANK = path.join(UTROT, 'dev', 'material', 'rapportbank');
 const MAN = path.join(BANK, 'manifest.json'), UTG = path.join(BANK, 'utgavor.json');
 const las = (f, tom) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return tom; } };
 

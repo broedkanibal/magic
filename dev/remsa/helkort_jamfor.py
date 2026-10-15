@@ -2,10 +2,10 @@
 (lib.Referenser = byggLek + centrera; frågan utan beskärningens 8 %-marginal, som kalibrering.py).
 
     ~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py dev/embed/modeller/mobileclip-s0-vision.onnx dev/embed/modeller/mobileclip-s0-mesa-pilot1.onnx
-    ~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/remsa/rapportbank dev/embed/modeller/mobileclip-s0-vision.onnx
+    ~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/material/rapportbank dev/embed/modeller/mobileclip-s0-vision.onnx
 
 --bank <mapp>: en annan bänk i samma format (manifest.json med fil, namn, skymd, helbild), t.ex.
-dev/remsa/rapportbank — spelarnas tysta rättelser som dev/rapport/till-fall.cjs --bank lägger dit (MES-368).
+dev/material/rapportbank — spelarnas tysta rättelser som dev/rapport/till-fall.cjs --bank lägger dit (MES-368).
 En liten bänk (högst 10 fall) skriver varje fall med sin rapportkod.
 
 --utgava <N>: bara bänkens fryst utgåva N (dev/rapport/bankutgava.cjs): fallen med utgava ≤ N. Utan den mäts
@@ -25,7 +25,7 @@ argv = sys.argv[1:]
 if '--bank' in argv:
     i = argv.index('--bank')
     if i + 1 >= len(argv) or argv[i + 1].startswith('--'):
-        sys.exit('helkort_jamfor.py: --bank kräver en mapp (t.ex. --bank dev/remsa/rapportbank)')
+        sys.exit('helkort_jamfor.py: --bank kräver en mapp (t.ex. --bank dev/material/rapportbank)')
     RIKTIGA = argv[i + 1] if os.path.isabs(argv[i + 1]) else os.path.join(ROT, argv[i + 1])
     del argv[i:i + 2]
 UTGAVA = None

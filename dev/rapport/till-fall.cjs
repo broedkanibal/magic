@@ -120,7 +120,7 @@ function parti(game_id, spelkod) {
 /* MESA_FALL_UT: en annan rot för allt som skrivs (provet prov-d.cjs skriver i en tillfällig mapp). */
 const UTROT = process.env.MESA_FALL_UT ? path.resolve(process.env.MESA_FALL_UT) : ROT;
 const MATTEST = path.join(UTROT, 'dev', 'mattest', 'underlag', 'rapporter');
-const BANK = path.join(UTROT, 'dev', 'remsa', 'rapportbank');
+const BANK = path.join(UTROT, 'dev', 'material', 'rapportbank');
 const MARKNING = path.join(UTROT, 'dev', 'material', 'arbete', 'markning');
 const TRANPASS = 'rapporter-traning-mesa';   // passmappens namn: '-traning-' gör den till träning för delning.py
 
@@ -800,7 +800,7 @@ async function korInre(a) {
   }
   if (plan.slag === 'mattest') { /* skrivet ovan */ } else if (plan.slag === 'bank') {
     rad.push(`bänkfall ${fallNamn(kod, plan.b)}: ${plan.b.ratt} (telefonen gissade ${plan.b.gissning || '–'}${plan.b.varfor ? ', ' + plan.b.varfor : ''}) · sort: ${sortNamn(o.sort)}`);
-    if (!o.torr) { const r = skrivBank(kod, plan.b, o); rad.push(`skrivet: ${path.relative(ROT, r.mapp)}/ (${r.antal} fall) — kör: ~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/remsa/rapportbank dev/embed/modeller/mobileclip-s0-vision.onnx`); }
+    if (!o.torr) { const r = skrivBank(kod, plan.b, o); rad.push(`skrivet: ${path.relative(ROT, r.mapp)}/ (${r.antal} fall) — kör: ~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/material/rapportbank dev/embed/modeller/mobileclip-s0-vision.onnx`); }
   } else {
     rad.push(`träning ${fallNamn(kod, plan.b)}: ${plan.b.ratt}`);
     if (!o.torr) { const r = skrivTraning(kod, plan.b, o); rad.push(`skrivet: ${path.relative(ROT, r.mapp)}/${r.utanfor ? ' — golden-lekens namn: utanfor_traning, dataset.py tar inte med det' : ''}${r.val ? ' — valideringens namn (ar_val)' : ''}`); }

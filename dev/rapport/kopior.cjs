@@ -7,15 +7,18 @@
    som skrivs om (--skriv-over) ersätter sin rad (samma plats och id).
 
    VAR INDEXET LIGGER — där kopiorna ligger, ett index per sida:
-     dev/rapport/kopior.jsonl            Mat test-fallen och bänken (i git). Indexet följer
-                                         med samma commit som kopian: en gren som gör ett fall
-                                         bär sin rad, och en worktree ser precis de kopior den
-                                         har. merge=union (.gitattributes): två grenar som
-                                         lägger till rader krockar inte.
+     dev/rapport/kopior.jsonl            Mat test-fallen (i git). Indexet följer med samma
+                                         commit som kopian: en gren som gör ett fall bär sin
+                                         rad, och en worktree ser precis de kopior den har.
+                                         merge=union (.gitattributes): två grenar som lägger
+                                         till rader krockar inte.
+     dev/material/rapportbank/kopior.jsonl
+                                         bänken (utanför git sedan 2026-10-15: repot är publikt,
+                                         och en spelares bild ska aldrig ligga i git-historiken).
      dev/material/arbete/markning/rapporter-traning-mesa/kopior.jsonl
                                          träningen (utanför git, bara på Jespers Mac). Ett
                                          index i git skulle peka på mappar som inte finns i en
-                                         annan klon, och träningens kopior försvinner inte med
+                                         annan klon, och kopiorna utanför git försvinner inte med
                                          en git-gren — så indexet ligger bredvid dem.
    Indexet är ett snabbspår, inte det enda: radera.cjs letar också i platserna
    själva (sparr.cjs) och kör grep, så en kopia utan rad hittas ändå.
@@ -28,10 +31,10 @@ const fs = require('fs'), path = require('path');
 const ROT = path.join(__dirname, '..', '..');
 const UTROT = process.env.MESA_FALL_UT ? path.resolve(process.env.MESA_FALL_UT) : ROT;   // som i till-fall.cjs
 const MATTEST = path.join(UTROT, 'dev', 'mattest', 'underlag', 'rapporter');
-const BANK = path.join(UTROT, 'dev', 'remsa', 'rapportbank');
+const BANK = path.join(UTROT, 'dev', 'material', 'rapportbank');
 const TRAN = path.join(UTROT, 'dev', 'material', 'arbete', 'markning', 'rapporter-traning-mesa');
-const INDEX = { git: path.join(UTROT, 'dev', 'rapport', 'kopior.jsonl'), traning: path.join(TRAN, 'kopior.jsonl') };
-const indexFor = plats => plats === 'traning' ? INDEX.traning : INDEX.git;
+const INDEX = { git: path.join(UTROT, 'dev', 'rapport', 'kopior.jsonl'), bank: path.join(BANK, 'kopior.jsonl'), traning: path.join(TRAN, 'kopior.jsonl') };
+const indexFor = plats => plats === 'traning' ? INDEX.traning : plats === 'bank' ? INDEX.bank : INDEX.git;
 const rel = f => path.relative(UTROT, f).split(path.sep).join('/');
 
 function lasIndex(fil) {
@@ -43,8 +46,8 @@ function skrivIndex(fil, rader) {
   fs.mkdirSync(path.dirname(fil), { recursive: true });
   fs.writeFileSync(fil, rader.map(r => JSON.stringify(r)).join('\n') + '\n');
 }
-/* Alla rader, båda indexen. */
-const alla = () => lasIndex(INDEX.git).concat(lasIndex(INDEX.traning));
+/* Alla rader, alla tre indexen. */
+const alla = () => lasIndex(INDEX.git).concat(lasIndex(INDEX.bank), lasIndex(INDEX.traning));
 
 /* En kopia till: ersätter raden med samma plats och id. */
 function lagg(rad) {
@@ -56,7 +59,7 @@ function lagg(rad) {
 /* Ta bort kodens rader (radera.cjs). Svarar med antalet borttagna. */
 function stryk(kod) {
   let n = 0;
-  for (const fil of [INDEX.git, INDEX.traning]) {
+  for (const fil of [INDEX.git, INDEX.bank, INDEX.traning]) {
     const r = lasIndex(fil), kvar = r.filter(x => x.kod !== kod);
     if (kvar.length !== r.length) { n += r.length - kvar.length; skrivIndex(fil, kvar); }
   }

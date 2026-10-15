@@ -102,9 +102,9 @@ function rapport(kod, game_id) {
   return mapp;
 }
 const lasJ = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return null; } };
-const index = () => ['dev/rapport/kopior.jsonl', 'dev/material/arbete/markning/rapporter-traning-mesa/kopior.jsonl']
+const index = () => ['dev/rapport/kopior.jsonl', 'dev/material/rapportbank/kopior.jsonl', 'dev/material/arbete/markning/rapporter-traning-mesa/kopior.jsonl']
   .flatMap(f => (fs.existsSync(path.join(UT, f)) ? fs.readFileSync(path.join(UT, f), 'utf8') : '').split('\n').filter(Boolean).map(r => JSON.parse(r)));
-const BANK = path.join(UT, 'dev', 'remsa', 'rapportbank');
+const BANK = path.join(UT, 'dev', 'material', 'rapportbank');
 
 (async () => {
   await new Promise(r => server.listen(0, '127.0.0.1', r));
@@ -121,8 +121,11 @@ const BANK = path.join(UT, 'dev', 'remsa', 'rapportbank');
   const I = index(), rad = k => I.filter(x => x.kod === k).map(x => x.plats).join(',');
   ok(rad('R-9941') === 'bank' && rad('R-9942') === 'bank' && rad('R-9943') === 'traning' && rad('R-9944') === 'mattest' && I.find(x => x.kod === 'R-9943').filer[0].startsWith('dev/material/'),
     `kopieindexet har en rad per kopia: ${I.map(x => x.kod + ' ' + x.plats).join(', ')}`);
-  ok(fs.existsSync(path.join(MARK, 'rapporter-traning-mesa', 'kopior.jsonl')) && !fs.readFileSync(path.join(UT, 'dev', 'rapport', 'kopior.jsonl'), 'utf8').includes('R-9943'),
-    'träningens rad ligger bredvid träningen (utanför git), bänkens och Mat tests i dev/rapport/kopior.jsonl');
+  const gitRader = fs.readFileSync(path.join(UT, 'dev', 'rapport', 'kopior.jsonl'), 'utf8');
+  ok(fs.existsSync(path.join(MARK, 'rapporter-traning-mesa', 'kopior.jsonl')) && fs.existsSync(path.join(BANK, 'kopior.jsonl')) && !/R-994[123]/.test(gitRader) && gitRader.includes('R-9944'),
+    'träningens och bänkens rader ligger bredvid kopiorna (utanför git), bara Mat tests i dev/rapport/kopior.jsonl');
+  ok(I.filter(x => x.plats === 'bank').every(x => x.filer.every(f => f.startsWith('dev/material/rapportbank/'))),
+    'bänkens bilder ligger i dev/material/rapportbank/ (utanför git: repot är publikt)');
   r = await kor('till-fall.cjs', ['R-9941', '--bank', '--sort', 'blank', '--lokal', '--mapp', path.join(IN, 'R-9941'), '--torr']);
   ok(index().length === I.length, '--torr i till-fall.cjs skriver ingen rad');
   r = await kor('bankutgava.cjs', ['--klipp']); ok(r.kod === 0 && /utgåva v1: 2 fall/.test(r.ut), `bänken fryst som v1: ${r.ut.trim()}`);

@@ -17,7 +17,7 @@
         med --lokal.
    Regeln gäller PER PARTI mellan bänken och träningen, och PER KOD för Mat
    test (Jespers beslut 2026-10-14):
-     - bänken (--bank, dev/remsa/rapportbank/) ↔ träningen (--traning): per
+     - bänken (--bank, dev/material/rapportbank/) ↔ träningen (--traning): per
        parti, som detektorns spärr delar per inspelningstillfälle. Två
        rättelser av samma kort i samma parti, eller en rapport och en
        rättelse ur samma parti, är nästan samma bild — blir den ena ett
@@ -64,7 +64,7 @@ function overgang(fore, efter) {
    utanför git). */
 const PLATSER = {
   mattest: () => mappar(path.join(UTROT, 'dev', 'mattest', 'underlag', 'rapporter')).map(d => path.join(d, 'fall.json')),
-  bank: () => [path.join(UTROT, 'dev', 'remsa', 'rapportbank', 'manifest.json')],
+  bank: () => [path.join(UTROT, 'dev', 'material', 'rapportbank', 'manifest.json')],
   traning: () => mappar(path.join(UTROT, 'dev', 'material', 'arbete', 'markning')).flatMap(p => mappar(p).map(k => path.join(k, 'markning.json')))
 };
 const NAMN = { mattest: 'Mat test-fall', bank: 'bänkfall', traning: 'träning' };
@@ -138,9 +138,9 @@ function hinderLokalt(kod, sida, parti, slag) {
 /* Spärren i repot. Kastar om något hindrar (hinderLokalt). */
 function kravLokal(kod, sida, parti, slag) {
   if (!kod && !harParti(parti)) return;
-  /* Utan träningsmaterialet kan spärren inte se ena sidan (test), och en
-     träningsexport skulle hamna fel (en worktree utan länken dev/material):
-     slutkod 2, inte ett tyst ja. */
+  /* Utan dev/material kan spärren inte se träningen eller bänken (båda
+     ligger där sedan 2026-10-15), och en export skulle hamna fel (en
+     worktree utan länken dev/material): slutkod 2, inte ett tyst ja. */
   if (!fs.existsSync(MARKNING)) {
     const e = new Error(`${path.relative(UTROT, MARKNING)} finns inte — spärren kan inte pröva träningsmaterialet (saknas länken dev/material i en worktree?). Inget gjort`);
     e.kod = 2; throw e;
@@ -198,7 +198,7 @@ async function sattAnvandning(S, kod, efter, opt) {
         const bank = d.hinder.filter(x => x.slag === 'bank').map(x => x.kod), okand = d.hinder.filter(x => !x.slag).map(x => x.kod);
         const delar = [];
         if (bank.length) delar.push(`${bank.join(', ')} som bänkfall (test) — ett parti är bänkfall eller träning, aldrig båda`);
-        if (okand.length) delar.push(`${okand.join(', ')} som test i tabellen men utan kopia i repot (varken dev/mattest/underlag/rapporter/ eller dev/remsa/rapportbank/), så slaget är okänt — ett bänkfall ur samma parti skulle läcka, så spärren vägrar för säkerhets skull. Ligger fallet på en annan gren: slå ihop den först`);
+        if (okand.length) delar.push(`${okand.join(', ')} som test i tabellen men utan kopia i repot (varken dev/mattest/underlag/rapporter/ eller dev/material/rapportbank/), så slaget är okänt — ett bänkfall ur samma parti skulle läcka, så spärren vägrar för säkerhets skull. Ligger fallet på en annan gren: slå ihop den först`);
         const e = new Error(`SPÄRREN: ${kod}: samma parti (game_id ${g}) har redan ${delar.join('; och ')}`); e.sparr = true; throw e;
       }
     }

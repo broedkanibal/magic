@@ -237,9 +237,14 @@ för hand. I skala:
    som "utgåvan saknar ett fall".
 3. `/overview` visar antalet ohanterade raderingar.
 
-**Två luckor som är Jespers att avgöra** (beslut 7): bänkens bilder ligger i git,
-så en raderad bild finns kvar i historiken. Och en bild som redan använts i en
-träning finns kvar i Kaggles äldre dataset-versioner och i den tränade modellen.
+**Två luckor, avgjorda 2026-10-15** (beslut 7). Repot är publikt, så bänken
+ligger utanför git i `dev/material/rapportbank/`, som träningen. Den flyttades
+medan den var tom, så ingen spelares bild har legat i git. Mat test-fallen ligger
+kvar i git: de har inga bilder, bara kortnamn och tider. En bild som redan
+använts i en träning finns kvar i Kaggles äldre dataset-versioner och i den
+tränade modellen. Därför hålls datasetet privat, äldre versioner tas bort vid
+varje ny träning, och privacy-texten säger att en tränad modell inte kan glömma
+en bild.
 
 **Så mäts det:** ett prov skickar en syntetisk rapport genom alla vägar (bänk,
 träning, Mat test), raderar den och kräver 0 träffar på koden efteråt.
@@ -286,7 +291,7 @@ främlingar spelar.
 | 2 | **Bildmåtten och den gissade sorten,** i skugga | träffen mot Jespers sort: gränser på 100 kort, prövade på nästa 100. Grinden: 80 % / 70 % per sort |
 | 3 | **Förtroendet** (grön/gul/röd), i skugga | 0 av Jespers namnändringar bland de gröna, på ≥ 200 |
 | 4 | **Kön, vyerna och tangentbordet** | tid per kort: < 3 s i rutnätet, < 10 s i en rad; Jespers tid per vecka |
-| 5 | ✓ **Raderingen och gallringen:** verktyget, `hanterad_at`, gallring efter export — byggt 2026-10-15: `radera.cjs`, `kopior.cjs` (indexet), `gallra.cjs` utökad, `prov-radera.cjs` (0 träffar). Migrationen `20261015120000` körs av Jesper | raderingsprovet: 0 träffar; hinkens storlek per vecka |
+| 5 | ✓ **Raderingen och gallringen:** verktyget, `hanterad_at`, gallring efter export — byggt 2026-10-15: `radera.cjs`, `kopior.cjs` (indexet), `gallra.cjs` utökad, `prov-radera.cjs` (0 träffar). Migrationen `20261015120000` körd av Jesper 2026-10-15. Bänken flyttad till `dev/material/rapportbank/` (beslut 7), med sitt kopieindex där | raderingsprovet: 0 träffar; hinkens storlek per vecka |
 | 6 | **Automatiken för träning:** gröna partier efter 24 h, taken, stickprovet som grind före *Bygg dataset* | stickprovet ≤ 2 fel av 50; fördelningen i datasetet; andelen oanvända på grund av spärren; bildmodellens grind (CLAUDE.md) som alltid |
 | 7 | **Prov i skala:** säkra fel per par, taken per spelare och parti i bänken | antal spelare och partier per sort i bänken |
 | 8 | **Grupperna för problemrapporterna** | 30 grupper handgranskade: för grov / för fin |
@@ -300,7 +305,7 @@ Ingenting nedan styr förslaget eller valet; det räknas och visas. Hur det anv�
 | # | Byggt | Kvar |
 |---|---|---|
 | 1 | ✅ **Beslutsloggen**: granskningssidan skriver varje val i `~/.mesa/granska-beslut.jsonl` (`beslutslogg.cjs`) — förslaget och skälet (när raden visades och vid trycket), bildens föreslagna sorter och mått, valet, sorten, namnet före → efter, tiden på kortet, facits nivå. ✅ **Rättelsen** i appen sparar telefonens topp-5 (namn, poäng, marginal, ur spårets `cands`, aldrig Claudes) och appversionen i `rattelse.json` och radens `vy`; `prov-b.cjs` grön (60/60). ✅ **Rapporten** `node dev/rapport/granska-matt.cjs`: förslaget följt, median tid per kort, rätt namn bland kandidaterna | kopieindexet byggdes med steg 5 (`kopior.cjs`, 1d0d5ad). Siffrorna: loggen fylls när Jesper granskar |
-| 2 | ✅ **Träffen räknas**: `granska-matt.cjs` jämför bildens första föreslagna sort med Jespers sort i Prov, totalt och per sort, mot grinden. Måtten räknas i webbläsaren (83e83ee), inte i `matt.json` vid hämtningen — samma siffror, loggade med beslutet | gränserna sätts på de första 100 Prov med sort och fryses, prövas på nästa 100. **Obs:** sorten *visas* redan som en knapp ("Delvis skymt?", 83e83ee), så Jespers val är inte oberoende av gissningen — träffen blir för hög om han följer knappen. Ska den mätas rent: dölj knappen tills grinden klarats (Jespers val) |
+| 2 | ✅ **Träffen räknas**: `granska-matt.cjs` jämför bildens första föreslagna sort med Jespers sort i Prov, totalt och per sort, mot grinden. Måtten räknas i webbläsaren (83e83ee), inte i `matt.json` vid hämtningen — samma siffror, loggade med beslutet | gränserna sätts på de första 100 Prov med sort och fryses, prövas på nästa 100. **Obs:** sorten *visas* redan som en knapp ("Delvis skymt?", 83e83ee), så Jespers val är inte oberoende av gissningen — träffen blir för hög om han följer knappen. Ska den mätas rent: **Jespers beslut 2026-10-15:** sorten visas först *efter* att han valt, under de första 100 Prov med sort; sedan som knapp igen |
 | 3 | ✅ **Förtroendet** (`fortroende.cjs`): grön/gul/röd per rättelse ur vittnena A–D och motsägelserna, visas som en prick på raden och loggas med beslutet; rapporten räknar nivåerna mot Jespers namnändringar och grinden (0 bland de gröna på ≥ 200). R-0010 grön (A + tidigare parti + läst igen 18 s senare), R-0008 gul | **leken** går inte att läsa med service role (`permission denied for table decks`), så B kommer bara ur tidigare partier och motsägelsen "hel lek utan namnet" kan inte slå till — `grant select on public.decks to service_role` är Jespers beslut. Vittne C finns bara för rättelser sparade efter att appen driftsatts med kandidaterna |
 
 Varje steg kör utan Claude, och `dev/rapport/prov-d.cjs` / `prov-b.cjs` hålls gröna.
@@ -317,8 +322,8 @@ Golden behövs inte för det, `prov-b.cjs` räcker.
 | 4 | Taken | träning: 30 per namn, 20 per parti, 10 % per spelare. Bänk: 2 per sort och parti, 3 per sort och spelare |
 | 5 | Vad händer när en sort är full: höjs målet? | höj till 40 för sorter där modellen fortfarande är svag, efter nästa utgåva |
 | 6 | Ett säkert fel gör hela partiet till prov, och då blir partiets andra rättelser oanvända. Godtar du det? | ja, och andelen mäts |
-| 7 | Raderingen: bänkens bilder ut ur git (som `dev/material`)? Vad lovar privacy-texten om redan tränade modeller och äldre Kaggle-versioner? | bilderna ut ur git innan bänken växer; texten säger att en tränad modell inte kan glömma en bild |
+| 7 | Raderingen: bänkens bilder ut ur git (som `dev/material`)? Vad lovar privacy-texten om redan tränade modeller och äldre Kaggle-versioner? | **Beslutat 2026-10-15:** bänken i `dev/material/rapportbank/` (gjort, repot är publikt); Mat test-fallen kvar i git; Kaggle-datasetet privat och äldre versioner bort vid varje ny träning; privacy-texten: "En modell som redan tränats på dina bilder kan inte glömma dem, men bilden går inte att få ut ur modellen" (texten skrivs när go-live-grenen fylls i) |
 | 8 | Lagringen: Supabase-planen och gallring 14 dagar efter export | kolla planen före öppet läge |
-| 9 | När steg 4–8 byggs | steg 1–3 nu; steg 5 före Private betas främlingar; steg 4, 6–8 när det kommer > 200 rättelser i veckan |
+| 9 | När steg 4–8 byggs | **Beslutat 2026-10-15, på en mätning och inte ett datum:** steg 4 när granskningen tar > 1 h i veckan eller det kommer > 200 rättelser i veckan; steg 6 när steg 2–3 klarat sina grindar; steg 7 när första sorten i bänken är full eller det kommer > 10 säkra fel i veckan; steg 8 vid > 20 problemrapporter i veckan eller två spelare med samma fel; steg 9 enligt beslut 11. `/overview` bör visa rättelser och rapporter per vecka, så att gränserna syns |
 | 10 | Nya spelares första rättelser till kön | 10 st |
 | 11 | När granskningen flyttar till en adress (steg 9) | när du vill granska från telefonen eller någon annan ska hjälpa till; till dess lokalt, startad när du granskar (ingen autostart: en server som alltid kör blir inaktuell när koden ändras) |

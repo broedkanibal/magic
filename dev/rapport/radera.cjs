@@ -37,7 +37,7 @@ const UTROT = process.env.MESA_FALL_UT ? path.resolve(process.env.MESA_FALL_UT) 
 const DEV = path.join(UTROT, 'dev');
 const PLATS = {
   mattest: path.join(DEV, 'mattest', 'underlag', 'rapporter'),
-  bank: path.join(DEV, 'remsa', 'rapportbank'),
+  bank: path.join(DEV, 'material', 'rapportbank'),
   traning: path.join(DEV, 'material', 'arbete', 'markning', 'rapporter-traning-mesa'),
   diagnos: path.join(DEV, 'diagnos', 'rapporter')
 };

@@ -67,9 +67,9 @@ function rapport(kod, game_id) {
   /* 1. En tyst rättelse blir ett bänkfall. */
   const a = rattelse('R-9991', 0);
   let r = tillFall(['R-9991', '--bank', '--sort', 'blank', '--lokal', '--mapp', a.mapp]);
-  const bankMan = path.join(UT, 'dev', 'remsa', 'rapportbank', 'manifest.json');
+  const bankMan = path.join(UT, 'dev', 'material', 'rapportbank', 'manifest.json');
   const bank = fs.existsSync(bankMan) ? JSON.parse(fs.readFileSync(bankMan, 'utf8')) : [];
-  ok(r.kod === 0 && bank.length === 1 && bank[0].kod === 'R-9991' && bank[0].namn === a.namn && bank[0].gissning === 'Swamp' && fs.existsSync(path.join(UT, 'dev', 'remsa', 'rapportbank', bank[0].fil)),
+  ok(r.kod === 0 && bank.length === 1 && bank[0].kod === 'R-9991' && bank[0].namn === a.namn && bank[0].gissning === 'Swamp' && fs.existsSync(path.join(UT, 'dev', 'material', 'rapportbank', bank[0].fil)),
     `rättelsen R-9991 blev ett bänkfall: ${bank[0] ? `${bank[0].fil}, facit ${bank[0].namn}, gissningen ${bank[0].gissning}, koden i manifest.json` : r.ut.trim()}`);
   /* 1b. Sorten och utgåvorna (bankutgava.cjs). */
   ok(bank[0] && bank[0].sort === 'blank' && bank[0].utgava === null, `bänkfallet bär sorten och är inkommande (sort ${bank[0] && bank[0].sort}, utgava ${bank[0] && bank[0].utgava})`);
@@ -79,7 +79,7 @@ function rapport(kod, game_id) {
   r = tillFall(['R-9961', '--bank', '--sort', 'regn', '--lokal', '--mapp', a2.mapp]);
   ok(r.kod === 2, `--sort med en okänd sort vägras (slutkod ${r.kod})`);
   r = kor('bankutgava.cjs', ['--klipp'], { MESA_FALL_UT: UT });
-  const utg = () => JSON.parse(fs.readFileSync(path.join(UT, 'dev', 'remsa', 'rapportbank', 'utgavor.json'), 'utf8'));
+  const utg = () => JSON.parse(fs.readFileSync(path.join(UT, 'dev', 'material', 'rapportbank', 'utgavor.json'), 'utf8'));
   const man1 = JSON.parse(fs.readFileSync(bankMan, 'utf8'));
   ok(r.kod === 0 && utg().length === 1 && utg()[0].utgava === 1 && utg()[0].antal === 1 && man1[0].utgava === 1, `--klipp fryser bänken som v1: ${r.ut.trim()}`);
   r = tillFall(['R-9991', '--bank', '--sort', 'vinkel', '--lokal', '--mapp', a.mapp, '--skriv-over']);
@@ -263,7 +263,7 @@ satt(process.argv.slice(1), S).then(t => console.log(t)).catch(e => { console.er
     const py8 = process.env.MESA_PY || path.join(os.homedir(), '.mesa', 'detektor-venv', 'bin', 'python');
     const pyKor = (kod, ...x) => spawnSync(py8, ['-c', kod, ...x], { encoding: 'utf8' });
     const manifest = () => fs.existsSync(bankMan) ? JSON.parse(fs.readFileSync(bankMan, 'utf8')) : [];
-    const BANKDIR = path.join(UT, 'dev', 'remsa', 'rapportbank');
+    const BANKDIR = path.join(UT, 'dev', 'material', 'rapportbank');
     /* 8a. En äldre rättelse utan ruta (som R-0008): bänkfall med varning, träning bara med --utan-ruta. */
     const g0 = rattelse('R-9970', 10, 'name_this_card', 'GAMMAL1', undefined, true);
     r = tillFall(['R-9970', '--bank', '--sort', 'blank', '--lokal', '--mapp', g0.mapp]);
@@ -446,12 +446,12 @@ print(json.dumps({'w':W,'h':H,'p':[im.getpixel((int(a*W),int(b*H))) for a,b in p
   /* 6. Bänken kör bänkfallet. */
   if (har('--bank-kor')) {
     const modell = path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx');
-    const k = spawnSync(py, [path.join(ROT, 'dev', 'remsa', 'helkort_jamfor.py'), '--bank', path.join(UT, 'dev', 'remsa', 'rapportbank'), modell], { encoding: 'utf8', cwd: ROT });
+    const k = spawnSync(py, [path.join(ROT, 'dev', 'remsa', 'helkort_jamfor.py'), '--bank', path.join(UT, 'dev', 'material', 'rapportbank'), modell], { encoding: 'utf8', cwd: ROT });
     const rad = (k.stdout || '').split('\n').find(x => /R-9991/.test(x));
     ok(k.status === 0 && !!rad, `bänken (helkort_jamfor.py --bank) körde bänkfallet: ${rad ? rad.trim() : (k.stderr || '').trim().split('\n').pop()}`);
-    const u = spawnSync(py, [path.join(ROT, 'dev', 'remsa', 'helkort_jamfor.py'), '--bank', path.join(UT, 'dev', 'remsa', 'rapportbank'), '--utgava', '1', modell], { encoding: 'utf8', cwd: ROT });
+    const u = spawnSync(py, [path.join(ROT, 'dev', 'remsa', 'helkort_jamfor.py'), '--bank', path.join(UT, 'dev', 'material', 'rapportbank'), '--utgava', '1', modell], { encoding: 'utf8', cwd: ROT });
     ok(u.status === 0 && /utgåva v1: 1 fall/.test(u.stdout) && /R-9991/.test(u.stdout) && /sort blank\s+\d\/1/.test(u.stdout), `--utgava 1 mäter bara den frysta utgåvan, per sort: ${(u.stdout || '').split('\n').filter(l => /utgåva|sort /.test(l)).map(l => l.trim()).join(' · ') || (u.stderr || '').trim().split('\n').pop()}`);
-    const u9 = spawnSync(py, [path.join(ROT, 'dev', 'remsa', 'helkort_jamfor.py'), '--bank', path.join(UT, 'dev', 'remsa', 'rapportbank'), '--utgava', '9', modell], { encoding: 'utf8', cwd: ROT });
+    const u9 = spawnSync(py, [path.join(ROT, 'dev', 'remsa', 'helkort_jamfor.py'), '--bank', path.join(UT, 'dev', 'material', 'rapportbank'), '--utgava', '9', modell], { encoding: 'utf8', cwd: ROT });
     ok(u9.status !== 0 && /finns inte/.test(u9.stderr), `--utgava 9 (finns inte) vägras: ${(u9.stderr || '').trim().split('\n').pop()}`);
   }
 

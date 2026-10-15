@@ -343,6 +343,12 @@ bland kandidaterna.
 "i spelarens lek" och motsägelsen "hel lek utan namnet" är okända i dag — B kommer bara ur tidigare partier. En
 `grant select on public.decks to service_role` öppnar dem; det är Jespers beslut (leken är spelarens egen).
 
+### Bänken ligger utanför git (Jespers beslut 2026-10-15)
+
+`dev/material/rapportbank/` (som träningen; i en worktree via länken `dev/material`). Repot är publikt, och
+en bänkbild är ett foto från en spelares bord: i git skulle den synas för alla och ligga kvar i historiken
+också efter en radering. Mat test-fallen ligger kvar i git — de har inga bilder, bara kortnamn och tider.
+
 ### Bänkens utgåvor (`bankutgava.cjs`)
 
 Bänken växer med varje granskning, så en siffra från förra månaden mäter en annan bänk än i dag. Därför:
@@ -352,7 +358,7 @@ Bänken växer med varje granskning, så en siffra från förra månaden mäter 
 | Inkommande | ett nytt bänkfall har `utgava: null` — det mäts, men ingår inte i någon utgåva än |
 | Klipp | `node dev/rapport/bankutgava.cjs --klipp` fryser allt inkommande som nästa utgåva (v1, v2, …). Utgåva N = alla fall med `utgava ≤ N`; `utgavor.json` listar varje utgåvas filer |
 | Fryst | ett fall i en utgåva skrivs aldrig över (`till-fall.cjs --skriv-over` vägrar). Raderar en spelare sin rapport tas fallet bort ändå (privacy-löftet); då säger `helkort_jamfor.py` att utgåvan saknar ett fall |
-| Mät | `helkort_jamfor.py --bank dev/remsa/rapportbank --utgava N <gammal modell> <ny modell>` — **båda modellerna i samma körning**, aldrig mot en gammal siffra. Historik-raden skriver utgåvan |
+| Mät | `helkort_jamfor.py --bank dev/material/rapportbank --utgava N <gammal modell> <ny modell>` — **båda modellerna i samma körning**, aldrig mot en gammal siffra. Historik-raden skriver utgåvan |
 
 Klipp en ny utgåva när du ska jämföra modeller och det kommit in prov sedan förra, inte efter varje granskning.
 Ett prov blir aldrig träning, inte heller när det blivit gammalt: då kan de gamla utgåvorna inte längre mäta nya
@@ -366,7 +372,7 @@ Utan det här steget är rapporterna en hög. Varje rapport blir **en** av fyra 
 |---|---|---|---|
 | **En fix** | felet syns i händelserna, felen eller bilderna och går att rätta | `satt.cjs <kod> fix`, sedan koden — och testfallet, se regeln nedan: fallet görs med `till-fall.cjs` och då blir rapporten **test** (fix → test går, fix → träning vägras) | — |
 | **Ett fall i Mat test** | mattans beteende: dubbletter, hopp, fel plats, kort till handen | `till-fall.cjs <kod> --mattest` | `dev/mattest/underlag/rapporter/<kod>/` (`fall.json` + `bordlogg.json.gz`); `node dev/mattest/kor.cjs --fall <kod>` |
-| **Ett bänkfall** | fel namn, missad remsa: en beskärning + rätt namn (en tyst rättelse) | `till-fall.cjs <kod> --bank --sort <id>` | `dev/remsa/rapportbank/` (`manifest.json` i `dev/embed/riktiga`-form); `~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/remsa/rapportbank dev/embed/modeller/mobileclip-s0-vision.onnx` |
+| **Ett bänkfall** | fel namn, missad remsa: en beskärning + rätt namn (en tyst rättelse) | `till-fall.cjs <kod> --bank --sort <id>` | `dev/material/rapportbank/` (`manifest.json` i `dev/embed/riktiga`-form); `~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/material/rapportbank dev/embed/modeller/mobileclip-s0-vision.onnx` |
 | **Träningsdata** | bilder + rätt namn som inte ska vara prov | `till-fall.cjs <kod> --traning` | `dev/material/arbete/markning/rapporter-traning-mesa/<kod>/markning.json` i mark.py:s form (MES-340); `dev/remsa/tran/dataset.py` läser den |
 | (inget) | inget att göra | `satt.cjs <kod> slangd` | `gallra.cjs` tar den efter 90 dagar |
 
@@ -396,7 +402,7 @@ träningen — då mäter provet att modellen minns kortet. Samma regel som dete
 
 | Export | Spärras av |
 |---|---|
-| `--bank` (bänken, `dev/remsa/rapportbank/`) | koden **eller partiet** i träningen |
+| `--bank` (bänken, `dev/material/rapportbank/`) | koden **eller partiet** i träningen |
 | `--traning` | koden som Mat test-fall eller bänkfall, och **partiet** i bänken — inte partiets Mat test-fall |
 | `--mattest` (`dev/mattest/underlag/rapporter/`) | bara **koden själv** i träningen — partiets andra rapporter och rättelser får bli träning, och tvärtom |
 
@@ -521,7 +527,8 @@ parti, nar }`. Indexet ligger **där kopiorna ligger**, ett per sida:
 
 | Index | Kopior | Varför där |
 |---|---|---|
-| `dev/rapport/kopior.jsonl` | Mat test-fallen och bänken (i git) | raden följer med samma commit som kopian: en gren som gör ett fall bär sin rad, och en worktree ser precis de kopior den har. `merge=union` i `.gitattributes`, så två grenar som lägger till rader inte krockar |
+| `dev/rapport/kopior.jsonl` | Mat test-fallen (i git) | raden följer med samma commit som kopian: en gren som gör ett fall bär sin rad, och en worktree ser precis de kopior den har. `merge=union` i `.gitattributes`, så två grenar som lägger till rader inte krockar |
+| `dev/material/rapportbank/kopior.jsonl` | bänken (utanför git) | bänken ligger utanför git sedan 2026-10-15, se *Bänken ligger utanför git* |
 | `dev/material/arbete/markning/rapporter-traning-mesa/kopior.jsonl` | träningen (utanför git) | träningen finns bara på Jespers Mac; ett index i git skulle peka på mappar som inte finns i en annan klon |
 
 Ett pass utan rapportkod (`--mattest --logg`) får ingen rad: det finns ingen kod att radera. Kopior från före
