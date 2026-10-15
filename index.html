@@ -2068,6 +2068,7 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .ofrsok .sok-spets.v{display:block;left:-7px;border-right-color:transparent;border-top-color:transparent}
 /* Ringen runt kortet som namnges, i rutans lager (ofrSokOppna): syns runt hela kortet, också där ett annat ligger över. */
 .ofrsok-ring{position:absolute;z-index:973;box-sizing:border-box;border:2px solid var(--acc);border-radius:12px;box-shadow:0 0 0 4px #f0a52a2e,0 0 22px #f0a52a55;pointer-events:none}
+.ofrsok-etik{position:absolute;left:50%;top:12px;transform:translateX(-50%);white-space:nowrap;background:var(--acc);color:#1a1206;font:650 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;padding:5px 8px;border-radius:6px}
 .ofrsok .sok-in{height:34px;border-radius:8px;border:1px solid #3b485c;background:#0b0f15;color:var(--txt);font:14px var(--sans);padding:0 10px;outline:none}
 .ofrsok .sok-in:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a22}
 .ofrsok .sok-res{display:flex;flex-direction:column;gap:8px}
@@ -7718,7 +7719,11 @@ function slimKort(cards) {
        bindningen överlever ingen omladdning, och då ska kortet ligga där det låg, inte på gissningen. */
     kam: (c.flyttFran && c.flyttFran.kam) || c.kam || undefined, fysisk: c.fysisk ? 1 : undefined,
     kamTap: c.kamTap === 0 || c.kamTap === 1 ? c.kamTap : undefined,
-    hand: c.hand || undefined   // flyttat för hand (MES-352): handKvar
+    hand: c.hand || undefined,   // flyttat för hand (MES-352): handKvar
+    /* Bytt namn för hand (MES-387): pennan, och väntan på telefonens kvitto (avstamBord). */
+    namnHand: c.namnHand || undefined,
+    kamNamnFore: c.kamNamnFore != null ? c.kamNamnFore : undefined, kamNamnSpar: c.kamNamnSpar != null ? c.kamNamnSpar : undefined,
+    kamNamnSkickat: c.kamNamnSkickat || undefined, kamNamnN: c.kamNamnN || undefined
   }));
 }
 function save() {
@@ -14927,7 +14932,7 @@ function ofrSokOppna(pend, byt) {
     + '<button type="button" class="sok-x" aria-label="Close" data-sokstang><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg></button></div>'
     + (vid ? `<div class="sok-foto vid${vand}"><span class="sok-ram"><img src="${vid.b64}" alt="The camera’s photo of the card and the table around it"><i class="sok-kontur" style="inset:${kant}%"></i></span></div><div class="sok-not">Name the <b>outlined</b> card</div>`
       : foto ? `<div class="sok-foto${vand}"><img src="${foto}" alt="The camera’s photo of the card"></div>` : '')
-    + (byt ? `<div class="sok-las">The camera read <b>${esc(namnAv(bk))}</b></div>` : '')
+    + (byt && bytKamNamn(bk) ? `<div class="sok-las">The camera read <b>${esc(bytKamNamn(bk))}</b></div>` : '')
     + `<input id="ofrSokIn" class="sok-in" type="text" autocomplete="off" spellcheck="false" placeholder="${byt ? 'Type the right name' : 'Type a card name'}">`
     + '<div class="sok-res"></div>'
     + (byt ? '' : '<div class="sok-fot"><button type="button" class="sok-nej" data-soknej title="The camera stops asking about it">Not a card</button></div>');
@@ -14935,6 +14940,7 @@ function ofrSokOppna(pend, byt) {
   /* Ringen runt kortet på mattan (D): i rutans lager, ovanpå korten, så att den syns runt hela kortet också när
      ett annat kort ligger över det. ofrSokPlacera lägger den där kortet står. */
   const ring = document.createElement('i'); ring.className = 'ofrsok-ring'; ring.setAttribute('aria-hidden', 'true');
+  if (byt) ring.innerHTML = '<span class="ofrsok-etik">Changing</span>';   // tavla A
   zp.appendChild(ring);
   ofrSok = { pend: byt ? null : pend, byt: byt || null, el, ring, inp: el.querySelector('.sok-in'), res: el.querySelector('.sok-res'), traffar: [], idx: 0, seq: 0, bekr: null };
   ofrSok.inp.addEventListener('input', () => ofrSokSok());
@@ -14980,13 +14986,14 @@ function ofrSokSok() {
      nuvarande namn. En gissning utanför leken frågar om leken, som en träff bland alla kort. */
   const bk = s.byt && ((minSpelare() || {}).cards || []).find(c => c.cid === s.byt);
   const giss = bk ? bytGissningar(bk).filter(n => !q || norm(n).includes(norm(q))) : [];
+  const lekFore = namn.length;
   if (bk) namn = namn.filter(n => n !== bk.name && !giss.includes(n));
   const lekNamn = new Set(lek.map(k => k.name));
   s.traffar = giss.map(n => ({ namn: n, sid: sidAv(n), lek: !lek.length || lekNamn.has(n), giss: true }))
     .concat(namn.slice(0, OFR_SOK_N).map(n => ({ namn: n, sid: sidAv(n), lek: true })));
   s.idx = q || giss.length ? 0 : -1; s.alla = false;   // utan fråga är inget förvalt: Enter namnger inte kortet på måfå — utom kamerans första gissning (tavla A)
   ofrSokRita();
-  if (s.traffar.length || q.length < 2) return;
+  if (s.traffar.length || q.length < 2 || lekFore) return;   // lekFore: frågan fanns i leken (kortets eget namn, en gissning)
   s.alla = true; ofrSokRita();
   Promise.resolve(SF.autocomplete(q)).then(d => {
     if (!ofrSok || ofrSok !== s || my !== s.seq) return;
@@ -15115,38 +15122,77 @@ function bytGissningar(c) {
   const k = c && c.spar != null && typeof Rattelse !== 'undefined' ? Rattelse.kandidater(c.spar) : null;
   return [...new Set((k || []).map(x => x.namn))].filter(n => n && n !== c.name).slice(0, 4);
 }
-/* Telefonen får namnet. Tills telefonens bord säger det bär kortet kamNamnFore — spårets namn före bytet: ett bord som
-   fortfarande säger det är skickat före bytet och knyter inte loss kortet (avstamBord, steg 1). */
-function kamNamnSkicka(c, namn, sid, fore) {
+/* Det kameran läste för kortet: kamerans namn från före spelarens byte (namnHand), annars kortets namn — utom när
+   spelaren själv namngav det (spårets domskäl 'hand', Enter card name): då läste kameran inget, och null. */
+function bytKamNamn(c) {
+  if (!c) return null;
+  if (c.namnHand) return c.namnHand.fran || null;
+  const t = c.spar != null ? (senasteSpar || []).find(u => u.id === c.spar) : null;
+  return t && t.varfor === 'hand' ? null : c.name || null;
+}
+/* Telefonen får namnet. Tills telefonens bord säger det bär kortet kamNamnFore — spårets namn före bytet — för just det
+   spåret (kamNamnSpar): ett bord som fortfarande säger det är skickat före bytet och knyter inte loss kortet (avstamBord,
+   steg 1). Dröjer kvittot skickas namnet igen, högst KAM_NAMN_IGEN gånger. Sparas med kortet (slimKort), så att en
+   omladdning före kvittot inte ger en dubblett. */
+const KAM_NAMN_IGEN = 5;
+function kamNamnSkicka(c, namn, sid, fore, igen) {
   if (c.spar == null || !spelLage) return;
   Moln.sandKam('namn', { spar: c.spar, namn, sid: sid || null });
-  c.kamNamnFore = fore || null; c.kamNamnSkickat = Date.now();
+  c.kamNamnFore = fore || null; c.kamNamnSpar = c.spar; c.kamNamnSkickat = Date.now(); c.kamNamnN = igen ? (c.kamNamnN || 0) + 1 : 0;
 }
+function kamNamnKlar(c) { delete c.kamNamnFore; delete c.kamNamnSpar; delete c.kamNamnSkickat; delete c.kamNamnN; }
+/* Rättelsens löfte per kort (Rattelse.fran), så att Undo, ⌘Z och ett nytt byte kan ta tillbaka det. */
+const bytLofte = new Map();   // cid → { lofte, fran, till }
+function bytTillbaka(cid) { const m = bytLofte.get(cid); bytLofte.delete(cid); if (m && typeof Rattelse !== 'undefined') Rattelse.angra(m.lofte); }
 function kortBytNamn(cid, name, sid, utanforLek) {
   ofrSokStang();
   const mig = minSpelare(), c = mig && mig.cards.find(k => k.cid === cid);
   if (!c || !name || c.name === name || !kamFoljer(c)) return;
   if (utanforLek) ofrLaggILek(name);
+  angraPunkt(mig);
+  const bild = JSON.stringify(mig.cards);
   const fore = { name: c.name, sid: c.sid, cands: c.cands, namnHand: c.namnHand };
   const t = (senasteSpar || []).find(u => u.id === c.spar);
-  const lofte = kortBytt(c, name, sid || null, [{ name, sid: sid || null, score: 1 }]);
-  c.namnHand = { fran: fore.namnHand ? fore.namnHand.fran : fore.name };   // kamerans namn, också efter två byten
+  const kamNamn = bytKamNamn(c);
+  /* Ett nytt byte ersätter spelarens förra: den förra rättelsen tas tillbaka. Tillbaka till kamerans eget namn är
+     ingen rättelse alls — bara det förra bytet som tas tillbaka, och pennan går. */
+  if (fore.namnHand) bytTillbaka(c.cid);
+  const tillKameran = !!fore.namnHand && name === fore.namnHand.fran;
+  if (tillKameran) khLogga('angrad', c.cid, { namn: name, fran: fore.name, rapport: { spar: c.spar, av: 'namn' } });
+  const lofte = tillKameran ? (Object.assign(c, { name, sid: sid || undefined, cands: [{ name, sid: sid || null, score: 1 }] }), null)
+    : kortBytt(c, name, sid || null, [{ name, sid: sid || null, score: 1 }], kamNamn ? (kamNamn !== fore.name ? kamNamn : undefined) : false);
+  if (lofte) bytLofte.set(c.cid, { lofte, fran: fore.name, till: name });
+  if (tillKameran) delete c.namnHand; else c.namnHand = { fran: kamNamn };   // kamerans namn, också efter två byten; null = kameran läste inget
   kamNamnSkicka(c, name, sid, (t && t.namn) || fore.name);
   save(); resolveAll(); renderAll(true);
-  visaNamnToast(c.cid, fore, name, lofte);
+  visaNamnToast(c.cid, fore, name, bild);
 }
-/* Undo: kamerans namn tillbaka, till telefonen också, och rättelsen tas tillbaka — angrad (av 'namn') i kort_handelser,
-   och raden om den hann sparas (Rattelse.angra). Har kortet fått ett annat namn sedan rörs ingenting. */
-function kortBytAngra(cid, fore, till, lofte) {
+/* Undo: namnet från före bytet tillbaka, till telefonen också, och rättelsen tas tillbaka — angrad (av 'namn') i
+   kort_handelser, och raden om den hann sparas (Rattelse.angra). Har kortet fått ett annat namn sedan rörs ingenting. */
+function kortBytAngra(cid, fore, till, bild) {
   handToastStang();
   const mig = minSpelare(), c = mig && mig.cards.find(k => k.cid === cid);
   if (!c || c.name !== till) return;
   khLogga('angrad', c.cid, { namn: fore.name || null, fran: till, rapport: { spar: c.spar != null ? c.spar : null, av: 'namn' } });
-  if (typeof Rattelse !== 'undefined') Rattelse.angra(lofte);
+  bytTillbaka(c.cid);
   Object.assign(c, { name: fore.name, sid: fore.sid, cands: fore.cands });
   if (fore.namnHand) c.namnHand = fore.namnHand; else delete c.namnHand;
   kamNamnSkicka(c, fore.name, fore.sid, till);
+  /* Bytets ångrapunkt är förbrukad (som tapAngra): ⌘Z går till handlingen före. */
+  const sista = angraStack[angraStack.length - 1];
+  if (sista && sista.pid === mig.id && sista.bild === bild) angraStack.pop();
   save(); resolveAll(); renderAll(true);
+}
+/* ⌘Z lade tillbaka kortlistan (angra): ett kort som fick ett annat namn där får det namnet hos telefonen också, och
+   ett ångrat Change card tar tillbaka sin rättelse. Annars knöt avstämningen loss kortet (spåret säger spelarens namn). */
+function bytEfterAngra(fore, p) {
+  for (const k of p.cards) {
+    const f = fore.get(k.cid);
+    if (!f || f.name === k.name || k.spar == null || k.spar !== f.spar) continue;
+    const m = bytLofte.get(k.cid);
+    if (m && m.till === f.name) bytTillbaka(k.cid);
+    kamNamnSkicka(k, k.name, k.sid, f.name);
+  }
 }
 /* Not a card (Jesper 2026-10-08, designytan "Mesa Name This Card"): granskningsradens Discard flyttade hit, men
    för ett kort i taget. Samma svar som arkets "It's not a card": spåret spärras tills det lyfts (borttagna), och
@@ -15581,14 +15627,14 @@ function visaHandToast(fore, cids, ofr, tap) {
 }
 /* Namnbytet för hand (MES-387, designytan "Mesa Change Card", tavla H): pennan, "Renamed by hand", vad som byttes mot
    vad och hur länge, och Undo — samma toast som flytten. */
-function visaNamnToast(cid, fore, till, lofte) {
+function visaNamnToast(cid, fore, till, bild) {
   const el = document.getElementById('handToast'), s = handToastStang;
   handToastForbered();
   el.innerHTML = `<div class="htkort"><span class="htikon">${pennIkon(18, 2.2)}</span><div class="httxt"><b>Renamed by hand</b>`
     + `<span>${esc(fore.name || '')} → ${esc(till)} for the rest of this game.</span></div><button type="button" class="htangra">Undo</button></div>`;
   s.tap = false; s.cids = [];   // ett tap eller en flytt efteråt får sin egen toast
   const k = el.firstElementChild;
-  k.querySelector('.htangra').onclick = ev => { ev.stopPropagation(); kortBytAngra(cid, fore, till, lofte); };
+  k.querySelector('.htangra').onclick = ev => { ev.stopPropagation(); kortBytAngra(cid, fore, till, bild); };
   handToastStarta(k);
 }
 /* En ny toast ersätter en öppen, också en vanlig notis. */
@@ -16014,6 +16060,7 @@ function angra() {
           khHandling('angrad', k, { av: 'cmdz', efter: e ? { finns: 1, paBord: paMattan(e) ? 1 : 0, tappad: e.tapped ? 1 : 0, zon: e.zon || null, namn: e.name || null } : { finns: 0, paBord: 0 } });
       }
     }
+    if (fore && spelLage) bytEfterAngra(fore, p);   // Change card (MES-387)
     ofrAterstall(s.ofr);
     /* Match the camera (MES-357): spökena den spärrade får sina spår tillbaka, och ett kort som Match skickade
        till raden vid nederkanten och som nu ligger på mattan igen står inte kvar i raden (Still on the table hade
@@ -25314,10 +25361,12 @@ function namngePend(p, q, name, sid, list) {
 }
 /* Spelaren bytte namn på ett kort: spelupplevelsens bytt och den tysta rättelsen (före namnet byts), sedan namnet.
    Returnerar rättelsens löfte (Rattelse.fran), eller null. Change card (kortBytNamn) och skärmdumpsvyn (applyPick). */
-function kortBytt(c, name, sid, list) {
+function kortBytt(c, name, sid, list, kamNamn) {
   let lofte = null;
   if (c.spar != null && c.name && c.name !== name) khLogga('bytt', c.cid, { namn: name, fran: c.name });   // spelupplevelsen: kamerans namn var fel
-  if (c.spar != null && c.name && c.name !== name && typeof Rattelse !== 'undefined') lofte = Rattelse.fran('namnbyte', c, name);   // den tysta rättelsen (MES-366), före namnet byts
+  /* kamNamn: det kameran läste, när kortet redan bär ett annat namn (Change card en andra gång); false = kameran läste
+     inget namn (spelaren namngav kortet), och då finns ingen kamerans gissning att rätta. */
+  if (c.spar != null && c.name && c.name !== name && kamNamn !== false && typeof Rattelse !== 'undefined') lofte = Rattelse.fran('namnbyte', kamNamn ? Object.assign({}, c, { name: kamNamn }) : c, name);   // den tysta rättelsen (MES-366), före namnet byts
   Object.assign(c, { name, sid: sid || undefined, cands: list });
   return lofte;
 }
@@ -34643,7 +34692,8 @@ const KH_MIX = { namn: 'Card Named', namnlos: 'Card Not Identified', sent_namn: 
      angrad        Undo i toasten efter tap_hand eller flytt_hand: kameran hade rätt
      folj_kameran  Follow camera: kortet släpper spelarens läge och tar kamerans
      grav_hand     lade det i graveyard, exile eller handen själv (menyn, G, H, draget till en hög; zon grav/exil/hand)
-   Remove är borttagen, som förut. angrad bär av: 'tap' | 'flytt' | 'cmdz' (⌘Z), och hur: 'tap' när spelaren vred
+   Remove är borttagen, som förut. angrad bär av: 'tap' | 'flytt' | 'cmdz' (⌘Z) | 'namn' (Undo efter Change card, eller
+   tillbaka till kamerans namn, MES-387 — loggas med khLogga, utan bordslogg), och hur: 'tap' när spelaren vred
    tillbaka sitt eget tap för hand i stället för Undo. Varje gång loggas — inte en gång per kort som namnen — och i en
    egen skrivning (khSkicka), så att en tabell utan migrationen 20261015090000 bara tappar de här raderna. Bara kort
    kameran följer (kamFoljer): utan spår finns ingen dom att säga emot. Inget här frågar Claude. */
@@ -35464,9 +35514,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     const k = bunden(t.id);
     /* Change card (MES-387): telefonen har spelarens namn — eller så är bordet skickat före bytet, och säger
        fortfarande spårets namn från före det. Då ligger kortet kvar, och telefonen får namnet igen om det dröjer. */
-    if (k && k.kamNamnFore !== undefined && t.namn === k.name) { delete k.kamNamnFore; delete k.kamNamnSkickat; }
-    if (k && k.kamNamnFore != null && t.namn === k.kamNamnFore && k.name !== t.namn) {
-      if (nu - (k.kamNamnSkickat || 0) > 3000) kamNamnSkicka(k, k.name, k.sid, k.kamNamnFore);
+    if (k && k.kamNamnSpar != null && (k.kamNamnSpar !== t.id || t.namn === k.name)) kamNamnKlar(k);
+    if (k && k.kamNamnFore != null && k.kamNamnSpar === t.id && t.namn === k.kamNamnFore && k.name !== t.namn) {
+      if (nu - (k.kamNamnSkickat || 0) > 3000 && (k.kamNamnN || 0) < KAM_NAMN_IGEN) kamNamnSkicka(k, k.name, k.sid, k.kamNamnFore, true);
       continue;
     }
     if (k && t.tillstand === 'klar' && t.namn && (t.saker || k.flyttFran) && k.name !== t.namn) {

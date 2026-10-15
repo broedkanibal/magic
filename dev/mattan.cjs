@@ -1601,14 +1601,18 @@ const PROV = async () => {
         !!dlg && dlg.getAttribute('aria-label') === 'Change card' && dlg.querySelector('.sok-l').textContent === 'Change card' && !!dlg.querySelector('.sok-foto img')
           && !!las && las.textContent === 'The camera read Shock' && getComputedStyle(las.querySelector('b')).textDecorationLine === 'line-through'
           && grupper.join('|') === 'The camera’s other guesses|From your deck' && listor[0].join('|') === 'Lightning Bolt|Chain Lightning' && listor[1].join('|') === 'Lava Spike|Opt'
-          && dlg.querySelector('.sok-t.on').textContent === 'Lightning Bolt' && !dlg.querySelector('[data-soknej]') && !!ring && !document.querySelector('.matmeny.open'),
+          && dlg.querySelector('.sok-t.on').textContent === 'Lightning Bolt' && !dlg.querySelector('[data-soknej]') && !!ring && !document.querySelector('.matmeny.open')
+          && !!ring.querySelector('.ofrsok-etik') && ring.querySelector('.ofrsok-etik').textContent === 'Changing',
         dlg ? `grupper ${grupper.join('|')}, listor ${JSON.stringify(listor)}, rad ${las ? las.textContent : 'ingen'}` : 'ingen ruta');
       await bild('C-rutan-change-card');
       const inp = dlg.querySelector('.sok-in');
       inp.value = 'lava'; inp.dispatchEvent(new Event('input'));
       const sokt = [...dlg.querySelectorAll('.sok-t')].map(b => b.textContent).join('|');
       inp.value = ''; inp.dispatchEvent(new Event('input'));
-      ok('C: en fråga filtrerar — gissningarna som inte innehåller den går, leken söks', sokt === 'Lava Spike', sokt);
+      inp.value = 'Shock'; inp.dispatchEvent(new Event('input'));
+      const egen = { traffar: [...dlg.querySelectorAll('.sok-t')].length, alla: /Searching all cards/.test(dlg.textContent) };
+      inp.value = ''; inp.dispatchEvent(new Event('input'));
+      ok('C: en fråga filtrerar — gissningarna som inte innehåller den går, leken söks; kortets eget namn söker inte bland alla kort', sokt === 'Lava Spike' && egen.traffar === 0 && !egen.alla, sokt + ' · ' + JSON.stringify(egen));
       inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       renderGrid(true); await vanta(50);
       const tk = $('#handToast').querySelector('.htkort'), pen = elK(k) && elK(k).querySelector('.handmark');
@@ -1635,6 +1639,25 @@ const PROV = async () => {
       ok('C: Undo — Shock igen, telefonen får Shock, brickan och toasten går, och ett bord som ännu säger Lightning Bolt ger ingen dubblett',
         k.name === 'Shock' && !k.namnHand && !elK(k).querySelector('.handmark') && !handToastOppen() && tillbaka && tillbaka.namn === 'Shock' && tillbaka.spar === 91 && efterUndo === 'Opt|Shock' && k.spar === 91,
         `${k.name}, telefonen ${JSON.stringify(tillbaka)}, mattan ${efterUndo}`);
+      avstamBord(bord(), false);
+      /* Granskningens fynd: ⌘Z efter bytet, tillbaka till kamerans namn, pennan genom en omladdning. */
+      ofrSokOppna(null, k.cid); kortBytNamn(k.cid, 'Lightning Bolt', null, false);
+      const slim = slimKort([k])[0];
+      avstamBord(bord('Lightning Bolt'), false);
+      const n0 = sandt.length;
+      angra(); renderGrid(true);
+      const zTel = sandt.slice(n0).filter(m => m.typ === 'namn');
+      avstamBord(bord('Lightning Bolt'), false); avstamBord(bord('Lightning Bolt'), false); renderGrid(true);
+      const k2 = mig.cards.find(c => c.spar === 91), efterZ = mig.cards.filter(c => paMattan(c)).map(c => c.name).sort().join('|');
+      ok('C: ⌘Z efter Change card — Shock igen, telefonen får Shock, och ett bord som ännu säger Lightning Bolt ger ingen dubblett; pennan sparas med kortet',
+        !!k2 && k2.name === 'Shock' && !k2.namnHand && zTel.length === 1 && zTel[0].namn === 'Shock' && efterZ === 'Opt|Shock' && !!slim.namnHand && slim.namnHand.fran === 'Shock' && slim.kamNamnFore === 'Shock',
+        `${k2 && k2.name}, telefonen ${JSON.stringify(zTel)}, mattan ${efterZ}, sparat ${JSON.stringify(slim.namnHand)}`);
+      avstamBord(bord(), false);
+      kortBytNamn(k2.cid, 'Lightning Bolt', null, false); avstamBord(bord('Lightning Bolt'), false);
+      kortBytNamn(k2.cid, 'Shock', null, false); renderGrid(true);
+      const tk2 = $('#handToast').querySelector('.htkort');
+      ok('C: tillbaka till kamerans namn med Change card — pennan går', k2.name === 'Shock' && !k2.namnHand && !elK(k2).querySelector('.handmark') && !!tk2 && /Lightning Bolt → Shock/.test(tk2.textContent),
+        `${k2.name}, namnHand ${JSON.stringify(k2.namnHand)}`);
       avstamBord(bord(), false);
     } catch (e) { ok('Change card: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); }
     lekKort = lek0; lekTal = tal0; Moln.sandKam = sand0; handToastStang(); ofrSokStang(); closeKortMeny();

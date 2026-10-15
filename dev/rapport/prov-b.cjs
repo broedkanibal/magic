@@ -342,6 +342,30 @@ const PROV = async () => {
        k1 && k1.length === 1 && k1[0].namn === 'Shock' && k2 === null && k3 && k3.length === 2 && k3[1].marginal === -0.11, JSON.stringify({ k1, k2, k3 }));
   }
 
+  {
+    /* MES-387, granskningens fynd 2: ett andra byte rättar kamerans namn, inte spelarens förra, och tar tillbaka den förra
+       rättelsen. Ett kort spelaren själv namngav (spårets domskäl hand) har ingen kamerans gissning: ingen rättelse. */
+    const n0 = rattelser().length, rad0 = A.raderade.length;
+    kortBytNamn(serra.cid, 'Shivan Dragon', null, false);
+    await vantaRader(n0 + 1);
+    const forsta = rattelser()[n0];
+    kortBytNamn(serra.cid, 'Baneslayer Angel', null, false);
+    await vantaRader(n0 + 2);
+    for (let i = 0; i < 100 && A.raderade.length === rad0; i++) await vanta(10);
+    const andra = rattelser()[n0 + 1];
+    const t3 = senasteSpar.find(u => u.id === 3), v0 = t3.varfor, n1 = rattelser().length;
+    t3.varfor = 'hand'; const giant = kort('Giant Growth'); const v4 = senasteSpar.find(u => u.id === 4); const v4f = v4.varfor; v4.varfor = 'hand';
+    kortBytNamn(giant.cid, 'Giant Spider', null, false);
+    await vanta(300);
+    ok('MES-387: andra bytet rättar kamerans namn (Serra Angel → Baneslayer Angel), den förra rättelsen raderas; ett kort spelaren namngav ger ingen rättelse',
+       forsta && forsta.vy.gissning === 'Serra Angel' && forsta.vy.ratt === 'Shivan Dragon' && andra && andra.vy.gissning === 'Serra Angel' && andra.vy.ratt === 'Baneslayer Angel'
+       && A.raderade.includes(forsta.kod) && rattelser().length === n1 && giant.name === 'Giant Spider',
+       JSON.stringify({ forsta: forsta && forsta.vy, andra: andra && andra.vy, raderade: A.raderade, efter: rattelser().length - n1 }));
+    t3.varfor = v0; v4.varfor = v4f;
+    giant.name = 'Giant Growth'; delete giant.namnHand; serra.name = 'Serra Angel'; delete serra.namnHand;
+    handToastStang();
+  }
+
   /* AV igen: slutar direkt. */
   A.bildPa = false;
   const forr = A.rader.length, filer0 = Object.keys(A.filer).length;
