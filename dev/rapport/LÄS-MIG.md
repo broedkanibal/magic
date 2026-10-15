@@ -25,6 +25,7 @@ Spelarens yta: `design_handoff_rapport/README.md` (§5 rutan, §9 detaljerna).
 | Kommando | Gör |
 |---|---|
 | `node dev/rapport/granska.cjs` | **granskningssidan för de tysta rättelserna** på http://127.0.0.1:8279 — se *Granska rättelserna* nedan |
+| `node dev/rapport/bankutgava.cjs` | rapportbänken per sorts fel mot målet, och utgåvorna; `--klipp` fryser det inkommande som nästa utgåva |
 | `node dev/rapport/lista.cjs` | de senaste 50 rapporterna: kod, när, vem (namn och e-post ur kontot), tagg, text, anvandning, bilder |
 | `… --nya` | bara de som inte sorterats (`anvandning` null) |
 | `… --alla` | också felrapporter (`kalla = 'fel'`) och rättelser (`'rattelse'`, del B) |
@@ -256,14 +257,57 @@ node dev/rapport/granska.cjs          # http://127.0.0.1:8279 (--port för en an
 | Del | Vad |
 |---|---|
 | Listan | varje rättelse grupperad per parti: telefonens beskärning, Scryfalls bild av det rätta namnet, gissning → rätt namn, händelse, domskäl. Flikar: Osorterade, Träning, Prov, Slängda, Alla. Klick på beskärningen = beskärningen och Scryfall-bilden stora bredvid varandra |
-| Valen | **Träning** = `till-fall.cjs <kod> --traning`, **Prov** = `till-fall.cjs <kod> --bank`, **Släng** = `satt.cjs <kod> slangd`. Samma verktyg, samma spärr: ett parti är träning eller prov, aldrig båda, och knappen som spärren skulle vägra är grå i förväg. *Alla osorterade → Träning* per parti |
+| Förslaget | sidan föreslår Träning, Prov eller Släng för varje osorterad rättelse och säger varför (reglerna nedan); den föreslagna knappen är markerad. Du trycker själv |
+| Sorts fel | en lista per rättelse (Blänk, Sned vinkel, …, `sorter.cjs`); krävs för Prov. Panelen *Bänken per sorts fel* visar bänken per sort mot målet, de som behöver flest överst |
+| Valen | **Träning** = `till-fall.cjs <kod> --traning`, **Prov** = `till-fall.cjs <kod> --bank --sort <id>`, **Släng** = `satt.cjs <kod> slangd`. Samma verktyg, samma spärr: ett parti är träning eller prov, aldrig båda, och knappen som spärren skulle vägra är grå i förväg. *Alla osorterade → Träning* per parti |
 | Rätt namn | spelarens namn kan vara fel: skriv om det i fältet. Det prövas mot Scryfall (exakt namn, versaler spelar ingen roll) och går till `till-fall.cjs` som `--bild beskarning.jpg --ratt <namn>`; rattelse.json lämnas orörd |
 | Träningen | räkningen ur `dataset.py rakna` (alla märkta pass + rättelserna i träning), **Bygg dataset** → `~/Library/Caches/mesa/ds-riktiga-v<N>-<datum>/` med Kaggle-metadata och `prompt.md`: prompten till en ny session som laddar upp, tränar v<N> på Kaggle och mäter mot grinden i CLAUDE.md. Sidan laddar aldrig upp och startar ingen Kaggle-körning själv |
 
 Rättelserna hämtas till `dev/diagnos/rapporter/<kod>/` (som `hamta.cjs`) och Scryfalls bilder cachas i
 `~/Library/Caches/mesa/granska-scryfall/`. Servern lyssnar bara på 127.0.0.1 och vägrar en annan Host eller en
 POST från en annan sajt; service role-nyckeln lämnar aldrig servern. Golden-lekens namn kan sorteras som träning
-men `dataset.py` tar inte med dem (sidan säger det), och vart femte namn är valideringens (mäter, tränas inte).
+men `dataset.py` tar inte med dem (sidan säger det före valet), och vart femte namn är valideringens (mäter, tränas inte).
+
+### Förslaget: prov, träning eller släng
+
+Det är **partiet** som väljer sida (spärren), så förslaget räknar på partiet. Reglerna prövas uppifrån, den
+första som slår till avgör (`rekommendera()` i `granska.html`):
+
+| # | När | Förslag | Varför |
+|---|---|---|---|
+| 1 | ingen beskärning, eller borttaget kort utan namn | Släng | inget rätt namn att mäta eller lära ut |
+| 2 | partiet är redan träning / prov | den sidan | spärren per parti |
+| 3 | kortet är ett **säkert fel namn** (telefonen var säker, gissningen ≠ rätt namn) | Prov | löftet är 0 säkra fel namn — det mäts alltid, oavsett sort och mål |
+| 4 | ett annat osorterat kort i partiet är ett säkert fel namn | Prov | hela partiet blir prov; sortera det kortet först |
+| 5 | ingen sorts fel vald | Träning | välj sorten om kortet visar något bänken behöver fler av |
+| 6 | sorten har färre prov än målet | Prov | bänken fylls jämnt per sort, i den ordning korten kommer |
+| 7 | sorten är full | Träning | kortet gör mer nytta i träningen |
+
+Ögat behövs till två saker: **Släng** när du själv inte kan läsa kortet på bilden (då går facit inte att lita
+på), och vilken **sorts fel** det är. Bänken fylls i den ordning korten kommer, inte efter vilka som ser
+intressanta ut — annars mäter bänken granskarens smak.
+
+### Sorterna och målet (`sorter.cjs`)
+
+Varje bänkfall bär en sort (`sort` i `manifest.json`; `till-fall.cjs --bank` kräver `--sort`). Listan och målet
+(`MAL`, i dag 20 per sort — en bedömning, inte mätt: med 20 fall är ett fel 5 procentenheter) står i
+`sorter.cjs`; sidan, `till-fall.cjs` och `bankutgava.cjs` läser den. Läget i terminalen:
+`node dev/rapport/bankutgava.cjs`. `helkort_jamfor.py --bank` räknar också rätt per sort.
+
+### Bänkens utgåvor (`bankutgava.cjs`)
+
+Bänken växer med varje granskning, så en siffra från förra månaden mäter en annan bänk än i dag. Därför:
+
+| | |
+|---|---|
+| Inkommande | ett nytt bänkfall har `utgava: null` — det mäts, men ingår inte i någon utgåva än |
+| Klipp | `node dev/rapport/bankutgava.cjs --klipp` fryser allt inkommande som nästa utgåva (v1, v2, …). Utgåva N = alla fall med `utgava ≤ N`; `utgavor.json` listar varje utgåvas filer |
+| Fryst | ett fall i en utgåva skrivs aldrig över (`till-fall.cjs --skriv-over` vägrar). Raderar en spelare sin rapport tas fallet bort ändå (privacy-löftet); då säger `helkort_jamfor.py` att utgåvan saknar ett fall |
+| Mät | `helkort_jamfor.py --bank dev/remsa/rapportbank --utgava N <gammal modell> <ny modell>` — **båda modellerna i samma körning**, aldrig mot en gammal siffra. Historik-raden skriver utgåvan |
+
+Klipp en ny utgåva när du ska jämföra modeller och det kommit in prov sedan förra, inte efter varje granskning.
+Ett prov blir aldrig träning, inte heller när det blivit gammalt: då kan de gamla utgåvorna inte längre mäta nya
+modeller rättvist.
 
 ## Från rapport till något som mäter (del D, MES-368)
 
@@ -273,7 +317,7 @@ Utan det här steget är rapporterna en hög. Varje rapport blir **en** av fyra 
 |---|---|---|---|
 | **En fix** | felet syns i händelserna, felen eller bilderna och går att rätta | `satt.cjs <kod> fix`, sedan koden — och testfallet, se regeln nedan: fallet görs med `till-fall.cjs` och då blir rapporten **test** (fix → test går, fix → träning vägras) | — |
 | **Ett fall i Mat test** | mattans beteende: dubbletter, hopp, fel plats, kort till handen | `till-fall.cjs <kod> --mattest` | `dev/mattest/underlag/rapporter/<kod>/` (`fall.json` + `bordlogg.json.gz`); `node dev/mattest/kor.cjs --fall <kod>` |
-| **Ett bänkfall** | fel namn, missad remsa: en beskärning + rätt namn (en tyst rättelse) | `till-fall.cjs <kod> --bank` | `dev/remsa/rapportbank/` (`manifest.json` i `dev/embed/riktiga`-form); `~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/remsa/rapportbank dev/embed/modeller/mobileclip-s0-vision.onnx` |
+| **Ett bänkfall** | fel namn, missad remsa: en beskärning + rätt namn (en tyst rättelse) | `till-fall.cjs <kod> --bank --sort <id>` | `dev/remsa/rapportbank/` (`manifest.json` i `dev/embed/riktiga`-form); `~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/remsa/rapportbank dev/embed/modeller/mobileclip-s0-vision.onnx` |
 | **Träningsdata** | bilder + rätt namn som inte ska vara prov | `till-fall.cjs <kod> --traning` | `dev/material/arbete/markning/rapporter-traning-mesa/<kod>/markning.json` i mark.py:s form (MES-340); `dev/remsa/tran/dataset.py` läser den |
 | (inget) | inget att göra | `satt.cjs <kod> slangd` | `gallra.cjs` tar den efter 90 dagar |
 

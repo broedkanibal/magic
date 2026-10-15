@@ -12,6 +12,12 @@
    bara sin egen kod) gäller precis som där.
    Säger spärren nej visas dess text, och ingenting är skrivet.
 
+   Rekommendationen: sidan föreslår Prov, Träning eller Släng för varje
+   osorterad rättelse och säger varför (reglerna står i granska.html,
+   rekommendera()). Prov kräver en sorts fel (sorter.cjs), och sidan visar
+   bänken per sort mot målet, så att det syns vilka sorter som behöver fler
+   prov. Bänkens utgåvor: bankutgava.cjs.
+
    Ändrat namn: spelarens rätta namn kan vara fel. Ett nytt namn prövas mot
    Scryfall (exakt namn) och går till till-fall.cjs som --ratt, med
    beskärningen som --bild; rättelsens rattelse.json lämnas orörd.
@@ -31,6 +37,9 @@ const http = require('http'), fs = require('fs'), path = require('path'), os = r
 const { spawn } = require('child_process');
 const { supa, ROT } = require('./supa.cjs');
 const { slagIRepot } = require('./sparr.cjs');   // bara för förhandsvisningen av spärren; valen går genom till-fall/satt
+const { SORT_ID } = require('./sorter.cjs');
+const { lage: bankLage } = require('./bankutgava.cjs');
+const { goldenNamn } = require('./till-fall.cjs');
 
 const argv = process.argv.slice(2), arg = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const PORT = +(arg('--port') || process.env.PORT || 8279);
@@ -79,9 +88,9 @@ async function hamtaAlla(koder) {
   const ko = koder.slice();
   await Promise.all([0, 1, 2, 3].map(async () => { while (ko.length) await hamtaLokalt(ko.shift()); }));
 }
-function bankNamn() {   // kod → namnet bänken mäter (det ändrade, om det ändrades)
+function bankInfo() {   // kod → { namn (det bänken mäter, ändrat om det ändrades), sort, utgava }
   const m = lasJson(BANK_MAN);
-  return new Map(Array.isArray(m) ? m.map(p => [p.kod, p.namn]) : []);
+  return new Map(Array.isArray(m) ? m.map(p => [p.kod, { namn: p.namn, sort: p.sort || null, utgava: p.utgava == null ? null : p.utgava }]) : []);
 }
 
 async function lista() {
@@ -90,12 +99,13 @@ async function lista() {
   const rader = (await S.rest('GET', 'rapporter?select=kod,created_at,user_id,game_id,anvandning,bilder,vy&kalla=eq.rattelse&order=created_at.desc&limit=1000'))
     .filter(r => !(r.vy && r.vy.handelse === 'handling'));
   await hamtaAlla(rader.map(r => r.kod));
-  const bank = bankNamn(), ut = [];
+  const bank = bankInfo(), golden = goldenNamn(), ut = [];
   for (const r of rader) {
     const j = lasJson(path.join(mappFor(r.kod), 'rattelse.json')) || {}, vy = r.vy || {};
     const k = await S.konto(r.user_id);
     const M = lasJson(path.join(TRAN, r.kod, 'markning.json'));
-    const sp = M && M.spar && M.spar[0];
+    const sp = M && M.spar && M.spar[0], bk = bank.get(r.kod) || null;
+    const ratt = j.ratt || vy.ratt || null;
     ut.push({
       kod: r.kod, nar: r.created_at, vem: k ? (k.namn || k.epost) : r.user_id.slice(0, 8), game_id: r.game_id || null,
       anvandning: r.anvandning || null, bilder: r.bilder || null,
@@ -106,7 +116,10 @@ async function lista() {
       harBild: fs.existsSync(path.join(mappFor(r.kod), 'beskarning.jpg')),
       utanfor: !!(sp && sp.utanfor_traning), val: !!(sp && sp.val),
       /* namnet träningen eller bänken faktiskt fick (kan vara ändrat här) */
-      sattNamn: sp ? sp.namn : bank.get(r.kod) || null
+      sattNamn: sp ? sp.namn : bk ? bk.namn : null,
+      sort: bk ? bk.sort : null, utgava: bk ? bk.utgava : null,
+      /* golden-lekens namn tränas aldrig (dataset.py) — sidan säger det före valet */
+      golden: !!ratt && (golden.has(ratt) || ratt.split(' // ').some(d => golden.has(d)))
     });
   }
   return ut;
@@ -118,7 +131,9 @@ async function sortera(b) {
   if (val === 'slangd') { const r = await korNode('satt.cjs', [kod, 'slangd']); return { ok: r.kod === 0, sparr: r.kod === 3, text: r.ut }; }
   if (val !== 'traning' && val !== 'test') return { ok: false, text: 'välj träning, test eller släng' };
   if (!(await hamtaLokalt(kod))) return { ok: false, text: `${kod} gick inte att hämta (hamta.cjs)` };
+  if (val === 'test' && !SORT_ID.has(b.sort)) return { ok: false, text: 'välj sorts fel först — bänken räknas per sort' };
   const args = [kod, val === 'traning' ? '--traning' : '--bank'];
+  if (val === 'test') args.push('--sort', b.sort);
   const j = lasJson(path.join(mappFor(kod), 'rattelse.json')) || {};
   /* Namnet prövas alltid — också spelarens oförändrade — och Scryfalls stavning är den som skrivs. */
   const namn = String(b.ratt || j.ratt || '').trim();
@@ -279,6 +294,7 @@ const server = http.createServer(async (req, res) => {
       return buf ? svara(res, 200, buf, 'image/jpeg') : svara(res, 404, { fel: 'ingen bild' });
     }
     if (p === '/api/sortera' && req.method === 'POST') { const b = await lasKropp(req); return svara(res, 200, await iTur(() => sortera(b))); }
+    if (p === '/api/bank') return svara(res, 200, bankLage());
     if (p === '/api/traning') return svara(res, 200, await traning());
     if (p === '/api/bygg' && req.method === 'POST') return svara(res, 200, await iTur(bygg));
     if (p === '/api/prompt') {

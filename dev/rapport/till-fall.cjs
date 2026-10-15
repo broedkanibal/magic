@@ -4,7 +4,9 @@
    dev/diagnos/rapporter/<kod>/):
 
      node dev/rapport/till-fall.cjs R-0412 --mattest     ett fall i Mat test (mattans beteende)
-     node dev/rapport/till-fall.cjs R-0413 --bank        ett bänkfall (fel namn): beskärningen + rätt namn
+     node dev/rapport/till-fall.cjs R-0413 --bank --sort blank
+                                                         ett bänkfall (fel namn): beskärningen + rätt namn,
+                                                         och sorten av fel (sorter.cjs)
      node dev/rapport/till-fall.cjs R-0413 --traning     träningsdata i mark.py:s format (MES-340)
      node dev/rapport/till-fall.cjs --mattest --logg pass.json [--orden orden.tsv] [--id p1011] [--spelkod CNA43K]
                                                          ett pass utan rapportkod (bordsloggen ur appen)
@@ -23,6 +25,8 @@
                         ligger över det målade grå. Fallet får ruta, maskade och en kontextbild.
                         --bild <stillbild> tillsammans med --spar: skär ur just den bilden.
                         --bild utan --spar vägras (slutkod 2): en hel bordsbild är aldrig facit.
+         --sort <id>    --bank: sorten av fel (blank, vinkel, … — listan i sorter.cjs); krävs.
+                        Granskningssidan räknar bänken per sort mot målet
          --utan-ruta    --traning av en rättelse som saknar ruta eller maskade (en äldre, som
                         R-0008): bara när du själv sett att bilden visar rätt kort
          --lokal        rör inte tabellen (prov, eller ingen nyckel); spärren i repot gäller ändå
@@ -101,6 +105,7 @@
 const fs = require('fs'), path = require('path'), zlib = require('zlib'), crypto = require('crypto'), os = require('os'), { spawnSync } = require('child_process');
 const { supa, ROT } = require('./supa.cjs');
 const { kravLokal, sattAnvandning, harParti, partiNycklar, kopiorDetalj } = require('./sparr.cjs');
+const { SORT_ID, sortNamn } = require('./sorter.cjs');
 const KOD_RE = /^R-\d{4,}$/, ID_RE = /^[\w-]+$/;
 /* Partiets nyckel { game_id, spelkod } (null-fält tas bort), eller null. */
 function parti(game_id, spelkod) {
@@ -586,11 +591,14 @@ function skrivBank(kod, b, o) {
   const namn = fallNamn(kod, b), fil = `${namn}${ext(b.bild)}`;
   const man = path.join(BANK, 'manifest.json');
   const lista = fs.existsSync(man) ? JSON.parse(fs.readFileSync(man, 'utf8')) : [];
-  if (lista.some(sammaFall(kod, b)) && !o.skrivOver) throw new Error(`${namn} finns redan i bänken (${path.relative(ROT, man)}) — --skriv-over`);
+  const fore = lista.find(sammaFall(kod, b));
+  if (fore && !o.skrivOver) throw new Error(`${namn} finns redan i bänken (${path.relative(ROT, man)}) — --skriv-over`);
+  /* En utgåva är fryst (bankutgava.cjs): dess fall skrivs aldrig över, annars mäter utgåvan något annat än förut. */
+  if (fore && fore.utgava != null) throw new Error(`${namn} ingår i bänkens utgåva v${fore.utgava}, som är fryst — skrivs inte över`);
   const buf = fs.readFileSync(b.bild), st = jpegStorlek(buf);
   const kfil = b.kontext ? `${namn}-kontext.jpg` : null;
   const post = Object.assign({ fil, kod, parti: b.parti || null, namn: b.ratt, kalla: b.kalla, handelse: b.handelse, gissning: b.gissning, varfor: b.varfor, t: b.t, spar: b.spar,
-    bredd: st.w, hojd: st.h, skymd: false, helbild: false, tillagd: new Date().toISOString().slice(0, 10) }, plats(b, kfil));
+    bredd: st.w, hojd: st.h, skymd: false, helbild: false, sort: o.sort, utgava: null, tillagd: new Date().toISOString().slice(0, 10) }, plats(b, kfil));
   fs.mkdirSync(BANK, { recursive: true });
   fs.writeFileSync(path.join(BANK, fil), buf);
   if (kfil) fs.copyFileSync(b.kontext, path.join(BANK, kfil));
@@ -640,7 +648,7 @@ function las(a) {
   return {
     kod: (a.find(x => /^R-\d{4,}$/i.test(x)) || '').toUpperCase() || null, lage: lage.length === 1 ? lage[0].slice(2) : null, lagen: lage,
     logg: arg('--logg'), spelkod: arg('--spelkod'), orden: arg('--orden'), lek: arg('--lek'), id: arg('--id'), mapp: arg('--mapp'), bild: arg('--bild'), ratt: arg('--ratt'),
-    spar: arg('--spar'), vid: arg('--vid') != null ? +arg('--vid') : null, utanRuta: a.includes('--utan-ruta'),
+    sort: arg('--sort'), spar: arg('--spar'), vid: arg('--vid') != null ? +arg('--vid') : null, utanRuta: a.includes('--utan-ruta'),
     fran: arg('--fran') != null ? +arg('--fran') : null, till: arg('--till') != null ? +arg('--till') : null,
     lokal: a.includes('--lokal'), torr: a.includes('--torr'), skrivOver: a.includes('--skriv-over')
   };
@@ -655,6 +663,8 @@ async function korInre(a) {
   const o = las(a);
   if (!o.lage) throw Object.assign(new Error('välj ett: --mattest, --bank eller --traning'), { kod: 2 });
   if (o.id != null && !ID_RE.test(o.id)) throw Object.assign(new Error(`--id ${JSON.stringify(o.id)}: bara bokstäver, siffror, - och _`), { kod: 2 });
+  if (o.lage === 'bank' && !SORT_ID.has(o.sort)) throw Object.assign(new Error(`--bank kräver --sort <id>: sorten av fel, en av ${[...SORT_ID].join(', ')} (sorter.cjs)${o.sort ? ` — ${JSON.stringify(o.sort)} finns inte` : ''}`), { kod: 2 });
+  if (o.sort != null && o.lage !== 'bank') throw Object.assign(new Error('--sort gäller bara --bank'), { kod: 2 });
   if (o.spelkod != null && !/^[\w-]{2,}$/.test(o.spelkod)) throw Object.assign(new Error(`--spelkod ${JSON.stringify(o.spelkod)}: bara bokstäver, siffror, - och _`), { kod: 2 });
   if (!o.kod && !(o.lage === 'mattest' && o.logg)) throw Object.assign(new Error('en rapportkod (R-0412), eller --mattest --logg <fil> för ett pass utan kod'), { kod: 2 });
   const sida = o.lage === 'traning' ? 'traning' : 'test';
@@ -733,7 +743,7 @@ async function korInre(a) {
     rad.push(`kontext: ${b.kontext ? path.basename(b.kontext) + (b.kontextInfo && b.kontextInfo.fil ? ` (ur ${b.kontextInfo.fil}${b.kontextInfo.dt != null ? `, ${(b.kontextInfo.dt / 1000).toFixed(1)} s från beskärningen` : ''})` : '') : 'ingen' + (b.kontextSkal ? ' — ' + b.kontextSkal : '')}`);
   }
   if (plan.slag === 'mattest') { /* skrivet ovan */ } else if (plan.slag === 'bank') {
-    rad.push(`bänkfall ${fallNamn(kod, plan.b)}: ${plan.b.ratt} (telefonen gissade ${plan.b.gissning || '–'}${plan.b.varfor ? ', ' + plan.b.varfor : ''})`);
+    rad.push(`bänkfall ${fallNamn(kod, plan.b)}: ${plan.b.ratt} (telefonen gissade ${plan.b.gissning || '–'}${plan.b.varfor ? ', ' + plan.b.varfor : ''}) · sort: ${sortNamn(o.sort)}`);
     if (!o.torr) { const r = skrivBank(kod, plan.b, o); rad.push(`skrivet: ${path.relative(ROT, r.mapp)}/ (${r.antal} fall) — kör: ~/.mesa/detektor-venv/bin/python dev/remsa/helkort_jamfor.py --bank dev/remsa/rapportbank dev/embed/modeller/mobileclip-s0-vision.onnx`); }
   } else {
     rad.push(`träning ${fallNamn(kod, plan.b)}: ${plan.b.ratt}`);
@@ -748,4 +758,4 @@ if (require.main === module) {
     process.exit(e.sparr ? 3 : e.kod || 1);
   });
 }
-module.exports = { kor, lasRattelse, parti, partiUrMapp, kameranUrBordsloggen, pastaendenUrJournalen, byggFacit, mattestFall, lasOrden, tillampaOrden, arVal };
+module.exports = { kor, goldenNamn, lasRattelse, parti, partiUrMapp, kameranUrBordsloggen, pastaendenUrJournalen, byggFacit, mattestFall, lasOrden, tillampaOrden, arVal };

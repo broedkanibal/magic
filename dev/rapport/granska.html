@@ -58,6 +58,21 @@ button.val.tran { border-color: var(--tran); color: var(--tran); }
 button.val.tran:hover:not(:disabled) { background: var(--tran-bg); }
 button.val.test { border-color: var(--test); color: var(--test); }
 button.val.test:hover:not(:disabled) { background: var(--test-bg); }
+button.val.forslag { font-weight: 600; box-shadow: 0 0 0 2px var(--accent); }
+.forslag-rad { font-size: 13px; padding: 7px 10px; border-radius: 6px; background: var(--yta2); border-left: 3px solid var(--accent); }
+.forslag-rad b { margin-right: 4px; }
+.falt select { font: inherit; padding: 6px 8px; border: 1px solid var(--linje); border-radius: 6px; background: var(--yta); color: var(--text); flex: 1 1 200px; min-width: 0; }
+.sidor { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 112px; }
+@media (max-width: 1000px) { .sidor { position: static; } }
+.sidor aside { position: static; }
+table.sorter { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.sorter td { padding: 5px 4px; border-top: 1px solid var(--linje); vertical-align: middle; }
+table.sorter td.tal2 { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; width: 1%; }
+.stapel { height: 6px; border-radius: 3px; background: var(--yta2); overflow: hidden; min-width: 60px; }
+.stapel i { display: block; height: 100%; background: var(--test); }
+table.sorter tr.behovs td:first-child { font-weight: 600; }
+table.sorter tr.full td { color: var(--svag); }
+.sorttext { color: var(--svag); font-size: 11px; display: block; }
 button.liten { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--linje); background: var(--yta); color: var(--text); cursor: pointer; }
 .status { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
 .status.traning { background: var(--tran-bg); color: var(--tran); }
@@ -97,15 +112,21 @@ code { font-size: 12px; background: var(--yta2); padding: 1px 4px; border-radius
 <body>
 <header>
   <h1>Granska rättelser</h1>
-  <p class="under">Rättelserna spelarna gjort med <i>Share pictures of cards I correct</i> på. Kontrollera att beskärningen och det rätta namnet stämmer, och välj <b>Träning</b> (bildmodellen lär sig av kortet), <b>Prov</b> (bänken mäter modellen mot det) eller <b>Släng</b>. Valet går inte att ändra efteråt, och ett parti hamnar aldrig både i träning och prov.</p>
+  <p class="under">Rättelserna spelarna gjort med <i>Share pictures of cards I correct</i> på. Kontrollera att beskärningen och det rätta namnet stämmer, och välj <b>Träning</b> (bildmodellen lär sig av kortet), <b>Prov</b> (bänken mäter modellen mot det) eller <b>Släng</b>. Sidan föreslår ett val och säger varför; Prov kräver en sorts fel. Valet går inte att ändra efteråt, och ett parti hamnar aldrig både i träning och prov.</p>
   <nav id="flikar"></nav>
 </header>
 <main>
   <section id="lista"><div class="tom">Hämtar rättelserna …</div></section>
-  <aside id="traning">
-    <h2>Träningen</h2>
-    <p>Hämtar läget …</p>
-  </aside>
+  <div class="sidor">
+    <aside id="bank">
+      <h2>Bänken per sorts fel</h2>
+      <p>Hämtar läget …</p>
+    </aside>
+    <aside id="traning">
+      <h2>Träningen</h2>
+      <p>Hämtar läget …</p>
+    </aside>
+  </div>
 </main>
 <div class="zoom" id="zoom"></div>
 <script>
@@ -114,6 +135,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const HANDELSE = { namnbyte: 'Namnbyte', name_this_card: 'Name this card', borttaget: 'Borttaget kort' };
 const STATUS = { traning: 'Träning', test: 'Prov', slangd: 'Slängd', fix: 'Fix' };
+const VAL_NAMN = { traning: 'Träning', test: 'Prov', slangd: 'Släng' };
 const FLIKAR = [
   { id: 'nya', namn: 'Osorterade', f: r => !r.anvandning },
   { id: 'traning', namn: 'Träning', f: r => r.anvandning === 'traning' },
@@ -122,10 +144,12 @@ const FLIKAR = [
   { id: 'alla', namn: 'Alla', f: () => true }
 ];
 let rader = [], flik = 'nya';
+let bank = null;   // /api/bank: utgåvorna och bänken per sort mot målet (bankutgava.cjs)
 try { flik = localStorage.getItem('granska-flik') || 'nya'; } catch (e) {}
 const noter = new Map();   // kod → { typ, text } efter ett val
 const skrivet = new Map();   // kod → det som står i namnfältet: överlever att listan ritas om efter varje val
 let upptagen = 0;            // > 0: ett val pågår, alla knappar är låsta (servern tar dem ändå ett i taget)
+const valdSort = new Map();   // kod → sorts fel som valts i listan (krävs för Prov)
 const namnFor = r => (skrivet.has(r.kod) ? skrivet.get(r.kod) : r.ratt || '').trim();
 
 async function hamta(u, opt) {
@@ -159,10 +183,48 @@ function ritaLista() {
     const sida = sidor.size ? ` · partiet är <b>${[...sidor].map(s => STATUS[s]).join(' + ')}</b>` : '';
     return `<div class="parti">
       <div class="huvud"><div><b>${rubrik}</b> <span class="svag">${esc(nar(rr[rr.length - 1].nar))} · ${alla.length} rättelse${alla.length === 1 ? '' : 'r'} · ${esc(rr[0].vem)}${sida}</span></div>
-        ${osort.length > 1 && !alla.some(x => x.anvandning === 'test' && x.testSlag !== 'mattest') ? `<button class="liten" ${upptagen ? 'disabled' : ''} data-alla="${esc(p)}">Alla ${osort.length} osorterade → Träning</button>` : ''}</div>
+        ${osort.length > 1 && !alla.some(x => x.anvandning === 'test' && x.testSlag !== 'mattest') && !osort.some(x => rekommendera(x).val === 'test') ? `<button class="liten" ${upptagen ? 'disabled' : ''} data-alla="${esc(p)}">Alla ${osort.length} osorterade → Träning</button>` : ''}</div>
       ${rr.map(radHtml).join('')}
     </div>`;
   }).join('');
+}
+
+/* ── rekommendationen ──
+   Reglerna prövas uppifrån; den första som slår till avgör. Sidan föreslår, du trycker:
+   1. Ingen bild, eller borttaget utan namn          → Släng
+   2. Partiet är redan träning / prov                 → den sidan (spärren per parti)
+   3. Kortet är ett säkert fel namn                   → Prov (löftet: 0 säkra fel namn)
+   4. Ett annat osorterat kort i partiet är det       → Prov (hela partiet blir prov; sortera det först)
+   5. Ingen sorts fel vald                            → Träning, men välj sorten om kortet visar något bänken behöver
+   6. Sorten har färre prov än målet                  → Prov (bänken fylls jämnt, i den ordning korten kommer)
+   7. Sorten är full                                  → Träning
+   Ögat behövs till två saker: Släng när du inte själv kan läsa kortet, och vilken sorts fel det är. */
+const sakertFel = r => !!(r.saker && r.gissning && r.ratt && r.gissning !== r.ratt);
+const sortFor = r => valdSort.get(r.kod) || '';
+function lasning(r) {
+  const ovriga = rader.filter(x => parti(x) === parti(r) && x.kod !== r.kod);
+  return { ovriga, lastTran: ovriga.some(x => x.anvandning === 'test' && x.testSlag !== 'mattest'), lastTest: ovriga.some(x => x.anvandning === 'traning') };
+}
+function rekommendera(r) {
+  if (!r.harBild) return { val: 'slangd', varfor: 'Beskärningen saknas: inget att mäta eller lära ut.' };
+  if (r.handelse === 'borttaget' && !namnFor(r)) return { val: 'slangd', varfor: 'Borttaget kort utan namn: inget rätt namn att mäta eller lära ut. Skriv namnet om det var ett riktigt kort.' };
+  const { ovriga, lastTran, lastTest } = lasning(r);
+  if (lastTest) return { val: 'traning', varfor: 'Partiet är redan träning, så Prov går inte.' + (sakertFel(r) ? ' Det säkra felet kan därför inte bli ett bänkprov.' : '') };
+  if (lastTran) return { val: 'test', varfor: 'Partiet är redan prov, så Träning går inte. Välj sorts fel.' };
+  if (sakertFel(r)) return { val: 'test', varfor: `Säkert fel namn: telefonen var säker på ${r.gissning}. Löftet är noll sådana, så det ska alltid mätas — oavsett sort och mål.` };
+  const annan = ovriga.find(x => !x.anvandning && x.harBild && sakertFel(x));
+  if (annan) return { val: 'test', varfor: `${annan.kod} i samma parti är ett säkert fel namn och blir prov — då blir hela partiet prov. Sortera ${annan.kod} först.` };
+  const id = sortFor(r), S = bank && bank.sorter.find(s => s.id === id);
+  if (!id || !S) return { val: 'traning', varfor: 'Ingen sorts fel vald. Visar kortet en sort som bänken behöver fler av (listan till höger): välj den. Annars träning.', utanSort: true };
+  if (S.antal < S.mal) return { val: 'test', varfor: `${S.namn}: ${S.antal} av ${S.mal} prov — bänken behöver ${S.mal - S.antal} till.` };
+  return { val: 'traning', varfor: `${S.namn} är full (${S.antal} av ${S.mal} prov): kortet gör mer nytta i träningen.` };
+}
+function sortValj(r) {
+  const val = sortFor(r);
+  return `<div class="falt"><label for="s-${esc(r.kod)}">Sorts fel</label><select id="s-${esc(r.kod)}" data-sort="${esc(r.kod)}" ${r.harBild ? '' : 'disabled'}>
+    <option value="">— välj (krävs för Prov) —</option>
+    ${(bank ? bank.sorter.filter(s => s.mal != null) : []).map(s => `<option value="${esc(s.id)}" ${s.id === val ? 'selected' : ''}>${esc(s.namn)} (${s.antal}/${s.mal})</option>`).join('')}
+  </select></div>`;
 }
 
 function radHtml(r) {
@@ -176,11 +238,13 @@ function radHtml(r) {
   const kanNamn = r.harBild;
   /* Spärren per parti, i förväg: ett parti är träning eller prov (bänken), aldrig båda (sparr.cjs säger samma sak).
      Ett Mat test-fall ur partiet spärrar inte träningen (testSlag ur repot; okänt slag spärrar som bänken). */
-  const ovriga = rader.filter(x => parti(x) === parti(r) && x.kod !== r.kod);
-  const lastTran = ovriga.some(x => x.anvandning === 'test' && x.testSlag !== 'mattest'), lastTest = ovriga.some(x => x.anvandning === 'traning');
+  const { lastTran, lastTest } = lasning(r);
+  const forslag = kanSortera ? rekommendera(r) : null;
+  const fs_ = v => forslag && forslag.val === v ? ' forslag' : '';
   const not = noter.get(r.kod);
   const varningar = [];
   if (r.handelse === 'borttaget' && !r.ratt && !r.anvandning) varningar.push('Borttaget kort utan namn: inget att lära bildmodellen. Skriv namnet om det var ett riktigt kort, annars Släng.');
+  if (r.golden && !r.anvandning) varningar.push('Golden-lekens kort: tränas aldrig (dataset.py hoppar över det, golden ska mäta osedda kort). Prov går bra; annars gör Träning och Släng samma sak.');
   if (r.utanfor) varningar.push('Golden-lekens namn: står i träningen men dataset.py tar inte med det (golden ska mäta osedda kort).');
   if (andrad) varningar.push(`${r.anvandning === 'test' ? 'Mäts' : 'Tränas'} som ${r.sattNamn} (ändrat från spelarens ${r.ratt || 'namnlösa'}).`);
   return `<div class="rad" data-kod="${esc(r.kod)}">
@@ -189,13 +253,16 @@ function radHtml(r) {
     <div class="info">
       <div class="namnrad">${r.gissning ? `<span class="gissn">${esc(r.gissning)}</span>` : '<span class="gissn">(inget namn)</span>'}<span class="pil">→</span><span class="ratt">${visatNamn ? esc(visatNamn) : '(borttaget)'}</span> ${status}</div>
       ${r.gissning && !gissningOlik ? '<div class="lika">Telefonens gissning var rätt, men osäker — spelaren bekräftade den.</div>' : ''}
-      <div class="meta"><span>${esc(r.kod)}</span><span>${esc(HANDELSE[r.handelse] || r.handelse || '–')}</span><span>${[r.saker == null ? '' : r.saker ? 'säker' : 'osäker', r.varfor && r.varfor !== 'osäker' ? esc(r.varfor) : ''].filter(Boolean).join(' · ')}</span><span>${esc(nar(r.nar))}</span>${r.val ? '<span title="Vart femte kortnamn hålls utanför träningen och används för att mäta modellen på kort den aldrig sett">valideringens namn: mäter, tränas inte</span>' : ''}</div>
+      ${sakertFel(r) ? '<div class="not fel">Säkert fel namn: telefonen var säker och hade fel.</div>' : ''}
+      <div class="meta"><span>${esc(r.kod)}</span><span>${esc(HANDELSE[r.handelse] || r.handelse || '–')}</span><span>${[r.saker == null ? '' : r.saker ? 'säker' : 'osäker', r.varfor && r.varfor !== 'osäker' ? esc(r.varfor) : ''].filter(Boolean).join(' · ')}</span><span>${esc(nar(r.nar))}</span>${r.sort ? `<span>sort: ${esc((bank && (bank.sorter.find(s => s.id === r.sort) || {}).namn) || r.sort)}</span>` : ''}${r.anvandning === 'test' && r.sort ? `<span>${r.utgava != null ? 'utgåva v' + r.utgava : 'inkommande (inte fryst)'}</span>` : ''}${r.val ? '<span title="Vart femte kortnamn hålls utanför träningen och används för att mäta modellen på kort den aldrig sett">valideringens namn: mäter, tränas inte</span>' : ''}</div>
       ${varningar.map(v => `<div class="not varn">${esc(v)}</div>`).join('')}
       ${kanSortera ? `<div class="falt"><label for="n-${esc(r.kod)}">Rätt namn</label><input id="n-${esc(r.kod)}" value="${esc(namnFor(r))}" data-namn="${esc(r.kod)}" placeholder="Kortets engelska namn" ${kanNamn ? '' : 'disabled'} autocomplete="off" spellcheck="false"></div>
+      ${sortValj(r)}
+      <div class="forslag-rad"><b>Förslag: ${VAL_NAMN[forslag.val]}.</b> ${esc(forslag.varfor)}</div>
       <div class="knappar">
-        <button class="val tran" data-val="traning" ${kanNamn && !lastTran && !upptagen ? '' : 'disabled'}>Träning</button>
-        <button class="val test" data-val="test" ${kanNamn && !lastTest && !upptagen ? '' : 'disabled'}>Prov</button>
-        <button class="val" data-val="slangd" ${upptagen ? 'disabled' : ''}>Släng</button>
+        <button class="val tran${fs_('traning')}" data-val="traning" ${kanNamn && !lastTran && !upptagen ? '' : 'disabled'}>Träning</button>
+        <button class="val test${fs_('test')}" data-val="test" ${kanNamn && !lastTest && !upptagen ? '' : 'disabled'}>Prov</button>
+        <button class="val${fs_('slangd')}" data-val="slangd" ${upptagen ? 'disabled' : ''}>Släng</button>
       </div>
       ${lastTran || lastTest ? `<div class="lika">Partiet är redan ${lastTest ? 'träning, så Prov' : 'prov, så Träning'} går inte — ett prov ur samma parti skulle mäta att modellen minns partiet.</div>` : ''}` : ''}
       ${not ? `<div class="not ${not.typ}">${esc(not.text)}</div>` : ''}
@@ -212,16 +279,18 @@ async function sortera(kod, val) {
   const r = rader.find(x => x.kod === kod);
   const ratt = r ? namnFor(r) : '';
   if (val !== 'slangd' && !ratt) { noter.set(kod, { typ: 'fel', text: 'Skriv kortets namn först.' }); ritaLista(); return; }
+  const sort = valdSort.get(kod) || '';
+  if (val === 'test' && !sort) { noter.set(kod, { typ: 'fel', text: 'Välj sorts fel först: bänken räknas per sort.' }); ritaLista(); return; }
   upptagen++; ritaLista();
   const knapp = document.querySelector(`.rad[data-kod="${CSS.escape(kod)}"] button[data-val="${val}"]`);
   if (knapp) knapp.textContent = '…';
   try {
-    const s = await hamta('/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod, val, ratt }) });
-    if (s.ok) { const v = varnRader(s.text); if (v) noter.set(kod, { typ: 'varn', text: v }); else noter.delete(kod); skrivet.delete(kod); }
+    const s = await hamta('/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod, val, ratt, sort }) });
+    if (s.ok) { const v = varnRader(s.text); if (v) noter.set(kod, { typ: 'varn', text: v }); else noter.delete(kod); skrivet.delete(kod); valdSort.delete(kod); }
     else noter.set(kod, { typ: s.sparr ? 'varn' : 'fel', text: (s.sparr ? 'Spärren sa nej — ingenting är skrivet.\n' : '') + s.text });
   } catch (e) { noter.set(kod, { typ: 'fel', text: e.message }); }
   upptagen--;
-  await laddaLista(); laddaTraning();
+  await laddaBank(); await laddaLista(); laddaTraning();
 }
 /* Efter ett lyckat val syns det på märket; verktygets text visas bara när den varnar. */
 const varnRader = t => String(t || '').split('\n').filter(l => /VARNING/.test(l)).join('\n');
@@ -230,6 +299,26 @@ async function allaTillTraning(p) {
   const rr = rader.filter(x => parti(x) === p && !x.anvandning && namnFor(x) && x.harBild);
   upptagen++;   // hela partiet i ett svep: inget annat val emellan
   try { for (const r of rr) await sortera(r.kod, 'traning'); } finally { upptagen--; ritaLista(); }
+}
+
+/* ── bänken per sort ── */
+async function laddaBank() {
+  try { bank = await hamta('/api/bank'); } catch (e) { $('#bank').innerHTML = `<h2>Bänken per sorts fel</h2><p>${esc(e.message)}</p>`; return; }
+  const B = bank, sorter = B.sorter.slice().sort((a, b) => (a.mal == null) - (b.mal == null) || (a.antal / (a.mal || 1)) - (b.antal / (b.mal || 1)));
+  const behovs = B.sorter.filter(s => s.mal != null && s.antal < s.mal);
+  $('#bank').innerHTML = `<h2>Bänken per sorts fel</h2>
+    <p>Prov mäter bildmodellen på kort den aldrig tränats på. Målet är ${B.mal} prov per sort, så att varje sort går att mäta. Sorterna som behöver flest står överst — leta efter dem när du granskar.</p>
+    <table class="sorter">${sorter.map(s => {
+      const kl = s.mal == null ? '' : s.antal >= s.mal ? 'full' : 'behovs';
+      const pct = s.mal ? Math.min(100, Math.round(100 * s.antal / s.mal)) : 0;
+      return `<tr class="${kl}" title="${esc(s.text)}"><td>${esc(s.namn)}<span class="sorttext">${esc(s.text)}</span></td>
+        <td>${s.mal ? `<div class="stapel"><i style="width:${pct}%"></i></div>` : ''}</td>
+        <td class="tal2">${s.antal}${s.mal ? ' / ' + s.mal : ''}</td></tr>`;
+    }).join('')}</table>
+    <p>${behovs.length ? `${behovs.length} av ${B.sorter.filter(s => s.mal != null).length} sorter under målet.` : 'Alla sorter har nått målet: nya kort gör mest nytta i träningen, utom säkra fel namn.'}
+      Säkra fel namn blir alltid prov, också när sorten är full.</p>
+    <p><b>Utgåvor:</b> ${B.senaste ? `senaste v${B.senaste} (${B.utgavor[B.utgavor.length - 1].antal} prov)` : 'ingen än'} · ${B.inkommande} inkommande.
+      Frys dem som nästa utgåva med <code>node dev/rapport/bankutgava.cjs --klipp</code> innan du jämför modeller, och mät med <code>--utgava N</code>.</p>`;
 }
 
 /* ── träningen ── */
@@ -295,9 +384,10 @@ document.addEventListener('click', async e => {
   if (t.closest('#zoom')) $('#zoom').classList.remove('pa');
 });
 document.addEventListener('input', e => { if (e.target.dataset.namn) skrivet.set(e.target.dataset.namn, e.target.value); });
+document.addEventListener('change', e => { if (e.target.dataset.sort) { const k = e.target.dataset.sort; if (e.target.value) valdSort.set(k, e.target.value); else valdSort.delete(k); ritaLista(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#zoom').classList.remove('pa'); });
 
-laddaLista().then(laddaTraning);
+laddaBank().then(laddaLista).then(laddaTraning);
 </script>
 </body>
 </html>

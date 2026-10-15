@@ -8,6 +8,10 @@
 dev/remsa/rapportbank — spelarnas tysta rättelser som dev/rapport/till-fall.cjs --bank lägger dit (MES-368).
 En liten bänk (högst 10 fall) skriver varje fall med sin rapportkod.
 
+--utgava <N>: bara bänkens fryst utgåva N (dev/rapport/bankutgava.cjs): fallen med utgava ≤ N. Utan den mäts
+alla fall, också de inkommande — en sådan siffra går inte att jämföra med en historikrad. Jämför modeller
+genom att ge dem i samma körning, aldrig mot en gammal siffra. Fall med en sort (sorter.cjs) räknas också per sort.
+
 2026-10-05: gamla 53/61 rätt överst, pilot1 50/61 (nav: Night's Whisper, 6 av 11 fel).
 """
 import json, os, sys
@@ -24,7 +28,24 @@ if '--bank' in argv:
         sys.exit('helkort_jamfor.py: --bank kräver en mapp (t.ex. --bank dev/remsa/rapportbank)')
     RIKTIGA = argv[i + 1] if os.path.isabs(argv[i + 1]) else os.path.join(ROT, argv[i + 1])
     del argv[i:i + 2]
+UTGAVA = None
+if '--utgava' in argv:
+    i = argv.index('--utgava')
+    if i + 1 >= len(argv) or not argv[i + 1].lstrip('v').isdigit():
+        sys.exit('helkort_jamfor.py: --utgava kräver ett nummer (t.ex. --utgava 2)')
+    UTGAVA = int(argv[i + 1].lstrip('v'))
+    del argv[i:i + 2]
 man = json.load(open(os.path.join(RIKTIGA, 'manifest.json'), encoding='utf-8'))
+if UTGAVA is not None:
+    utg = {u['utgava']: u for u in json.load(open(os.path.join(RIKTIGA, 'utgavor.json'), encoding='utf-8'))} \
+        if os.path.exists(os.path.join(RIKTIGA, 'utgavor.json')) else {}
+    if UTGAVA not in utg:
+        sys.exit(f'helkort_jamfor.py: utgåva v{UTGAVA} finns inte (utgåvor: {sorted(utg) or "inga"} — dev/rapport/bankutgava.cjs --klipp)')
+    man = [p for p in man if p.get('utgava') is not None and p['utgava'] <= UTGAVA]
+    saknas = sorted(set(utg[UTGAVA]['filer']) - {p['fil'] for p in man})
+    print(f"utgåva v{UTGAVA}: {len(man)} fall" + (f" — {len(saknas)} av utgåvans {utg[UTGAVA]['antal']} saknas (raderade?): {', '.join(saknas[:5])}" if saknas else ''))
+elif any('utgava' in p for p in man):
+    print(f"alla {len(man)} fall, också {sum(p.get('utgava') is None for p in man)} inkommande — jämförbart bara inom körningen (--utgava N för en fryst utgåva)")
 bilder = las_referensbilder()
 for fil in argv:
     fil = fil if os.path.isabs(fil) else os.path.join(ROT, fil)
@@ -32,7 +53,7 @@ for fil in argv:
     for p in man:
         q = m.kor([kvadrat(cv2.cvtColor(utan_marginal(cv2.imread(os.path.join(RIKTIGA, p['fil']))), cv2.COLOR_BGR2RGB))])[0]
         d = dom(refs.rangordna(q), p['namn'])
-        d.update({'fil': p['fil'], 'facit': p['namn'], 'skymd': p.get('skymd', False), 'helbild': p.get('helbild', False), 'kod': p.get('kod')})
+        d.update({'fil': p['fil'], 'facit': p['namn'], 'skymd': p.get('skymd', False), 'helbild': p.get('helbild', False), 'kod': p.get('kod'), 'sort': p.get('sort')})
         rad.append(d)
     fel = sorted([r for r in rad if not r['ratt']], key=lambda r: -r['marginal'])
     print(f"\n== {os.path.basename(fil)}: {sum(r['ratt'] for r in rad)}/{len(rad)} rätt överst")
@@ -41,5 +62,9 @@ for fil in argv:
             print(f"   {'rätt' if r['ratt'] else 'FEL '} {r['marginal']:.3f}  {(r['kod'] or r['fil'])[:14]:14} facit {r['facit'][:24]:24} → {r['namn'][:24]}")
     for r in fel[:6]:
         print(f"   fel {r['marginal']:.3f}  {r['fil']:14} {r['facit'][:24]:24} → {r['namn'][:24]}{' (skymd)' if r['skymd'] else ''}{' (helbild)' if r['helbild'] else ''}")
+    sorter = sorted({r['sort'] for r in rad if r['sort']})
+    for so in sorter:
+        rr = [r for r in rad if r['sort'] == so]
+        print(f"   sort {so:10} {sum(r['ratt'] for r in rr)}/{len(rr)} rätt överst")
     for th in (0.06, 0.08, 0.11, 0.13, 0.15, 0.20):
         print(f"   marginal > {th:.2f}: säkra rätt {sum(r['ratt'] and r['marginal'] > th for r in rad)}, säkra fel {sum((not r['ratt']) and r['marginal'] > th for r in rad)}")
