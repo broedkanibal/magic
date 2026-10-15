@@ -39727,7 +39727,7 @@ var Rapport = (() => {
   if (knapp) knapp.onclick = () => oppna();
   bevakaYtor();
 
-  const api = { oppna, stang, frys, skicka, franTelefon, vantaBilder, glomKoder, pausaForRadering, vantaSkick, datorTagEmot, telefonKommando, mattaDiff, miljo, vy, handlingsPaket, gz,
+  const api = { oppna, stang, frys, skicka, franTelefon, vantaBilder, glomKoder, pausaForRadering, vantaSkick, datorTagEmot, telefonKommando, mattaDiff, miljo, vy, handlingsPaket, gz, raderadKod, stadaSent,
                 get lage() { return lage; }, get oppen() { return !!(el && !el.hidden); }, get paket() { return paket; },
                 stillbilder: null, TAGGAR };
   return api;
@@ -40546,7 +40546,10 @@ var Rattelse = (() => {   // var: se Rapport
   function handlingSvar(m) {
     const r = m && bildVantar.get(m.kod);
     if (r) { bildVantar.delete(m.kod); r(m); }
-    else if (m && /^R-\d+$/.test(String(m.kod || '')) && m.antal) Moln.rapportUppdatera(m.kod, { bilder: m.saknas && m.saknas.length ? 'delvis' : 'klar' });
+    else if (m && /^R-\d+$/.test(String(m.kod || '')) && m.antal) {
+      /* Sent: raderad under tiden (C:s Delete väntar bara HANDLING_BILD_MS) → bilderna städas bort, som rapport_bilder_klar. */
+      if (Rapport.raderadKod(m.kod)) Rapport.stadaSent(m.kod); else Moln.rapportUppdatera(m.kod, { bilder: m.saknas && m.saknas.length ? 'delvis' : 'klar' });
+    }
   }
   const HANDLING_FORE_MS = 60000, HANDLING_EFTER_MS = 20000, HANDLING_MAX_MS = 180000, HANDLING_RADER = 150;   // ~200 B per rad: vy håller sig under 64 kB
   let samling = null;   // { spel, spelkod, forsta, sista, rader, timer, till, agerFran }
@@ -40604,6 +40607,7 @@ var Rattelse = (() => {   // var: se Rapport
       bildVantar.set(r.kod, res);
       setTimeout(() => { if (bildVantar.delete(r.kod)) res(null); }, HANDLING_BILD_MS);
     });
+    if (Rapport.raderadKod(r.kod)) { Rapport.stadaSent(r.kod, r.sokvag); return null; }   // Delete under väntan: bilderna som hann upp städas
     Moln.rapportUppdatera(r.kod, { bilder: sv && sv.antal ? (sv.antal < poster.length ? 'delvis' : 'klar') : 'saknas' });
     stat.sparade++;
     Lada.skriv('handling', { typ: 'rättelse sparad', kod: r.kod, handelse: 'handling', antal: S.rader.length, bilder: sv ? sv.antal : 0, av: poster.length });

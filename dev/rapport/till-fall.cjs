@@ -368,7 +368,8 @@ function mattestFall(o) {
     const fil = `handling-${p.id}.jpg`;
     p.bild = K.bilder && K.bilder.has(fil) ? fil : null;
     if (p.tillbaka || p.osaker || p.ejAvgorbart) continue;
-    const g = K.godkantAlla ? 'godkand' : (K.godkant || {})[p.id];
+    /* Ett kastat påstående (granskningssidan) är kastat också med --godkand alla. */
+    const g0 = (K.godkant || {})[p.id], g = g0 === 'kastad' ? 'kastad' : K.godkantAlla ? 'godkand' : g0;
     if (g === 'kastad') p.kastad = true; else if (g !== 'godkand') p.ejGodkand = true;
   }
   const harMatta = !exakt && matta.length > 0;
@@ -464,7 +465,9 @@ const pastaendenText = P => { const n = raknaPastaenden(P); return `${n.alla} p�
 function lasGodkant(K, mapp, o) {
   if (!Array.isArray(K.spelare)) return;
   o = o || {};
-  K.godkant = (mapp && lasJsonEllerNull(path.join(mapp, 'godkant.json'))) || {};
+  const gf = mapp ? path.join(mapp, 'godkant.json') : null;
+  K.godkant = (gf && lasJsonEllerNull(gf)) || {};
+  if (gf && fs.existsSync(gf) && !lasJsonEllerNull(gf)) K.godkantVarning = `${path.relative(ROT, gf)} gick inte att läsa — inga val därifrån gäller`;
   if (o.godkand === 'alla') K.godkantAlla = true;
   else if (o.godkand) for (const id of o.godkand.split(',').map(x => x.trim()).filter(Boolean)) K.godkant[id] = 'godkand';
   K.bilder = new Set(mapp && fs.existsSync(mapp) ? fs.readdirSync(mapp).filter(f => /^handling-[\w-]+\.jpg$/.test(f)) : []);
@@ -479,7 +482,7 @@ async function forhandMattest(kod, mapp, opt) {
   lasGodkant(K, mapp, {});
   const F = mattestFall({ kalla: K, id: kod }).fall;
   return { pastaenden: F.pastaenden, antal: F.pastaenden ? raknaPastaenden(F.pastaenden) : null, text: F.pastaenden ? pastaendenText(F.pastaenden) : null,
-    facit: F.facit.length, facitKalla: F.facitKalla, varning, start: K.start, fran: F.fran, till: F.till };
+    facit: F.facit.length, facitKalla: F.facitKalla, varning: [varning, K.godkantVarning].filter(Boolean).join(' · ') || null, start: K.start, fran: F.fran, till: F.till };
 }
 
 /* ── --bank och --traning ─────────────────────────────────────────────────── */
@@ -741,7 +744,7 @@ async function korInre(a) {
     o.id = o.id || (K.kod ? K.kod : idUrLogg(K));
     if (!ID_RE.test(o.id)) throw Object.assign(new Error(`fallets id ${JSON.stringify(o.id)}: bara bokstäver, siffror, - och _`), { kod: 2 });
     o.senareVarning = await hamtaSenare(K, o.lokal);
-    lasGodkant(K, mapp, o);
+    lasGodkant(K, mapp, o); o.godkantVarning = K.godkantVarning || null;
     plan = { slag: 'mattest', ut: mattestFall(Object.assign({}, o, { kalla: K })), kod: K.kod, parti: K.parti || null };
   } else { const b = bildOchNamn(mapp, o); b.parti = partiUrMapp(mapp, b); plan = { slag: o.lage, b, kod: o.kod, parti: b.parti }; }
   const kod = plan.kod;
@@ -775,6 +778,7 @@ async function korInre(a) {
   if (plan.slag === 'mattest') {
     const F = plan.ut.fall;
     if (o.senareVarning) rad.push('VARNING: ' + o.senareVarning);
+    if (o.godkantVarning) rad.push('VARNING: ' + o.godkantVarning);
     if (F.pastaenden && !raknaPastaenden(F.pastaenden).raknas) rad.push('VARNING: inga godkända påståenden — fallet mäter ingenting. Godkänn dem på granskningssidan (godkant.json) eller med --godkand <id,…|alla>');
     rad.push(F.pastaenden ? `Mat test-fall ${o.id}: ${pastaendenText(F.pastaenden)} (${F.facitKalla}); ${plan.ut.bordlogg.bordLogg.length} bord, sek ${F.fran}–${F.till}`
       : `Mat test-fall ${o.id}: ${F.facit.length} facit-rader (${F.facitKalla}), ${F.struket.length} strukna, ${F.rattelser.length} rättelser, ${plan.ut.bordlogg.bordLogg.length} bord, sek ${F.fran}–${F.till}`);

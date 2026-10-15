@@ -350,6 +350,15 @@ const PROV = async () => {
       /* Jesper godkänner Forest och Serra Angel (--godkand) och kastar Shock (godkant.json, som granskningssidan skriver). */
       const id = (typ, n) => (fall0 && fall0.pastaenden.find(x => x.kort === n && !x.tillbaka && !x.osaker) || {}).id;
       fs.writeFileSync(path.join(mapp, 'godkant.json'), JSON.stringify({ [id('borta', 'Shock')]: 'kastad' }));
+      /* --godkand alla: Shock är kastad i godkant.json och förblir kastad. */
+      const fa = tillFall(['--godkand', 'alla']), fallA = lasFall();
+      ok('--godkand alla godkänner resten, men ett kastat påstående förblir kastat', fa.status === 0 && fallA && fallA.pastaenden.some(x => x.kort === 'Shock' && x.kastad) && fallA.pastaenden.filter(x => !x.tillbaka && !x.osaker && !x.ejAvgorbart && !x.kastad).every(x => !x.ejGodkand), (fa.stdout + fa.stderr).trim().slice(-200));
+      /* En trasig godkant.json: VARNING, inga val därifrån. */
+      const gfil = path.join(mapp, 'godkant.json'), gbak = fs.readFileSync(gfil, 'utf8');
+      fs.writeFileSync(gfil, '{ trasig');
+      const ft = tillFall([]);
+      ok('en trasig godkant.json: VARNING, och inget räknas', /godkant\.json gick inte att läsa/.test(ft.stdout + ft.stderr) && /inga godkända påståenden/.test(ft.stdout + ft.stderr), (ft.stdout + ft.stderr).trim().slice(-200));
+      fs.writeFileSync(gfil, gbak);
       const f = tillFall(['--godkand', [id('tappad', 'Forest'), id('borta', 'Serra Angel')].join(',')]);
       const fall = lasFall();
       const har = (typ, kort) => fall && fall.facit.some(x => x.typ === typ && x.kort === kort);
