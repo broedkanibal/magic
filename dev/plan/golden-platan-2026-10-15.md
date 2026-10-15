@@ -91,3 +91,26 @@ kamerabankens prov RL1–RL7. Den är inte ihopslagen.
    prövade. Mät hur ofta det slår till (golden `--detalj`: `modell land` på ett täckt spår utan remsa).
 4. Remsan under tröskeln (5 kort) och detektorn (3 kort i 17) går inte att rätta med trösklar. Det kräver
    upplösning (4K, MES-331) eller träning av detektorn.
+
+## Vad som gjordes 2026-10-15 (eftermiddagen): gruppen "namnet fanns men tappades"
+
+Ordningen blev hålet först, sedan minnet, sedan ORB — ett steg per commit, varje steg byggt av en kortlivad
+Fable-agent och granskat av en fristående Opus-agent före sammanslagning, och igen efter varje rättelse.
+
+| Steg | Commit | Golden | Vad som hände |
+|---|---|---|---|
+| 1 · `medRemsa` utan remslåda | d9e21c0 (main) | 13/17/18 lika baslinjen; hålet slog till 0 gånger | Vittneskravet för `modell land` på ett täckt spår gäller nu också utan remslåda (titelraden är då det enda vittnet). Spärr mot fel namn, ingen vinst. Granskaren: inget nytt säkert fel; fler frågor till Claude bara där ett täckt land saknar remsa (0 i golden) — Jespers ja 2026-10-15. Kamerabanken LV1–LV4. |
+| 2 · minnet på geo-remsor | 5fa72c1 | 05/13/14/15/18: rätt namn 30 → 32 av 41 läsbara, 0 fel, 0 falska | Ny bänk `dev/remsa/remsminne_geo.py` (2c4e525): minnets tröskel 0,10 ger 0 säkra fel på geo-skurna remsor i 13b och MES-246 vid alla radier. Geo-spärren i `lasRemsa` bort → 13 Thriving Moor säker ur minnet (138 s), 18 ett Swamp med minnet som vittne (39,6/46,95 s). **Radien 1,0 provades och togs bort:** två granskare visade att läget "bara grannens minne tävlar" är omätt (gamla bänken 3 fel där), och golden vann inget på utökningen. Känd gräns: ett kort som tappas flyttar sin remsmitt ~0,6 kortlängder och nås inte av minnet; bänkens rad "kortets mitt 0,5 kortlängder" (0 fel geo/exakt) är vägen om någon bygger det. RG1/RG2. |
+| 3 · ORB-vittnet med lägesbevis | **inte ihopslagen** — grenen `golden-platan-orb-lagesbevis` (6751200) | alla 18 på steg 1–3: 98/114, 0 fel — men `modell land+orb` slog till 0 gånger | Lägesbeviset (`ORB.mittAv`: referenskortets mitt tillbaka i beskärningen, ORB_MITT 0,07) är rätt räknat och stoppar golden 05:s mekanism med marginal i alla lägen detektorns NMS släpper fram (bänken `dev/orbmitt.cjs`: 0 fel-läge av 811 beskärningar, golden 05:s Plains ligger 0,23 kortlängder från sitt Swamp). Men första granskningen visade att ORB:s IDENTITET på basland är svag (18 av 280 beskärningar intygade fel landtyp med giltigt läge), och identitetskravet som byggdes (etta ≥ 2 × tvåa och ≥ tvåa + 4 över alla landtyper: 0 fel-typ-vittnen av 768) håller bara när poolen bär alla fyra landtyperna — poolen byggs av lekens, och en tvåfärgslek ger fel-typ-vittnen igen (5 i granskarens simulering; Mountain omätt). Det andra ORB-svepet ändrade dessutom den vanliga domen (bast/emot/accept) och kördes på nästan varje landläsning. Vinsten var noll i golden med kravet. Två granskare, två rundor; bänken och koden står kvar på grenen om någon vill räkna tvåan mot alla fem typers konstverk oberoende av leken. |
+
+Lådremsor: den nya bänken visar 1 säkert fel vid 0,10 på lådremsor (Maul of the Skyclaves → Fencing Ace 0,183,
+synlig 0,31, MES-246) — dagens beteende på main, inte infört här; den gamla bänken (2026-10-03) hade 0. Mäts om
+innan tröskeln rörs.
+
+Äldre hål som granskningen av steg 3 fann, utanför uppdraget: `modell+orb` (`bar`, ≥ 10 inliers) på ett täckt eller
+omlott spår har inget lägesbevis — det var just den vägen golden 05:s Plains på 16 inliers gick (MES-329) innan
+maskaTackt. `mitt` finns nu i träffarna och kunde spärra också där; det är ett eget steg med egen golden.
+
+`--utan-leken "Swamp,Plains"` på 04/05/13/14/18 (steg 1–3, pool 121): 4 säkra fel namn, inget ur de nya vägarna — 04 ett Swamp
+som Island via `bild`, och tre Plains som Pacifism via `remsa+titel` (0,17–0,21, geo-remsor i 13 och 14): remsmodellens nav
+Pacifism när kortets eget namn inte finns i leken. Det är dagens vägar; kontrollkörningen på main står i historik.md.
