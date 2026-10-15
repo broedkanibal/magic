@@ -372,6 +372,14 @@ const PROV = async () => {
        && !!kan && serra.name === 'Shivan Dragon' && tredje && tredje.vy.ratt === 'Shivan Dragon' && tredje.vy.gissning === 'Serra Angel'
        && rattelser().length === n1 && giant.name === 'Giant Spider',
        JSON.stringify({ forsta: forsta && [forsta.vy.gissning, forsta.vy.ratt], andra: andra && [andra.vy.gissning, andra.vy.ratt, ja && ja.varfor], tredje: tredje && [tredje.vy.gissning, tredje.vy.ratt], undo: !!kan, serra: serra.name, raderade: A.raderade, efter: rattelser().length - n1 }));
+    /* Granskning 3, fynd 3: efter en omladdning finns inget löfte — kortets rättelsekod tar tillbaka raden ändå. */
+    const kodNu = serra.rattelse && serra.rattelse.kod;
+    bytLofte.clear();   // som efter en omladdning
+    const rad1 = A.raderade.length;
+    kortBytNamn(serra.cid, 'Serra Angel', null, false);
+    for (let i = 0; i < 100 && A.raderade.length === rad1; i++) await vanta(10);
+    ok('MES-387: efter en omladdning tar tillbaka till kamerans namn bort rättelsen via kortets kod (c.rattelse, i spelets rad)',
+       !!kodNu && A.raderade.includes(kodNu) && !serra.rattelse && !!slimDelat([Object.assign({}, serra, { rattelse: { kod: 'R-x' } })])[0].rattelse, JSON.stringify({ kodNu, raderade: A.raderade }));
     t3.varfor = v0; v4.varfor = v4f;
     giant.name = 'Giant Growth'; delete giant.namnHand; delete giant.kamLas; serra.name = 'Serra Angel'; delete serra.namnHand;
     handToastStang();
