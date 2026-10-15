@@ -533,7 +533,7 @@ appen, och varje session som mäter en.
 | Krav | Vad som gäller |
 |---|---|
 | **0 säkra fel namn i golden** | hårt, oförändrat. Varje fel namn spåras till sin väg i koden (domskälet: `modell land`, `remsa`, `modell+orb` …). Faller appens nuvarande modell på samma väg är det vägen som ska dömas, inte modellen — men modellen går ändå inte in förrän vägen eller modellen är rättad |
-| **Totalen bättre än baslinjen** | rätt namn/119 ska vara fler än baslinjens. "Inget fall sämre" gäller inte längre som stopp: varje fall som blir sämre ska ha en förklaring som inte är slump, och förklaringen skrivs i historik-raden |
+| **Totalen bättre än baslinjen** | rätt namn av läsbara (/114 sedan 2026-10-15; samma jämförelse som /119, eftersom de oläsbara är desamma) ska vara fler än baslinjens. "Inget fall sämre" gäller inte längre som stopp: varje fall som blir sämre ska ha en förklaring som inte är slump, och förklaringen skrivs i historik-raden |
 | **Golden: baslinjen en gång, den nya modellen två gånger**, på samma kod | skiljer sig den nya modellens två körningar åt i ett fall är skillnaden brus, och räknas inte som försämring. Kolla `git diff --stat <baslinjens commit> HEAD -- index.html` före, inte efter: har index.html ändrats körs baslinjen om på nuvarande kod |
 | **Bänkarna är diagnos, inte grind** | helkortsbänken (`helkort_jamfor.py`) och remsregeln (`remsregel.py`) rapporteras alltid — de visar var modellen är svag — men stoppar inte en modell som golden godkänner. Appens egen modell har själv 2 säkra fel på helkortsbänken vid 0,11 |
 

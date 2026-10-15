@@ -174,9 +174,10 @@ function skrivTabell(rs, gamla) {
     ['Fall', 42, r => r.id],
     ['Kort', 12, r => r.kort + (r.dolda ? ` +${r.dolda} dolt` : '')],
     ['Hittade', 13, (r, g) => r.hittade + skiljer(r, g, 'hittade')],
-    ['Rätt namn', 17, (r, g) => `${r.namn}/${r.kort}` + skiljer(r, g, 'namn')],
-    /* Rätt namn av läsbara (2026-10-07): bara där facit har oläsbara kort; i Totalt alltid när någon rad har dem. */
-    ['Läsbara', 18, (r, g) => r.kortLasbara == null || (r.kortLasbara === r.kort && !r.harOlasbara) ? '' : `${r.namnLasbara}/${r.kortLasbara}` + skiljerAv(r, g, 'namnLasbara', 'kortLasbara')],
+    /* Rubriken är läsbara kort (Jespers beslut 2026-10-15): det koden kan nå. Utan läsbar-fältet (äldre baslinje) alla kort. */
+    ['Rätt namn', 18, (r, g) => r.kortLasbara == null ? `${r.namn}/${r.kort}` + skiljer(r, g, 'namn') : `${r.namnLasbara}/${r.kortLasbara}` + skiljerAv(r, g, 'namnLasbara', 'kortLasbara')],
+    /* Av alla kort, oläsbara inräknade: bara där facit har oläsbara kort; i Totalt alltid när någon rad har dem. */
+    ['Av alla', 17, (r, g) => r.kortLasbara == null || (r.kortLasbara === r.kort && !r.harOlasbara) ? '' : `${r.namn}/${r.kort}` + skiljer(r, g, 'namn')],
     ['Fel namn', 13, (r, g) => r.felNamn + skiljer(r, g, 'felNamn')],
     ['Falska', 22, (r, g) => r.falska + skiljer(r, g, 'falska') + (r.tokens ? ` (+${r.tokens} token)` : '')],   // MES-331: spår på en ritad token räknas för sig
     /* Tokens som facit (2026-10-07): ritade tokens som fick säkert tokenens namn / ritade tokens. */
@@ -186,7 +187,7 @@ function skrivTabell(rs, gamla) {
     /* K5/MODE-5: lägesuppdateringar — rapporter där ett stilla kort flyttat mer än AUTO_FLYTT av sin bredd; per minut av fallets tid. */
     ['Läge', 16, (r, g) => r.lagesUpp == null ? '–' : `${r.lagesUpp}${skiljer(r, g, 'lagesUpp')}${r.lagesPerMin != null ? ` (${r.lagesPerMin}/min)` : ''}`],
     ['Förlopp', 72, forlopp]
-  ].filter(k => (k[0] !== 'Läsbara' || rs.some(r => r.kortLasbara != null && r.kortLasbara !== r.kort)) && (k[0] !== 'Tokennamn' || rs.some(r => r.tokensAv)));
+  ].filter(k => (k[0] !== 'Av alla' || rs.some(r => r.kortLasbara != null && r.kortLasbara !== r.kort)) && (k[0] !== 'Tokennamn' || rs.some(r => r.tokensAv)));
   /* Minst ett mellanslag mellan cellerna: en cell som fyller sin bredd klistrades annars ihop med nästa ("100/118 (var 99)0"). */
   const rad = celler => '  ' + celler.map((c, i) => { const t = String(c), b = kolumner[i][1]; return t.length >= b ? t + ' ' : t.padEnd(b); }).join('').trimEnd();
   /* Summan är null när ingen rad bär fältet — en baslinje från före ett nytt mått ska inte stå som "(var 0)". */
@@ -201,8 +202,8 @@ function skrivTabell(rs, gamla) {
   console.log(rad(kolumner.map(k => k[2](Object.assign({ id: `Totalt, ${rs.length} fall` }, totalt(rs)), totaltG))));
   console.log('\n  Kort: synliga kort i facit (ett kort som ligger under ett annat är dolt och räknas inte).');
   console.log('  Hittade: kort kameran lade ut — också dolda kort den ändå såg, och falska spår. Därför kan talet bli större än Kort.');
-  console.log('  Rätt namn: synliga kort som fick rätt namn med säkert svar. Fel namn: säkert svar men fel kort (ska vara 0).');
-  console.log('  Läsbara: rätt namn av läsbara — samma räkning utan kort som facit märkt oläsbara ("olasbar": orsak); tomt där fallet inte har några. Fel namn räknas på alla kort.');
+  console.log('  Rätt namn: läsbara kort som fick rätt namn med säkert svar — kort som facit märkt oläsbara ("olasbar": orsak) räknas inte. Fel namn: säkert svar men fel kort (ska vara 0).');
+  console.log('  Av alla: samma räkning med de oläsbara inräknade; tomt där fallet inte har några. Fel namn räknas på alla kort.');
   console.log('  (+N token): spår på en token som facit ritat (rita.ovriga, MES-331) — räknas inte i Falska. Tokennamn: ritade tokens med säkert tokenens namn (ett annat säkert namn är ett fel namn).');
   console.log('  Falska: spår där inget kort ligger. Plats och Tappad provas bara där facit har rutor; ± är medianfelet mellan spårets och rutans mitt i kortbredder. (var N): baslinjens tal.');
   console.log('  Läge: rapporter där ett stilla kort flyttat mer än 15 % av sin bredd sedan förra rapporten (det datorn speglar i Table leads) — ska vara 0 på ett stilla bord; per minut av fallets tid.');
@@ -521,8 +522,9 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     const dom = samre.length && battre.length ? 'BLANDAT — bättre i något fall, sämre i ett annat' : samre.length ? 'SÄMRE' : battre.length ? 'BÄTTRE' : 'LIKA BRA';
     console.log(`\nJämfört med baslinjen (${BASFIL}): ${dom}`);
     /* Läsbara: baslinjer från före 2026-10-07 saknar fältet — då står bara körningens tal. */
-    const lasb = jamforda.some(r => r.kortLasbara != null && r.kortLasbara !== r.kort) ? `, rätt namn av läsbara ${gs.every(g => g.namnLasbara != null) && s(gs, 'kortLasbara') === s(jamforda, 'kortLasbara') ? s(gs, 'namnLasbara') + ' → ' : ''}${s(jamforda, 'namnLasbara')} av ${s(jamforda, 'kortLasbara')}` : '';
-    console.log(`  totalt: rätt namn ${s(gs, 'namn')} → ${s(jamforda, 'namn')} av ${s(jamforda, 'kort')} kort${lasb}, fel namn ${s(gs, 'felNamn')} → ${s(jamforda, 'felNamn')}, falska ${s(gs, 'falska')} → ${s(jamforda, 'falska')}`
+    const lasb = jamforda.some(r => r.kortLasbara != null && r.kortLasbara !== r.kort) ? `rätt namn ${gs.every(g => g.namnLasbara != null) && s(gs, 'kortLasbara') === s(jamforda, 'kortLasbara') ? s(gs, 'namnLasbara') + ' → ' : ''}${s(jamforda, 'namnLasbara')} av ${s(jamforda, 'kortLasbara')} läsbara (av alla ${s(gs, 'namn')} → ${s(jamforda, 'namn')} av ${s(jamforda, 'kort')})`
+      : `rätt namn ${s(gs, 'namn')} → ${s(jamforda, 'namn')} av ${s(jamforda, 'kort')} kort`;
+    console.log(`  totalt: ${lasb}, fel namn ${s(gs, 'felNamn')} → ${s(jamforda, 'felNamn')}, falska ${s(gs, 'falska')} → ${s(jamforda, 'falska')}`
       + (jamforda.some(r => r.videoLagdaAv != null || r.videoBortaAv != null) ? `\n  förloppet: utlagda med namn ${s(gs, 'videoLagda')} → ${s(jamforda, 'videoLagda')} av ${s(jamforda, 'videoLagdaAv')} kort, borttagna ${s(gs, 'videoBorta')} → ${s(jamforda, 'videoBorta')} av ${s(jamforda, 'videoBortaAv')} kort, ordning ${s(gs, 'videoOrdning')} → ${s(jamforda, 'videoOrdning')}, fel namn under förloppet ${s(gs, 'videoFelUnder')} → ${s(jamforda, 'videoFelUnder')}` : ''));
     if (battre.length) console.log('  bättre:\n    ' + battre.join('\n    '));
     if (samre.length) console.log('  sämre:\n    ' + samre.join('\n    '));

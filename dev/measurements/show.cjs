@@ -165,10 +165,12 @@ function goldenHistorik() {
     if (!namn) continue;
     const fel = ren(c[7]).match(/^(\d+)/);
     const hitt = ren(c[4]).match(/(\d+)\/119/);
+    const lasb = ren(c[6]).match(/läsbara (\d+)\/(\d+)/);   // rubriken sedan 2026-10-15; äldre rader har den inte alltid
     const kl = c[3].match(/(\d{1,2}[:.]\d{2})\s*[–-]\s*(\d{1,2}[:.]\d{2})/);
     rader.push({
       dag: c[0], commit, ai: /\+ai|claude/i.test(c[2]),
       namn: +namn[1], fel: fel ? +fel[1] : null, hittade: hitt ? +hitt[1] : null,
+      lasb: lasb ? +lasb[1] : null, lasbAv: lasb ? +lasb[2] : null,
       fran: kl ? kl[1].replace('.', ':') : null, till: kl ? kl[2].replace('.', ':') : null,
       vad: ren(c[1]).replace(/\s+/g, ' '),
       /* "bara 13, 17, 18": totalen är de fallen + resten ur baslinjen */
@@ -191,6 +193,9 @@ function summera(d) {
     fall: d,
     kort: S('kort'), namn: S('namn'), fel: S('felNamn'), hittade: S('hittade'), falska: S('falska'),
     renKort: S('kort', ren_), renNamn: S('namn', ren_),
+    /* Rätt namn av läsbara (rubriken sedan 2026-10-15): utan kort som facit märkt oläsbara; fall utan fältet räknas med alla kort. */
+    lasb: d.reduce((s, e) => s + ((e.kortLasbara != null ? e.namnLasbara : e.namn) || 0), 0),
+    lasbAv: d.reduce((s, e) => s + ((e.kortLasbara != null ? e.kortLasbara : e.kort) || 0), 0),
     lagda: S('videoLagda', video), lagdaAv: S('videoLagdaAv', video), felUnder: S('videoFelUnder', video),
     videoFall: d.filter(video).length, fotoFall: d.filter(e => !video(e)).length,
     metod: d[0] && d[0].metod, ai: d[0] && d[0].ai, promptv: d[0] && d[0].promptv,
@@ -360,7 +365,9 @@ function oversikt(medClaude) {
   const k = [];
   if (g.sen) {
     const s = g.sen;
-    k.push(['Golden, 18 fall: rätt namn', `${s.namn}/119`, g.forra ? g.forra.namn : '', `${kortDag(s.dag, s.fran)} · ${s.commit}`,
+    /* Läsbara är rubriken: ur historikraden, annars ur baslinjen när den har samma resultat. */
+    const lb = s.lasb != null ? s : g.bas && g.bas.namn === s.namn ? g.bas : null;
+    k.push(['Golden, 18 fall: rätt namn av läsbara', lb ? `${lb.lasb}/${lb.lasbAv} (av alla ${s.namn}/119)` : `${s.namn}/119`, g.forra ? g.forra.namn + '/119' : '', `${kortDag(s.dag, s.fran)} · ${s.commit}`,
       obs(varnText(kodAndrad(s.commit)), s.del && `delkörning: ${s.del}, övriga ur baslinjen`)]);
     k.push(['Golden: fel namn', s.fel, g.forra ? g.forra.fel : '', '', 'mål 0']);
     if (g.bas) k.push(['varav ren kamera', `${g.bas.renNamn}/${g.bas.renKort}`, g.forraBas ? `${g.forraBas.renNamn}/${g.forraBas.renKort}` : '', `baslinjen · ${g.bas.fil.h}`, '']);
@@ -428,21 +435,22 @@ function oversikt(medClaude) {
 function detaljGolden() {
   const g = golden();
   const ut = [rubrik('Golden'), '', 'Senaste hela körningarna utan Claude (`dev/golden/historik.md`, * = delkörning):', ''];
-  ut.push(tabell(['Datum', 'Commit', 'Main', 'Hittade', 'Rätt namn', 'Fel namn', 'Vad'], goldenHistorik().filter(r => !r.ai).slice(-8).map(r =>
-    [kortDag(r.dag, r.fran), r.commit || '–', r.main ? 'ja' : 'gren', r.hittade != null ? r.hittade + '/119' : '–', r.namn + '/119' + (r.del ? '*' : ''), r.fel, r.vad.replace(/^[0-9a-f]{7,40}\s*\(?/, '').slice(0, 70)])), '');
+  ut.push(tabell(['Datum', 'Commit', 'Main', 'Hittade', 'Läsbara', 'Av alla', 'Fel namn', 'Vad'], goldenHistorik().filter(r => !r.ai).slice(-8).map(r =>
+    [kortDag(r.dag, r.fran), r.commit || '–', r.main ? 'ja' : 'gren', r.hittade != null ? r.hittade + '/119' : '–', r.lasb != null ? `${r.lasb}/${r.lasbAv}` : '–', r.namn + '/119' + (r.del ? '*' : ''), r.fel, r.vad.replace(/^[0-9a-f]{7,40}\s*\(?/, '').slice(0, 70)])), '');
   for (const b of [g.bas, g.basAi].filter(Boolean)) {
     ut.push(rubrik(`Fall för fall: ${b.rel.split('/').pop()}`) + ` · ${b.fil.h} · ${kortTid(b.fil.t)} · ${b.ai ? 'med Claude ' + b.ai + ' v' + b.promptv : 'utan Claude'} ${varnText(kodAndrad(b.fil.h))}`.trimEnd(), '');
     ut.push(tabell(['Nivå', 'Mått', 'Värde'], [
       ['Krav', 'fel namn (mål 0)', b.fel],
       ['1', 'hittade av synliga', `${b.hittade}/${b.kort}`],
-      ['2', 'rätt namn', `${b.namn}/${b.kort}`],
+      ['2', 'rätt namn av läsbara', `${b.lasb}/${b.lasbAv}`],
+      ['2', 'rätt namn av alla kort', `${b.namn}/${b.kort}`],
       ['2', 'varav ren kamera', `${b.renNamn}/${b.renKort}`],
       ['3', `utlagda med namn (de ${b.videoFall} videorna)`, `${b.lagda}/${b.lagdaAv}`],
       ['3', 'fel namn under förloppet', b.felUnder],
     ]), '');
-    ut.push(tabell(['Fall', 'Slag', 'Material', 'Kort', 'Hittade', 'Rätt namn', 'Fel', 'Utlagda m. namn'], b.fall.map(e => {
+    ut.push(tabell(['Fall', 'Slag', 'Material', 'Kort', 'Hittade', 'Rätt namn (läsbara)', 'Fel', 'Utlagda m. namn'], b.fall.map(e => {
       const video = e.videoLagdaAv != null;
-      return [e.id.slice(0, 44), video ? 'video' : 'foto', material(e.id.slice(0, 2)), e.kort, e.hittade, `${e.namn}/${e.kort}`, e.felNamn, video ? `${e.videoLagda}/${e.videoLagdaAv}` : ''];
+      return [e.id.slice(0, 44), video ? 'video' : 'foto', material(e.id.slice(0, 2)), e.kort, e.hittade, e.kortLasbara != null ? `${e.namnLasbara}/${e.kortLasbara}` : `${e.namn}/${e.kort}`, e.felNamn, video ? `${e.videoLagda}/${e.videoLagdaAv}` : ''];
     })), '');
   }
   ut.push('Mät om: `node dev/golden/kor.cjs` (~25 min) · guide `dev/golden/SNABBGUIDE.md`');

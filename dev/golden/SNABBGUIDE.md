@@ -30,7 +30,7 @@ rörde sig:
 |---|---|---|
 | **Krav** | **Fel namn** — säkert svar men fel kort | alltid 0; allt annat får ge vika |
 | **1 · Hittade** | synliga kort som har ett spår på bordet när fallet är slut | får aldrig gå ner; målet är alla |
-| **2 · Rätt namn** | synliga kort med säkert och rätt namn | det vi höjer |
+| **2 · Rätt namn** | **läsbara** kort med säkert och rätt namn (97/114 i baslinjen 2026-10-15) — kort som facit märkt oläsbara räknas inte | det vi höjer; målet är alla läsbara. Av alla kort (`/119`) står bredvid |
 | **3 · Utlagda med namn** | videofall: kort som läggs ut under videon och får säkert rätt namn | det som ligger närmast ett riktigt parti; fördröjningen bredvid |
 | Felsökning | falska, plats, tappad, land per typ, högar, borttagna, ordning, tap, dubbletter, bänkarna i `dev/remsa` och `dev/detektor` | läses när en nivå rört sig, för att se *var* det föll |
 
@@ -58,8 +58,8 @@ Båda skriver en tabell med ett fall per rad:
 |---|---|
 | Kort | synliga kort i facit (`+1 dolt`: ett kort under ett annat, räknas inte) |
 | Hittade | kort kameran lade ut — också dolda den ändå såg och falska spår, så talet kan bli större än Kort (44 av 41 = 41 kort + 3 dolda) |
-| Rätt namn | synliga kort som fick rätt namn med säkert svar, t.ex. `10/10` |
-| Läsbara | **rätt namn av läsbara** (2026-10-07): samma räkning utan kort som facit märkt oläsbara (`"olasbar"`, se *Oläsbara kort och tokens i facit*). Kolumnen finns när något kört fall har oläsbara kort, och står då i de fallen och i Totalt; i `kor.html` som `· 3/9 läsbara` i Rätt namn. Jämförs mot baslinjen bara när nämnaren är densamma |
+| Rätt namn | **läsbara** kort som fick rätt namn med säkert svar, t.ex. `10/10` — kort som facit märkt oläsbara (`"olasbar"`, se *Oläsbara kort och tokens i facit*) räknas inte (rubriken sedan 2026-10-15; fall utan fältet räknas med alla kort). I `kor.html` som `· 3/9 läsbara` i Rätt namn |
+| Av alla | samma räkning med de oläsbara inräknade (`/119` i Totalt). Kolumnen finns när något kört fall har oläsbara kort. Läsbara jämförs mot baslinjen bara när nämnaren är densamma |
 | Fel namn | säkert svar men fel kort — det värsta, ska vara 0. Räknas på **alla** kort, också oläsbara, och på ritade tokens (ett annat säkert namn än tokenens) |
 | Falska | spår där inget kort ligger. `(+N token)` bredvid: spår på en token som facit ritat (`rita.ovriga`, namn som börjar med `token`) — räknas inte som falska (MES-331) |
 | Tokennamn | ritade tokens som fick säkert **tokenens** namn (`token Soldier` → Soldier) / ritade tokens (2026-10-07). Utanför Kort och Rätt namn, så 119 består; i `kor.html` som `· N/M tokennamn` i Rätt namn. Jämförs mot baslinjen bara när antalet ritade tokens är detsamma |
@@ -686,8 +686,8 @@ titelrad eller konstverk — får fältet `"olasbar"` med orsaken:
 
 | Tal | Räknas på |
 |---|---|
-| Rätt namn | alla synliga kort, som förut — historiken håller |
-| Rätt namn av läsbara (`namnLasbara`/`kortLasbara`) | synliga kort utan `olasbar`, i täljare och nämnare |
+| Rätt namn av läsbara (`namnLasbara`/`kortLasbara`) — **rubriken** sedan 2026-10-15 | synliga kort utan `olasbar`, i täljare och nämnare |
+| Rätt namn av alla (`namn`/`kort`) | alla synliga kort, som förut — historiken håller. I historik.md skrivs båda, i den ordning `/measurements` läser dem: `**97/119** · läsbara 97/114` |
 | Fel namn | **alla** kort — ett säkert namn på ett utbränt kort är ett fel |
 
 Flaggan sätts bara i facit, per kort, med en orsak — aldrig i koden. Den är
