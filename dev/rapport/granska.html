@@ -106,13 +106,33 @@ table.ds th { color: var(--svag); font-weight: 500; }
 .zoom img { max-width: 100%; max-height: 100%; border-radius: 8px; }
 .zoom .par { display: flex; gap: 16px; max-height: 100%; max-width: 100%; }
 .zoom .par img { max-height: 90vh; max-width: 48vw; }
+main.bara-lista { grid-template-columns: minmax(0, 1fr); }   /* Handlingar: bänken och träningen gäller inte dem */
+main.bara-lista .sidor { display: none; }
+.hlista { margin: 0; padding: 0; list-style: none; font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
+.hlista li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; }
+.hlista .tid { color: var(--svag); font-variant-numeric: tabular-nums; font-size: 12px; }
+.hlista .vad { color: var(--svag); }
+.hlista li.inget { opacity: .7; }
+.hrad { padding: 14px; border-top: 1px solid var(--linje); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; }
+.hrad:first-of-type { border-top: 0; }
+@media (max-width: 760px) { .hrad { grid-template-columns: 1fr; } }
+.hrad h3 { font-size: 12px; font-weight: 600; color: var(--svag); margin: 0 0 6px; text-transform: uppercase; letter-spacing: .03em; }
+.hrad .info { grid-column: 1 / -1; }
+.tal.fyra { grid-template-columns: repeat(4, 1fr); }
+table.past { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.past td { padding: 4px 6px; border-top: 1px solid var(--linje); vertical-align: top; }
+table.past td.tid { color: var(--svag); font-variant-numeric: tabular-nums; white-space: nowrap; width: 1%; }
+table.past .s { font-weight: 600; white-space: nowrap; }
+table.past .s.raknas { color: var(--tran); }
+table.past tr.ej td { color: var(--svag); }
+table.past .skal { display: block; font-size: 11px; color: var(--svag); }
 code { font-size: 12px; background: var(--yta2); padding: 1px 4px; border-radius: 4px; }
 </style>
 </head>
 <body>
 <header>
   <h1>Granska rättelser</h1>
-  <p class="under">Rättelserna spelarna gjort med <i>Share pictures of cards I correct</i> på. Kontrollera att beskärningen och det rätta namnet stämmer, och välj <b>Träning</b> (bildmodellen lär sig av kortet), <b>Prov</b> (bänken mäter modellen mot det) eller <b>Släng</b>. Sidan föreslår ett val och säger varför; Prov kräver en sorts fel. Valet går inte att ändra efteråt, och ett parti hamnar aldrig både i träning och prov.</p>
+  <p class="under">Rättelserna spelarna gjort med <i>Share pictures of cards I correct</i> på. Kontrollera att beskärningen och det rätta namnet stämmer, och välj <b>Träning</b> (bildmodellen lär sig av kortet), <b>Prov</b> (bänken mäter modellen mot det) eller <b>Släng</b>. Sidan föreslår ett val och säger varför; Prov kräver en sorts fel. Valet går inte att ändra efteråt, och ett parti hamnar aldrig både i träning och prov. Fliken <b>Handlingar</b> har rättelserna av tap, flyttar till graveyard/exile/hand, Undo och Follow camera: de blir <b>Mat test</b>-fall eller slängs, aldrig träning.</p>
   <nav id="flikar"></nav>
 </header>
 <main>
@@ -141,9 +161,11 @@ const FLIKAR = [
   { id: 'traning', namn: 'Träning', f: r => r.anvandning === 'traning' },
   { id: 'test', namn: 'Prov', f: r => r.anvandning === 'test' },
   { id: 'slangd', namn: 'Slängda', f: r => r.anvandning === 'slangd' || r.anvandning === 'fix' },
-  { id: 'alla', namn: 'Alla', f: () => true }
+  { id: 'alla', namn: 'Alla', f: () => true },
+  { id: 'handlingar', namn: 'Handlingar', handling: true }   // rättelserna av handlingar (MES-385): egen lista
 ];
 let rader = [], flik = 'nya';
+let handlingar = null;   // null tills den hämtats; /api/handlingar: rättelserna av handlingar, med påståendena ur till-fall.cjs
 let bank = null;   // /api/bank: utgåvorna och bänken per sort mot målet (bankutgava.cjs)
 try { flik = localStorage.getItem('granska-flik') || 'nya'; } catch (e) {}
 const noter = new Map();   // kod → { typ, text } efter ett val
@@ -160,13 +182,15 @@ async function hamta(u, opt) {
 const nar = iso => new Date(iso).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
 
 function ritaFlikar() {
-  $('#flikar').innerHTML = FLIKAR.map(f => `<button data-flik="${f.id}" aria-pressed="${f.id === flik}">${f.namn}<span class="n">${rader.filter(f.f).length}</span></button>`).join('');
+  $('#flikar').innerHTML = FLIKAR.map(f => `<button data-flik="${f.id}" aria-pressed="${f.id === flik}" ${f.handling ? 'title="Osorterade rättelser av handlingar"' : ''}>${f.namn}<span class="n">${f.handling ? (handlingar || []).filter(h => !h.anvandning).length : rader.filter(f.f).length}</span></button>`).join('');
 }
 function parti(r) { return r.game_id || (r.spelkod ? 'kod:' + r.spelkod : 'utan:' + r.kod); }
 
 function ritaLista() {
   ritaFlikar();
   const F = FLIKAR.find(f => f.id === flik) || FLIKAR[0];
+  document.querySelector('main').classList.toggle('bara-lista', !!F.handling);
+  if (F.handling) return ritaHandlingar();
   const synliga = rader.filter(F.f);
   if (!synliga.length) {
     $('#lista').innerHTML = `<div class="tom">${rader.length ? 'Inget här.' : 'Inga rättelser än. De kommer när någon med <i>Share pictures of cards I correct</i> på byter namn på ett kort, använder Name this card eller tar bort ett kamerakort.'}</div>`;
@@ -268,6 +292,108 @@ function radHtml(r) {
       ${not ? `<div class="not ${not.typ}">${esc(not.text)}</div>` : ''}
     </div>
   </div>`;
+}
+
+/* ── handlingarna (MES-385) ──
+   Paketets rättelser som spelaren gjorde dem, och påståendena ett Mat test-fall räknar: till-fall.cjs räknar dem
+   (forhandMattest på servern, samma kod som --mattest). Valen: Mat test (till-fall.cjs --mattest) eller Släng. */
+const tid = ms => ms ? new Date(ms).toLocaleTimeString('sv-SE', { hour12: false }) : '';
+const ZON = { grav: 'graveyard', exil: 'exile', hand: 'handen' };
+function handlingVad(h) {
+  if (h.typ === 'tap_hand') return { vad: `${h.tappad ? 'tappad' : 'upprätt'} för hand${h.kamTap != null ? ` — kameran sa ${h.kamTap ? 'tappad' : 'upprätt'}` : ''}`, pastar: true };
+  if (h.typ === 'grav_hand') return { vad: `borta till ${ZON[h.zon] || 'graveyard'}`, pastar: true };
+  if (h.typ === 'flytt_hand') return { vad: 'flyttad på mattan (inget påstående)' };
+  if (h.typ === 'angrad') return { vad: h.av === 'cmdz' ? '⌘Z' : h.hur === 'tap' ? 'vriden tillbaka för hand — överens med kameran igen' : 'Undo i toasten — kameran hade rätt' };
+  if (h.typ === 'folj_kameran') return { vad: 'Follow camera' };
+  return { vad: h.typ };
+}
+function pastaendeVad(p) {
+  if (p.typ === 'tappad') return p.varde ? 'tappad' : 'upprätt';
+  if (p.typ === 'borta') return p.till ? `borta till ${p.till === 'hand' ? 'handen' : p.till}` : 'borta (Remove)';
+  if (p.typ === 'namn') return `hette ${p.namn}`;
+  return p.typ;
+}
+function pastaendeStatus(p) {
+  if (p.tillbaka) return { kl: 'ej', s: 'tillbakatagen', skal: p.tillbaka };
+  if (p.osaker) return { kl: 'ej', s: 'osäker', skal: p.osaker };
+  if (p.ejAvgorbart) return { kl: 'ej', s: 'utan spår', skal: p.ejAvgorbart };
+  return { kl: '', s: 'räknas', skal: '' };
+}
+function rekommenderaHandling(h) {
+  if (h.fel) return { val: 'slangd', varfor: 'Paketet går inte att göra till ett fall (se felet ovan).' };
+  const F = h.forhand;
+  if (!F.antal) return F.facit ? { val: 'mattest', varfor: `Ett äldre paket utan spelarens journal: facit är ${F.facit} rad(er) ur mattans ändringar, där vem som ändrade är gissat.` }
+    : { val: 'slangd', varfor: 'Inget att mäta: paketet har varken påståenden eller facit-rader.' };
+  if (F.antal.raknas) return { val: 'mattest', varfor: `${F.antal.raknas} påstående${F.antal.raknas === 1 ? '' : 'n'} räknas. Mat test mäter om uppspelningen visade läget spelaren rättade till.` };
+  return { val: 'slangd', varfor: 'Inget påstående räknas (alla tillbakatagna, osäkra eller utan spår): fallet skulle mäta 0 av 0.' };
+}
+const hStatus = h => h.anvandning === 'test' ? (h.testSlag === 'bank' ? 'Prov (bänken)' : 'Mat test') : STATUS[h.anvandning] || h.anvandning;
+function ritaHandlingar() {
+  if (!handlingar) { $('#lista').innerHTML = '<div class="tom">Hämtar handlingarna och räknar påståendena …</div>'; return; }
+  if (!handlingar.length) {
+    $('#lista').innerHTML = `<div class="tom">Inga rättelser av handlingar än. De kommer när någon med <i>Share pictures of cards I correct</i> på rättar ett tap, flyttar ett kamerakort till graveyard, exile eller handen, eller använder Undo eller Follow camera.</div>`;
+    return;
+  }
+  const grupper = new Map();
+  for (const h of handlingar) { const p = parti(h); if (!grupper.has(p)) grupper.set(p, []); grupper.get(p).push(h); }
+  $('#lista').innerHTML = [...grupper.entries()].map(([p, hh]) => {
+    const rubrik = hh[0].spelkod ? `Parti ${esc(hh[0].spelkod)}` : p.startsWith('utan:') ? 'Utan parti' : 'Parti';
+    return `<div class="parti">
+      <div class="huvud"><div><b>${rubrik}</b> <span class="svag">${esc(nar(hh[hh.length - 1].nar))} · ${hh.length} paket · ${esc(hh[0].vem)}</span></div></div>
+      ${hh.map(hRadHtml).join('')}
+    </div>`;
+  }).join('');
+}
+function hRadHtml(h) {
+  const F = h.forhand, not = noter.get(h.kod), kanSortera = !h.anvandning;
+  const status = h.anvandning ? `<span class="status ${h.anvandning}">${esc(hStatus(h))}</span>` : '<span class="status osorterad">Osorterad</span>';
+  const forslag = kanSortera ? rekommenderaHandling(h) : null;
+  const fs_ = v => forslag && forslag.val === v ? ' forslag' : '';
+  const lista = h.handlingar.length ? `<ul class="hlista">${h.handlingar.map(x => { const v = handlingVad(x); return `<li class="${v.pastar || x.typ === 'angrad' || x.typ === 'folj_kameran' ? '' : 'inget'}"><span class="tid">${esc(tid(x.t))}</span><span><b>${esc(x.kort || '(utan namn)')}</b> <span class="vad">${esc(v.vad)}</span></span></li>`; }).join('')}</ul>`
+    : '<p class="lika">Raden bär inga rättelser.</p>';
+  let past = '';
+  if (h.fel) past = `<div class="not fel">${esc(h.fel)}</div>`;
+  else if (!F.pastaenden) past = `<div class="lika">Paketet saknar spelarens journal (före MES-385:s påståenden): facit är ${F.facit} rad(er) ur mattans ändringar.</div>`;
+  else past = `<div class="tal fyra">
+        <div><b>${F.antal.raknas}</b><span>räknas</span></div>
+        <div><b>${F.antal.tillbaka}</b><span>tillbakatagna</span></div>
+        <div><b>${F.antal.osakra}</b><span>osäkra</span></div>
+        <div><b>${F.antal.utanSpar}</b><span>utan spår</span></div>
+      </div>
+      ${F.pastaenden.length ? `<table class="past">${F.pastaenden.map(p => { const st = pastaendeStatus(p); return `<tr class="${st.kl}"><td class="tid">${esc(tid(F.start + p.t * 1000))}</td><td><b>${esc(p.kort || '(utan namn)')}</b> ${esc(pastaendeVad(p))}${p.spar != null ? ` <span class="lika">spår ${esc(p.spar)}</span>` : ''}</td><td><span class="s ${st.kl ? '' : 'raknas'}">${st.s}</span>${st.skal ? `<span class="skal">${esc(st.skal)}</span>` : ''}</td></tr>`; }).join('')}</table>` : '<p class="lika">Inga påståenden i paketet (de hör till ett annat paket, eller är flyttar på mattan).</p>'}`;
+  return `<div class="hrad" data-kod="${esc(h.kod)}">
+    <div><h3>Rättelserna (${h.handlingar.length})</h3>${lista}</div>
+    <div><h3>Påståendena${F && F.pastaenden ? ` (${F.antal.alla})` : ''}</h3>${past}</div>
+    <div class="info">
+      <div class="meta"><span>${esc(h.kod)}</span>${status}<span>${esc(nar(h.nar))}</span>${h.forsta && h.till ? `<span>${esc(tid(h.forsta))}–${esc(tid(h.till))}</span>` : ''}${h.fallFinns ? '<span>fallet finns i dev/mattest/underlag/rapporter</span>' : ''}</div>
+      ${F && F.varning ? `<div class="not varn">VARNING: ${esc(F.varning)}</div>` : ''}
+      ${kanSortera ? `<div class="forslag-rad"><b>Förslag: ${forslag.val === 'mattest' ? 'Mat test' : 'Släng'}.</b> ${esc(forslag.varfor)}</div>
+      <div class="knappar">
+        <button class="val test${fs_('mattest')}" data-hval="mattest" ${!h.fel && !upptagen ? '' : 'disabled'}>Mat test</button>
+        <button class="val${fs_('slangd')}" data-hval="slangd" ${upptagen ? 'disabled' : ''}>Släng</button>
+      </div>` : ''}
+      ${not ? `<div class="not ${not.typ}">${esc(not.text)}</div>` : ''}
+    </div>
+  </div>`;
+}
+async function laddaHandlingar() {
+  try { handlingar = await hamta('/api/handlingar'); }
+  catch (e) { handlingar = []; if (flik === 'handlingar') { $('#lista').innerHTML = `<div class="tom">Kunde inte hämta handlingarna: ${esc(e.message)}</div>`; ritaFlikar(); return; } }
+  ritaLista();
+}
+/* Mat test eller Släng: samma verktyg som i terminalen. Verktygets hela utskrift visas efteråt (antalet påståenden,
+   VARNING-raderna, var fallet skrevs) — fallet ska köras med Mat test och committas, det säger utskriften. */
+async function sorteraHandling(kod, val) {
+  upptagen++; ritaLista();
+  const knapp = document.querySelector(`.hrad[data-kod="${CSS.escape(kod)}"] button[data-hval="${val}"]`);
+  if (knapp) knapp.textContent = '…';
+  try {
+    const s = await hamta('/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod, val }) });
+    if (s.ok) noter.set(kod, { typ: /VARNING/.test(s.text) ? 'varn' : 'ok', text: s.text });
+    else noter.set(kod, { typ: s.sparr ? 'varn' : 'fel', text: (s.sparr ? 'Spärren sa nej — ingenting är skrivet.\n' : '') + s.text });
+  } catch (e) { noter.set(kod, { typ: 'fel', text: e.message }); }
+  upptagen--;
+  await laddaHandlingar();
 }
 
 async function laddaLista() {
@@ -372,6 +498,7 @@ async function kopiera(text, knapp) {
 document.addEventListener('click', async e => {
   const t = e.target;
   if (t.dataset.flik) { flik = t.dataset.flik; try { localStorage.setItem('granska-flik', flik); } catch (x) {} ritaLista(); return; }
+  if (t.dataset.hval) { if (!upptagen) sorteraHandling(t.closest('.hrad').dataset.kod, t.dataset.hval); return; }
   if (t.dataset.val) { if (!upptagen) sortera(t.closest('.rad').dataset.kod, t.dataset.val); return; }
   if (t.dataset.alla) { if (!upptagen) allaTillTraning(t.dataset.alla); return; }
   if (t.id === 'bygg') { byggDataset(t); return; }
@@ -387,7 +514,7 @@ document.addEventListener('input', e => { if (e.target.dataset.namn) skrivet.set
 document.addEventListener('change', e => { if (e.target.dataset.sort) { const k = e.target.dataset.sort; if (e.target.value) valdSort.set(k, e.target.value); else valdSort.delete(k); ritaLista(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#zoom').classList.remove('pa'); });
 
-laddaBank().then(laddaLista).then(laddaTraning);
+laddaBank().then(() => Promise.all([laddaLista(), laddaHandlingar()])).then(laddaTraning);
 </script>
 </body>
 </html>

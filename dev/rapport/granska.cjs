@@ -29,6 +29,14 @@
    och mäter mot grinden i CLAUDE.md. Sidan laddar aldrig upp och startar
    ingen Kaggle-körning själv: det görs i sessionen, med grinden.
 
+   Handlingarna (MES-385): rättelserna av tap, flyttar till graveyard/exile/hand, Undo, ⌘Z och Follow camera har
+   ingen bild. De visas i en egen flik med spelarens påståenden, räknade av till-fall.cjs (forhandMattest, samma
+   kod som --mattest), och valen är Mat test (hamta.cjs + till-fall.cjs <kod> --mattest) eller Släng — aldrig
+   träning: handlingarna är regler i avstämningen, ingen modell lär sig dem.
+
+   MESA_RAPPORTER: en annan mapp än dev/diagnos/rapporter för de hämtade rättelserna (provet); den går till
+   hamta.cjs som --ut och till till-fall.cjs och satt.cjs som --mapp.
+
    Lyssnar bara på 127.0.0.1. Service role ur .env.local (supa.cjs); nyckeln
    lämnar aldrig servern. Scryfalls bilder hämtas av servern, en i taget, och
    cachas i ~/Library/Caches/mesa/granska-scryfall/. Inget här frågar Claude. */
@@ -39,14 +47,15 @@ const { supa, ROT } = require('./supa.cjs');
 const { slagIRepot } = require('./sparr.cjs');   // bara för förhandsvisningen av spärren; valen går genom till-fall/satt
 const { SORT_ID } = require('./sorter.cjs');
 const { lage: bankLage } = require('./bankutgava.cjs');
-const { goldenNamn } = require('./till-fall.cjs');
+const { goldenNamn, forhandMattest } = require('./till-fall.cjs');
 
 const argv = process.argv.slice(2), arg = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const PORT = +(arg('--port') || process.env.PORT || 8279);
 const KOD_RE = /^R-\d{4,}$/;
-const RAPPORTER = path.join(ROT, 'dev', 'diagnos', 'rapporter');
+const RAPPORTER = process.env.MESA_RAPPORTER ? path.resolve(process.env.MESA_RAPPORTER) : path.join(ROT, 'dev', 'diagnos', 'rapporter');
 /* MESA_FALL_UT: samma andra rot som till-fall.cjs skriver i (provet). */
 const UTROT = process.env.MESA_FALL_UT ? path.resolve(process.env.MESA_FALL_UT) : ROT;
+const MATTEST = path.join(UTROT, 'dev', 'mattest', 'underlag', 'rapporter');   // till-fall.cjs MATTEST
 const TRAN = path.join(UTROT, 'dev', 'material', 'arbete', 'markning', 'rapporter-traning-mesa');   // till-fall.cjs TRANPASS
 const BANK_MAN = path.join(UTROT, 'dev', 'remsa', 'rapportbank', 'manifest.json');
 const MODELLER = path.join(ROT, 'dev', 'embed', 'modeller');
@@ -77,11 +86,12 @@ const mappFor = kod => path.join(RAPPORTER, kod);
 const lasJson = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return null; } };
 const hamtas = new Map();   // kod → promise: samma rättelse hämtas en gång åt gången
 function hamtaLokalt(kod) {
-  if (fs.existsSync(path.join(mappFor(kod), 'rattelse.json'))) return Promise.resolve(true);
+  /* rattelse.json: en namnrättelse; rapport.json: en rättelse av handlingar (MES-385), som hämtas som en rapport */
+  if (['rattelse.json', 'rapport.json'].some(f => fs.existsSync(path.join(mappFor(kod), f)))) return Promise.resolve(true);
   /* hamta.cjs skriver alltid LÄS-MIG.md för en rättelse: finns den utan rattelse.json har hämtningen redan körts och
      filen saknas i hinken (bilder 'saknas') — hämta inte om vid varje listning. */
   if (fs.existsSync(path.join(mappFor(kod), 'LÄS-MIG.md'))) return Promise.resolve(false);
-  if (!hamtas.has(kod)) hamtas.set(kod, korNode('hamta.cjs', [kod]).then(r => { hamtas.delete(kod); if (r.kod) console.error(r.ut); return r.kod === 0; }));
+  if (!hamtas.has(kod)) hamtas.set(kod, korNode('hamta.cjs', [kod, '--ut', mappFor(kod)]).then(r => { hamtas.delete(kod); if (r.kod) console.error(r.ut); return r.kod === 0; }));
   return hamtas.get(kod);
 }
 async function hamtaAlla(koder) {
@@ -93,11 +103,11 @@ function bankInfo() {   // kod → { namn (det bänken mäter, ändrat om det ä
   return new Map(Array.isArray(m) ? m.map(p => [p.kod, { namn: p.namn, sort: p.sort || null, utgava: p.utgava == null ? null : p.utgava }]) : []);
 }
 
+const rattelseRader = () => S.rest('GET', 'rapporter?select=kod,created_at,user_id,game_id,anvandning,bilder,vy&kalla=eq.rattelse&order=created_at.desc&limit=1000');
+const arHandling = r => !!(r.vy && r.vy.handelse === 'handling');
 async function lista() {
-  /* En rättelse av handlingar (MES-385, vy.handelse 'handling') har ingen bild och inget namn: den blir ett Mat
-     test-fall (hamta.cjs + till-fall.cjs <kod> --mattest), aldrig träning eller bänk, och hör inte hemma här. */
-  const rader = (await S.rest('GET', 'rapporter?select=kod,created_at,user_id,game_id,anvandning,bilder,vy&kalla=eq.rattelse&order=created_at.desc&limit=1000'))
-    .filter(r => !(r.vy && r.vy.handelse === 'handling'));
+  /* En rättelse av handlingar (MES-385) har ingen bild och inget namn: den har en egen lista (listaHandlingar). */
+  const rader = (await rattelseRader()).filter(r => !arHandling(r));
   await hamtaAlla(rader.map(r => r.kod));
   const bank = bankInfo(), golden = goldenNamn(), ut = [];
   for (const r of rader) {
@@ -125,14 +135,42 @@ async function lista() {
   return ut;
 }
 
+/* Rättelserna av handlingar (MES-385): paketets rättelser som spelaren gjorde dem, och påståendena som ett Mat
+   test-fall skulle räkna — ur till-fall.cjs (forhandMattest), inte räknade här. */
+const HANDLING_FALT = ['typ', 't', 'cid', 'kort', 'spar', 'tappad', 'kamTap', 'zon', 'av', 'hur', 'efter'];
+async function listaHandlingar() {
+  const rader = (await rattelseRader()).filter(arHandling);
+  await hamtaAlla(rader.map(r => r.kod));
+  const ut = [];
+  for (const r of rader) {
+    const vy = r.vy || {}, k = await S.konto(r.user_id), mapp = mappFor(r.kod);
+    let forhand = null, fel = null;
+    if (!fs.existsSync(path.join(mapp, 'rapport.json'))) fel = `${r.kod} gick inte att hämta som en rapport (hamta.cjs: paketet saknas i hinken?)`;
+    else try { forhand = await forhandMattest(r.kod, mapp, { S }); } catch (e) { fel = String(e && e.message || e); }
+    ut.push({
+      kod: r.kod, nar: r.created_at, vem: k ? (k.namn || k.epost) : String(r.user_id || '').slice(0, 8), game_id: r.game_id || null,
+      spelkod: vy.spelkod || null, anvandning: r.anvandning || null, testSlag: r.anvandning === 'test' ? slagIRepot(r.kod) : null,
+      forsta: vy.forsta || null, till: vy.till || null,
+      handlingar: (Array.isArray(vy.handlingar) ? vy.handlingar : []).map(h => Object.fromEntries(HANDLING_FALT.filter(f => h[f] != null).map(f => [f, h[f]]))),
+      forhand, fel, fallFinns: fs.existsSync(path.join(MATTEST, r.kod, 'fall.json'))
+    });
+  }
+  return ut;
+}
+
 async function sortera(b) {
   const kod = String(b.kod || '').toUpperCase(), val = b.val;
   if (!KOD_RE.test(kod)) return { ok: false, text: 'okänd kod' };
-  if (val === 'slangd') { const r = await korNode('satt.cjs', [kod, 'slangd']); return { ok: r.kod === 0, sparr: r.kod === 3, text: r.ut }; }
-  if (val !== 'traning' && val !== 'test') return { ok: false, text: 'välj träning, test eller släng' };
+  if (val === 'slangd') {
+    const r = await korNode('satt.cjs', [kod, 'slangd'].concat(fs.existsSync(mappFor(kod)) ? ['--mapp', mappFor(kod)] : []));
+    return { ok: r.kod === 0, sparr: r.kod === 3, text: r.ut };
+  }
+  if (val !== 'traning' && val !== 'test' && val !== 'mattest') return { ok: false, text: 'välj träning, test, Mat test eller släng' };
   if (!(await hamtaLokalt(kod))) return { ok: false, text: `${kod} gick inte att hämta (hamta.cjs)` };
+  /* En rättelse av handlingar (MES-385): Mat test-fallet, som i terminalen — spärren och VARNING-raderna är till-fall.cjs. */
+  if (val === 'mattest') { const r = await korNode('till-fall.cjs', [kod, '--mattest', '--mapp', mappFor(kod)]); return { ok: r.kod === 0, sparr: r.kod === 3, text: r.ut }; }
   if (val === 'test' && !SORT_ID.has(b.sort)) return { ok: false, text: 'välj sorts fel först — bänken räknas per sort' };
-  const args = [kod, val === 'traning' ? '--traning' : '--bank'];
+  const args = [kod, val === 'traning' ? '--traning' : '--bank', '--mapp', mappFor(kod)];
   if (val === 'test') args.push('--sort', b.sort);
   const j = lasJson(path.join(mappFor(kod), 'rattelse.json')) || {};
   /* Namnet prövas alltid — också spelarens oförändrade — och Scryfalls stavning är den som skrivs. */
@@ -284,6 +322,7 @@ const server = http.createServer(async (req, res) => {
     if (p.startsWith('/api/') && sfs && sfs !== 'same-origin') return svara(res, 403, { fel: 'sec-fetch-site' });
     if (p === '/' && req.method === 'GET') return svara(res, 200, fs.readFileSync(path.join(__dirname, 'granska.html')), 'text/html; charset=utf-8');
     if (p === '/api/lista') return svara(res, 200, await lista());
+    if (p === '/api/handlingar') return svara(res, 200, await listaHandlingar());
     let m = p.match(/^\/api\/bild\/(R-\d{4,})$/);
     if (m) {
       const f = path.join(mappFor(m[1]), 'beskarning.jpg');

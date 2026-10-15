@@ -164,7 +164,7 @@ Kameran missar ungefär hälften av tap och flyttar på mattan, och spelaren rä
 
 Sedan: `node dev/rapport/hamta.cjs R-0412` hämtar den som en rapport (`rapport.json`, `bordlogg.json`, LÄS-MIG med rättelserna), och
 `node dev/rapport/till-fall.cjs R-0412 --mattest` gör den till ett Mat test-fall — **prov, aldrig träning**: handlingarna är regler i
-avstämningen, ingen modell lär sig dem. Granskningssidan (`granska.cjs`) visar dem inte (ingen bild, inget namn); `lista.cjs --rattelser` gör det.
+avstämningen, ingen modell lär sig dem. Granskningssidan (`granska.cjs`) gör båda stegen med ett klick i fliken **Handlingar** (se *Granska rättelserna*); `lista.cjs --rattelser` listar dem i terminalen.
 
 **Facit utan gissning** (en rättelse med journal) är **spelarens påståenden**, inte en tidslinje av händelser
 (`pastaendenUrJournalen`): varje rättelse säger hur ETT kort — spåret — låg i ETT ögonblick, och att kameran visade
@@ -261,9 +261,10 @@ node dev/rapport/granska.cjs          # http://127.0.0.1:8279 (--port för en an
 | Sorts fel | en lista per rättelse (Blänk, Sned vinkel, …, `sorter.cjs`); krävs för Prov. Panelen *Bänken per sorts fel* visar bänken per sort mot målet, de som behöver flest överst |
 | Valen | **Träning** = `till-fall.cjs <kod> --traning`, **Prov** = `till-fall.cjs <kod> --bank --sort <id>`, **Släng** = `satt.cjs <kod> slangd`. Samma verktyg, samma spärr: ett parti är träning eller prov, aldrig båda, och knappen som spärren skulle vägra är grå i förväg. *Alla osorterade → Träning* per parti |
 | Rätt namn | spelarens namn kan vara fel: skriv om det i fältet. Det prövas mot Scryfall (exakt namn, versaler spelar ingen roll) och går till `till-fall.cjs` som `--bild beskarning.jpg --ratt <namn>`; rattelse.json lämnas orörd |
+| Handlingar | fliken för rättelserna av handlingar (MES-385), utan bild: per paket rättelserna som spelaren gjorde dem (tappad/upprätt för hand, borta till graveyard/exile/handen, flyttad, Undo, ⌘Z, Follow camera) och påståendena ett Mat test-fall räknar — räknas, tillbakatagna, osäkra, utan spår, med skälet per påstående. Siffrorna kommer ur `till-fall.cjs` (`forhandMattest`: samma `kallaUrMapp`, `hamtaSenare` och `mattestFall` som `--mattest`, inget skrivs). **Mat test** = `hamta.cjs <kod>` + `till-fall.cjs <kod> --mattest`, **Släng** = `satt.cjs <kod> slangd`; ingen Träning — handlingarna är regler, ingen modell lär sig dem. Efter klicket visas verktygets hela utskrift (antalet påståenden, VARNING-raderna, var fallet skrevs). Förslaget: Mat test när minst ett påstående räknas, annars Släng. Fallet hamnar i `dev/mattest/underlag/rapporter/<kod>/` som från terminalen; att köra det (`kor.cjs --fall <kod> --detalj <kod>`, utskriften säger det) och committa det gör inte sidan |
 | Träningen | räkningen ur `dataset.py rakna` (alla märkta pass + rättelserna i träning), **Bygg dataset** → `~/Library/Caches/mesa/ds-riktiga-v<N>-<datum>/` med Kaggle-metadata och `prompt.md`: prompten till en ny session som laddar upp, tränar v<N> på Kaggle och mäter mot grinden i CLAUDE.md. Sidan laddar aldrig upp och startar ingen Kaggle-körning själv |
 
-Rättelserna hämtas till `dev/diagnos/rapporter/<kod>/` (som `hamta.cjs`) och Scryfalls bilder cachas i
+Rättelserna hämtas till `dev/diagnos/rapporter/<kod>/` (som `hamta.cjs`; `MESA_RAPPORTER` = en annan mapp, provet) och Scryfalls bilder cachas i
 `~/Library/Caches/mesa/granska-scryfall/`. Servern lyssnar bara på 127.0.0.1 och vägrar en annan Host eller en
 POST från en annan sajt; service role-nyckeln lämnar aldrig servern. Golden-lekens namn kan sorteras som träning
 men `dataset.py` tar inte med dem (sidan säger det före valet), och vart femte namn är valideringens (mäter, tränas inte).

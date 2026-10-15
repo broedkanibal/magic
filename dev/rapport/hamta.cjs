@@ -1,6 +1,6 @@
 /* Problemrapporten (MES-365): hämta hem en rapport.
 
-   Kör:  node dev/rapport/hamta.cjs R-0412
+   Kör:  node dev/rapport/hamta.cjs R-0412 [--ut mapp]
          node dev/rapport/hamta.cjs --fil paket.json[.gz] [--ut mapp]   (ett paket som redan ligger lokalt, t.ex. ur prov.cjs)
 
    Lägger allt i dev/diagnos/rapporter/<kod>/ (gitignorerad — det är en
@@ -249,7 +249,7 @@ async function main() {
   const S = supa();
   const [rad] = await S.rest('GET', `rapporter?kod=eq.${encodeURIComponent(kod.toUpperCase())}&select=*`);
   if (!rad) { console.error(`${kod} finns inte i tabellen rapporter.`); process.exit(1); }
-  const ut = path.join(ROT, 'dev', 'diagnos', 'rapporter', rad.kod);
+  const ut = arg('--ut') ? path.resolve(arg('--ut')) : path.join(ROT, 'dev', 'diagnos', 'rapporter', rad.kod);   // --ut: granska.cjs (MESA_RAPPORTER) och provet
   const filer = await S.lista(rad.sokvag);
   let paket = null;
   const sparade = [];

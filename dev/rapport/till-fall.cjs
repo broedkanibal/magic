@@ -424,6 +424,39 @@ function idUrLogg(K) {
   return m ? 'p' + m[2] + m[3] : 'pass';
 }
 
+/* En rättelse av handlingar (MES-385): Undo, ⌘Z eller Follow camera kan komma efter att paketet skickades, i ett
+   senare paket ur samma parti — de hämtas ur tabellen (K.senare) och tar tillbaka påståenden här. Svarar med en
+   varning när det inte gick att kontrollera (--lokal, partiet eller tiden okänd), annars null. */
+async function hamtaSenare(K, lokal, S) {
+  if (!Array.isArray(K.spelare)) return null;
+  const gid = K.parti && K.parti.game_id;
+  if (lokal || !gid || !K.skapad) return `senare rättelser i partiet är inte kontrollerade (${lokal ? '--lokal' : 'partiet eller tiden okänd'}) — en Undo eller ⌘Z efter paketet syns inte`;
+  const rader = await (S || supa()).rest('GET', `rapporter?game_id=eq.${encodeURIComponent(gid)}&kalla=eq.rattelse&created_at=gt.${encodeURIComponent(K.skapad)}&select=kod,vy&order=created_at.asc`);
+  /* Hela de senare paketens rättelser (inte bara Undo): deras egna tap ligger då i kortets stack, så att en Undo
+     där tar tillbaka sitt eget tap och inte det här paketets. Bara det som ligger efter det här paketet. */
+  K.senare = [];
+  for (const r of rader || []) for (const h of (r.vy && r.vy.handelse === 'handling' && r.vy.handlingar) || [])
+    if (K.till == null || h.t > K.till) K.senare.push({ t: h.t, typ: h.typ, cid: h.cid, spar: h.spar != null ? h.spar : null, namn: h.kort || null, rapport: h });
+  return null;
+}
+/* Påståendenas antal, som terminalen och granskningssidan visar dem. */
+function raknaPastaenden(P) {
+  return { alla: P.length, raknas: P.filter(p => !p.tillbaka && !p.osaker && !p.ejAvgorbart).length, tillbaka: P.filter(p => p.tillbaka).length,
+    osakra: P.filter(p => p.osaker).length, utanSpar: P.filter(p => p.ejAvgorbart).length };
+}
+const pastaendenText = P => { const n = raknaPastaenden(P); return `${n.alla} påståenden — ${n.raknas} räknas, ${n.tillbaka} tillbakatagna, ${n.osakra} osäkra, ${n.utanSpar} utan spår`; };
+/* Fallet --mattest skulle ge, utan att något skrivs eller spärren prövas: granskningssidan visar det före klicket.
+   Samma väg som korInre (kallaUrMapp, hamtaSenare, mattestFall). */
+async function forhandMattest(kod, mapp, opt) {
+  opt = opt || {};
+  const K = kallaUrMapp(mapp, kod);
+  K.kod = kod;
+  const varning = await hamtaSenare(K, opt.lokal, opt.S);
+  const F = mattestFall({ kalla: K, id: kod }).fall;
+  return { pastaenden: F.pastaenden, antal: F.pastaenden ? raknaPastaenden(F.pastaenden) : null, text: F.pastaenden ? pastaendenText(F.pastaenden) : null,
+    facit: F.facit.length, facitKalla: F.facitKalla, varning, start: K.start, fran: F.fran, till: F.till };
+}
+
 /* ── --bank och --traning ─────────────────────────────────────────────────── */
 function partiUrMapp(mapp, r) {
   let R = null; try { R = lasJsonFil(path.join(mapp, 'rapport.json')); } catch (e) { /* en rättelse utan rapport.json */ }
@@ -682,20 +715,7 @@ async function korInre(a) {
     if (K.kod != null && !KOD_RE.test(K.kod)) throw Object.assign(new Error(`rapportkoden ${JSON.stringify(K.kod)} är inte R-NNNN — vägrar`), { kod: 2 });
     o.id = o.id || (K.kod ? K.kod : idUrLogg(K));
     if (!ID_RE.test(o.id)) throw Object.assign(new Error(`fallets id ${JSON.stringify(o.id)}: bara bokstäver, siffror, - och _`), { kod: 2 });
-    /* En rättelse av handlingar (MES-385): Undo, ⌘Z eller Follow camera kan komma efter att paketet skickades, i ett
-       senare paket ur samma parti — de hämtas ur tabellen och tar tillbaka påståenden här. --lokal: inte kontrollerat. */
-    if (Array.isArray(K.spelare)) {
-      const gid = K.parti && K.parti.game_id;
-      if (o.lokal || !gid || !K.skapad) o.senareVarning = `senare rättelser i partiet är inte kontrollerade (${o.lokal ? '--lokal' : 'partiet eller tiden okänd'}) — en Undo eller ⌘Z efter paketet syns inte`;
-      else {
-        const rader = await supa().rest('GET', `rapporter?game_id=eq.${encodeURIComponent(gid)}&kalla=eq.rattelse&created_at=gt.${encodeURIComponent(K.skapad)}&select=kod,vy&order=created_at.asc`);
-        /* Hela de senare paketens rättelser (inte bara Undo): deras egna tap ligger då i kortets stack, så att en Undo
-           där tar tillbaka sitt eget tap och inte det här paketets. Bara det som ligger efter det här paketet. */
-        K.senare = [];
-        for (const r of rader || []) for (const h of (r.vy && r.vy.handelse === 'handling' && r.vy.handlingar) || [])
-          if (K.till == null || h.t > K.till) K.senare.push({ t: h.t, typ: h.typ, cid: h.cid, spar: h.spar != null ? h.spar : null, namn: h.kort || null, rapport: h });
-      }
-    }
+    o.senareVarning = await hamtaSenare(K, o.lokal);
     plan = { slag: 'mattest', ut: mattestFall(Object.assign({}, o, { kalla: K })), kod: K.kod, parti: K.parti || null };
   } else { const b = bildOchNamn(mapp, o); b.parti = partiUrMapp(mapp, b); plan = { slag: o.lage, b, kod: o.kod, parti: b.parti }; }
   const kod = plan.kod;
@@ -729,7 +749,7 @@ async function korInre(a) {
   if (plan.slag === 'mattest') {
     const F = plan.ut.fall;
     if (o.senareVarning) rad.push('VARNING: ' + o.senareVarning);
-    rad.push(F.pastaenden ? `Mat test-fall ${o.id}: ${F.pastaenden.length} påståenden (${F.facitKalla}) — ${F.pastaenden.filter(p => !p.tillbaka && !p.osaker && !p.ejAvgorbart).length} räknas, ${F.pastaenden.filter(p => p.tillbaka).length} tillbakatagna, ${F.pastaenden.filter(p => p.osaker).length} osäkra, ${F.pastaenden.filter(p => p.ejAvgorbart).length} utan spår; ${plan.ut.bordlogg.bordLogg.length} bord, sek ${F.fran}–${F.till}`
+    rad.push(F.pastaenden ? `Mat test-fall ${o.id}: ${pastaendenText(F.pastaenden)} (${F.facitKalla}); ${plan.ut.bordlogg.bordLogg.length} bord, sek ${F.fran}–${F.till}`
       : `Mat test-fall ${o.id}: ${F.facit.length} facit-rader (${F.facitKalla}), ${F.struket.length} strukna, ${F.rattelser.length} rättelser, ${plan.ut.bordlogg.bordLogg.length} bord, sek ${F.fran}–${F.till}`);
     if (!o.torr) rad.push('skrivet: ' + path.relative(ROT, skrivMattest(plan.ut, o)) + '/ (fall.json, bordlogg.json.gz' + (o.orden ? ', orden.tsv' : '') + ')');
     rad.push(`kör: node dev/mattest/kor.cjs --fall ${o.id} --detalj ${o.id}`);
@@ -758,4 +778,4 @@ if (require.main === module) {
     process.exit(e.sparr ? 3 : e.kod || 1);
   });
 }
-module.exports = { kor, goldenNamn, lasRattelse, parti, partiUrMapp, kameranUrBordsloggen, pastaendenUrJournalen, byggFacit, mattestFall, lasOrden, tillampaOrden, arVal };
+module.exports = { kor, forhandMattest, raknaPastaenden, goldenNamn, lasRattelse, parti, partiUrMapp, kameranUrBordsloggen, pastaendenUrJournalen, byggFacit, mattestFall, lasOrden, tillampaOrden, arVal };

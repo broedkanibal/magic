@@ -19,6 +19,10 @@
       spelarens tap av Forest och Serra Angel till graveyard, och Undo:t av
       Llanowar Elves är struket (kameran hade rätt).
 
+   4. Granskningssidan (granska.cjs) mot en attrapp av Supabase: fliken
+      Handlingar visar paketet och påståendena ur till-fall.cjs, Mat test
+      skriver fallet med samma siffror, Släng sätter slangd.
+
    Supabase och kanalen är en attrapp i sidan. Inget här frågar Claude.
    Slutkod 0 = allt OK, 1 = något FEL, 2 = gick inte att köra. */
 'use strict';
@@ -57,6 +61,101 @@ async function chrome() {
   const cdp = (method, params) => new Promise((res, rej) => { const id = ++nr; svar.set(id, m => m.error ? rej(new Error(method + ': ' + m.error.message)) : res(m.result)); sock.send(JSON.stringify({ id, method, params: params || {} })); });
   const stang = async () => { try { await cdp('Browser.close'); } catch (e) {} for (let i = 0; i < 40 && p.exitCode == null; i++) await vanta(50); if (p.exitCode == null) p.kill(); try { fs.rmSync(profil, { recursive: true, force: true }); } catch (e) {} };
   return { cdp, stang };
+}
+
+/* Supabase som attrapp för granska.cjs och verktygen den kör (hamta, till-fall, satt): tabellen rapporter med
+   PostgRESTs eq/neq/gt/is-filter, kontot och hinken scans — i minnet, på 127.0.0.1. */
+function attrappSupabase(tabell, hink) {
+  const filtrera = (rader, q) => {
+    for (const [k, v] of q) {
+      const m = /^(eq|neq|gt|is)\.(.*)$/.exec(v);
+      if (!m || ['select', 'order', 'limit'].includes(k)) continue;
+      rader = rader.filter(r => { const x = r[k] == null ? null : String(r[k]); return m[1] === 'is' ? (m[2] === 'null') === (x == null) : m[1] === 'eq' ? x === m[2] : m[1] === 'neq' ? x !== m[2] : x != null && x > m[2]; });
+    }
+    return rader;
+  };
+  return new Promise(res => {
+    const s = http.createServer(async (req, ut) => {
+      const u = new URL(req.url, 'http://x'); let kropp = '';
+      for await (const c of req) kropp += c;
+      const svar = (kod, b, typ) => { ut.writeHead(kod, { 'Content-Type': typ || 'application/json' }); ut.end(typ ? b : JSON.stringify(b)); };
+      if (u.pathname === '/rest/v1/rapporter') {
+        const rader = filtrera(tabell, u.searchParams);
+        if (req.method === 'GET') return svar(200, rader.slice().sort((a, b) => u.searchParams.get('order') === 'created_at.asc' ? a.created_at.localeCompare(b.created_at) : b.created_at.localeCompare(a.created_at)));
+        if (req.method === 'PATCH') { const b = JSON.parse(kropp); for (const r of rader) Object.assign(r, b); return svar(200, rader); }
+      }
+      if (u.pathname.startsWith('/auth/v1/admin/users/')) return svar(200, { email: 'prov@mesa.test', user_metadata: { full_name: 'Provspelaren' } });
+      if (u.pathname === '/storage/v1/object/list/scans') {
+        const { prefix } = JSON.parse(kropp);
+        return svar(200, Object.keys(hink).filter(f => f.startsWith(prefix) && !f.slice(prefix.length).includes('/')).map(f => ({ name: f.slice(prefix.length), id: f, metadata: { size: hink[f].length } })));
+      }
+      const m = u.pathname.match(/^\/storage\/v1\/object\/scans\/(.+)$/);
+      if (m) { const f = decodeURIComponent(m[1]); return hink[f] ? svar(200, hink[f], 'application/octet-stream') : svar(404, { fel: f }); }
+      svar(404, { fel: u.pathname });
+    });
+    s.listen(0, '127.0.0.1', () => res(s));
+  });
+}
+const ledigPort = () => new Promise(res => { const s = http.createServer(); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => res(p)); }); });
+
+/* 4. Granskningssidan (granska.cjs) mot attrappen: fliken Handlingar visar paketet med påståendena ur till-fall.cjs,
+   Mat test kör hamta.cjs + till-fall.cjs --mattest och Släng satt.cjs slangd — i en tillfällig mapp
+   (MESA_RAPPORTER, MESA_FALL_UT), utan riktiga Supabase. Tre rader: paketet (R1), samma paket i ett annat parti
+   (Släng), och ett senare paket i R1:s parti utan fil, vars Undo av Forest tar tillbaka R1:s tap. */
+async function provGranska(paket, rattRad, ok) {
+  if (!rattRad) return ok('granska: raden ur steg 2', false, 'ingen rad');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mesa-handlingar-granska-'));
+  let supa = null, gr = null;
+  try {
+    fs.mkdirSync(path.join(tmp, 'dev', 'material', 'arbete', 'markning'), { recursive: true });   // spärren vägrar utan den
+    const K1 = rattRad.kod, K2 = 'R-9002', K3 = 'R-9003', GID = rattRad.game_id || '6b1f0a52-0000-4000-8000-000000009001';   // game_id: hex, annars inget parti (till-fall parti())
+    const t1 = new Date(rattRad.vy.till + 2000).toISOString();
+    const forest = paket.spelare.filter(j => j.typ === 'tap_hand' && j.namn === 'Forest').pop();
+    const rad = (kod, game_id, created_at, vy) => ({ kod, created_at, user_id: 'u-prov', game_id, kalla: 'rattelse', anvandning: null, bilder: 'saknas', vy, sokvag: 'u-prov/rapporter/' + kod });
+    const tabell = [
+      rad(K1, GID, t1, rattRad.vy),
+      rad(K2, '6b1f0a52-0000-4000-8000-000000009002', new Date(rattRad.vy.till - 600000).toISOString(), rattRad.vy),
+      rad(K3, GID, new Date(rattRad.vy.till + 60000).toISOString(), { handelse: 'handling', forsta: rattRad.vy.till + 30000, till: rattRad.vy.till + 40000,
+        handlingar: [{ typ: 'angrad', t: rattRad.vy.till + 30000, cid: forest.cid, kort: 'Forest', spar: forest.spar, av: 'tap' }] })
+    ];
+    const gz = zlib.gzipSync(JSON.stringify(paket));
+    const hink = { [`u-prov/rapporter/${K1}/rapport.json.gz`]: gz, [`u-prov/rapporter/${K2}/rapport.json.gz`]: gz };
+    supa = await attrappSupabase(tabell, hink);
+    const port = await ledigPort(), bas = `http://127.0.0.1:${port}`;
+    gr = spawn(process.execPath, [path.join(__dirname, 'granska.cjs'), '--port', String(port)], { stdio: ['ignore', 'pipe', 'pipe'],
+      env: Object.assign({}, process.env, { SUPABASE_URL: `http://127.0.0.1:${supa.address().port}`, SUPABASE_SERVICE_ROLE_KEY: 'prov', MESA_FALL_UT: tmp, MESA_RAPPORTER: path.join(tmp, 'rapporter') }) });
+    let logg = ''; gr.stdout.on('data', d => { logg += d; }); gr.stderr.on('data', d => { logg += d; });
+    for (let i = 0; i < 100 && !/Granskningen/.test(logg); i++) await vanta(50);
+    const H = async () => (await fetch(bas + '/api/handlingar')).json();
+    const sortera = async (kod, val) => (await fetch(bas + '/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: bas }, body: JSON.stringify({ kod, val }) })).json();
+
+    const L = await H(), r1 = L.find(x => x.kod === K1), r2 = L.find(x => x.kod === K2), r3 = L.find(x => x.kod === K3);
+    const namn = await (await fetch(bas + '/api/lista')).json();
+    ok('granska: fliken Handlingar har de tre paketen, namnlistan inget av dem', L.length === 3 && !!r1 && !!r2 && !!r3 && Array.isArray(namn) && namn.length === 0, logg.slice(-300) || JSON.stringify(L).slice(0, 300));
+    const a = r1 && r1.forhand && r1.forhand.antal;
+    ok('granska: R1:s rättelser som spelaren gjorde dem (14, tap_hand … angrad, Serra Angel till graveyard)', r1 && r1.handlingar.length === 14 && r1.handlingar.some(h => h.typ === 'grav_hand' && h.kort === 'Serra Angel' && h.zon === 'grav'), r1 && r1.handlingar.map(h => h.typ + ':' + h.kort).join(','));
+    ok('granska: påståendena ur till-fall (forhandMattest) — 8, varav 2 räknas: det senare paketets Undo tar tillbaka Forest', a && a.alla === 8 && a.raknas === 2 && a.tillbaka === 3 && a.osakra === 3 && a.utanSpar === 0 && !r1.forhand.varning
+       && r1.forhand.pastaenden.some(p => p.kort === 'Forest' && /^Undo/.test(p.tillbaka || '')), JSON.stringify(a) + ' ' + (r1 && r1.forhand && r1.forhand.varning));
+    ok('granska: ett paket i ett annat parti räknas utan den Undo:n (3 räknas), senare paket kontrollerade', r2 && r2.forhand && r2.forhand.antal.raknas === 3 && !r2.forhand.varning, r2 && JSON.stringify(r2.forhand && r2.forhand.antal));
+    ok('granska: ett paket utan fil i hinken säger det, och blir inget fall', r3 && !r3.forhand && /gick inte att hämta/.test(r3.fel || ''), r3 && r3.fel);
+
+    const m = await sortera(K1, 'mattest');
+    let fall = null; try { fall = JSON.parse(fs.readFileSync(path.join(tmp, 'dev', 'mattest', 'underlag', 'rapporter', K1, 'fall.json'), 'utf8')); } catch (e) {}
+    ok('granska: Mat test kör till-fall --mattest — samma siffror som sidan visade, fallet skrivet, raden test', m.ok && m.text.includes(r1.forhand.text) && !!fall && fall.pastaenden.length === 8 && tabell[0].anvandning === 'test',
+       String(m.text).slice(-400));
+    const s2 = await sortera(K2, 'slangd');
+    ok('granska: Släng kör satt.cjs slangd', s2.ok && tabell[1].anvandning === 'slangd' && /slangd/.test(s2.text), s2.text);
+    const L2 = await H(), e1 = L2.find(x => x.kod === K1);
+    ok('granska: efteråt är R1 ett Mat test-fall (slaget ur repot) och fallet finns', e1 && e1.anvandning === 'test' && e1.testSlag === 'mattest' && e1.fallFinns, JSON.stringify(e1 && { a: e1.anvandning, s: e1.testSlag, f: e1.fallFinns }));
+    const igen = await sortera(K1, 'mattest');
+    ok('granska: Mat test en gång till skriver inte över fallet', !igen.ok && /finns redan/.test(igen.text), igen.text);
+    const utan = await fetch(bas + '/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod: K3, val: 'slangd' }) });
+    ok('granska: en POST utan sidans Origin vägras', utan.status === 403 && tabell[2].anvandning === null);
+  } catch (e) { ok('granska', false, e.message); }
+  finally {
+    if (gr) gr.kill(); if (supa) supa.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 }
 
 const PROV = async () => {
@@ -176,7 +275,7 @@ const PROV = async () => {
   ok('paketet: ingen bild, inga anrop, inget som frågar Claude', paket && !JSON.stringify(paket).includes('data:image') && !Lada.utdrag().some(e => e.slag === 'claude'));
   const vh = r ? r.vy.handlingar.map(h => h.typ + ':' + h.kort) : [];
   ok('raden bär rättelserna sedan förra sändningen (vy.handlingar: Forest … Giant Growth, inte Mountain) och forsta', vh.length === 14 && vh[0] === 'tap_hand:Forest' && vh[13] === 'angrad:Giant Growth' && !vh.some(x => /Mountain/.test(x)) && r.vy.forsta > 0 && r.vy.agerFran >= r.vy.forsta - 60000 && r.vy.agerFran < r.vy.forsta && r.vy.till >= r.vy.forsta, vh.join(','));
-  return { rad, paket };
+  return { rad, paket, rattRad: r ? { kod: r.kod, game_id: r.game_id || null, vy: r.vy } : null };
 };
 
 (async () => {
@@ -246,6 +345,7 @@ const PROV = async () => {
           ok('Mat test: en telefon som såg tapet — Forest "visade", 1 av 3 rättelser hade inte behövts', fo && fo.som === 'visade' && d2.matt.pastaendenRatt && d2.matt.pastaendenRatt.n === 1 && d2.matt.pastaendenRatt.av === 3, d2 ? JSON.stringify(d2.matt.pastaendenRatt) + ' ' + JSON.stringify(fo) : 'ingen körning');
         } finally { fs.rmSync(UND, { recursive: true, force: true }); }
       } else ok('Mat test på fallet', !fall ? false : false, fall ? `${UND} finns redan — rör den inte` : 'inget fall');
+      await provGranska(ut.paket, ut.rattRad, ok);
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   } else ok('hela vägen till ett fall', false, 'inget paket ur steg 2');
 
