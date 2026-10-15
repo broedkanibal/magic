@@ -86,21 +86,25 @@ const PROV = async () => {
   kamAnsluten = true; kamFas = ''; kamGrund = 0; prefs.autoLage = true;
   renderAll(true);
   const spar = (id, namn, x, y) => ({ id, tillstand: 'klar', namn, saker: true, x, y, w: 0.08, h: 0.11, tappad: false, vilar: true, varfor: 'remsa' });
-  const bord = [spar(1, 'Llanowar Elves', 0.2, 0.2), spar(2, 'Forest', 0.42, 0.2), spar(3, 'Serra Angel', 0.64, 0.2), spar(4, 'Giant Growth', 0.2, 0.5), spar(5, 'Shock', 0.42, 0.5)];
+  const bord = [spar(1, 'Llanowar Elves', 0.2, 0.2), spar(2, 'Forest', 0.42, 0.2), spar(3, 'Serra Angel', 0.64, 0.2), spar(4, 'Giant Growth', 0.2, 0.5), spar(5, 'Shock', 0.42, 0.5), spar(6, 'Plains', 0.64, 0.5), spar(7, 'Mountain', 0.2, 0.8)];
   const skicka = () => kamTogsEmot({ typ: 'bord', av: 'u-prov', fran: 'kamera', spar: bord, fas: '' });
   skicka(); await vanta(1200);
   for (let i = 0; i < 4; i++) { skicka(); await vanta(250); }   // bordsloggen får några rader, kamerans tap-dom sätts
   const kort = n => mig.cards.find(k => k.name === n);
   const idx = n => hand().indexOf(kort(n));
-  ok('partiet: fem kamerakort på mattan, kameran säger upprätt (kamTap 0)', ['Llanowar Elves', 'Forest', 'Serra Angel', 'Giant Growth', 'Shock'].every(n => kort(n) && kort(n).spar != null && kort(n).kamTap === 0),
+  ok('partiet: sju kamerakort på mattan, kameran säger upprätt (kamTap 0)', ['Llanowar Elves', 'Forest', 'Serra Angel', 'Giant Growth', 'Shock', 'Plains', 'Mountain'].every(n => kort(n) && kort(n).spar != null && kort(n).kamTap === 0),
      mig.cards.map(k => `${k.name}:${k.spar}:${k.kamTap}`).join(', '));
   /* Ett klick före varje rättelse, som i spelet: lådan gissar då att mattans ändring var spelarens (av 'spelare'). */
   const klick = () => document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   const khNu = () => { khSkicka(); return A.kh.flat(); };
   const handl = () => khNu().filter(r => KH_HANDLING.has(r.typ));
 
-  /* ── 1. kort_handelser ── inställningen AV: bara raderna, ingen tyst rättelse */
+  /* ── 1. kort_handelser ── inställningen AV: bara raden, ingen tyst rättelse (Mountain, ett eget kort) */
   A.bildPa = false;
+  klick(); tappa(idx('Mountain')); await vanta(100);
+  Rattelse.skickaHandlingar(); await vanta(300);
+  ok('inställningen AV: raden i kort_handelser men ingen tyst rättelse, ingen fil', handl().some(r => r.typ === 'tap_hand' && r.namn === 'Mountain') && A.rader.length === 0 && !Object.keys(A.filer).length, JSON.stringify(Rattelse.stat()));
+  A.kh.length = 0;
   klick(); tappa(idx('Forest')); await vanta(100);
   const h1 = handl();
   ok('tap för hand mot kameran: en rad tap_hand med kortet, namnet och rapport { spar, tappad 1, kamTap 0 }',
@@ -110,10 +114,10 @@ const PROV = async () => {
   ok('handlingarnas rader skrivs för sig, aldrig i samma skrivning som namnens', skrivningar.every(s => s === 'h' || s === 'n') && skrivningar.includes('h'), JSON.stringify(skrivningar));
   /* Undo i toasten: kameran hade rätt. */
   klick(); tappa(idx('Llanowar Elves')); await vanta(100);
-  const angra = document.querySelector('#handToast .htangra');
-  klick(); if (angra) angra.click(); await vanta(100);
+  const undoKnapp = document.querySelector('#handToast .htangra');
+  klick(); if (undoKnapp) undoKnapp.click(); await vanta(100);
   const h2 = handl();
-  ok('Undo i toasten: angrad { av: tap } för kortet, och kortet står upp igen', !!angra && h2.some(r => r.typ === 'angrad' && r.namn === 'Llanowar Elves' && r.rapport.av === 'tap') && !kort('Llanowar Elves').tapped,
+  ok('Undo i toasten: angrad { av: tap } för kortet, och kortet står upp igen', !!undoKnapp && h2.some(r => r.typ === 'angrad' && r.namn === 'Llanowar Elves' && r.rapport.av === 'tap') && !kort('Llanowar Elves').tapped,
      JSON.stringify(h2.map(r => [r.typ, r.namn, r.rapport && r.rapport.av])));
   /* Follow camera efter ett andra tap av samma kort: två tap_hand för Llanowar Elves (varje gång loggas). */
   klick(); tappa(idx('Llanowar Elves')); await vanta(100);
@@ -143,10 +147,14 @@ const PROV = async () => {
   /* Return to hand (H, menyn): kortet lämnade bordet — grav_hand { zon: hand }. */
   klick(); tillLeken(idx('Shock')); await vanta(100);
   ok('Return to hand för ett kamerakort: grav_hand { zon: hand }', handl().some(r => r.typ === 'grav_hand' && r.namn === 'Shock' && r.rapport.zon === 'hand') && !kort('Shock'), JSON.stringify(handl().filter(r => r.namn === 'Shock')));
-  Rattelse.skickaHandlingar(); await vanta(300);
-  ok('inställningen AV: ingen tyst rättelse, ingen fil', A.rader.length === 0 && !Object.keys(A.filer).length, JSON.stringify(Rattelse.stat()));
+  /* ⌘Z efter ett tap för hand: angrad { av: cmdz, efter } med kortets läge efter ⌘Z. */
+  klick(); tappa(idx('Plains')); await vanta(100);
+  klick(); angra(); await vanta(100);
+  const z = handl().filter(r => r.namn === 'Plains');
+  ok('⌘Z efter tap för hand: angrad { av: cmdz, efter: { tappad 0, paBord 1 } }, kortet upprätt igen', z.map(r => r.typ).join(',') === 'tap_hand,angrad' && z[1].rapport.av === 'cmdz' && z[1].rapport.efter && z[1].rapport.efter.tappad === 0 && z[1].rapport.efter.paBord === 1 && !kort('Plains').tapped,
+     JSON.stringify(z.map(r => [r.typ, r.rapport])));
 
-  /* ── 2. Den tysta rättelsen, inställningen PÅ ── */
+  /* ── 2. Den tysta rättelsen, inställningen PÅ (läses när paketet skickas: allt sedan Forest blir ett paket) ── */
   A.bildPa = true;
   klick(); tappa(idx('Giant Growth')); await vanta(100);
   klick(); tappa(idx('Giant Growth')); await vanta(100);   // tillbaka: överens med kameran igen (angrad)
@@ -163,11 +171,11 @@ const PROV = async () => {
      && Array.isArray(paket.lada) && paket.lada.length > 0 && paket.lada.every(e => e.slag === 'matta') && paket.matta && Array.isArray(paket.matta.mig) && paket.telefon === null && paket.miljo && paket.miljo.spel === 'PROVH1',
      paket ? `bord ${paket.bordLogg.rader.length}, lådan ${paket.lada.length} (${[...new Set(paket.lada.map(e => e.slag))]}), storlek ${fil.size} B` : 'inget paket');
   const jt = paket && Array.isArray(paket.spelare) ? paket.spelare.map(j => j.typ + ':' + j.namn) : null;
-  ok('paketet: spelarens journal (exakt) — varje handling i ordning, med kortets spår', jt && jt.join(',') === 'tap_hand:Forest,tap_hand:Llanowar Elves,angrad:Llanowar Elves,tap_hand:Llanowar Elves,folj_kameran:Llanowar Elves,angrad:Forest,tap_hand:Forest,flytt_hand:Giant Growth,grav_hand:Serra Angel,grav_hand:Shock,tap_hand:Giant Growth,angrad:Giant Growth'
+  ok('paketet: spelarens journal (exakt) — varje handling i ordning, med kortets spår', jt && jt.join(',') === 'tap_hand:Mountain,tap_hand:Forest,tap_hand:Llanowar Elves,angrad:Llanowar Elves,tap_hand:Llanowar Elves,folj_kameran:Llanowar Elves,angrad:Forest,tap_hand:Forest,flytt_hand:Giant Growth,grav_hand:Serra Angel,grav_hand:Shock,tap_hand:Plains,angrad:Plains,tap_hand:Giant Growth,angrad:Giant Growth'
      && paket.spelare.every(j => j.spar != null && j.cid && j.t), jt && jt.join(','));
   ok('paketet: ingen bild, inga anrop, inget som frågar Claude', paket && !JSON.stringify(paket).includes('data:image') && !Lada.utdrag().some(e => e.slag === 'claude'));
-  ok('raden bär bara rättelserna sedan förra sändningen (vy.handlingar), paketet hela fönstret före', r && r.vy.handlingar.map(h => h.typ + ':' + h.kort).join(',') === 'tap_hand:Giant Growth,angrad:Giant Growth',
-     r && r.vy.handlingar.map(h => h.typ + ':' + h.kort).join(','));
+  const vh = r ? r.vy.handlingar.map(h => h.typ + ':' + h.kort) : [];
+  ok('raden bär rättelserna sedan förra sändningen (vy.handlingar: Forest … Giant Growth, inte Mountain) och forsta', vh.length === 14 && vh[0] === 'tap_hand:Forest' && vh[13] === 'angrad:Giant Growth' && !vh.some(x => /Mountain/.test(x)) && r.vy.forsta > 0, vh.join(','));
   return { rad, paket };
 };
 
@@ -210,9 +218,10 @@ const PROV = async () => {
       ok('till-fall --mattest: ett fall med bordsloggen, facit ur journalen (exakt)', f.status === 0 && !!fall && /journalen \(exakt/.test(fall.facitKalla), (f.stderr || f.stdout).trim().slice(-300));
       const P = (fall && fall.pastaenden) || [], kort = x => `${x.typ}:${x.kort}${x.till ? ':' + x.till : ''}`;
       const raknas = P.filter(x => !x.tillbaka && !x.osaker && !x.ejAvgorbart);
-      ok('facit = spelarens påståenden, inga kamerahändelser antas rätta', fall && fall.facit.length === 0 && P.length === 7, fall && JSON.stringify(P.map(x => [x.t, kort(x), x.spar, x.tillbaka || x.osaker || ''])));
+      ok('facit = spelarens påståenden, inga kamerahändelser antas rätta; Mountain (förra paketet) inte med', fall && fall.facit.length === 0 && P.length === 8 && !P.some(x => x.kort === 'Mountain'), fall && JSON.stringify(P.map(x => [x.t, kort(x), x.spar, x.tillbaka || x.osaker || ''])));
       ok('påståendena som räknas: Forest tappad, Serra Angel borta till graveyard, Shock borta till handen — med spåret', raknas.map(kort).join(',') === 'tappad:Forest,borta:Serra Angel:graveyard,borta:Shock:hand' && raknas.every(x => x.spar != null), JSON.stringify(raknas));
       ok('Undo i toasten tar tillbaka Llanowar Elves första tap', P.filter(x => x.kort === 'Llanowar Elves' && /Undo/.test(x.tillbaka || '')).length === 1);
+      ok('⌘Z tar tillbaka Plains tap', P.some(x => x.kort === 'Plains' && /⌘Z/.test(x.tillbaka || '')), JSON.stringify(P.filter(x => x.kort === 'Plains')));
       ok('Follow camera (Llanowar) och tap tillbaka för hand (Forest, Giant Growth): osäkra, inget gissat', ['Llanowar Elves', 'Forest', 'Giant Growth'].every(n => P.some(x => x.kort === n && /går inte att skilja/.test(x.osaker || ''))), JSON.stringify(P.filter(x => x.osaker).map(kort)));
       /* Mat test på fallet: uppspelningen hittar korten på spåret (inte "ej avgörbar"), och telefonens bord sa aldrig
          det spelaren rättade — rättelserna hade alltså behövts (visade inte). Fallet läggs i underlag/rapporter en
@@ -249,6 +258,21 @@ const PROV = async () => {
   ok('facit: samma untap med Follow camera (angrade) ångrar tapet', fb.rader.every(r => r.stryk), JSON.stringify(fb.rader));
   const fc = byggFacit([ev(5, 'tappar'), ev(7, 'otappar')], {});
   ok('facit: untap inom 10 s utan rättelserna (en vanlig rapport) räknas som Undo', fc.rader.every(r => r.stryk), JSON.stringify(fc.rader));
+
+  /* Påståendena direkt (granskningen av 13363d6). */
+  const { pastaendenUrJournalen: pj } = require('./till-fall.cjs');
+  const j = (t, typ, rapport, namn) => ({ t: t * 1000, typ, cid: 'a', spar: 9, namn: namn || 'Forest', rapport });
+  const status = P => P.map(x => `${x.typ}:${x.tillbaka ? 'tillbaka' : x.osaker ? 'osäker' : 'räknas'}`).join(',');
+  const z2 = pj([j(1, 'tap_hand', { tappad: 1 }), j(2, 'grav_hand', { zon: 'grav' }), j(3, 'angrad', { av: 'cmdz', efter: { finns: 1, paBord: 1, tappad: 1 } }), j(4, 'angrad', { av: 'cmdz', efter: { finns: 1, paBord: 1, tappad: 0 } })], 0);
+  ok('⌘Z, ⌘Z: tar tillbaka först graveyard, sedan tapet (läget efter varje ⌘Z säger vilket)', status(z2) === 'tappad:tillbaka,borta:tillbaka', status(z2));
+  const z3 = pj([j(1, 'bytt', {}, 'Island'), j(2, 'angrad', { av: 'cmdz', efter: { finns: 1, paBord: 1, tappad: 0, namn: 'Island' } })], 0);
+  ok('⌘Z som inte motsäger påståendet (Undo på Match lade tillbaka kortet): namnet står kvar', status(z3) === 'namn:räknas', status(z3));
+  const z4 = pj([j(1, 'tap_hand', { tappad: 1 }), j(2, 'bytt', {}, 'Island'), j(3, 'angrad', { av: 'tap' })], 0);
+  ok('Undo i tap-toasten efter ett namnbyte: tapet tas tillbaka, namnet står kvar', status(z4) === 'tappad:tillbaka,namn:räknas', status(z4));
+  const z5 = pj([j(1, 'tap_hand', { tappad: 1 }), j(30, 'tap_hand', { tappad: 1 }, 'Swamp')], 0, 20000);
+  ok('ett påstående före paketets första rättelse hör till förra fallet och räknas inte här', z5.length === 1 && z5[0].kort === 'Swamp', JSON.stringify(z5));
+  const z6 = pj([j(1, 'tap_hand', { tappad: 1 }), j(30, 'tap_hand', { tappad: 1 }, 'Swamp'), j(40, 'angrad', { av: 'tap' })], 0, null);
+  ok('en senare Undo (ur nästa paket) tar tillbaka påståendet i det här fallet', status(z6) === 'tappad:tillbaka,tappad:räknas' || status(z6) === 'tappad:räknas,tappad:tillbaka', status(z6));
 
   let fel = 0;
   for (const [namn, okk, detalj] of rad) { if (!okk) fel++; console.log(`${okk ? 'OK ' : 'FEL'}  ${namn}${detalj ? '  (' + String(detalj).slice(0, 300) + ')' : ''}`); }

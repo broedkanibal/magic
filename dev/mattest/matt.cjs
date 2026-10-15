@@ -340,8 +340,10 @@ function berakna(fall, logg) {
         for (const c of kort) for (const [x, sp] of c.sparBana || [[c.fodd, c.sparFodd]]) if (x <= p.t + 1e-9 && sp != null && String(sp) === String(p.spar) && x >= kt) { k = c; kt = x; }
         const levande = k && k.fodd <= p.t + 1e-9 && (k.dod == null || k.dod > p.t);
         const nedtonad = k && k.lyft.some(([a, b]) => a <= p.t + 1e-9 && (b == null || b > p.t));
-        if (!k) som = 'ej avgörbar';
-        else if (p.typ === 'tappad') { const b = levande ? vid(k, p.t) : null; som = !b ? 'ej avgörbar' : b[5] === p.varde ? 'visade' : 'visade inte'; }
+        /* Ett levande kort som bundits om till ett annat spår före t är inte kortet påståendet gäller. */
+        const omband = k && levande && k.sparBana && String(vidBana(k.sparBana, p.t, k.sparFodd)) !== String(p.spar);
+        if (!k || omband) som = 'ej avgörbar';
+        else if (p.typ === 'tappad') { const b = levande ? vid(k, p.t) : null; som = !levande ? 'visade inte' : !b ? 'ej avgörbar' : b[5] === p.varde ? 'visade' : 'visade inte'; }
         else if (p.typ === 'borta') {
           const zonOk = levande || !p.till || (p.till === 'hand' ? /hand|borttaget/.test(k.dodSom || '') : k.dodSom === p.till);
           som = (!levande || nedtonad) && zonOk ? 'visade' : 'visade inte';

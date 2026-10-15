@@ -15887,14 +15887,16 @@ function angra() {
     closeKortMeny(); closeCounters(); if (ark) closeArk();
     const fore = p === minSpelare() ? new Map(p.cards.map(k => [k.cid, k])) : null;
     p.cards = JSON.parse(s.bild);
-    /* MES-385: ⌘Z tar tillbaka det spelaren just gjorde — en rättelse av ett kort kameran följer var fel. Journalen får
-       angrad { av: 'cmdz' } för varje kamerakort som ändrades (tap, zon, namn, på eller av bordet). */
+    /* MES-385: ⌘Z lägger tillbaka hela kortlistan. Journalen får angrad { av: 'cmdz', efter } för varje kamerakort som
+       ändrades (tap, zon, namn, på eller av bordet), med kortets läge EFTER ⌘Z — till-fall.cjs tar då tillbaka just det
+       påstående som läget motsäger, inte det som kameran ändrat sedan ångrapunkten (Undo på Match går samma väg). */
     if (fore) {
       const sig = k => k ? [k.tapped ? 1 : 0, k.zon || '', k.name || ''].join('|') : '-';
       const nu = new Map(p.cards.map(k => [k.cid, k]));
       for (const cid of new Set([...fore.keys(), ...nu.keys()])) {
-        const k = nu.get(cid) || fore.get(cid);
-        if (k && k.spar != null && sig(fore.get(cid)) !== sig(nu.get(cid))) khHandling('angrad', k, { av: 'cmdz' });
+        const k = nu.get(cid) || fore.get(cid), e = nu.get(cid);
+        if (k && k.spar != null && sig(fore.get(cid)) !== sig(e))
+          khHandling('angrad', k, { av: 'cmdz', efter: e ? { finns: 1, paBord: paMattan(e) ? 1 : 0, tappad: e.tapped ? 1 : 0, zon: e.zon || null, namn: e.name || null } : { finns: 0, paBord: 0 } });
       }
     }
     ofrAterstall(s.ofr);
@@ -25180,7 +25182,7 @@ function sammaKortVid(p, name, spar) {
    det bär något. Returnerar kortet som redan låg där, om det var så. */
 function namngePend(p, q, name, sid, list) {
   p.pending.splice(p.pending.indexOf(q), 1);
-  if (!q.overTak) khLogga('namngiven', q.id, { namn: name });   // spelupplevelsen
+  if (!q.overTak) khLogga('namngiven', q.id, Object.assign({ namn: name }, q.spar != null ? { rapport: { spar: q.spar } } : {}));   // spelupplevelsen; rapport.spar: journalen (MES-385), posten är redan ur pending
   if (!q.overTak && q.spar != null && typeof Rattelse !== 'undefined') Rattelse.fran('name_this_card', q, name);   // den tysta rättelsen (MES-366)
   const bundet = q.spar != null && p.cards.find(c => c.spar === q.spar);
   const sammaKort = (!bundet && sammaKortVid(p, name, q.spar)) || null;
@@ -40468,7 +40470,7 @@ var Rattelse = (() => {   // var: se Rapport
      HANDLING_MAX_MS från den första — så att ett parti med många tap inte äter taket. till-fall.cjs --mattest gör det
      till ett Mat test-fall: facit är kameran minus det spelaren rättade (byggFacit). Samma villkor som namnens:
      rapporten finns, kontots inställning på (läst från servern när paketet skickas), läget bord. Inget frågar Claude. */
-  const HANDLING_FORE_MS = 60000, HANDLING_EFTER_MS = 20000, HANDLING_MAX_MS = 180000, HANDLING_RADER = 40;
+  const HANDLING_FORE_MS = 60000, HANDLING_EFTER_MS = 20000, HANDLING_MAX_MS = 180000, HANDLING_RADER = 150;   // ~200 B per rad: vy håller sig under 64 kB
   let samling = null;   // { spel, spelkod, forsta, sista, rader, timer }
   function handling(typ, c, fakta) {
     try {
@@ -40501,7 +40503,9 @@ var Rattelse = (() => {   // var: se Rapport
     if (!(await Moln.bildInstallning())) { stat.av++; return null; }
     const till = Date.now(), p = Rapport.handlingsPaket(S.forsta - HANDLING_FORE_MS, till);
     if (!p) { stat.utanLogg = (stat.utanLogg || 0) + 1; return null; }   // ingen telefon, inget bord: inget fall att göra
-    const vy = { handelse: 'handling', handlingar: S.rader, spelkod: S.spelkod, fran: S.forsta - HANDLING_FORE_MS, till };
+    /* forsta: den första rättelsen i samlingen — fallet räknar bara påståenden från den (de före hör till förra paketet
+       och följer med som underlag, MES-385). */
+    const vy = { handelse: 'handling', handlingar: S.rader, spelkod: S.spelkod, forsta: S.forsta, fran: S.forsta - HANDLING_FORE_MS, till };
     const r = await Moln.rapportRad({ game_id: S.spel, kalla: 'rattelse', text: null, tagg: null, vy, bilder: 'saknas' });
     const json = JSON.stringify(Object.assign(p, { kod: r.kod, kalla: 'rattelse', text: null, tagg: null, frys: S.sista, frysIso: new Date(S.sista).toISOString(), vy }));
     const z = await Rapport.gz(json), blob = z || new Blob([json], { type: 'application/json' });

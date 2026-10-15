@@ -170,10 +170,18 @@ avstämningen, ingen modell lär sig dem. Granskningssidan (`granska.cjs`) visar
 något annat just då. `tap_hand` = tappad/upprätt, `grav_hand` = borta (graveyard, exile, hand), Remove = borta,
 `bytt`/`namngiven` = namnet. Inga av kamerans händelser antas vara rätta (`facit` är tom), och ingenting vävs ihop
 med kamerans tidslinje — så ingenting behöver gissas om när något hände, eller om kameran och spelaren menar samma
-händelse. Ett påstående tas tillbaka av **Undo i toasten** och av **⌘Z** (spelaren säger att det var fel). Follow camera
+händelse. Ett påstående tas tillbaka av **Undo i toasten** (kortets senaste tap) och av **⌘Z** — det påstående som kortets
+läge efter ⌘Z motsäger, ett per sort och det nyaste (journalen bär läget efter, `efter`): två ⌘Z i rad tar tillbaka två
+påståenden, och ett ⌘Z som bara lade tillbaka något kameran ändrat (Undo på Match) rör inget som fortfarande stämmer. Follow camera
 och ett tap tillbaka för hand säger bara att mattan följer kameran **nu**: om tapet var ett misstag eller om det
 riktiga kortet vreds fram och tillbaka går inte att skilja, så påståendet märks `osaker` och räknas inte. Ett påstående
 utan spår (`ejAvgorbart`) räknas inte heller. En flytt på mattan och ett tillagt kort blir inga påståenden.
+
+**Varje påstående hör till ett fall:** paketet räknar bara påståenden från sin första rättelse (`vy.forsta`); de före
+följer med som underlag och räknas i förra paketets fall (eller inget, om det inte skickades — inställningen av, ett
+annat parti). En Undo, ⌘Z eller Follow camera som kommer efter att paketet skickats ligger i ett senare paket:
+`till-fall.cjs --mattest` hämtar partiets senare rättelser ur tabellen och tar tillbaka påståendena även här. Med
+`--lokal` görs det inte, och fallet säger det (VARNING).
 
 Mat test mäter fallet med **"Spelarens rättelser som uppspelningen redan visade"**: visade uppspelningen påståendets
 läge vid dess tid hade rättelsen inte behövts. På koden som spelades är svaret nästan alltid 0 av N — det är just
