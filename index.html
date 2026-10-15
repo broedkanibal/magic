@@ -13673,14 +13673,17 @@ const OPP_MATT = {
   lage: { ikon: oppIkon('<path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/>'), h: 'Choose game mode',
     p: 'Let the camera mirror your table, or play on a digital table.' }
 };
-/* Bildens höjd/bredd: ur förhandsbilden, annars ur strömmens upplösning.
-   Förhandsbilden först: spårens andelar gäller den bilden, och strömmens
-   upplösning kan ha ett annat format (graveyard-rutan ur ett spår,
-   gravRutaUrKam). */
+/* Bildens höjd/bredd: ur strömmens upplösning, annars ur förhandsbilden.
+   Strömmen först: telefonen skickar den med varje bord, och hela bilden
+   analyseras, så spårens andelar gäller den. Förhandsbilden och pbMatt kommer
+   bara medan panelen är öppen och står kvar när den stängs — vreds telefonen
+   från stående till liggande efter det gav de 1,78 i stället för 0,56, och
+   graveyard-rutan efter Yes (gravRutaUrKam) blev 0,64 bildbredder bred, över
+   leken, och graveyard ritades halvvägs över library (Jesper 2026-10-15). */
 function kamBildAsp() {
+  if (kamUpplosning && kamUpplosning.w && kamUpplosning.h) return kamUpplosning.h / kamUpplosning.w;
   const img = $('#pbImg'); if (img && img.naturalWidth) return img.naturalHeight / img.naturalWidth;
   if (pbMatt && pbMatt.aw && pbMatt.ah) return pbMatt.ah / pbMatt.aw;
-  if (kamUpplosning && kamUpplosning.w && kamUpplosning.h) return kamUpplosning.h / kamUpplosning.w;
   return 0.75;
 }
 /* Spelarlistan i Invite your friends (MES-170, G1/J1): alla i spelet i

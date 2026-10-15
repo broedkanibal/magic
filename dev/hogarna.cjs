@@ -429,6 +429,42 @@ const PROV = async steg => {
     ok('en graveyard-ruta från Yes (ingen library-ruta) rörs inte', !!kamGravRad && W.__kal.length === 0);
     kamGravRad = null; nollGrav(); renderAll(true);
   }
+  if (steg === 12) {
+    /* Graveyard ovanpå library (Jesper 2026-10-15, dev/diagnos/graveyard-pa-library-2026-10-15): telefonen stod
+       upp när förhandsbilden senast kom (2160×3840) och vreds sedan till liggande. Bilden och pbMatt i panelen står
+       kvar från den stående telefonen, medan strömmen, som varje bord bär (kamUpplosning), är liggande 3840×2160.
+       Leken mitt i bilden, ett land till höger och kortet till vänster, med passets mått i bildandelar. Yes ska ge
+       en ruta som är kvadratisk i strömmens bildpunkter runt kortet — förut räknades den med den stående bildens
+       proportion (1,78 i stället för 0,56): 0,64 bildbredder bred från vänsterkanten, över leken, och graveyard
+       hamnade på mattan halvvägs över library. */
+    kamAnsluten = true; prefs.autoLage = true; kamGrund = 90; kamFas = ''; oppSatt({ klar: true }); mig().lage = 'bord';
+    mig().cards = []; mig().pending = []; mig().gravHog = null; nollGrav();
+    const pi = $('#pbImg'), forePb = pbMatt, foreUpp = kamUpplosning, foreSrc = pi.getAttribute('src');
+    const cv = document.createElement('canvas'); cv.width = 90; cv.height = 160;   // den stående telefonens förhandsbild
+    pi.src = cv.toDataURL('image/png'); await pi.decode().catch(() => {});
+    pbMatt = { aw: 216, ah: 384 }; kamUpplosning = { w: 3840, h: 2160 };
+    const ruta = (id, namn, x, y, w, h) => ({ id, tillstand: 'klar', namn, saker: true, x, y, w, h, tappad: false, vilar: true, sen: 10 });
+    const LEK = { x: 0.42, y: 0.47, w: 0.17, h: 0.39 }, LAND1 = ruta(81, 'Forest', 0.57, 0.49, 0.16, 0.38);
+    tagEmotLek(lek('nere', 1, LEK)); renderAll(true);
+    await stam([LAND1]);
+    await stam([LAND1, ruta(82, 'Llanowar Elves', 0.16, 0.53, 0.17, 0.38)]);
+    const f = fragaEl();
+    ok('graveyard-frågan på kortet till vänster om leken', !!f, gravLageNu().fraga ? namnPa(gravLageNu().fraga.cids) : 'ingen fråga');
+    const forsta = mig().cards.find(k => k.name === 'Llanowar Elves'), fx = forsta && forsta.x;
+    W.__kal = [];
+    if (f) f.querySelector('[data-gravsvar="ja"]').click();
+    await vanta(40); renderAll(true);
+    const r = (W.__kal[W.__kal.length - 1] || {}).grav, A = 2160 / 3840;
+    const lekMitt = { x: LEK.x + LEK.w / 2, y: LEK.y + LEK.h / 2 };
+    ok('gammal stående förhandsbild, liggande ström: rutan är kvadratisk i strömmens bildpunkter (längsta sidan × 1,15)',
+      !!r && Math.abs(r.w - r.h * A) < 0.01 && Math.abs(r.h - 0.38 * 1.15) < 0.01, JSON.stringify(r));
+    ok('… och når inte lekens mitt', !!r && !(lekMitt.x >= r.x && lekMitt.x <= r.x + r.w && lekMitt.y >= r.y && lekMitt.y <= r.y + r.h), JSON.stringify(r));
+    const g = mig().gravHog, b = mig().bibHog;
+    ok('graveyard på mattan där kortet låg (inom en femtedels kort), inte förskjuten mot library', !!g && !!b && fx != null && Math.abs(g.x - fx) < MATTA.CW * 0.2 && b.x - g.x >= MATTA.CW,
+      g && b ? `kortet x ${Math.round(fx)} → graveyard x ${Math.round(g.x)}, library x ${Math.round(b.x)}, kortbredd ${MATTA.CW}` : JSON.stringify({ g, b }));
+    if (foreSrc) pi.src = foreSrc; else pi.removeAttribute('src');
+    pbMatt = forePb; kamUpplosning = foreUpp;
+  }
   if (steg === 7) {
     /* Kameran tappad i Mirror my table (Jesper i produktionen 2026-10-05: graveyard och "Pick up 40" i hörnet):
        bordet står fruset, och inga fasta högar kommer fram — inte före första rapporten heller (kamLek undefined). */
@@ -537,7 +573,7 @@ const PROV = async steg => {
     }
     await vanta(300);
     if (BILD) fs.mkdirSync(BILD, { recursive: true });
-    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes-4-i-spel', '6-nej-permanent', '6-ignore', '8-zoom-nedvant', 'motstandaren', 'utan-kamera', 'uppstarten', 'v3-v4', 'nedvant-lika-fort', 'rester-steg-4'];
+    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes-4-i-spel', '6-nej-permanent', '6-ignore', '8-zoom-nedvant', 'motstandaren', 'utan-kamera', 'uppstarten', 'v3-v4', 'nedvant-lika-fort', 'rester-steg-4', 'gammal-forhandsbild'];
     for (let s = 0; s < NAMN.length; s++) {
       const r = await c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')(' + s + ')', awaitPromise: true, returnByValue: true });
       if (r.exceptionDetails) throw new Error(`steg ${s}: ` + ((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text));
