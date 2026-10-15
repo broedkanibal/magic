@@ -1513,12 +1513,15 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       return Kamera.spar.map(t => ({ id: t.id, st: t.tillstand, namn: t.namn, varfor: t.varfor, tackt: !!(t.tackt && t.tackt.length), omlott: !!t.omlott, remsa: !!t.remsaLada }));
     };
     const vek = seed => { const v = new Float32Array(512); for (let k = 0; k < 512; k++) v[k] = Math.sin(seed * 7 + k * 0.37); return v; };
-    let fangster = 0, remsFragor = [], sistaBesk = null;
+    let fangster = 0, remsFragor = [], sistaBesk = null, forstFragor = [], forstSvar = null;
     const fakeVideo = { videoWidth: W * V, videoHeight: H * V, paused: false, play: () => Promise.resolve(), srcObject: null };
     await Kamera.start({ video: fakeVideo, overlay: { getContext: () => ({}) } }, {
       status: () => {}, bord: (spar) => { bord = spar; }, identifiera: (c, id, gissning, kortArg, o) => { identifieringar++; sistaBesk = { c, id, kort: kortArg || null, w: c && c.width, h: c && c.height }; return Promise.resolve(namnSvar(id, gissning, o)); },   // o: appens { tackt, detPoang, remsa } (LV-proven läser remsa)
       remsVektor: () => { fangster++; return Promise.resolve({ hel: vek(1), titel: vek(2), ms: 1 }); },
       lasRemsa: (c, id, o) => {
+        /* Remsan först (T.remsaForst): en egen läsning före hela kortet. Den räknas för sig och svarar null (inget
+           avgör) om inte ett prov satt forstSvar — så att remsFragor och minnesproven ser medRemsas läsning som förut. */
+        if (o && o.forst) { forstFragor.push({ id, minnen: ((o && o.minnen) || []).length }); return Promise.resolve(forstSvar ? forstSvar(id) : null); }
         const m = (o && o.minnen) || [];
         remsFragor.push({ id, omfodd: !!(o && o.omfodd), geo: !!(o && o.geo), skal: (o && o.minneSkal) || null, minnen: m.map(e => e.namn + '#' + e.sparId + '×' + e.prov.length) });
         /* Ett otäckt spår (o.omfodd): minnet är bara ett vittne, som i kamLasRemsa — namnet och domen är remslekens. */
@@ -1739,6 +1742,32 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       const l4 = await prov(landSvar(null), { remsaLandVittne: 0 }, bygg3, detLV);
       check(`LV4 remsaLandVittne 0: ${fmtLV(l4)}`, l4.length === 2 && utanRemsa(l4) && klara(l4, 'modell land'));
       Kamera.satTrosklar({ remsaMinne: 1, remsaLandVittne: 1 });   // satTrosklar slår ihop: LV4:s 0 stod annars kvar i proven efter
+      namnSvar = saker;
+    }
+
+    // ── RF: remsan först för ett spår med ett kort ovanpå (T.remsaForst, 2026-10-15) ──
+    /* Två kort omlott (bygg3/det3): A ligger under B, och A:s spår har B i sin tackt. Hela kortet svarar säkert
+       Plains för varje spår. RF1: remsan-först-läsningen ger 'remsa' Pacifism (> 0,28) → A blir klar Pacifism
+       [remsa först] utan hela kortets läsning, B (ovanpå, inget över sig) läses som förut. RF2: remsan ger en
+       svagare säker väg ('remsa+titel') → avgör inte, A får hela kortets Plains som förut. RF3: remsaForst 0 →
+       ingen remsan-först-läsning alls. */
+    {
+      const pac = varfor => () => ({ namn: 'Pacifism', sid: 's2', saker: true, varfor, marginal: 0.31, cands: [{ name: 'Pacifism', sid: 's2', score: 0.6 }] });
+      const fmtRF = l => l.map(t => `#${t.id} ${t.st} ${t.namn || '–'} [${t.varfor || ''}] tackt=${t.tackt ? 1 : 0}`).join(', ');
+      const prov = async (fs, tro) => {
+        namnSvar = saker; forstSvar = fs; forstFragor = []; nystart(); Kamera.satTrosklar(Object.assign({ remsaMinne: 0, spokMs: 2000, remsaForst: 1 }, tro || {})); await lyft(LYFT);
+        for (let i = 0; i < 20; i++) s = await rutaDet(bygg3, det3);
+        return s;
+      };
+      const r1 = await prov(pac('remsa')), a1 = r1.find(t => t.tackt), b1 = r1.find(t => t !== a1);
+      check(`RF1 remsan först avgör under ett kort: ${fmtRF(r1)}; remsan-först-läsningar ${forstFragor.length}`,
+            !!a1 && !!b1 && a1.st === 'klar' && a1.namn === 'Pacifism' && a1.varfor === 'remsa först' && b1.st === 'klar' && b1.namn === 'Plains' && b1.varfor !== 'remsa först'
+            && forstFragor.length > 0 && forstFragor.every(f => f.id === a1.id && f.minnen === 0));
+      const r2 = await prov(pac('remsa+titel')), a2 = r2.find(t => t.tackt);
+      check(`RF2 svagare remsväg avgör inte: ${fmtRF(r2)}`, !!a2 && a2.namn !== 'Pacifism' && a2.varfor !== 'remsa först' && forstFragor.length > 0);
+      const r3 = await prov(pac('remsa'), { remsaForst: 0 }), a3 = r3.find(t => t.tackt);
+      check(`RF3 remsaForst 0: ${fmtRF(r3)}; remsan-först-läsningar ${forstFragor.length}`, !!a3 && a3.varfor !== 'remsa först' && forstFragor.length === 0);
+      Kamera.satTrosklar({ remsaMinne: 1, remsaForst: 1 }); forstSvar = null;
       namnSvar = saker;
     }
 
