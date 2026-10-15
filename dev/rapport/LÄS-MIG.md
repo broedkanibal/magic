@@ -25,6 +25,8 @@ Spelarens yta: `design_handoff_rapport/README.md` (§5 rutan, §9 detaljerna).
 | Kommando | Gör |
 |---|---|
 | `node dev/rapport/granska.cjs` | **granskningssidan för de tysta rättelserna** på http://127.0.0.1:8279 — se *Granska rättelserna* nedan |
+| `node dev/rapport/granska-matt.cjs` | granskningens mått i skugga ur beslutsloggen: förslaget följt, tid per kort, sorten ur bilden mot din, facits förtroende mot dina namnändringar — se *Beslutsloggen och facits förtroende* nedan |
+| `node dev/rapport/prov-granskning.cjs` | provet för beslutsloggen och förtroendet: vittnena och nivåerna, rapportens räkning, och granskningssidan som server mot en attrapp av tabellerna och Scryfall (inget nät, inget i produktionen) |
 | `node dev/rapport/bankutgava.cjs` | rapportbänken per sorts fel mot målet, och utgåvorna; `--klipp` fryser det inkommande som nästa utgåva |
 | `node dev/rapport/lista.cjs` | de senaste 50 rapporterna: kod, när, vem (namn och e-post ur kontot), tagg, text, anvandning, bilder |
 | `… --nya` | bara de som inte sorterats (`anvandning` null) |
@@ -151,7 +153,7 @@ datorns klocka.
 | I rapporten | `Rapport.stillbilder` = `Stillbilder.stillbilder`: `bilder/s-<t>-<i>.jpg`, `bilder/beskarning-spar<id>-<t>.jpg`, `bilder/index.json` (per bild: fil, t telefonens klocka, orsak tid/handelse, w, h, spar[{id, kort, saker, tappad, tillstand, varfor, x, y, w, h}] i andelar av bilden). Telefonen visar *Sending pictures, N of M* under uppladdningen |
 | hamta.cjs | skriver `stillbilder.json` (bilderna på datorns klocka: t = tTel − offset, s = sekunder i bordsloggen, rel = från trycket). En rättelse (`kalla = 'rattelse'`): `rattelse.json`, `beskarning.jpg`, `kontext.jpg` och en kort `LÄS-MIG.md` med rutan, de maskade och kontexten (en rad i utskriften när kontext.jpg saknas) |
 | Uppspelaren | `node dev/mattest/kor.cjs --visa --rapport dev/diagnos/rapporter/R-0412` (fönster) eller `--bilder <mapp> --vid rapport:12.5` (skärmdumpar): stillbilden med spårens rutor till vänster, mattan ur bordsloggen till höger, markeringar = mattans ändringar, röd = trycket |
-| Rättelserna | namnbyte, Name this card, borttaget kort (bara kamerakort, läget `bord`): rad i `rapporter` (`kalla 'rattelse'`, `vy {handelse, gissning, ratt, spar, ruta, maskade}` — datorns syn på bordet), filerna `beskarning.jpg`, `kontext.jpg` och `rattelse.json` = `{ gissning, varfor, ratt, spelkod, t, spar, handelse, saker, bild, ruta, maskade, kontext, kontextSkal, bordet }` (`bild`: 'telefon' / 'dator' / null; se *Var kortet låg* nedan). BARA när `user_metadata.improve_pictures === true`, läst från servern (`auth.getUser`) i ögonblicket |
+| Rättelserna | namnbyte, Name this card, borttaget kort (bara kamerakort, läget `bord`): rad i `rapporter` (`kalla 'rattelse'`, `vy {handelse, gissning, ratt, spar, ruta, maskade}` — datorns syn på bordet), filerna `beskarning.jpg`, `kontext.jpg` och `rattelse.json` = `{ gissning, varfor, ratt, spelkod, t, spar, handelse, saker, kandidater, build, bild, ruta, maskade, kontext, kontextSkal, bordet }` (`bild`: 'telefon' / 'dator' / null; se *Var kortet låg* nedan). `kandidater` (sedan 2026-10-15, också i radens `vy`) = telefonens topp-5 för spåret `[{ namn, poang, marginal }]` (marginal = poängen minus ettans), ur spårets egna `cands` — aldrig kortets lista och aldrig Claudes namn (har Claude rört spåret, ai-svaret eller helbilden, tas varje post utan positiv poäng bort); `null` när spåret inte fanns eller namnet kom ur minnet (`remsa minne`: minnet lär sig spelarens egna namn). Minnets namn loggas sedan dess som `kalla 'minne'` i `kort_handelser` (förut `telefon`). `build` = appversionen (`api/config.js`, commitens början; null lokalt). BARA när `user_metadata.improve_pictures === true`, läst från servern (`auth.getUser`) i ögonblicket |
 | Kanalen | dator → telefon `rapport_rattelse_bild {kod, sokvag, spar}`; telefon → dator `rapport_rattelse_klar {kod, ok, kort, varfor, tBesk, ruta, maskade, kontext, kontextSkal}` (telefonen laddar upp `beskarning.jpg` och `kontext.jpg` själv). Inget svar på 10 s: datorns kopia (granskningens beskärning, annars kamerans foto), rutan ur bordet, maskade och kontext null; ingen bild alls: `bilder = 'saknas'` |
 | Växeln | Developer-lådan (`?debug`): *Share pictures of cards I correct*, läser/skriver `improve_pictures` + `improve_pictures_at` (`Moln.bildInstallning`, `Moln.sattBildInstallning`, `Moln.bildInstallningSedan`) |
 | Prov | `node dev/rapport/prov-b.cjs` (ringen 30 min accelererat, rapportens bilder, rättelserna av/på/av, växeln), `node dev/rapport/prov-b-uppspelaren.cjs --bilder <mapp>` (golden-video → ringen → hamta → uppspelaren), `node dev/rapport/prov-b-supabase.cjs <fil>` (rad + filer mot riktiga Supabase, hamta, städning) |
@@ -276,6 +278,7 @@ node dev/rapport/granska.cjs          # http://127.0.0.1:8279 (--port för en an
 | Valen | **Träning** = `till-fall.cjs <kod> --traning`, **Prov** = `till-fall.cjs <kod> --bank --sort <id>`, **Släng** = `satt.cjs <kod> slangd`. Samma verktyg, samma spärr: ett parti är träning eller prov, aldrig båda, och knappen som spärren skulle vägra är grå i förväg. *Alla osorterade → Träning* per parti |
 | Rätt namn | spelarens namn kan vara fel: skriv om det i fältet. Det prövas mot Scryfall (exakt namn, versaler spelar ingen roll) och går till `till-fall.cjs` som `--bild beskarning.jpg --ratt <namn>`; rattelse.json lämnas orörd |
 | Handlingar | fliken för rättelserna av handlingar (MES-385): per paket rättelserna som spelaren gjorde dem (tappad/upprätt för hand, borta till graveyard/exile/handen, flyttad, Undo, ⌘Z, Follow camera) och ett kort per påstående — telefonens utsnitt runt kortet (`handling-<id>.jpg`, hämtat av `hamta.cjs`), vad det säger ("spår 2 tappat vid 12,4 s") och **Godkänn / Kasta**, eller varför det aldrig räknas (tillbakataget, osäkert, utan spår: inget val). Valet skrivs i `godkant.json` i rättelsens mapp; ett klick på det valda tar bort valet, och efter att fallet skrivits går det inte att ändra. Siffrorna — godkända (räknas), kastade, väntar av att bedöma, tillbakatagna, osäkra, utan spår, med bild — kommer ur `till-fall.cjs` (`forhandMattest` läser `godkant.json`; samma `kallaUrMapp`, `hamtaSenare` och `mattestFall` som `--mattest`, inget skrivs). **Mat test** = `hamta.cjs <kod>` + `till-fall.cjs <kod> --mattest`, först när inget påstående väntar och minst ett är godkänt (sidan och servern prövar det); **Släng** = `satt.cjs <kod> slangd`; ingen Träning — handlingarna är regler, ingen modell lär sig dem. Efter klicket visas verktygets hela utskrift (antalet påståenden, VARNING-raderna, var fallet skrevs). Fallet hamnar i `dev/mattest/underlag/rapporter/<kod>/` som från terminalen; att köra det (`kor.cjs --fall <kod> --detalj <kod>`) och committa det gör inte sidan |
+| Facit | en liten prick på raden: **facit grön / gul / röd** — hur mycket spelarens namn går att lita på, räknat ur vittnen som inte är du (fortroende.cjs, *Beslutsloggen och facits förtroende* nedan). Håll musen över för vittnena. I skugga: förslaget och knapparna bryr sig inte om den |
 | Träningen | räkningen ur `dataset.py rakna` (alla märkta pass + rättelserna i träning), **Bygg dataset** → `~/Library/Caches/mesa/ds-riktiga-v<N>-<datum>/` med Kaggle-metadata och `prompt.md`: prompten till en ny session som laddar upp, tränar v<N> på Kaggle och mäter mot grinden i CLAUDE.md. Sidan laddar aldrig upp och startar ingen Kaggle-körning själv |
 
 Rättelserna hämtas till `dev/diagnos/rapporter/<kod>/` (som `hamta.cjs`; `MESA_RAPPORTER` = en annan mapp, provet) och Scryfalls bilder cachas i
@@ -308,6 +311,33 @@ Varje bänkfall bär en sort (`sort` i `manifest.json`; `till-fall.cjs --bank` k
 (`MAL`, i dag 20 per sort — en bedömning, inte mätt: med 20 fall är ett fel 5 procentenheter) står i
 `sorter.cjs`; sidan, `till-fall.cjs` och `bankutgava.cjs` läser den. Läget i terminalen:
 `node dev/rapport/bankutgava.cjs`. `helkort_jamfor.py --bank` räknar också rätt per sort.
+
+### Beslutsloggen och facits förtroende (i skugga, `dev/plan/granskning-skala.md` steg 1–3)
+
+Innan någon automatik får sortera rättelser ska den mätas mot dina val. Därför loggar sidan varje val, och räknar
+två saker den inte får använda än: sorten bilden föreslår (finns sedan 83e83ee) och hur mycket facit går att lita på.
+
+| | |
+|---|---|
+| Loggen | `~/.mesa/granska-beslut.jsonl`, en rad per val (Träning, Prov, Släng, Mat test; också när spärren sa nej): kod, parti, spelare, förslaget och skälet — som det stod när raden först visades (`forslagForst`) och vid trycket —, sorterna bilden föreslog och bildens mått, ditt val och din sort, namnet (spelarens → det du skrev, `andrat`), om namnen fanns bland telefonens kandidater, tiden på kortet (`tid.ms`: från att raden syntes eller förra valet, det som kom sist; `msSedd`, `msRord`) och facits nivå med vittnena. Ett nej före valet (ingen sort, namnet finns inte hos Scryfall) är inget beslut och loggas inte |
+| Varför där | utanför git; inte i `dev/diagnos/` (den finns en gång per arbetsträd, och loggen ska vara en); inte i `~/Library/Caches/` (får tömmas, och mätningen behöver hundratals beslut över veckor). `MESA_BESLUT_LOGG` = en annan fil; med `MESA_FALL_UT` (provet) hamnar den där |
+| Går den inte att skriva | valet är ändå gjort, och sidan säger det i en gul ruta — en mätning som tyst tappar rader ser ut att stämma utan att göra det |
+| Rapporten | `node dev/rapport/granska-matt.cjs` (`--sedan 2026-10-20`, `--json`): förslaget följt, median tid per kort (mål < 10 s), rätt namn bland kandidaterna; sorten ur bilden mot din sort i Prov, totalt och per sort, med grinden (≥ 80 % totalt, ≥ 70 % per sort med ≥ 10 fall — gränserna sätts på de första 100 och prövas på nästa 100, så rapporten säger "för få" till dess); nivåerna mot dina namnändringar i Träning och Prov, med grinden (0 namnändringar bland de gröna, på ≥ 200 granskade) |
+
+**Förtroendet** (`fortroende.cjs`, `/api/fortroende`): vittnena är **A** namnet finns hos Scryfall, **B** namnet finns
+i spelarens lek i partiet eller telefonen läste det själv i ett av spelarens tidigare partier, **C** namnet var en av
+telefonens kandidater för kortet (bara rättelser sparade efter 2026-10-15), **D** telefonen läste samma namn själv
+senare i partiet (`kort_handelser`, och det kortet bytte inte namn igen — samma namn, inte nödvändigtvis samma fysiska
+kort). Motsägelser: spelaren bytte namn på samma kort igen, telefonen läste senare samma kort som ett annat namn, eller
+leken är hel (≥ 60 kort) men namnet saknas. **Grön** = A + minst två av B–D och ingen motsägelse, **gul** = A + ett,
+**röd** = en motsägelse, bara A, eller namnet finns inte hos Scryfall; **okänd** = Scryfall svarade inte. Ett vittne
+som inte går att läsa är okänt, aldrig nej, och räknas aldrig som ja. Inget vittne är Claude: läsningar med `kalla`
+'claude' eller 'minne' (minnet kan ha lärt sig spelarens eget namn) räknas inte, och appen sparar inte Claudes namn
+bland kandidaterna.
+
+**Lucka:** service role får inte läsa `decks` (`permission denied`, samma som `games` före 20261012120000), så
+"i spelarens lek" och motsägelsen "hel lek utan namnet" är okända i dag — B kommer bara ur tidigare partier. En
+`grant select on public.decks to service_role` öppnar dem; det är Jespers beslut (leken är spelarens egen).
 
 ### Bänkens utgåvor (`bankutgava.cjs`)
 

@@ -205,6 +205,8 @@ function rattelse(rad, ut, sparade) {
     `| Spel · spår | ${(j && j.spelkod) || '–'} · ${j && j.spar != null ? j.spar : '–'} |`,
     `| Tid | ${j && j.t ? new Date(j.t).toISOString() : rad.created_at} |`,
     `| Bilden | ${harBild ? '`beskarning.jpg`' + (j && j.bild ? ` (från ${j.bild === 'telefon' ? 'telefonen: läsningens beskärning' : 'datorn: granskningens beskärning eller kamerans foto'})` : '') : 'saknas'} |`,
+    `| Telefonens kandidater | ${j && Array.isArray(j.kandidater) && j.kandidater.length ? j.kandidater.map(k => `${k.namn}${k.poang != null ? ` ${k.poang}` : ''}`).join(' · ') + (j.ratt ? (j.kandidater.some(k => k.namn === j.ratt) ? ' — rätt namn finns bland dem' : ' — rätt namn finns inte bland dem') : '') : j && 'kandidater' in j ? 'inga (spåret saknades)' : '– (äldre rättelse)'} |`,
+    `| Appversionen | ${(j && j.build) || '–'} |`,
     `| anvandning | ${rad.anvandning || '(osorterad)'} |`,
     ...rattelsePlats(j, sparade.includes('kontext.jpg')), '',
     'Del D: `node dev/rapport/till-fall.cjs ' + rad.kod + ' --bank` gör den till ett bänkfall (spärren test/träning gäller; `--traning` kräver ruta och maskade).', ''];

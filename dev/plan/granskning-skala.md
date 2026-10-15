@@ -292,6 +292,17 @@ främlingar spelar.
 | 8 | **Grupperna för problemrapporterna** | 30 grupper handgranskade: för grov / för fin |
 | 9 | **Granskningen på en adress** (avsnitt 9): besluten som kolumner med spärren i databasen, inloggad sida, lokal export i omgångar | samma utfall som dagens väg på `prov-d.cjs`-fallen; motstridiga beslut i ett parti vägras av databasen |
 
+### Läget 2026-10-15: steg 1–3 byggda, i skugga
+
+Ingenting nedan styr förslaget eller valet; det räknas och visas. Hur det används: `dev/rapport/LÄS-MIG.md`,
+*Beslutsloggen och facits förtroende*. Provet: `node dev/rapport/prov-granskning.cjs`.
+
+| # | Byggt | Kvar |
+|---|---|---|
+| 1 | ✅ **Beslutsloggen**: granskningssidan skriver varje val i `~/.mesa/granska-beslut.jsonl` (`beslutslogg.cjs`) — förslaget och skälet (när raden visades och vid trycket), bildens föreslagna sorter och mått, valet, sorten, namnet före → efter, tiden på kortet, facits nivå. ✅ **Rättelsen** i appen sparar telefonens topp-5 (namn, poäng, marginal, ur spårets `cands`, aldrig Claudes) och appversionen i `rattelse.json` och radens `vy`; `prov-b.cjs` grön (59/59). ✅ **Rapporten** `node dev/rapport/granska-matt.cjs`: förslaget följt, median tid per kort, rätt namn bland kandidaterna | **kopieindexet** i `till-fall.cjs` (rörs av raderingssessionen, steg 5). Siffrorna: loggen fylls när Jesper granskar |
+| 2 | ✅ **Träffen räknas**: `granska-matt.cjs` jämför bildens första föreslagna sort med Jespers sort i Prov, totalt och per sort, mot grinden. Måtten räknas i webbläsaren (83e83ee), inte i `matt.json` vid hämtningen — samma siffror, loggade med beslutet | gränserna sätts på de första 100 Prov med sort och fryses, prövas på nästa 100. **Obs:** sorten *visas* redan som en knapp ("Delvis skymt?", 83e83ee), så Jespers val är inte oberoende av gissningen — träffen blir för hög om han följer knappen. Ska den mätas rent: dölj knappen tills grinden klarats (Jespers val) |
+| 3 | ✅ **Förtroendet** (`fortroende.cjs`): grön/gul/röd per rättelse ur vittnena A–D och motsägelserna, visas som en prick på raden och loggas med beslutet; rapporten räknar nivåerna mot Jespers namnändringar och grinden (0 bland de gröna på ≥ 200). R-0010 grön (A + tidigare parti + läst igen 18 s senare), R-0008 gul | **leken** går inte att läsa med service role (`permission denied for table decks`), så B kommer bara ur tidigare partier och motsägelsen "hel lek utan namnet" kan inte slå till — `grant select on public.decks to service_role` är Jespers beslut. Vittne C finns bara för rättelser sparade efter att appen driftsatts med kandidaterna |
+
 Varje steg kör utan Claude, och `dev/rapport/prov-d.cjs` / `prov-b.cjs` hålls gröna.
 Steg 1 rör `Rattelse` i index.html (sista skriptblocket, inte kamerakedjan).
 Golden behövs inte för det, `prov-b.cjs` räcker.

@@ -34599,7 +34599,9 @@ function khKameransNamnNu(cid, t) {
   const k = khNyckel(cid);
   if (KH.sedda.has('namngiven|' + k) || KH.sedda.has('tillagd|' + k)) return;
   const ai = autoSumMetod(t) === 'ai';
-  khLogga(fore ? 'sent_namn' : 'namn', cid, { namn: t.namn || null, kalla: ai ? 'claude' : 'telefon', ms: khMs(t) });
+  /* kalla 'minne' (granskningens förtroende, dev/rapport/fortroende.cjs): minnet kan ha lärt sig spelarens eget namn,
+     så dess svar är inget oberoende vittne. Måtten räknar bara 'claude' för sig (upplevelse_*), så de rörs inte. */
+  khLogga(fore ? 'sent_namn' : 'namn', cid, { namn: t.namn || null, kalla: ai ? 'claude' : t && t.varfor === 'remsa minne' ? 'minne' : 'telefon', ms: khMs(t) });
 }
 function autoSumKort(cid, t) {
   if (cid == null || !t) return false;
@@ -40456,6 +40458,24 @@ var Rattelse = (() => {   // var: se Rapport
     const g = (t && (t.namn || t.gissning)) || obj.name || forsta(obj.cands) || (t && forsta(t.cands)) || (t && t.remsa && t.remsa.namn) || null;
     return { gissning: g, varfor: (t && t.varfor) || obj.varfor || null, saker: t ? !!t.saker : null };
   }
+  /* Telefonens topp-5 för spåret (granskningens vittne C, dev/plan/granskning-skala.md): namn, poäng och marginalen
+     till ettan, ur spårets egna cands — aldrig kortets lista, som kan vara spelarens sökning. Inget Claude-namn får
+     bli ett vittne: Claude (ai-svaret och helbilden) lägger sitt namn i spårets lista med poäng 0, så när Claude rört
+     spåret (t.ai, varfor ai…/helbild…/fler än leken) tas varje post utan positiv poäng bort. Minnets svar ('remsa
+     minne') ger inga kandidater alls: minnet lär sig spelarens egna namn och Claudes säkra. null = inget att spara. */
+  function kandidaterFor(spar) {
+    const t = sparet(spar);
+    if (!t || !Array.isArray(t.cands)) return null;
+    const varfor = String(t.varfor || '');
+    if (varfor === 'remsa minne') return null;
+    const claude = !!t.ai || /^(ai|helbild|fler än leken)/.test(varfor);
+    const c = t.cands.filter(x => x && x.name && !(claude && !(typeof x.score === 'number' && x.score > 0))).slice(0, 5);
+    if (!c.length) return null;
+    const p = x => (typeof x.score === 'number' && isFinite(x.score) ? x.score : null), topp = p(c[0]);
+    return c.map(x => ({ namn: x.name, poang: p(x) == null ? null : +p(x).toFixed(3), marginal: p(x) == null || topp == null ? null : +(p(x) - topp).toFixed(3) }));
+  }
+  /* Appversionen (api/config.js: commitens början), samma som Rapportens miljö. */
+  const appBuild = () => { try { return (typeof Rapport !== 'undefined' && Rapport.miljo && Rapport.miljo().build) || null; } catch (e) { return null; } };
   /* Var datorn senast såg spåret (bordets rad från telefonen, andelar av bilden): rutan och de spår som ligger ÖVER det
      (bordets under, telefonens regel underAv). Datorn vet inte analysbildens mått och inte om dess egen kopia av
      beskärningen är övermålad — det här är "så gott det går" när telefonen inte svarar, och radens vy. */
@@ -40495,7 +40515,8 @@ var Rattelse = (() => {   // var: se Rapport
       if (gjorda.has(nyckel) || pagar.has(nyckel)) return null;
       pagar.add(nyckel);
       const g = gissningFor(handelse, obj);
-      const fakta = { gissning: g.gissning, varfor: g.varfor, ratt: ratt || null, spelkod: spelLage.kod || null, t: Date.now(), spar: obj.spar, handelse, saker: g.saker };
+      const fakta = { gissning: g.gissning, varfor: g.varfor, ratt: ratt || null, spelkod: spelLage.kod || null, t: Date.now(), spar: obj.spar, handelse, saker: g.saker,
+                      kandidater: kandidaterFor(obj.spar), build: appBuild() };
       const gameId = spelLage.id || null;
       const bordet = platsPaBordet(obj.spar);   // nu, innan rättelsen tar bort eller flyttar kortet
       stat.forsok++;
@@ -40511,7 +40532,7 @@ var Rattelse = (() => {   // var: se Rapport
     bordet = bordet || { ruta: null, maskade: null };
     /* Inställningen läses NU, från servern. Av eller okänd: ingenting sparas, inte heller lokalt. */
     if (!(await Moln.bildInstallning())) { stat.av++; return null; }
-    const r = await Moln.rapportRad({ game_id: gameId, kalla: 'rattelse', text: null, tagg: null, vy: { handelse: fakta.handelse, gissning: fakta.gissning, ratt: fakta.ratt, spar: fakta.spar, ruta: bordet.ruta, maskade: bordet.maskade }, bilder: null });
+    const r = await Moln.rapportRad({ game_id: gameId, kalla: 'rattelse', text: null, tagg: null, vy: { handelse: fakta.handelse, gissning: fakta.gissning, ratt: fakta.ratt, spar: fakta.spar, ruta: bordet.ruta, maskade: bordet.maskade, kandidater: fakta.kandidater, build: fakta.build }, bilder: null });
     const s = await fragaTelefon(r, fakta.spar);
     /* Spåret kan vara borta på datorn: telefonens beskärning bär läsningens namn och domskäl (punkt 8). */
     if (s) {
@@ -40627,7 +40648,7 @@ var Rattelse = (() => {   // var: se Rapport
   /* C:s Delete: paus(true) stoppar nya rättelser, vanta() väntar in de som redan sparas (högst ms). */
   const paus = pa => { pausad = !!pa; if (pausad && samling) { clearTimeout(samling.timer); samling = null; } };
   const vanta = ms => Promise.race([Promise.all([...aktiva]), new Promise(r => setTimeout(r, ms || 30000))]);
-  return { fran, handling, skickaHandlingar: skickaSamling, handlingSvar, svar, paus, vanta, get aktiva() { return aktiva.size; }, stat: () => Object.assign({}, stat, { takNatt, samlar: samling ? samling.rader.length : 0 }),
+  return { fran, kandidater: kandidaterFor, handling, skickaHandlingar: skickaSamling, handlingSvar, svar, paus, vanta, get aktiva() { return aktiva.size; }, stat: () => Object.assign({}, stat, { takNatt, samlar: samling ? samling.rader.length : 0 }),
            glom: () => { gjorda.clear(); pagar.clear(); takNatt = false; if (samling) clearTimeout(samling.timer); samling = null; senastTill = null; for (const k in stat) stat[k] = 0; } };
 })();
 

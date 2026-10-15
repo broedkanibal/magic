@@ -246,7 +246,10 @@ const PROV = async () => {
   kamAnsluten = true; kamFas = ''; kamGrund = 0; prefs.autoLage = true;
   renderAll(true);
   const spar = (id, namn, x, y, varfor) => ({ id, tillstand: 'klar', namn, saker: true, x, y, w: 0.08, h: 0.11, tappad: false, vilar: true, varfor });
-  const bord = [spar(1, 'Llanowar Elves', 0.2, 0.2, 'remsa'), spar(2, 'Forest', 0.42, 0.2, 'modell land'), spar(3, 'Serra Angel', 0.64, 0.2, 'modell+orb'), spar(4, 'Giant Growth', 0.2, 0.5, 'remsa')];
+  /* Spår 3 bär telefonens kandidater (granskningens vittne C); spår 2 är Claudes namn (varfor 'ai', Claudes namn först
+     med poäng 0) — det namnet får aldrig följa med som kandidat. */
+  const bord = [spar(1, 'Llanowar Elves', 0.2, 0.2, 'remsa'), Object.assign(spar(2, 'Forest', 0.42, 0.2, 'ai'), { cands: [{ name: 'Forest', score: 0 }, { name: 'Island', score: 0.41 }] }),
+    Object.assign(spar(3, 'Serra Angel', 0.64, 0.2, 'modell+orb'), { cands: [{ name: 'Serra Angel', score: 0.812 }, { name: 'Shivan Dragon', score: 0.62 }, { name: 'Baneslayer Angel', score: 0.4 }] }), spar(4, 'Giant Growth', 0.2, 0.5, 'remsa')];
   kamTogsEmot({ typ: 'bord', av: 'u-prov', fran: 'kamera', spar: bord, fas: '' });
   await vanta(1200);
   /* Telefonens beskärning för spår 1 och 3 (läsningen gav namnet); spår 2 har ingen på telefonen men datorn har granskningens. */
@@ -278,11 +281,15 @@ const PROV = async () => {
      JSON.stringify(j1));
   ok('kontraktet med D: rattelse.json har gissning, varfor, ratt, spelkod, t, spar, handelse', j1 && ['gissning', 'varfor', 'ratt', 'spelkod', 't', 'spar', 'handelse'].every(k => k in j1));
   ok('raden får bilder = klar', A.uppd.some(u => u[0] === r1.kod && u[1].bilder === 'klar'));
+  ok('steg 1 (granskningen i skala): rattelse.json och radens vy bär telefonens topp-5 ur spåret (namn, poäng, marginal till ettan) och appversionen',
+     j1 && Array.isArray(j1.kandidater) && j1.kandidater.length === 3 && j1.kandidater[1].namn === 'Shivan Dragon' && j1.kandidater[1].poang === 0.62 && j1.kandidater[1].marginal === -0.192 && j1.kandidater[0].marginal === 0
+     && 'build' in j1 && r1.vy && Array.isArray(r1.vy.kandidater) && r1.vy.kandidater.length === 3 && 'build' in r1.vy, JSON.stringify(j1 && { kandidater: j1.kandidater, build: j1.build }));
   const forest = kort('Forest'); removeAt(mig.cards.indexOf(forest));
   await vantaRader(2);
   const r2 = rattelser()[1];
   let j2 = null; try { j2 = JSON.parse(await A.filer[`u-prov/rapporter/${r2.kod}/rattelse.json`].text()); } catch (e) {}
   ok('PÅ, borttaget: telefonen har ingen beskärning → datorns kopia (granskningens), ratt null', j2 && j2.handelse === 'borttaget' && j2.gissning === 'Forest' && j2.ratt === null && j2.bild === 'dator' && A.filer[`u-prov/rapporter/${r2.kod}/beskarning.jpg`], JSON.stringify(j2));
+  ok('steg 1: Claudes namn följer aldrig med som kandidat (spår 2, varfor ai: bara telefonens Island)', j2 && Array.isArray(j2.kandidater) && j2.kandidater.length === 1 && j2.kandidater[0].namn === 'Island', JSON.stringify(j2 && j2.kandidater));
   const q = { id: 'pend-b1', spar: 5, cands: [{ name: 'Grizzly Bears', sid: null }, { name: 'Runeclaw Bear' }], box: null };
   mig.pending.push(q);
   namngePend(mig, q, 'Runeclaw Bear', null, [{ name: 'Runeclaw Bear' }]);
@@ -290,6 +297,19 @@ const PROV = async () => {
   const r3 = rattelser()[2];
   let j3 = null; try { j3 = JSON.parse(await A.filer[`u-prov/rapporter/${r3.kod}/rattelse.json`].text()); } catch (e) {}
   ok('PÅ, Name this card: gissningen ur förslagen, rätt namn, ingen bild någonstans → bilder saknas', j3 && j3.handelse === 'name_this_card' && j3.gissning === 'Grizzly Bears' && j3.ratt === 'Runeclaw Bear' && j3.bild === null && A.uppd.some(u => u[0] === r3.kod && u[1].bilder === 'saknas'), JSON.stringify(j3));
+  ok('steg 1: spåret finns inte på bordet → kandidaterna null (inte granskningspostens lista)', j3 && j3.kandidater === null, JSON.stringify(j3 && j3.kandidater));
+  {
+    /* Helbilden (Claude) lägger sitt namn först med poäng 0 och varfor 'helbild osäker'; minnets svar kan vara spelarens eget namn. */
+    const fore = senasteSpar;
+    senasteSpar = fore.concat([
+      { id: 901, varfor: 'helbild osäker', ai: { helbild: false }, cands: [{ name: 'Lightning Bolt', score: 0 }, { name: 'Shock', score: 0.44 }] },
+      { id: 902, varfor: 'remsa minne', cands: [{ name: 'Opt', score: 0.5 }] },
+      { id: 903, varfor: 'remsa', cands: [{ name: 'Opt', score: 0.71 }, { name: 'Ponder', score: 0.6 }] }]);
+    const k1 = Rattelse.kandidater(901), k2 = Rattelse.kandidater(902), k3 = Rattelse.kandidater(903);
+    senasteSpar = fore;
+    ok('steg 1: helbildens Claude-namn (poäng 0) följer inte med; minnets svar ger inga kandidater; ett vanligt spår ger sina',
+       k1 && k1.length === 1 && k1[0].namn === 'Shock' && k2 === null && k3 && k3.length === 2 && k3[1].marginal === -0.11, JSON.stringify({ k1, k2, k3 }));
+  }
 
   /* AV igen: slutar direkt. */
   A.bildPa = false;

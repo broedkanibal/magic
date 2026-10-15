@@ -34,6 +34,12 @@
    kod som --mattest), och valen är Mat test (hamta.cjs + till-fall.cjs <kod> --mattest) eller Släng — aldrig
    träning: handlingarna är regler i avstämningen, ingen modell lär sig dem.
 
+   Beslutsloggen och förtroendet (dev/plan/granskning-skala.md, steg 1–3, i skugga): varje val skrivs som en rad i
+   ~/.mesa/granska-beslut.jsonl (beslutslogg.cjs) — förslaget och skälet, sorten bilden föreslog, valet, sorten, om
+   namnet ändrades, tiden på kortet och facits förtroende (fortroende.cjs: grön/gul/röd ur vittnen som inte är
+   Jesper). Sidan visar nivån diskret på raden; ingenting av det styr förslaget eller valet. Rapporten:
+   node dev/rapport/granska-matt.cjs. Går loggen inte att skriva är valet ändå gjort, och sidan säger det.
+
    MESA_RAPPORTER: en annan mapp än dev/diagnos/rapporter för de hämtade rättelserna (provet); den går till
    hamta.cjs som --ut och till till-fall.cjs och satt.cjs som --mapp.
 
@@ -48,6 +54,8 @@ const { slagIRepot } = require('./sparr.cjs');   // bara för förhandsvisningen
 const { SORT_ID } = require('./sorter.cjs');
 const { lage: bankLage } = require('./bankutgava.cjs');
 const { goldenNamn, forhandMattest, raknaPastaenden } = require('./till-fall.cjs');
+const { bedom, skapaUnderlag, samma } = require('./fortroende.cjs');
+const beslutslogg = require('./beslutslogg.cjs');
 
 const argv = process.argv.slice(2), arg = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const PORT = +(arg('--port') || process.env.PORT || 8279);
@@ -61,6 +69,7 @@ const BANK_MAN = path.join(UTROT, 'dev', 'remsa', 'rapportbank', 'manifest.json'
 const MODELLER = path.join(ROT, 'dev', 'embed', 'modeller');
 const CACHE = path.join(os.homedir(), 'Library', 'Caches', 'mesa');
 const SCRY = path.join(CACHE, 'granska-scryfall');
+const SCRYFALL = process.env.MESA_SCRYFALL || 'https://api.scryfall.com';   // MESA_SCRYFALL: en attrapp (prov-granskning.cjs)
 const VENV = path.join(os.homedir(), '.mesa', 'detektor-venv', 'bin', 'python');
 const PY = fs.existsSync(VENV) ? VENV : 'python3';
 const KAGGLE = path.join(os.homedir(), '.mesa', 'kaggle-venv', 'bin', 'kaggle');
@@ -68,6 +77,7 @@ const DATASET = 'jesperfunkrosling/mesa-riktiga-utsnitt';
 const VAL_KLIPP = '2026-10-05-traning-landhogar/klipp3-enfargad-duk-island';   // som v2–v4
 
 const S = supa();
+const U = skapaUnderlag(S);
 
 /* Ett verktyg i repot, som i terminalen: { kod (slutkoden), ut (stdout + stderr) }. */
 function kor(prog, args, opt) {
@@ -193,10 +203,13 @@ async function listaHandlingar() {
   return ut;
 }
 
-async function sortera(b) {
+/* info fylls med det beslutsloggen behöver: forsok (ett verktyg kördes — annars är det inget beslut, bara ett nej
+   före valet), spelarens namn och namnet som skrevs. */
+async function sorteraNu(b, info) {
   const kod = String(b.kod || '').toUpperCase(), val = b.val;
   if (!KOD_RE.test(kod)) return { ok: false, text: 'okänd kod' };
   if (val === 'slangd') {
+    info.forsok = true;
     const r = await korNode('satt.cjs', [kod, 'slangd'].concat(fs.existsSync(mappFor(kod)) ? ['--mapp', mappFor(kod)] : []));
     return { ok: r.kod === 0, sparr: r.kod === 3, text: r.ut };
   }
@@ -213,6 +226,7 @@ async function sortera(b) {
       if (vantar.length) return { ok: false, text: `${vantar.length} påstående${vantar.length === 1 ? '' : 'n'} väntar på Godkänn eller Kasta: ${vantar.map(p => `${p.kort || '?'} (${p.id})`).join(', ')}` };
       if (!F.antal.raknas) return { ok: false, text: 'inget godkänt påstående — fallet skulle mäta 0 av 0. Släng i stället' };
     }
+    info.forsok = true;
     const r = await korNode('till-fall.cjs', [kod, '--mattest', '--mapp', mappFor(kod)]);
     return { ok: r.kod === 0, sparr: r.kod === 3, text: r.ut };
   }
@@ -227,8 +241,80 @@ async function sortera(b) {
   try { k = await scryKort(namn); } catch (e) { return { ok: false, text: `Scryfall svarar inte (${e.message}) — försök igen` }; }
   if (!k) return { ok: false, text: `"${namn}" finns inte hos Scryfall — skriv kortets exakta engelska namn` };
   if (k.namn !== j.ratt) args.push('--ratt', k.namn);   // rättelsens beskärning, ruta och maskade gäller; bara namnet byts
+  info.forsok = true; info.namn = k.namn;
   const r = await korNode('till-fall.cjs', args);
   return { ok: r.kod === 0, sparr: r.kod === 3, text: r.ut };
+}
+async function sortera(b) {
+  const info = {}, svar = await sorteraNu(b, info);
+  if (info.forsok) {
+    try { loggaBeslut(await beslutsRad(String(b.kod).toUpperCase(), b, info, svar)); }
+    catch (e) { svar.loggFel = `Beslutsloggen gick inte att skriva (${e.message}). Valet är gjort, men det räknas inte i granska-matt.cjs.`; }
+  }
+  return svar;
+}
+
+/* ── förtroendet för facit och beslutsloggen (steg 1–3, i skugga: räknas och visas, styr ingenting) ── */
+const fortroendeMinne = new Map();   // kod → bedom(): det sidan senast visade, och det som loggas med beslutet
+let faktaMinne = new Map();          // kod → rattelseFakta, inom en räkning (partiets andra rättelser läses en gång)
+function rattelseFakta(r) {
+  const j = lasJson(path.join(mappFor(r.kod), 'rattelse.json')) || {}, vy = r.vy || {};
+  return { kod: r.kod, ratt: j.ratt || vy.ratt || null, gissning: j.gissning || vy.gissning || null, spar: j.spar != null ? j.spar : vy.spar != null ? vy.spar : null,
+    t: j.t || Date.parse(r.created_at), handelse: j.handelse || vy.handelse || null, kandidater: j.kandidater || vy.kandidater || null };
+}
+async function fortroendeFor(r, alla) {
+  const f = rattelseFakta(r);
+  let b;
+  if (!f.ratt) b = bedom(f, {});
+  else {
+    let scry = null; try { scry = !!(await scryKort(f.ratt)); } catch (e) {}   // Scryfall svarar inte: A okänt, inte nej
+    const [kh, lek, minne] = await Promise.all([U.kh(r.game_id, r.user_id), U.lek(r.game_id, r.user_id), U.tidigare(r.user_id, r.game_id)]);
+    /* samma spelares andra rättelser i partiet: spåren är hens telefons */
+    const senare = r.game_id ? alla.filter(x => x.game_id === r.game_id && x.user_id === r.user_id && x.kod !== r.kod && !arHandling(x)).map(x => faktaMinne.get(x.kod) || faktaMinne.set(x.kod, rattelseFakta(x)).get(x.kod)) : null;
+    b = bedom(f, { scry, kh, lek, minne, senare });
+  }
+  fortroendeMinne.set(r.kod, b);
+  return b;
+}
+/* Bara de osorterade: nivån loggas med beslutet, och en sorterad rättelse får inga fler beslut. */
+async function fortroende() {
+  const rader = (await rattelseRader()).filter(r => !arHandling(r)), ut = {};
+  faktaMinne = new Map();
+  for (const r of rader) if (!r.anvandning) ut[r.kod] = await fortroendeFor(r, rader);   // en i taget: Scryfall tar en fråga åt gången ändå
+  return { fortroende: ut, fel: U.fel() };
+}
+
+/* Det sidan skickar med valet (förslaget, bildens mått, tiderna) är bara siffror för loggen: det prövas till form
+   och storlek och styr ingenting. */
+const kap = (v, n) => typeof v === 'string' ? v.slice(0, n || 300) : null;
+const tal = v => typeof v === 'number' && isFinite(v) ? v : null;
+const forslagUt = f => f && typeof f === 'object' ? { val: kap(f.val, 20), varfor: kap(f.varfor, 400), utanSort: !!f.utanSort } : null;
+const loggaBeslut = rad => beslutslogg.logga(rad);
+async function beslutsRad(kod, b, info, svar) {
+  const [rad] = await S.rest('GET', `rapporter?kod=eq.${encodeURIComponent(kod)}&select=kod,created_at,user_id,game_id,vy`);
+  const handling = !!(rad && arHandling(rad)), j = lasJson(path.join(mappFor(kod), 'rattelse.json')) || {}, vy = (rad && rad.vy) || {};
+  const f = rad && !handling ? rattelseFakta(rad) : {};
+  let fo = null;
+  if (rad && !handling) { fo = fortroendeMinne.get(kod); if (!fo) try { fo = await fortroendeFor(rad, await rattelseRader()); } catch (e) { fo = null; } }
+  /* Scryfalls stavning (versaler, framsidan av ett dubbelsidigt kort) är ingen namnändring: samma kort är samma namn. */
+  const lika = (a, b) => !!a && !!b && samma(a.toLowerCase(), b.toLowerCase());
+  const spelarens = f.ratt || null, valt = info.namn || null;
+  const kand = Array.isArray(f.kandidater) ? f.kandidater.filter(x => x && x.namn) : null;
+  const m = b.matt && typeof b.matt === 'object' ? b.matt : null, t = b.tid && typeof b.tid === 'object' ? b.tid : {};
+  return {
+    v: 1, t: new Date().toISOString(), kod, typ: handling ? 'handling' : 'namn',
+    parti: (rad && rad.game_id) || null, spelkod: j.spelkod || vy.spelkod || null, spelare: (rad && rad.user_id) || null,
+    handelse: handling ? 'handling' : f.handelse || null, gissning: f.gissning || null, saker: j.saker != null ? !!j.saker : null, varfor: j.varfor || null,
+    forslag: forslagUt(b.forslag), forslagForst: kap(b.forslagForst, 20),
+    forslagSort: Array.isArray(b.forslagSort) ? b.forslagSort.filter(x => typeof x === 'string').slice(0, 9).map(x => x.slice(0, 20)) : null,
+    matt: m ? { kort: tal(m.kort), ljus: tal(m.ljus), blank: tal(m.blank), skarpa: tal(m.skarpa), skymt: tal(m.skymt) } : null,
+    val: b.val, sort: b.val === 'test' ? kap(b.sort, 20) : null,
+    namn: { spelarens, valt, andrat: !!valt && !lika(valt, spelarens) },
+    kandidater: kand && kand.length ? { antal: kand.length, spelarensBland: kand.some(x => lika(x.namn, spelarens)), valtBland: kand.some(x => lika(x.namn, valt)) } : null,
+    tid: { ms: tal(t.ms), msSedd: tal(t.msSedd), msRord: tal(t.msRord) }, svep: !!b.svep,
+    fortroende: fo ? { niva: fo.niva, skal: fo.skal, vittnen: Object.fromEntries(Object.entries(fo.vittnen || {}).map(([k, v]) => [k, v.ja])), motsagelser: fo.motsagelser } : null,
+    ok: !!svar.ok, sparr: !!svar.sparr, ...(svar.ok ? {} : { fel: kap(svar.text, 300) })
+  };
 }
 
 /* ── Scryfall: namnet prövas och bilden hämtas av servern, en fråga i taget ─ */
@@ -248,7 +334,7 @@ function scryHamta(url) {
 async function scryKort(namn) {
   if (scryMinne.has(namn)) return scryMinne.get(namn);
   let k = null;
-  const r = await scryHamta('https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(namn));
+  const r = await scryHamta(SCRYFALL + '/cards/named?exact=' + encodeURIComponent(namn));
   if (r.ok) {
     const c = await r.json(), iu = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris) || {};
     k = { namn: c.name, bild: iu.normal || null };
@@ -391,6 +477,7 @@ const server = http.createServer(async (req, res) => {
       const buf = await scryBild(String(u.searchParams.get('namn') || '').slice(0, 200));
       return buf ? svara(res, 200, buf, 'image/jpeg') : svara(res, 404, { fel: 'ingen bild' });
     }
+    if (p === '/api/fortroende') return svara(res, 200, await fortroende());
     if (p === '/api/sortera' && req.method === 'POST') { const b = await lasKropp(req); return svara(res, 200, await iTur(() => sortera(b))); }
     if (p === '/api/bank') return svara(res, 200, bankLage());
     if (p === '/api/traning') return svara(res, 200, await traning());

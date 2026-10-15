@@ -137,6 +137,12 @@ main.bara-lista .sidor { display: none; }
 .pkort.kastad { opacity: .5; }
 button.val.vald { font-weight: 600; box-shadow: 0 0 0 2px currentColor; }
 @media (max-width: 640px) { .pkort { grid-template-columns: 100px minmax(0, 1fr); } }
+.facit { display: inline-flex; align-items: center; gap: 4px; cursor: help; }
+.facit[hidden] { display: none; }
+.facit::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--linje); }
+.facit.gron::before { background: var(--tran); }
+.facit.gul::before { background: var(--varn); }
+.facit.rod::before { background: var(--fel); }
 code { font-size: 12px; background: var(--yta2); padding: 1px 4px; border-radius: 4px; }
 </style>
 </head>
@@ -185,6 +191,18 @@ const skrivet = new Map();   // kod → det som står i namnfältet: överlever 
 let upptagen = 0;            // > 0: ett val pågår, alla knappar är låsta (servern tar dem ändå ett i taget)
 const valdSort = new Map();   // kod → sorts fel som valts i listan (krävs för Prov)
 const namnFor = r => (skrivet.has(r.kod) ? skrivet.get(r.kod) : r.ratt || '').trim();
+/* Beslutsloggen (steg 1, i skugga): när raden först syntes och först rördes, förslaget när den först visades och
+   när förra valet gjordes. Bara siffror som skickas med valet — ingenting här styr förslaget. */
+const sedd = new Map(), rord = new Map(), forstaForslag = new Map();
+let senastVal = 0;
+let fort = {};   // kod → facits förtroende (fortroende.cjs på servern): visas, styr ingenting
+const synlig = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting && !sedd.has(e.target.dataset.kod)) sedd.set(e.target.dataset.kod, Date.now()); }, { threshold: 0.5 });
+function folj() { synlig.disconnect(); document.querySelectorAll('.rad[data-kod], .hrad[data-kod]').forEach(el => synlig.observe(el)); }
+function tiderFor(kod) {
+  const nu = Date.now(), s = sedd.get(kod), r = rord.get(kod);
+  /* Tiden på kortet: från att raden syntes, eller från förra valet om det kom senare (raderna under syns långt innan). */
+  return { ms: s ? nu - Math.max(s, senastVal) : null, msSedd: s ? nu - s : null, msRord: r ? nu - r : null };
+}
 
 async function hamta(u, opt) {
   const r = await fetch(u, opt);
@@ -223,6 +241,7 @@ function ritaLista() {
       ${rr.map(radHtml).join('')}
     </div>`;
   }).join('');
+  folj();
   matSynliga();
 }
 
@@ -368,6 +387,33 @@ async function matSynliga() {
   } finally { mater = false; }
 }
 
+/* ── facits förtroende (steg 3, i skugga) ──
+   Grön / gul / röd ur vittnen som inte är du (fortroende.cjs): A namnet finns hos Scryfall, B i spelarens lek eller
+   läst av telefonen i ett tidigare parti, C bland telefonens kandidater, D läst av telefonen senare i partiet.
+   Visas och loggas med valet; förslaget och knapparna bryr sig inte om den. */
+const NIVA = { gron: 'grön', gul: 'gul', rod: 'röd', '?': 'okänd' };
+const VITTNE = { A: 'A Scryfall', B: 'B leken/tidigare partier', C: 'C telefonens kandidater', D: 'D läst senare i partiet' };
+function facitHtml(r) {
+  const f = fort[r.kod];
+  if (!f || f.niva == null) return `<span class="facit" data-facit="${esc(r.kod)}" hidden></span>`;
+  const V = f.vittnen || {}, ja = v => v.ja === true ? 'ja' : v.ja === false ? 'nej' : 'okänt';
+  const titel = [`Facits förtroende, i skugga (styr ingenting): ${NIVA[f.niva]} — ${f.skal}`]
+    .concat(Object.keys(VITTNE).map(k => `${VITTNE[k]}: ${V[k] ? ja(V[k]) + ' — ' + V[k].skal : '–'}`), (f.motsagelser || []).map(m => 'Motsägelse: ' + m)).join('\n');
+  return `<span class="facit ${f.niva === '?' ? '' : esc(f.niva)}" data-facit="${esc(r.kod)}" title="${esc(titel)}">facit ${esc(NIVA[f.niva])}</span>`;
+}
+let laddarFort = false;
+async function laddaFortroende() {
+  if (laddarFort) return; laddarFort = true;
+  try {
+    const s = await hamta('/api/fortroende');
+    fort = (s && s.fortroende) || {};
+    if (s && s.fel && Object.keys(s.fel).length) console.warn('Förtroendet: delar av underlaget gick inte att läsa (vittnet blir okänt)', s.fel);
+    /* bara märkena ritas om: en omritning av listan tar fokus ur namnfältet */
+    document.querySelectorAll('[data-facit]').forEach(el => { const r = rader.find(x => x.kod === el.dataset.facit); if (r) el.outerHTML = facitHtml(r); });
+  } catch (e) { console.warn('Förtroendet:', e.message); }
+  finally { laddarFort = false; }
+}
+
 function radHtml(r) {
   const andrad = r.sattNamn && r.sattNamn !== r.ratt;
   const visatNamn = r.sattNamn || r.ratt;
@@ -381,6 +427,7 @@ function radHtml(r) {
      Ett Mat test-fall ur partiet spärrar inte träningen (testSlag ur repot; okänt slag spärrar som bänken). */
   const { lastTran, lastTest } = lasning(r);
   const forslag = kanSortera ? rekommendera(r) : null;
+  if (forslag && !forstaForslag.has(r.kod)) forstaForslag.set(r.kod, forslag.val);
   const fs_ = v => forslag && forslag.val === v ? ' forslag' : '';
   const not = noter.get(r.kod);
   const varningar = [];
@@ -395,7 +442,7 @@ function radHtml(r) {
       <div class="namnrad">${r.gissning ? `<span class="gissn">${esc(r.gissning)}</span>` : '<span class="gissn">(inget namn)</span>'}<span class="pil">→</span><span class="ratt">${visatNamn ? esc(visatNamn) : '(borttaget)'}</span> ${status}</div>
       ${r.gissning && !gissningOlik ? '<div class="lika">Telefonens gissning var rätt, men osäker — spelaren bekräftade den.</div>' : ''}
       ${sakertFel(r) ? '<div class="not fel">Säkert fel namn: telefonen var säker och hade fel.</div>' : ''}
-      <div class="meta"><span>${esc(r.kod)}</span><span>${esc(HANDELSE[r.handelse] || r.handelse || '–')}</span><span>${[r.saker == null ? '' : r.saker ? 'säker' : 'osäker', r.varfor && r.varfor !== 'osäker' ? esc(r.varfor) : ''].filter(Boolean).join(' · ')}</span><span>${esc(nar(r.nar))}</span>${r.sort ? `<span>sort: ${esc((bank && (bank.sorter.find(s => s.id === r.sort) || {}).namn) || r.sort)}</span>` : ''}${r.anvandning === 'test' && r.sort ? `<span>${r.utgava != null ? 'utgåva v' + r.utgava : 'inkommande (inte fryst)'}</span>` : ''}${r.val ? '<span title="Vart femte kortnamn hålls utanför träningen och används för att mäta modellen på kort den aldrig sett">valideringens namn: mäter, tränas inte</span>' : ''}</div>
+      <div class="meta"><span>${esc(r.kod)}</span><span>${esc(HANDELSE[r.handelse] || r.handelse || '–')}</span><span>${[r.saker == null ? '' : r.saker ? 'säker' : 'osäker', r.varfor && r.varfor !== 'osäker' ? esc(r.varfor) : ''].filter(Boolean).join(' · ')}</span><span>${esc(nar(r.nar))}</span>${r.sort ? `<span>sort: ${esc((bank && (bank.sorter.find(s => s.id === r.sort) || {}).namn) || r.sort)}</span>` : ''}${r.anvandning === 'test' && r.sort ? `<span>${r.utgava != null ? 'utgåva v' + r.utgava : 'inkommande (inte fryst)'}</span>` : ''}${facitHtml(r)}${r.val ? '<span title="Vart femte kortnamn hålls utanför träningen och används för att mäta modellen på kort den aldrig sett">valideringens namn: mäter, tränas inte</span>' : ''}</div>
       ${varningar.map(v => `<div class="not varn">${esc(v)}</div>`).join('')}
       ${kanSortera ? `<div class="falt"><label for="n-${esc(r.kod)}">Rätt namn</label><input id="n-${esc(r.kod)}" value="${esc(namnFor(r))}" data-namn="${esc(r.kod)}" placeholder="Kortets engelska namn" ${kanNamn ? '' : 'disabled'} autocomplete="off" spellcheck="false"></div>
       ${sortValj(r)}
@@ -469,6 +516,7 @@ function ritaHandlingar() {
       ${hh.map(hRadHtml).join('')}
     </div>`;
   }).join('');
+  folj();
 }
 /* Ett påstående: telefonens utsnitt runt kortet i ögonblicket för rättelsen (rutan inritad), vad det säger, och
    Godkänn / Kasta — eller varför det aldrig räknas. */
@@ -494,6 +542,7 @@ function hRadHtml(h) {
   const F = h.forhand, not = noter.get(h.kod), kanSortera = !h.anvandning;
   const status = h.anvandning ? `<span class="status ${h.anvandning}">${esc(hStatus(h))}</span>` : '<span class="status osorterad">Osorterad</span>';
   const forslag = kanSortera ? rekommenderaHandling(h) : null;
+  if (forslag && !forstaForslag.has(h.kod)) forstaForslag.set(h.kod, forslag.val);
   const fs_ = v => forslag && forslag.val === v ? ' forslag' : '';
   const n = F && F.antal;
   const kanValja = kanSortera && !h.fallFinns;
@@ -550,36 +599,45 @@ async function laddaHandlingar() {
 /* Mat test eller Släng: samma verktyg som i terminalen. Verktygets hela utskrift visas efteråt (antalet påståenden,
    VARNING-raderna, var fallet skrevs) — fallet ska köras med Mat test och committas, det säger utskriften. */
 async function sorteraHandling(kod, val) {
+  const h = (handlingar || []).find(x => x.kod === kod), fo = h && !h.anvandning ? rekommenderaHandling(h) : null;
+  const logg = { forslag: fo && { val: fo.val, varfor: fo.varfor }, forslagForst: forstaForslag.get(kod) || null, tid: tiderFor(kod) };
   upptagen++; ritaLista();
   const knapp = document.querySelector(`.hrad[data-kod="${CSS.escape(kod)}"] button[data-hval="${val}"]`);
   if (knapp) knapp.textContent = '…';
   try {
-    const s = await hamta('/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod, val }) });
-    if (s.ok) noter.set(kod, { typ: /VARNING/.test(s.text) ? 'varn' : 'ok', text: s.text });
-    else noter.set(kod, { typ: s.sparr ? 'varn' : 'fel', text: (s.sparr ? 'Spärren sa nej — ingenting är skrivet.\n' : '') + s.text });
+    const s = await hamta('/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ kod, val }, logg)) });
+    if (s.ok || s.sparr) senastVal = Date.now();
+    if (s.ok) { noter.set(kod, { typ: /VARNING/.test(s.text) || s.loggFel ? 'varn' : 'ok', text: s.text + (s.loggFel ? '\n' + s.loggFel : '') }); }
+    else noter.set(kod, { typ: s.sparr ? 'varn' : 'fel', text: (s.sparr ? 'Spärren sa nej — ingenting är skrivet.\n' : '') + s.text + (s.loggFel ? '\n' + s.loggFel : '') });
   } catch (e) { noter.set(kod, { typ: 'fel', text: e.message }); }
   upptagen--;
   await laddaHandlingar();
 }
 
 async function laddaLista() {
-  try { rader = await hamta('/api/lista'); ritaLista(); }
+  try { rader = await hamta('/api/lista'); ritaLista(); if (rader.some(r => !r.anvandning && !(r.kod in fort))) laddaFortroende(); }   // nivån räknas bara för de osorterade
   catch (e) { $('#lista').innerHTML = `<div class="tom">Kunde inte hämta rättelserna: ${esc(e.message)}</div>`; }
 }
 
-async function sortera(kod, val) {
+async function sortera(kod, val, svep) {
   const r = rader.find(x => x.kod === kod);
   const ratt = r ? namnFor(r) : '';
   if (val !== 'slangd' && !ratt) { noter.set(kod, { typ: 'fel', text: 'Skriv kortets namn först.' }); ritaLista(); return; }
   const sort = valdSort.get(kod) || '';
   if (val === 'test' && !sort) { noter.set(kod, { typ: 'fel', text: 'Välj sorts fel först: bänken räknas per sort.' }); ritaLista(); return; }
+  /* Med valet, för beslutsloggen (i skugga): förslaget nu och när raden först visades, sorterna bilden tyder på,
+     bildens mått och tiden på kortet. */
+  const fo = r && !r.anvandning ? rekommendera(r) : null, m = matt.get(kod);
+  const logg = { forslag: fo && { val: fo.val, varfor: fo.varfor, utanSort: !!fo.utanSort }, forslagForst: forstaForslag.get(kod) || null,
+    forslagSort: r && r.harBild && m && !m.fel ? signaler(r).map(x => x.id) : null, matt: m && !m.fel ? m : null, tid: tiderFor(kod), svep: !!svep };
   upptagen++; ritaLista();
   const knapp = document.querySelector(`.rad[data-kod="${CSS.escape(kod)}"] button[data-val="${val}"]`);
   if (knapp) knapp.textContent = '…';
   try {
-    const s = await hamta('/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod, val, ratt, sort }) });
-    if (s.ok) { const v = varnRader(s.text); if (v) noter.set(kod, { typ: 'varn', text: v }); else noter.delete(kod); skrivet.delete(kod); valdSort.delete(kod); }
-    else noter.set(kod, { typ: s.sparr ? 'varn' : 'fel', text: (s.sparr ? 'Spärren sa nej — ingenting är skrivet.\n' : '') + s.text });
+    const s = await hamta('/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ kod, val, ratt, sort }, logg)) });
+    if (s.ok || s.sparr) senastVal = Date.now();   // ett nej från spärren är också ett beslut: nästa korts tid börjar här
+    if (s.ok) { const v = [varnRader(s.text), s.loggFel].filter(Boolean).join('\n'); if (v) noter.set(kod, { typ: 'varn', text: v }); else noter.delete(kod); skrivet.delete(kod); valdSort.delete(kod); }
+    else noter.set(kod, { typ: s.sparr ? 'varn' : 'fel', text: (s.sparr ? 'Spärren sa nej — ingenting är skrivet.\n' : '') + s.text + (s.loggFel ? '\n' + s.loggFel : '') });
   } catch (e) { noter.set(kod, { typ: 'fel', text: e.message }); }
   upptagen--;
   await laddaBank(); await laddaLista(); laddaTraning();
@@ -590,7 +648,7 @@ const varnRader = t => String(t || '').split('\n').filter(l => /VARNING/.test(l)
 async function allaTillTraning(p) {
   const rr = rader.filter(x => parti(x) === p && !x.anvandning && namnFor(x) && x.harBild);
   upptagen++;   // hela partiet i ett svep: inget annat val emellan
-  try { for (const r of rr) await sortera(r.kod, 'traning'); } finally { upptagen--; ritaLista(); }
+  try { for (const r of rr) await sortera(r.kod, 'traning', true); } finally { upptagen--; ritaLista(); }
 }
 
 /* ── bänken per sort ── */
@@ -661,8 +719,11 @@ async function kopiera(text, knapp) {
   catch (e) { knapp.textContent = 'Kunde inte kopiera'; }
 }
 
+/* Första gången en rad rörs (namnet, sorten, en knapp, bilden): tiden till valet räknas också därifrån. */
+const rora = el => { const k = el && el.closest && el.closest('[data-kod]'); if (k && !rord.has(k.dataset.kod)) rord.set(k.dataset.kod, Date.now()); };
 document.addEventListener('click', async e => {
   const t = e.target;
+  rora(t);
   if (t.dataset.flik) { flik = t.dataset.flik; try { localStorage.setItem('granska-flik', flik); } catch (x) {} ritaLista(); return; }
   if (t.dataset.godk) { if (!upptagen) godkann(t.closest('.hrad').dataset.kod, t.dataset.pid, t.dataset.godk); return; }
   if (t.dataset.zoomsrc) { $('#zoom').innerHTML = `<img src="${esc(t.dataset.zoomsrc)}" alt="Utsnittet runt kortet">`; $('#zoom').classList.add('pa'); return; }
@@ -679,8 +740,8 @@ document.addEventListener('click', async e => {
   }
   if (t.closest('#zoom')) $('#zoom').classList.remove('pa');
 });
-document.addEventListener('input', e => { if (e.target.dataset.namn) skrivet.set(e.target.dataset.namn, e.target.value); });
-document.addEventListener('change', e => { if (e.target.dataset.sort) { const k = e.target.dataset.sort; if (e.target.value) valdSort.set(k, e.target.value); else valdSort.delete(k); ritaLista(); } });
+document.addEventListener('input', e => { rora(e.target); if (e.target.dataset.namn) skrivet.set(e.target.dataset.namn, e.target.value); });
+document.addEventListener('change', e => { rora(e.target); if (e.target.dataset.sort) { const k = e.target.dataset.sort; if (e.target.value) valdSort.set(k, e.target.value); else valdSort.delete(k); ritaLista(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#zoom').classList.remove('pa'); });
 
 laddaBank().then(() => { laddaHandlingar(); return laddaLista(); }).then(laddaTraning);   // handlingarna räknas på servern: träningen väntar inte på dem
