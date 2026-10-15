@@ -6,7 +6,9 @@
 // sedan MES-26: ådrat trä med blänk, skakning, drift, tonkurva, skräp, avstånd,
 // och sedan MES-28 ytorna bänken saknade: ljus matta med mörka kort, mörkt
 // rum, låg kontrast, överexponering, tryckt matta (G1–G5).
-// Slutkod 1 om något faller. Med --diagnos <fil.json> spelas en sparad
+// Slutkod 1 om något faller. Fallen går i flera processer (en per kärna
+// utom en, se "flera processer" nedan); --seriell kör allt i en process.
+// Med --diagnos <fil.json> spelas en sparad
 // diagnos från appen upp i stället; --scen <namn> ändrar ljussättningen på
 // den (inverterad, dimmat, kontrast, starkt) och --vantat <n> gör det till
 // ett prov. .cjs eftersom package.json säger "type": "module".
@@ -200,7 +202,109 @@ const KORT = (g) => kort(g, W, 60, 50, 30, 42, 180);
 const ok = [], fel = [];
 const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor ? 'OK  ' : 'FEL '} ${namn}${detalj ? ' — ' + detalj : ''}`); };
 
-(async () => {
+// ── flera processer (2026-10-15) ─────────────────────────────────────
+/* Banken tog 473 s CPU på en kärna (266 fall). Delarna är oberoende — var
+   och en börjar med nystart() — så utan --seriell (eller KAMERABANK_PROC=1)
+   startar den här processen os.cpus().length - 1 barn (fork av samma fil
+   med samma argument). Varje barn går genom banken i ordning och frågar
+   föräldern vid varje del om den är ledig: den som frågar först får den,
+   så en snabb process tar fler delar. En del är en scen eller en kedja av
+   scener som delar variabler (RM1–RM9c, LK1–LK5c); vid delens start
+   ställs det tillbaka som annars läcker mellan scenerna — trösklarna,
+   namnSvar och träets slumpfrö (seedW) — så att en del ger samma svar
+   oavsett vilka delar som gått före i samma process. Delarna är inte
+   indragna under sina if-rader, för diffens skull.
+   Barnet skickar delens OK/FEL-rader när delen är klar; föräldern skriver
+   dem i bankens ordning när alla barn slutat, OK före FEL som förut, och
+   slutraden "N OK, M FEL" blir densamma som i en seriell körning. Det enda
+   som skiljer utskriften åt är spårens id-nummer inne i raderna: räknaren
+   ligger i Kamera-modulen och nollas inte av nystart(), så ett id beror
+   på vilka delar som gått före i samma process.
+   KAMERABANK_TID=1 skriver CPU-tiden per del till stderr (för balansen). */
+const cp = require('child_process'), os = require('os'), util = require('util');
+const barn = process.env.KAMERABANK_BARN != null;
+const ANTAL = Math.max(1, Math.min(32, +process.env.KAMERABANK_PROC || os.cpus().length - 1));
+const seriell = process.argv.includes('--seriell') || (!barn && ANTAL <= 1);
+const foralder = !seriell && !barn;
+const TRO_STANDARD = Kamera.trosklar, NAMN_STANDARD = namnSvar;
+const extra = [];                       // console.log-rader ur en del (N4), skickas med delen
+if (barn) console.log = (...a) => extra.push(util.format(...a));
+let delNr = 0, delNamn = null, delOk = 0, delFel = 0, delCpu = null;
+const vantar = new Map();
+if (barn) process.on('message', m => { const r = vantar.get(m.del); if (r) { vantar.delete(m.del); r(m.ta); } });
+function skickaKlar() {
+  if (!barn || delNamn == null) return;
+  const cpu = process.cpuUsage(delCpu);
+  process.send({ klar: delNamn, ok: ok.slice(delOk), fel: fel.slice(delFel), extra: extra.splice(0), cpu: (cpu.user + cpu.system) / 1e6 });
+  delNamn = null;
+}
+async function del(namn) {
+  skickaKlar();
+  const nr = delNr++;
+  let ta = true;
+  if (barn) ta = await new Promise(r => { vantar.set(namn, r); process.send({ fraga: namn, nr }); });
+  if (!ta) return false;
+  Kamera.satTrosklar(TRO_STANDARD); namnSvar = NAMN_STANDARD; seedW = 900;
+  delNamn = namn; delOk = ok.length; delFel = fel.length; delCpu = process.cpuUsage();
+  return true;
+}
+function foraldern() {
+  const tagna = new Set(), ordning = new Map(), resultat = new Map();
+  let kvar = ANTAL, krasch = false;
+  for (let i = 0; i < ANTAL; i++) {
+    const b = cp.fork(__filename, process.argv.slice(2), { env: Object.assign({}, process.env, { KAMERABANK_BARN: String(i) }) });
+    b.on('message', m => {
+      if (m.fraga != null) { ordning.set(m.fraga, m.nr); const ta = !tagna.has(m.fraga); if (ta) tagna.add(m.fraga); b.send({ del: m.fraga, ta }); }
+      else if (m.klar != null) resultat.set(m.klar, m);
+    });
+    b.on('exit', (kod, sig) => { if (kod !== 0) { krasch = true; console.error(`kamerabank: process ${i} slutade med ${sig || kod}`); } if (--kvar === 0) slut(); });
+  }
+  function slut() {
+    const delar = [...ordning.keys()].sort((a, b) => ordning.get(a) - ordning.get(b));
+    const okAlla = [], felAlla = [], extraAlla = [];
+    for (const d of delar) {
+      const r = resultat.get(d);
+      if (!r) { krasch = true; console.error('kamerabank: delen ' + d + ' blev aldrig klar'); continue; }
+      okAlla.push(...r.ok); felAlla.push(...r.fel); extraAlla.push(...r.extra);
+    }
+    if (process.env.KAMERABANK_TID) for (const d of delar.filter(d => resultat.has(d)).sort((a, b) => resultat.get(b).cpu - resultat.get(a).cpu)) console.error(`${resultat.get(d).cpu.toFixed(1).padStart(6)} s  ${d}`);
+    if (extraAlla.length) console.log(extraAlla.join('\n'));
+    console.log([...okAlla, ...felAlla].join('\n'));
+    console.log(`\n${okAlla.length} OK, ${felAlla.length} FEL`);
+    process.exit(felAlla.length || krasch ? 1 : 0);
+  }
+}
+let s, r;   // scenernas senaste spår och summa — delas av delarna
+// Träets hjälpare (W) används också av R1–R4, N och skräp-delen, så de ligger före delarna.
+function tra(slump, o = {}) {
+  const { dx = 0, dy = 0, gamma = 1, blank = true, bx = 150, by = 62, brus = 6 } = o;
+  const g = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const X = x + dx, Y = y + dy;
+    const fas = Y + 3.5 * Math.sin(0.03 * X) + 1.5 * Math.sin(0.11 * X);
+    const adra = Math.pow(Math.max(0, Math.cos(fas * 2 * Math.PI / 7)), 8);
+    let v = 128 - 55 * adra + 8 * Math.sin(0.25 * X + 0.4 * Y) + 6 * Math.sin(1.3 * X);
+    for (const [kx, ky] of [[40, 110], [200, 30]]) { const d2 = ((X - kx) ** 2 + (Y - ky) ** 2) / (2 * 9 ** 2); v -= 45 * Math.exp(-d2) * (0.6 + 0.4 * Math.cos(0.9 * Math.hypot(X - kx, Y - ky))); }
+    if (blank) { const d2 = (X - bx) ** 2 / (2 * 22 ** 2) + (Y - by) ** 2 / (2 * 15 ** 2); v += 125 * Math.exp(-d2); }
+    v = 255 * Math.pow(Math.max(0, Math.min(255, v)) / 255, gamma);
+    v += (slump() * 2 - 1) * brus;
+    g[y * W + x] = Math.max(0, Math.min(255, v));
+  }
+  return g;
+}
+const kortPaTra = (g, x, y) => { kort(g, W, x, y, 22, 31, 205); return g; };
+const TREW = g => { kortPaTra(g, 60, 70); kortPaTra(g, 95, 72); kortPaTra(g, 130, 68); return g; };
+let seedW = 900;
+const rutaTra = async (o, bygg) => { nu += TAKT; const g = tra(lcg(seedW++), o); if (bygg) bygg(g); Kamera.steg(g, nu, H, undefined, 8); await new Promise(r => setImmediate(r)); return Kamera.spar; };
+/* Geometrin, inte bara antalet: ett kort som blivit tre bitar räknas inte. */
+const KORTEN = [[60, 70], [95, 72], [130, 68]];
+/* Bara spår som fick träff i sista rutan räknas (skymd = ingen träff): ett
+   spår som lever på sitt minne är inte ett hittat kort (granskningen). */
+const helaKort = s => KORTEN.every(([x, y]) => s.filter(t => !t.skymd && Math.abs(t.lang - 31) <= 8 && Math.abs(t.kort - 22) <= 6 && Math.hypot(t.cx - (x + 10.5), t.cy - (y + 15)) <= 4).length === 1);
+const refTra = async () => { for (let i = 0; i < 6; i++) await rutaTra({}); };
+const summa = async (n, f) => { let sum = 0, max = 0, sist = []; for (let i = 0; i < n; i++) { const s = await f(i); sum += s.length; max = Math.max(max, s.length); sist = s; } return { sum, max, sist }; };
+if (foralder) foraldern(); else (async () => {
+  if (await del('T8')) {
   // ── T8: brus → tröskel ───────────────────────────────────────────
   for (const [brus, vantad] of [[2, null], [8, null], [20, null]]) {
     nystart(); for (let i = 0; i < 6; i++) await ruta(null, brus);
@@ -211,9 +315,10 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`T8 brus ±${brus}: falska spår på tom matta över 30 rutor = ${falska}`, falska === 0);
   }
 
+  }
+  if (await del('T1')) {
   // ── T1: arm över ett känt kort ───────────────────────────────────
   nystart(); await referens();
-  let s;
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
   check(`T1 kortet läses: ${JSON.stringify(s)}`, s.length === 1 && s[0].st === 'klar' && s[0].namn === 'Plains');
   const id0 = s[0].id; let skymda = 0, kvar = true;
@@ -223,6 +328,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`T1 armen borta: samma id ${s[0] && s[0].id === id0}, namn ${s[0] && s[0].namn}, skymd ${s[0] && s[0].skymd}, identifieringar totalt ${identifieringar}, spår ${JSON.stringify(s)}`,
         s.length === 1 && s[0].id === id0 && s[0].namn === 'Plains' && !s[0].skymd && identifieringar === 1);
 
+  }
+  if (await del('T1b')) {
   // ── T1b: handformad fläck — kapar den spåret? ────────────────────
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
@@ -233,6 +340,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 4; i++) s = await ruta(KORT);
   check(`T1b efteråt: upprätt=${s[0] && !s[0].tappad}, samma id=${s[0] && s[0].id === idB}, spår ${JSON.stringify(s)}`, s.length === 1 && !s[0].tappad && s[0].id === idB);
 
+  }
+  if (await del('T2')) {
   // ── T2: kortet lyfts — borta inom bortaMs, spöke kvar ────────────
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
@@ -240,6 +349,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 1; i <= 10; i++) { s = await ruta(null); if (!s.length && bortaEfter == null) bortaEfter = i * TAKT; }
   check(`T2 lyft kort: spåret borta efter ${bortaEfter} ms (bortaMs 700), spöken ${Kamera.spoken.length}`, bortaEfter != null && bortaEfter <= 900 && Kamera.spoken.length === 1);
 
+  }
+  if (await del('T3b')) {
   // ── T3b: flimmer < 1,5 s — allt ärvs, ingen ny identifiering ─────
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
@@ -250,6 +361,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`T3b flimmer 1,2 s: samma id ${s[0] && s[0].id === id3b}, namn ${s[0] && s[0].namn}, tillstånd ${s[0] && s[0].st}, nya identifieringar ${identifieringar - idFore}`,
         s.length === 1 && s[0].id === id3b && s[0].namn === 'Plains' && s[0].st === 'klar' && identifieringar === idFore);
 
+  }
+  if (await del('T3')) {
   // ── T3: tillbaka efter 3 s — id ärvs, namnet läses om med ledtråd ─
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
@@ -261,6 +374,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
         s.length === 1 && s[0].id === id3 && s[0].st === 'klar' && ledtrad === 'Plains' && identifieringar === 2);
   namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
 
+  }
+  if (await del('T4')) {
   // ── T4: ett kort på ANNAN plats ärver inte ───────────────────────
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
@@ -269,6 +384,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 3; i++) s = await ruta(g => kort(g, W, 130, 50, 30, 42, 180));
   check(`T4 kort 70 px bort: nytt id ${s[0] && s[0].id !== id4}, spöket kvar ${Kamera.spoken.length}`, s.length === 1 && s[0].id !== id4 && Kamera.spoken.length === 1);
 
+  }
+  if (await del('T5')) {
   // ── T5: två kort skjuts ihop — båda överlever, ingen tap-flipp ───
   nystart(); await referens();
   const TVA = g => { kort(g, W, 60, 50, 30, 42, 180); kort(g, W, 100, 50, 30, 42, 180); };
@@ -278,6 +395,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 20; i++) { s = await ruta(g => { kort(g, W, 60, 50, 30, 42, 180); kort(g, W, 90, 50, 30, 42, 180); }); if (s.length !== 2) tapFel++; tappade += s.filter(t => t.tappad).length; }
   check(`T5 ihopskjutna 3 s: rutor med fel antal spår ${tapFel}/20, tappade-avläsningar ${tappade}`, tapFel === 0 && tappade === 0);
 
+  }
+  if (await del('T6')) {
   // ── T6: exponeringssväng ×1,25 med hand på 40 % av mattan ────────
   nystart(); await referens();
   const TRE = g => { kort(g, W, 40, 40, 30, 42, 180); kort(g, W, 110, 40, 30, 42, 180); kort(g, W, 180, 40, 30, 42, 180); };
@@ -295,6 +414,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`T6 sväng: nya spår i ${nya} rutor, rutor med tappat spår ${tappadeSpar}, tröskel ${troFore}→${Kamera.trosklar.troskel}, gain sist ${Kamera.diagnos.gain.toFixed(2)}, ids efteråt ${s.map(t => t.id).join(',')} (före ${ids})`,
         nya === 0 && tappadeSpar === 0 && Math.abs(Kamera.trosklar.troskel - troFore) <= 2 && s.map(t => t.id).join(',') === ids);
 
+  }
+  if (await del('T7')) {
   // ── T7: diagonalt kort som missar en ruta åldras inte ────────────
   nystart(); await referens();
   const DIAG = g => kortVriden(g, W, 100, 75, 30, 42, Math.PI / 4, 180);
@@ -303,6 +424,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   Kamera.satTrosklar({ kvotMin: 0.9 }); s = await ruta(DIAG); Kamera.satTrosklar({ kvotMin: 0.55 });
   check(`T7 en missad ruta: tomMs=${s[0] && s[0].tomMs}, skymd=${s[0] && s[0].skymd}`, s.length === 1 && s[0].tomMs === 0);
 
+  }
+  if (await del('T12')) {
   // ── T12: tap-vridningen döms på två stilla rutor, en glitchruta rör inget (K3) ──
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
@@ -318,6 +441,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 12; i++) { s = await ruta(KORT); if (tillbaka == null && s[0] && !s[0].tappad) tillbaka = i + 1; }
   check(`T12 tillbaka: otappad efter ${tillbaka} rutor`, s.length === 1 && !s[0].tappad && tillbaka != null && tillbaka <= 10);
 
+  }
+  if (await del('V1')) {
   // ── V1/V2: läget följer ett namngivet kort, med hysteres mot darr (K5, MES-214) ──
   /* Ett klart kort som glider följs medan det rör sig: läget (vx) går i
      rapporterna under glidningen med vilar false, och landar med vilar true
@@ -335,6 +460,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 12; i++) s = await ruta(g => kort(g, W, 100 + (i % 2), 50, 30, 42, 180));   // darr ±1 px över gränsen
   check(`V2 darr ±1 px i 12 rutor: ${bordRapporter - rapFore} extra rapporter (0)`, bordRapporter - rapFore === 0);
 
+  }
+  if (await del('BL1')) {
   // ── BL1: ett kort i ljus plastficka på mörk matta är inget blänk (MES-166) ──
   /* Golden 12: Pharika's Chosen i grön ficka på den mörka mattan i dagsljus
      var mättat i fläckar och hade inget mörkare än mattan — blänkreglerna
@@ -350,6 +477,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`BL1 kort i ljus ficka på mörk matta: ${s.length} spår, ${s[0] && s[0].st}, blänkdomar ${blBlank}, skymt ${blSkymd.join('')}`,
         s.length === 1 && s[0].st === 'klar' && blBlank === 0 && blSkymd.every(v => v === 0));
 
+  }
+  if (await del('BL2')) {
   // ── BL2: ett överexponerat kort på svart matta, utan synlig kant, är inget blänk ──
   /* Jesper 2026-09-21, provkortet Pacifism på den svarta mattan i 4K: kortet
      var 206 i snitt mot mattans 120, 15 % utbränt, spridningen 26 och kanten
@@ -368,6 +497,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`BL2 överexponerat kort utan kant på svart matta: ${s.length} spår, ${s[0] && s[0].st}, blänkdomar ${bl2Blank}, skymt ${bl2Skymd.join('')}`,
         s.length === 1 && s[0].st === 'klar' && bl2Blank === 0 && bl2Skymd.every(v => v === 0));
 
+  }
+  if (await del('OM1')) {
   // ── OM1: en hand över en tredjedel av bilden tar inte om referensen (MES-166) ──
   /* Golden 12: handen platt över provkortet i 1,5 s tog om referensen med
      handen i, och handens spöke stod kvar i referensen i 43 s. Omtaget ska
@@ -382,6 +513,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`OM1 handen över x 0–80 i 3 s: omtag ${omtagHand}, sedan ${s.length} spår, samma id ${s[0] && s[0].id === idOm}, skymt ${s[0] && s[0].skymd}`,
         omtagHand === 0 && s.length === 1 && s[0].id === idOm && !s[0].skymd);
 
+  }
+  if (await del('VX1')) {
   // ── VX1/VX2: ett namngivet kort vars region växer ihop med något bredvid flyttar inte (MES-179) ──
   /* Golden 11: Faithful Pikemaster växte ihop med leken bredvid — regionen
      blev kortet och en flik av leken, lådan 1,3 × kortets höjd, och varje
@@ -405,6 +538,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 1; i <= 12; i++) { s = await ruta(FLIK); if (!s.some(t => t.id === idVx) && vxBorta == null) vxBorta = i * TAKT; }
   check(`VX2 kortet lyfts, fliken ligger kvar: spåret borta efter ${vxBorta} ms`, vxBorta != null && vxBorta <= 1200);
 
+  }
+  if (await del('VX3')) {
   // ── VX3: ett namngivet kort som tappas SNETT fryses inte, och tap-läget tas i första rutan (MES-214) ──
   /* Den raka lådan runt ett kort som ligger 15° från vågrätt är 1,3 × kortets
      kortsida: MES-179-regeln tog det för en ihopväxning och höll kvar det
@@ -419,6 +554,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`VX3 tappat 15° snett runt hörnet: före tap=${tapFore}, tappad i ruta ${vx3Flip} (högst 2), spår ${s.length}, samma id ${!!s.find(x => x.id === idVx3)}`,
         tapFore === false && vx3Flip != null && vx3Flip <= 2 && s.length === 1 && !!s.find(x => x.id === idVx3));
 
+  }
+  if (await del('TT1')) {
   // ── TT1: tap-läget ändras bara vid en TYDLIG dom (MES-293, Jespers beslut 1) ──
   /* Ett namngivet kort som ligger 50° från grundläget — som när blänk i en
      ficka gör regionen sned nära 45° — vrids inte, hur många stilla rutor
@@ -522,6 +659,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`TT6 tappat 60° med förvalet: tappad i ruta ${t6a} (högst 2); −60° (moturs): i ruta ${t6m} (högst 2); 60° med tapTapp 65: i ruta ${t6b} (ska aldrig); 78° med förvalet: i ruta ${t6c} (högst 2); förvalet ${Kamera.trosklar.tapOtapp}/${Kamera.trosklar.tapTapp}`,
         t6a != null && t6a <= 2 && t6m != null && t6m <= 2 && t6b == null && t6c != null && t6c <= 2 && Kamera.trosklar.tapOtapp === 20 && Kamera.trosklar.tapTapp === 55);
 
+  }
+  if (await del('LT1')) {
   // ── LT1: latensmätningens stämplar (MES-215) följer med rapporten bara när den är på ──
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
@@ -546,7 +685,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
      vägar med vägen i namnVag. En missad väg ger fel siffror i tysthet, så
      varje väg provas för sig, och uppsamlaren i rapportera (vägen 'okand')
      provas med ett spår som ingen väg stämplat. */
-  {
+  }
+  if (await del('LT1b')) {
     const osaker = () => ({ namn: 'Plains', sid: 's1', saker: false, cands: [{ name: 'Plains', sid: 's1', score: 0.4 }] });
     const saker = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
     const TAPPAT = g => kort(g, W, 54, 44, 42, 30, 180);
@@ -671,6 +811,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     namnSvar = saker;
   }
 
+  if (await del('RS1')) {
   // ── RS1/RS2: rapporten säger när ett kort ligger stilla och när spåret blivit gammalt (MES-166) ──
   /* Datorns provkortslås låser bara ett stilla kort och släpper ett spår utan
      region. Båda slår om bara för att tiden går — förut jämförde steget
@@ -691,6 +832,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`RS2 spåret utan region: ${Kamera.spar.length} spår kvar, rapporterat sen ${senMax} ms, sen ≥ 2 s rapporterat efter ${rsTid} ms`,
         rsTid != null && rsTid <= 2400);
 
+  }
+  if (await del('ST1')) {
   // ── ST1/ST2: ett spår som krympt till en del tar hela kortet tillbaka (MES-83) ──
   const langST = () => Kamera.spar[0] ? Math.round(Kamera.spar[0].lang) : null;
   nystart(); await referens();
@@ -707,6 +850,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 60, 50, 40, 26, 180) || kort(g, W, 130, 50, 40, 56, 180));   // delen kvar OCH ett nytt kort en bit bort
   check(`ST2 ett nytt kort bredvid delen föds som eget spår: ${s.length} spår (2)`, s.length === 2);
 
+  }
+  if (await del('GY1')) {
   // ── GY1/GY2: graveyard-rutan (K9-lite) — inga spår föds i rutan, utanför som vanligt ──
   nystart(); await referens();
   Kamera.satGrav({ x: 0.1, y: 0.1, w: 0.35, h: 0.8 });   // KORT (60..90, 50..92) ligger i rutan
@@ -718,6 +863,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 8; i++) s = await ruta(g => { KORT(g); kort(g, W, 150, 50, 30, 42, 180); });
   check(`GY2 rutan borta: ${s.length} spår (2)`, s.length === 2);
 
+  }
+  if (await del('GY3')) {
   // ── GY3–GY5: högvakten (MES-85) — ett nytt kort på högen räknas, en hand som sveper förbi eller vilar gör det inte ──
   const ZON = { x: 0.1, y: 0.1, w: 0.35, h: 0.8 };
   const HOG = g => kort(g, W, 60, 50, 30, 42, 180);      // högens översta kort
@@ -761,6 +908,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 8; i++) await ruta(NYTT);
   check(`GY5 ingen ruta: grav ${JSON.stringify(Kamera.grav)} (null), i rapporten ${bordExtra && JSON.stringify(bordExtra.grav)}`, Kamera.grav === null && !!bordExtra && bordExtra.grav === null);
 
+  }
+  if (await del('T9')) {
   // ── T9: varaktig ljusändring till 55 % — inga falska spår, referensen följer ──
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
@@ -773,6 +922,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`T9 ljuset faller till 55 % i 30 s: rutor med falska spår ${falska9}, rutor utan kortet ${borta9}, flest spår samtidigt ${maxSpar9}, gain sist ${Kamera.diagnos.gain.toFixed(2)}, skymt sist ${s[0] && s[0].skymd}`,
         falska9 === 0 && borta9 === 0 && Math.abs(Kamera.diagnos.gain - 1) < 0.15 && s.length === 1 && !s[0].skymd);
 
+  }
+  if (await del('T10')) {
   // ── T10: igenkänningen inte redo — frågas igen efter 1,5 s, inte varje ruta ──
   nystart(); await referens();
   namnSvar = () => null;
@@ -782,6 +933,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 12; i++) s = await ruta(KORT);
   check(`T10 leken inte klar i 3 s: ${fragor} frågor (inte 15), sedan klar: ${s[0] && s[0].st} ${s[0] && s[0].namn}`, fragor <= 3 && fragor >= 1 && s[0] && s[0].st === 'klar');
 
+  }
+  if (await del('T11')) {
   // ── T11: paus i analysen — en ensam tom ruta får inte släppa spåret ──
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
@@ -790,50 +943,33 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 5; i++) s = await ruta(null);
   check(`T11 fem tomma rutor till: spåret borta ${s.length === 0}`, s.length === 0);
 
-  // ── W: trä, blänk, skakning, drift, tonkurva (MES-26) ─────────────
-  function tra(slump, o = {}) {
-    const { dx = 0, dy = 0, gamma = 1, blank = true, bx = 150, by = 62, brus = 6 } = o;
-    const g = new Float32Array(W * H);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const X = x + dx, Y = y + dy;
-      const fas = Y + 3.5 * Math.sin(0.03 * X) + 1.5 * Math.sin(0.11 * X);
-      const adra = Math.pow(Math.max(0, Math.cos(fas * 2 * Math.PI / 7)), 8);
-      let v = 128 - 55 * adra + 8 * Math.sin(0.25 * X + 0.4 * Y) + 6 * Math.sin(1.3 * X);
-      for (const [kx, ky] of [[40, 110], [200, 30]]) { const d2 = ((X - kx) ** 2 + (Y - ky) ** 2) / (2 * 9 ** 2); v -= 45 * Math.exp(-d2) * (0.6 + 0.4 * Math.cos(0.9 * Math.hypot(X - kx, Y - ky))); }
-      if (blank) { const d2 = (X - bx) ** 2 / (2 * 22 ** 2) + (Y - by) ** 2 / (2 * 15 ** 2); v += 125 * Math.exp(-d2); }
-      v = 255 * Math.pow(Math.max(0, Math.min(255, v)) / 255, gamma);
-      v += (slump() * 2 - 1) * brus;
-      g[y * W + x] = Math.max(0, Math.min(255, v));
-    }
-    return g;
   }
-  const kortPaTra = (g, x, y) => { kort(g, W, x, y, 22, 31, 205); return g; };
-  const TREW = g => { kortPaTra(g, 60, 70); kortPaTra(g, 95, 72); kortPaTra(g, 130, 68); return g; };
-  let seedW = 900;
-  const rutaTra = async (o, bygg) => { nu += TAKT; const g = tra(lcg(seedW++), o); if (bygg) bygg(g); Kamera.steg(g, nu, H, undefined, 8); await new Promise(r => setImmediate(r)); return Kamera.spar; };
-  /* Geometrin, inte bara antalet: ett kort som blivit tre bitar räknas inte. */
-  const KORTEN = [[60, 70], [95, 72], [130, 68]];
-  /* Bara spår som fick träff i sista rutan räknas (skymd = ingen träff): ett
-     spår som lever på sitt minne är inte ett hittat kort (granskningen). */
-  const helaKort = s => KORTEN.every(([x, y]) => s.filter(t => !t.skymd && Math.abs(t.lang - 31) <= 8 && Math.abs(t.kort - 22) <= 6 && Math.hypot(t.cx - (x + 10.5), t.cy - (y + 15)) <= 4).length === 1);
-  const refTra = async () => { for (let i = 0; i < 6; i++) await rutaTra({}); };
-  const summa = async (n, f) => { let sum = 0, max = 0, sist = []; for (let i = 0; i < n; i++) { const s = await f(i); sum += s.length; max = Math.max(max, s.length); sist = s; } return { sum, max, sist }; };
+  // ── W: trä, blänk, skakning, drift, tonkurva (MES-26) ─────────────
+  if (await del('W0')) {
   nystart(); await refTra();
   check(`W0 ytans betyg på trä med blänk: ${JSON.stringify({ dom: Kamera.yta.dom, textur: Kamera.yta.textur, blank: Kamera.yta.blank })}`, Kamera.yta.dom === 'blank');
-  let r = await summa(40, i => rutaTra({ dx: (i % 3) - 1, dy: i % 2 }));
+  r = await summa(40, i => rutaTra({ dx: (i % 3) - 1, dy: i % 2 }));
   /* Tröskelns värde är inte måttet längre (se W3): den styr bara mönster-
      jämförelsen, och får klättra medan ådrorna skakar. Falska spår är måttet. */
   check(`W2 skakning ±1 px i båda led, tomt trä: falska spår ${r.sum} (flest ${r.max}), spritt ${(Kamera.diagnos.spritt * 100).toFixed(2)}%, tröskel ${Kamera.trosklar.troskel}`, r.sum === 0);
+  }
+  if (await del('W3')) {
   nystart(); await refTra(); r = await summa(60, () => rutaTra({ dx: 2, dy: 1 }));
   /* Tröskeln får klättra här: sedan MES-26 avgör den bara jämförelsen mot
      referensen där mattan har eget mönster (ådrorna), och ligger ådrorna två
      bildpunkter fel är det just den som ska upp tills referensen hunnit
      ikapp. Måttet är falska spår, inte tröskelns värde. */
   check(`W3 drift 2,1 px som stannar i 9 s: falska spår ${r.sum}, tröskel ${Kamera.trosklar.troskel}`, r.sum === 0);
+  }
+  if (await del('W7')) {
   nystart(); await refTra(); r = await summa(40, () => rutaTra({ gamma: 0.85 }));
   check(`W7 tonkurvan ändras (gamma 0,85): falska spår ${r.sum}`, r.sum === 0);
+  }
+  if (await del('W6')) {
   nystart(); await refTra(); r = await summa(30, () => rutaTra({ bx: 153, by: 64 }));
   check(`W6 blänket flyttar 3 px: falska spår ${r.sum}`, r.sum === 0);
+  }
+  if (await del('W4')) {
   nystart(); await refTra(); r = await summa(12, () => rutaTra({}, TREW));
   check(`W4 tre små kort (22×31) på trä: spår ${r.sist.length} (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort)).join(', ')}), alla klara ${r.sist.every(t => t.tillstand === 'klar')}, hela kort ${helaKort(r.sist)}`, r.sist.length === 3 && r.sist.every(t => t.tillstand === 'klar') && helaKort(r.sist));
   const idsW = new Set(r.sist.map(t => t.id));
@@ -843,6 +979,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   let helaRutor = 0;
   r = await summa(30, async i => { const s = await rutaTra({ dx: i % 2 }, TREW); if (helaKort(s)) helaRutor++; return s; });
   check(`W5 tre kort + skakning 4,5 s: samma tre id kvar ${r.sist.filter(t => idsW.has(t.id)).length === 3 && r.sist.length === 3}, rutor med alla tre hela ${helaRutor}/30 (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort) + '@' + Math.round(t.cx) + ',' + Math.round(t.cy) + (t.skymd ? ' skymd' : '')).join(', ')})`, r.sist.filter(t => idsW.has(t.id)).length === 3 && r.sist.length === 3 && helaRutor >= 24);
+  }
+  if (await del('W8')) {
   nystart(); await refTra(); namnSvar = () => ({ skrap: true });
   r = await summa(34, () => rutaTra({}, TREW));                         // två omförsök à 1,5 s, sedan dom
   /* 12 = tre försök per kort som förut (9) plus en tidig läsning per kort
@@ -850,17 +988,23 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
      inte som ett försök — domen faller på samma tre som i dag. */
   check(`W8 skräp: beskärning utan textruta blir 'skrap' efter tre försök, inte okänd: ${r.sist.map(t => t.tillstand).join(',')}, frågor ${identifieringar}`, r.sist.length === 3 && r.sist.every(t => t.tillstand === 'skrap') && identifieringar === 12);
   /* W8b: skräp först, sedan ett riktigt namn — utan att kortet flyttats. */
+  }
+  if (await del('W8b')) {
   let forsok = 0; namnSvar = () => (++forsok <= 2 ? { skrap: true } : { namn: 'Plains', sid: 's1', saker: true, cands: [] });
   nystart(); await refTra(); r = await summa(30, () => rutaTra({}, g => kortPaTra(g, 60, 70)));
   check(`W8b mörk första beskärning, sedan läsbar: ${r.sist.map(t => t.tillstand).join(',')}`, r.sist.length === 1 && r.sist[0].tillstand === 'klar');
   /* W8c: utbränt av blänk (T.utbrand, MES-351 läge 4): beskärningen döms som ett kort utan namn — okänt efter tre försök,
      till granskningen ("Name this card") och aldrig till Claude (aiFragad sätts, provas aldrig). */
+  }
+  if (await del('W8c')) {
   namnSvar = () => ({ utbrand: true });
   nystart(); await refTra(); r = await summa(34, () => rutaTra({}, g => kortPaTra(g, 60, 70)));
   const t8c = Kamera.spar[0] || {}, b8c = bord.find(x => x.id === t8c.id) || {};
   check(`W8c utbränt kort: ${r.sist.map(t => t.tillstand + ' (' + (t.varfor || '') + ')').join(',')}, aiFragad ${t8c.aiFragad}, bordet ${b8c.tillstand} prövas ${b8c.provas}`,
         r.sist.length === 1 && t8c.tillstand === 'okand' && t8c.varfor === 'utbränd' && !t8c.namn && t8c.aiFragad === true && b8c.tillstand === 'okand' && !b8c.provas);
   /* W10: ett kort läggs ovanpå ett skräpspår — kortet ska få ett eget spår. */
+  }
+  if (await del('W10')) {
   namnSvar = () => ({ skrap: true }); nystart(); await refTra();
   r = await summa(34, () => rutaTra({}, g => { for (let yy = 76; yy < 96; yy++) for (let xx = 97; xx < 121; xx++) g[yy * W + xx] = ((Math.floor(xx / 3) + Math.floor(yy / 3)) % 2) ? 200 : 110; }));   // en ljus, rutig flisa 24×20 — struktur nog för detektorn, ingen textruta
   const flisa = r.sist.length === 1 && r.sist[0].tillstand === 'skrap';
@@ -876,14 +1020,20 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
      konstverket (uppmätt 18×16 av 31×22), och det förkastas som blänkets
      gamla plats eller blir skräp. Det som skyddar spelaren är betyget vid
      referensen: blänk är ett fel att åtgärda innan spelet, inte att tolka. */
+  }
+  if (await del('W11')) {
   nystart(); await refTra(); r = await summa(12, () => rutaTra({}, g => kortPaTra(g, 139, 47)));
   check(`W11 kort ovanpå referensens blänk: betyget '${Kamera.yta.dom}', inget falskt kort i full storlek (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort)).join(',') || 'inga spår'})`, Kamera.yta.dom === 'blank' && !r.sist.some(t => t.lang > 26));
   /* W13: en nästan vit matta får betyget ljus. */
+  }
+  if (await del('W13')) {
   nystart(); for (let i = 0; i < 6; i++) await ruta(null, 3, 200);
   check(`W13 nästan vit matta (200): betyget '${Kamera.yta.dom}'`, Kamera.yta.dom === 'ljus');
   /* W6b: blänket flyttar sig längre — 15 och 30 px. */
   for (const bx of [165, 180]) { nystart(); await refTra(); r = await summa(30, () => rutaTra({ bx, by: 64 })); check(`W6b blänket flyttar ${bx - 150} px: falska spår ${r.sum}`, r.sum === 0); }
   check(`W12 diagnosfil är en funktion och ger mask ${W * H}`, typeof Kamera.diagnosfil === 'function' && Kamera.diagnosfil().maskRa.length === W * H);
+  }
+  if (await del('W9')) {
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 60, 50, 14, 20, 180));
   check(`W9 för litet kort (14×20 vid 240, ×8 = 112 videopx): rådet '${(Kamera.rad || '').slice(0, 24)}…', kortsida ${Kamera.spar.map(t => t.kort.toFixed(1)).join(',')}, tillstånd ${Kamera.spar.map(t => t.tillstand).join(',')}`, /small in the picture/.test(Kamera.rad || ''));
@@ -898,7 +1048,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
      2026-09-11: Claude läste 9 av 11 kort i golden 06 på 129 px kortsida
      medan rådet stod tänt. Bänken har ingen video, så frågan ställs för
      hand som i W12 (aiFragad, provas) och besvaras via Kamera.svarAI. */
-  {
+  }
+  if (await del('W9c')) {
     const litet = g => kort(g, W, 60, 50, 14, 20, 180);   // 112 videopx: under golvet, men ett spår (W9)
     const osaker = () => ({ namn: 'Plains', sid: 's1', saker: false, cands: [{ name: 'Plains', sid: 's1', score: 0.4 }] });
     const radet = () => /small in the picture/.test(Kamera.rad || '');
@@ -921,6 +1072,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
   }
 
+  if (await del('SM1')) {
   // ── MES-31 små kort: räknas och rapporteras i stället för att tigas ihjäl ──
   /* Ett kort under golvet (KORT_MIN_PX × 0,6 = 90 videopx kort sida) blir
      aldrig ett spår ('liten' i bedom) och syntes förut ingenstans — inte i
@@ -965,6 +1117,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     nystart();
   }
 
+  }
+  if (await del('R1')) {
   // ── R1: korten ligger REDAN på mattan när referensen tas (MES-26) ──
   /* Så ser ett riktigt bord ut: telefonen pekas mot ett bord med kort på.
      Förut lärde sig referensen in korten och de var osynliga för alltid. */
@@ -988,6 +1142,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   /* …och när ett av dem lyfts ska det försvinna, inte lämna ett spöke i referensen. */
   r = await summa(12, () => rutaTra({}, g => { kortPaTra(g, 12, 70); kortPaTra(g, 82, 72); }));
   check(`R1b ett av dem lyfts: spår ${r.sist.length}`, r.sist.length === 2);
+  }
+  if (await del('R2')) {
   // ── R2: telefonen flyttas 30 px och stannar — korten hittas igen på nya platsen ──
   /* Flyttas telefonen flyttar sig både träet och korten i bilden — korten
      ritas alltså på nya platser (granskningen: förut stod korten kvar och
@@ -1000,6 +1156,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   r = await summa(30, () => rutaTra({ dx: 30, dy: 12 }, g => { kortPaTra(g, 70, 112); kortPaTra(g, 105, 114); kortPaTra(g, 140, 110); }));
   const helaFlytt = s => [[70, 112], [105, 114], [140, 110]].every(([x, y]) => s.filter(t => !t.skymd && Math.abs(t.lang - 31) <= 8 && Math.abs(t.kort - 22) <= 6 && Math.hypot(t.cx - (x + 10.5), t.cy - (y + 15)) <= 4).length === 1);
   check(`R2 telefonen flyttad 30×12 px i 4,5 s: spår ${r.sist.length} (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort) + '@' + Math.round(t.cx) + ',' + Math.round(t.cy)).join(', ')}), hela kort på nya platsen ${helaFlytt(r.sist)}, referensen togs om ${Kamera.omtag > 0}`, r.sist.length === 3 && helaFlytt(r.sist));
+  }
+  if (await del('R3')) {
   // ── R3: ett kort vars konstverk har mattans ljus — sluten ring, hålet fylls ──
   nystart(); await refTra();
   const morkt = g => { kort(g, W, 60, 70, 22, 31, 205); for (let yy = 70 + 4; yy < 70 + 17; yy++) for (let xx = 60 + 3; xx < 60 + 19; xx++) g[yy * W + xx] = 128; return g; };
@@ -1012,6 +1170,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   const pe = g => { kort(g, W, 60, 70, 22, 31, 205); for (let yy = 70; yy < 70 + 17; yy++) for (let xx = 60 + 3; xx < 60 + 19; xx++) g[yy * W + xx] = 128; return g; };
   r = await summa(12, () => rutaTra({}, pe));
   check(`R3b П-kort (konstverket öppet uppåt): spår ${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort)).join(',') || 'inga'}`, r.sist.length === 1 && Math.abs(r.sist[0].lang - 31) <= 6 && Math.abs(r.sist[0].kort - 22) <= 5);
+  }
+  if (await del('R4')) {
   // ── R4: en ljusstrimma som ändras (lampan) blir inget kort och stör inte korten ──
   nystart(); await refTra();
   /* Strimman ligger i luften mellan kort 1 och 2 (x 86–90; korten slutar
@@ -1023,6 +1183,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   r = await summa(20, () => rutaTra({}, g => { TREW(g); for (let yy = 20; yy < 140; yy++) for (let xx = 86; xx < 91; xx++) g[yy * W + xx] = Math.min(255, g[yy * W + xx] + 40); }));
   check(`R4 lodrät ljusstrimma 5 px mellan korten: spår ${r.sist.length} (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort) + '@' + Math.round(t.cx) + ',' + Math.round(t.cy) + (t.skymd ? ' skymd' : '')).join(', ')}), hela kort ${helaKort(r.sist)}`, r.sist.length === 3 && helaKort(r.sist));
 
+  }
+  if (await del('G1')) {
   // ── G: ytorna bänken saknade (MES-28) ─────────────────────────────
   /* Varje syntetisk yta hittills har haft kort ~80 gråsteg LJUSARE än
      mattan i vanligt ljus, och trösklarna är absoluta gråsteg (utseende
@@ -1080,6 +1242,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 20; i++) { await ruta(g => { tryck((i % 3) - 1, i % 2)(g); treG(180)(g); }); if (gKlara()) g5Hela++; }
   check(`G5c korten kvar under skakning: hela i ${g5Hela}/20 rutor, sist ${gRad()}`, g5Hela >= 18);
 
+  }
+  if (await del('N2')) {
   // ── N: kort kant i kant (MES-28 Del 2) ─────────────────────────────
   /* Två kort som nuddar har ingen springa: masken är EN region med två
      svarta kanter intill varandra, och erosionen i dela() kan inte dela
@@ -1122,6 +1286,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   r = await summa(20, () => rutaTra({}, g => { TREW(g); for (let yy = 20; yy < 140; yy++) for (let xx = 82; xx < 95; xx++) g[yy * W + xx] = Math.min(255, g[yy * W + xx] + 40); }));
   console.log(`     N4 (mätning) strimma 13 px utan luft mot korten: spår ${r.sist.length} (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort) + '@' + Math.round(t.cx) + ',' + Math.round(t.cy) + (t.skymd ? ' skymd' : '')).join(', ')}), hela kort ${helaKort(r.sist)}, skurna ${Kamera.diagnos.skurna}`);
 
+  }
+  if (await del('U1')) {
   // ── MES-29 helbild: rutan är borta, läget (upp) byts utan nollställning ──
   // U1: läget byts på datorn — tappläget tolkas om, inget nollställs
   nystart(); await referens();
@@ -1136,6 +1302,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   const rU = Kamera.ruta;
   check(`U2 gammal kalibrering: ${JSON.stringify(rU)}`, rU.x === 0 && rU.y === 0 && rU.w === 1 && rU.h === 1 && rU.upp === 'h');
   nystart();   // U2 lämnar läget liggande
+  }
+  if (await del('D1')) {
   // ── MES-29 dubblett: ett kort får inte bli två spår ─────────────────
   /* Datorns avstämning räknar fysiska kort (se dev/avstamning.cjs); här
      provas telefonens halva: var det andra spåret föddes. */
@@ -1190,6 +1358,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`D4 helbildens kort i graveyard-rutan: spår ${JSON.stringify(d4)}`, d4.length === 1 && d4[0] === 'Island');
   }
 
+  }
+  if (await del('W12')) {
   // ── MES-29 skräp: Claudes "inget kort" och spår som prövas ─────────
   /* Bänken har ingen video (c = null), så fragaAI anropas aldrig. Proven
      ställer frågan för hand — aiFragad, provas, aiFragadNar, som identifiera
@@ -1370,6 +1540,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     ctx.performance.now = pnFore;
   }
 
+  }
+  if (await del('GL0')) {
   // ── MES-30 grundläget: tappat mäts mot en bekräftad vinkel ──────────
   /* Otappat är sällan exakt 0° och tappat sällan exakt 90°. Grundläget är
      axeln spelaren bekräftade som otappad; mer än 45° därifrån är tappat.
@@ -1440,6 +1612,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     nystart();
   }
 
+  }
+  if (await del('K4a')) {
   // ── K4 (MES-86, MES-214): den tidiga läsningen ────────────────────
   /* Ett spår som stått formstilla i två rutor läses medan det ännu är 'ny'.
      Sedan MES-214 tas ett SÄKERT tidigt svar på en gång: spåret blir 'klar'
@@ -1487,6 +1661,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     namnSvar = saker;
   }
 
+  }
   // ── RM: minnet av remsor (MES-331 pass 6) ────────────────────────
   /* Ett kort läggs helt synligt och blir säkert Plains; minnet tar dess
      remsa (cb.remsVektor). Kortet lyfts (spåret dör), och ett nytt kort
@@ -1549,9 +1724,11 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const LYFT = 20;   // 3 s: spåret dör efter bortaMs (450 ms), och det nya kortet kommer 2,4 s senare — inget flimmer
     /* Varje scen börjar med 3 s tom matta: förra scenens spår dör och deras spöken åldras förbi flimret (annars föds kortet som förra scenens okända, redan frågade spår och läses aldrig). */
     const lagg = async (tro) => { namnSvar = saker; nystart(); Kamera.satTrosklar(tro || {}); await lyft(LYFT); let s = []; for (let i = 0; i < 25; i++) s = await rutaDet(kortA, detA); return s; };
+    let s;
+    if (await del('RM1')) {
     // RM1: kortet läggs, blir säkert, och minnet tar dess remsa (en fångst, förnyad högst var 3 s)
     fangster = 0;
-    let s = await lagg({ spokMs: 2000 });
+    s = await lagg({ spokMs: 2000 });
     const m1 = Kamera.remsMinne, idA = s[0] && s[0].id;
     check(`RM1 helt synligt säkert kort: spår ${JSON.stringify(s)}, minne ${JSON.stringify(m1.map(e => ({ id: e.sparId, namn: e.namn, prov: e.prov, lever: e.lever })))}, fångster ${fangster}`,
           s.length === 1 && s[0].st === 'klar' && s[0].namn === 'Plains' && m1.length === 1 && m1[0].namn === 'Plains' && m1[0].sparId === idA && m1[0].prov >= 1 && m1[0].lever && fangster >= 1 && fangster <= 2);
@@ -1567,6 +1744,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`RM3 nytt täckt kort på platsen (nytt id): spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}, säkra ur minnet ${Kamera.minneStat.sakra}`,
           s.length === 2 && c3.id !== idA && c3.st === 'klar' && c3.namn === 'Plains' && c3.varfor === 'remsa minne' && !!q3 && q3.minnen.length === 1 && q3.minnen[0] === 'Plains#' + idA + '×' + m1[0].prov
           && !!o3.id && !!qo && qo.minnen.length === 1 && Kamera.minneStat.sakra >= 1);
+    }
+    if (await del('RM3b')) {
     // RM3b: samma med spokMs förvalet — det nya spåret får spökets id och läses om som 'ny'; minnet står kvar (ett spår utan säkert namn rör det inte) och får gälla
     s = await lagg(); const idB = s[0] && s[0].id; s = await lyft(LYFT);
     namnSvar = osaker; remsFragor = [];
@@ -1574,12 +1753,16 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const c3b = s.find(t => t.tackt) || {}, q3b = remsFragor.find(f => f.id === c3b.id);
     check(`RM3b spökets id: spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}`,
           s.length === 2 && c3b.id === idB && c3b.st === 'klar' && c3b.namn === 'Plains' && c3b.varfor === 'remsa minne' && !!q3b && q3b.minnen.length === 1);
+    }
+    if (await del('RM3c')) {
     // RM3c: glomKort (människan sa att namnet var fel) stryker minnet för spåret — det läses om utan minne
     s = await lagg(); const idC = s[0] && s[0].id;
     Kamera.glomKort(idC); namnSvar = osaker; remsFragor = [];
     const m3c = Kamera.remsMinne.length;
     for (let i = 0; i < 20; i++) s = await rutaDet(kortA, detA);
     check(`RM3c glömt kort: minne efter glomKort ${m3c}, spår ${JSON.stringify(s)}, fångster efter ${fangster}`, m3c === 0 && s.length === 1 && s[0].st === 'okand');
+    }
+    if (await del('RM4')) {
     // RM4: samma som RM3, men kortet har varit borta längre än T.remsaMinneS (20 s): minnet är rensat, det täckta kortet förblir okänt
     s = await lagg({ spokMs: 2000 }); const idA4 = s[0] && s[0].id;
     s = await lyft(Math.ceil(21000 / TAKT));
@@ -1589,6 +1772,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const c4 = s.find(t => t.tackt) || {}, q4 = remsFragor.find(f => f.id === c4.id);
     check(`RM4 borta 21 s: minne efter lyftet ${m4.length}, täckt spår ${c4.st} ${c4.namn || '–'} [${c4.varfor || ''}], remsfråga ${JSON.stringify(q4)}`,
           idA4 != null && m4.length === 0 && c4.st === 'okand' && !!q4 && q4.minnen.length === 0);
+    }
+    if (await del('RM5')) {
     // RM5: samma plats i tiden men inte i rummet — det nya täckta kortet ligger två kortbredder bort: inget minne
     s = await lagg({ spokMs: 2000 }); const s5a = JSON.stringify(s), m5a = Kamera.remsMinne.length, f5a = fangster;
     s = await lyft(LYFT); const m5b = Kamera.remsMinne.length;
@@ -1599,6 +1784,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const c5 = s.find(t => t.tackt) || {}, q5 = remsFragor.find(f => f.id === c5.id);
     check(`RM5 annan plats: efter läggningen spår ${s5a} minne ${m5a} fångster ${f5a}, efter lyftet minne ${m5b}, sist minne ${Kamera.remsMinne.length}, täckt spår ${c5.st} ${c5.namn || '–'} [${c5.varfor || ''}], remsfråga ${JSON.stringify(q5)}`,
           Kamera.remsMinne.length === 1 && c5.st === 'okand' && !!q5 && q5.minnen.length === 0);
+    }
+    if (await del('RM7')) {
     // RM7: det ÖVERSTA kortet i en hög lärs (omlott men inget ovanpå), det undre inte ('kort ovanpå') — steg 1 efter pass 6
     namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT); fangster = 0;
     for (let i = 0; i < 30; i++) s = await rutaDet(bygg3, det3);
@@ -1607,6 +1794,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`RM7 högens översta kort lärs: spår ${JSON.stringify(s)}, minne ${JSON.stringify(m7.map(e => ({ id: e.sparId, namn: e.namn, prov: e.prov })))}, skäl ${JSON.stringify(skal7)}, fångster ${fangster}`,
           s.length === 2 && o7.st === 'klar' && m7.length === 1 && m7[0].sparId === o7.id && m7[0].prov >= 1 && !m7.some(e => e.sparId === c7.id)
           && skal7.some(x => x.id === c7.id && x.skal === 'kort ovanpå') && skal7.some(x => x.id === o7.id && x.omlott && !x.skal));
+    }
+    if (await del('RM8')) {
     // RM8: det översta kortets remslåda rymmer det undres remsa (golden 05 hög B) — lärs inte ('grannens remsa i remsan')
     nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT); fangster = 0;
     const B8 = { x: 60, y: 55, w: 30, h: 42 };   // fem px ned: B:s remsa (y 55–61, lös) skär A:s (y 50–56); A:s remsmitt (53) ligger utanför B — A under B, B fri
@@ -1617,6 +1806,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const skal8 = Kamera.spar.map(t => ({ id: t.id, skal: t.minneSkal || null }));
     check(`RM8 grannens remsa i remsan: spår ${JSON.stringify(s)}, minne ${m8.length}, skäl ${JSON.stringify(skal8)}, fångster ${fangster}`,
           s.length === 2 && o8.st === 'klar' && m8.length === 0 && fangster === 0 && skal8.some(x => x.id === o8.id && x.skal === 'grannens remsa i remsan'));
+    }
+    if (await del('RM9')) {
     // RM9: dubbletten på spegelmattan (Jespers bild 2, 2026-10-08) — kortet lyfts och ett nytt spår föds en kortbredd bredvid, HELT SYNLIGT:
     //      minnet får tävla som vittne (o.omfodd, T.remsaMinneOmfodRadie), spåret blir inte säkert ur minnet, och vittnet når datorn i rapporten
     s = await lagg({ spokMs: 2000 }); const idA9 = s[0] && s[0].id;
@@ -1642,6 +1833,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const q9c = remsFragor.find(f => f.id === (s[0] || {}).id);
     check(`RM9c remsaMinneOmfodd 0: spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}`, s.length === 1 && s[0].st === 'okand' && !!q9c && !q9c.omfodd && q9c.minnen.length === 0);
     Kamera.satTrosklar({ remsaMinneOmfodd: 1 });
+    }
     // ── RG: minnet på geo-skurna remsor, och radiens gräns vid tap (golden-plattan 2026-10-15, punkt 2) ──
     /* Sedan T.remsaGeo skärs nästan varje remsa ur kortets geometri, och
        minnet fick inte döma på dem ('geo: minnets tröskel omätt') förrän
@@ -1653,7 +1845,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
        RG1 (finally: också om ett check kastar). Lådan 30 × 42 har ett korts
        kvot, så mätningen blir hel och säker (vm.helt, sakerLang) och remsGeo
        tar kortets egna mått ur den. */
-    {
+    if (await del('RG1')) {
       const KVm = vm.runInContext('KortVinkel', ctx), kvForra = KVm.kortVinkel;
       KVm.kortVinkel = () => ({ axel: 0, vinkel: 0, phi: 0, styrka: 0.6, kalla: 'remsa' });
       try {
@@ -1669,6 +1861,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
               && !!qG && qG.geo && qG.skal === null && qG.minnen.length === 1 && qG.minnen[0] === 'Plains#' + idG + '×' + provG && omatt === 0);
       } finally { KVm.kortVinkel = kvForra; }
     }
+    if (await del('RG2')) {
     /* RG2: tap — en känd gräns, inte en förmåga. Ett kort som tappas
        eller otappas vrids 90° runt sin mitt, så remsans mitt flyttar ~0,6
        kortlängder — utanför radien 0,5 remslängder (T.remsaMinneRadie;
@@ -1695,6 +1888,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`RG2 tappat på samma mitt, 0,85 remslängder (radie ${Kamera.trosklar.remsaMinneRadie}): spår ${JSON.stringify(s)}, remsfråga ${JSON.stringify(qTap)}, minne ${JSON.stringify(mTap)}`,
           Kamera.trosklar.remsaMinneRadie === 0.5 && idTap != null && mTap.sparId === idTap
           && s.length === 2 && cTap.id !== idTap && cTap.st === 'okand' && !!qTap && qTap.minnen.length === 0 && /\b1 för långt bort/.test(qTap.skal || ''));
+    }
+    if (await del('RM6')) {
     // RM6: avstängt (T.remsaMinne 0): ingen fångst, ingen kandidat
     fangster = 0;
     s = await lagg({ spokMs: 2000, remsaMinne: 0 }); s = await lyft(LYFT);
@@ -1706,6 +1901,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     Kamera.satTrosklar({ remsaMinne: 1 });
     namnSvar = saker;
 
+    }
     // ── LV: 'modell land' på ett täckt spår UTAN remslåda kräver också vittne (hålet granskningen fann 2026-10-15) ──
     /* Två kort omlott (bygg3) där INGEN låda har remsa (det([A, B], [])):
        då får ingen heller en syntetisk remsa (fyndUrLador kräver en granne
@@ -1716,7 +1912,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
        remslåda, och kortet blev klar Swamp [modell land] utan något vittne:
        just v2:s två säkra fel (historik 2026-10-06). Titelraden på
        beskärningen (namnLast) är det enda vittnet som finns utan remsa. */
-    {
+    if (await del('LV1')) {
       const landSvar = namnLast => () => Object.assign({ namn: 'Swamp', sid: 's3', saker: true, varfor: 'modell land', cands: [{ name: 'Swamp', sid: 's3', score: 0.6 }],
         bild: { accept: false, inliers: 0, modell: true, marginal: 0.369, ensamt: true, stod: 0, orbNamn: null, skala: null } }, namnLast ? { namnLast } : {});
       const detLV = det([lada(A.x, A.y, A.w, A.h), lada(B.x, B.y, B.w, B.h)], []), detLV3 = det([lada(A.x, A.y, A.w, A.h)], []);
@@ -1751,7 +1947,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
        [remsa först] utan hela kortets läsning, B (ovanpå, inget över sig) läses som förut. RF2: remsan ger en
        svagare säker väg ('remsa+titel') → avgör inte, A får hela kortets Plains som förut. RF3: remsaForst 0 →
        ingen remsan-först-läsning alls. */
-    {
+    if (await del('RF1')) {
       const pac = varfor => () => ({ namn: 'Pacifism', sid: 's2', saker: true, varfor, marginal: 0.31, cands: [{ name: 'Pacifism', sid: 's2', score: 0.6 }] });
       const fmtRF = l => l.map(t => `#${t.id} ${t.st} ${t.namn || '–'} [${t.varfor || ''}] tackt=${t.tackt ? 1 : 0}`).join(', ');
       const prov = async (fs, tro) => {
@@ -1780,7 +1976,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
        från båda (HB4). Före rättelsen tog det första spåret i listan
        Scourge säkert — ett andra exemplar av ett kort leken har ett av —
        i 8 av 19 golden-körningar. */
-    {
+    if (await del('HB0')) {
       const SC = 'Scourge of the Undercity', PA = 'Pacifism';
       namnSvar = osaker; nystart(); Kamera.satTrosklar({ remsaMinne: 0, spokMs: 2000 }); await lyft(LYFT);
       for (let i = 0; i < 20; i++) s = await rutaDet(bygg3, det3);
@@ -1896,7 +2092,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const spar0 = () => Kamera.spar.find(t => t.tillstand !== 'skrap') || Kamera.spar[0];
 
     // VK0: metoden på syntetiska vridna kort (samma konvention som A2): axeln inom ±10° i alla vinklar, full riktning med remsan; slät yta → null
-    {
+    if (await del('VK0')) {
       let n = 0, inom = 0, nr = 0, rikt = 0;
       const pix = (u, v, K, L) => {
         if (u < 0.03 * K || v < 0.03 * L || u > 0.97 * K || v > 0.97 * L) return 20;
@@ -1928,7 +2124,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     /* VK0b: tolv riktiga lådor ur golden-fotona (dev/kamerabank-vinkel.json: A2:s lådor och remsor, facits
        vinkel ur hörnen, samma beskärning som KortVinkel.kortVinkel) — snett 10–16° från bildaxeln, en hög
        (17), leken utan remsa, en token vars "remsa" är typraden (riktningen blir fel, axeln rätt — A2:s fälla 1). */
-    {
+    if (await del('VK0b')) {
       const vb = JSON.parse(fs.readFileSync(require('path').join(__dirname, 'kamerabank-vinkel.json'), 'utf8')).lador;
       let inom = 0, nr = 0, rikt = 0; const rader = [];
       for (const l of vb) {
@@ -1942,6 +2138,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
             vb.length === 12 && inom === vb.length && rikt === nr);
     }
 
+    if (await del('VK1')) {
     /* Ett kort som läggs otappat 10° snett och blir säkert Plains, sedan tappas 65° (A2: Jesper tappar 60–70°) på samma plats:
        lådan blir nästan kvadratisk (kvot 1,13) och dagens 1,15-krav fäller domen — med den uppmätta vinkeln tappas kortet. */
     const tappa = async (tro) => {
@@ -1961,8 +2158,9 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     Kamera.satTrosklar({ vinkelMat: 1 });   // trösklarna står kvar mellan scenerna
     check(`VK1b samma med vinkelMat 0 (dagens låda): före ${JSON.stringify(r0.fore)}, efter ${JSON.stringify(r0.efter)} — lådans kvot 1,13 fäller domen, kortet står kvar otappat`,
           r0.fore.st === 'klar' && !r0.efter.tappad && (r0.efter.v === 0 || r0.efter.v === 90));
+    }
     // VK1c: osäker långsida (profilen) — dagens regel gäller, ingen tappning
-    {
+    if (await del('VK1c')) {
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       const a = vridet(75, 75, 10), b = vridet(75, 75, 65);
       kvSvar = svarFor(10); let s = []; for (let i = 0; i < 25; i++) s = await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));
@@ -1973,7 +2171,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     }
 
     // VK1d: lådan är kortet plus en hand (fel form för ett kort i 65°) — remsan säger 65°, men tap-domen står kvar
-    {
+    if (await del('VK1d')) {
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       const a = vridet(75, 75, 10), b = vridet(75, 75, 65);
       kvSvar = svarFor(10); let s = []; for (let i = 0; i < 25; i++) s = await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));
@@ -1986,6 +2184,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
             t && t.tillstand === 'klar' && !t.tappad && t.vm === null && t.vmRa && t.vmRa.helt === false);
     }
 
+    if (await del('VK1e')) {
     /* VK1e: ett spår UTAN namn som föds tappat 65° bredvid ett namngivet kort (golden 18: Plains i högen föddes
        efter tappningen) — kortets långsida ur lådan och vinkeln mot de namngivna spårens (kortMatt) räcker, lådans
        kvot 1,13 krävs inte. Med vinkelMat 0 står det kvar otappat som förut. */
@@ -2003,6 +2202,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`VK1e spår utan namn, tappat 65° bredvid ett namngivet: ${JSON.stringify(e1)}; med vinkelMat 0 ${JSON.stringify(e0)}`,
           e1.namnat === 'klar' && e1.b !== 'klar' && e1.tappad && e0.namnat === 'klar' && !e0.tappad);
 
+    }
     /* TP2 (MES-293, rättelse 2): Mountain i Jespers parti 2026-10-11 (bordsloggen pass-2026-10-11-2006,
        spår 7, s 254–304). Kortet låg tappat ~20° snett i en nästan kvadratisk låda (75 × 67) och fick
        namnet med ramen 59 × 47 — kvoten 0,80, för kvadratisk för ett kort. Ramen blev namnMatt, lådans
@@ -2011,7 +2211,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
        låda 2 px lös (54 × 48), och ramen blir 47 × 38 (0,81). Långsidan är först osäker (profil) — B
        föds och får namnet otappat, som Mountain — sedan säker (remsan). Med fönstret 0,66–0,78
        (kortKvot) blir ramen inget mått, och tap-domen går mot A:s. */
-    {
+    if (await del('TP2')) {
       const namnat = vridet(50, 75, 0), b = vridet(150, 75, 65);
       const bl = { x: b.lada.x - 2, y: b.lada.y - 2, w: b.lada.w + 4, h: b.lada.h + 4 };
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000, vinkelMat: 1 }); await lyft(LYFT);
@@ -2034,7 +2234,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
        där. Lådan passerar kortets kvot på vägen (62 × 48 = 0,77; 66 × 48 = 0,73), och ett snett kort utan namnMatt har
        inget "vuxen runt kortet"-skydd: blev hand-lådan namnMatt hade den sedan hållit kortet med handen. Lådan får bli
        kortets mått bara i rutan då namnet sätts, eller när kortet ligger stilla och lådan inte växt sedan dess. */
-    {
+    if (await del('TP3')) {
       const namnat = vridet(50, 75, 0), b = vridet(150, 75, 65);
       const bl = { x: b.lada.x - 2, y: b.lada.y - 2, w: b.lada.w + 4, h: b.lada.h + 4 };
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000, vinkelMat: 1 }); await lyft(LYFT);
@@ -2056,7 +2256,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     }
 
     // VK2: långsidan hoppar 90° medan lådan står kvar (A2:s fälla 3, två kort i en låda) — spåret behåller sin; en verklig tappning (lådan vrids) gäller
-    {
+    if (await del('VK2')) {
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       /* Lådan darrar (tolv olika lägen, 2–3 analyspixlar isär — mer än vinkelMinnets 3 %, så att varje ruta mäts om) men rör sig inte (mitten < 0,15 långsidor, samma kvot). */
       const a = vridet(75, 75, 59), darr = [];
@@ -2075,7 +2275,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     }
 
     // VK3: samma låda i varje ruta mäts en gång (vinkelMinne), och leken (klassen baksida) mäts också
-    {
+    if (await del('VK3')) {
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       const a = vridet(75, 75, 12), lek = vridet(150, 80, 8);
       kvSvar = (b) => (b.x0 > 120 * V ? svarFor(8, 'form') : svarFor(12));
@@ -2087,7 +2287,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
             kvAnrop - anrop0 === 4 && vinkelGrader(tk) === 102 && vinkelGrader(tl) === 98 && tl && tl.vm && tl.vm.kalla === 'form');
     }
     // VK4: när beskärningen vrids (beskarVridning) — osäkert betyder orört
-    {
+    if (await del('VK4a')) {
       const vmFor = (g, upp, o) => { const c = Math.abs(Math.cos(g * D)), s = Math.abs(Math.sin(g * D)), L = 400, K = L * 63 / 88;
         return Object.assign({ grader: g, upp, sakerLang: true, helt: true, kalla: upp != null ? 'remsa' : 'form', L, K, cx: 800, cy: 600, w: L * s + K * c, h: L * c + K * s }, o || {}); };
       const sp = (vm, o) => Object.assign({ vm, tackt: null, omlott: false, remsaLada: { x: 0, y: 0, w: 10, h: 2 }, remsaSynt: false }, o || {});
@@ -2111,7 +2311,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
             b.snett25 === -25 && b.snett25ner === 155 && b.rakNer === 177 && b.rak === null && b.tappat110 === -110 && b.syntetisk === null && b.hallen === null);
     }
     // VK5: beskärningen i läsningen — ett kort 25° snett (remsa, säker långsida) beskärs vridet −25°, kortets egna mått, och kort-argumentet är null
-    {
+    if (await del('VK5')) {
       /* Remsan ur kortets geometri (MES-340) vrider sin duk i kortets vinkel — samma −25° som beskärningen här — och
          stängs av i VK5/VK5b, som mäter BESKÄRNINGENS vridningar: med remsaGeo på hade VK5b räknat remsans vridning. */
       namnSvar = osaker; nystart(); Kamera.satTrosklar({ spokMs: 2000, beskarRikt: 0, remsaGeo: 0 }); await lyft(LYFT);
@@ -2135,7 +2335,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       Kamera.satTrosklar({ beskarVrid: 1, remsaGeo: 1 });
     }
     // VK6: grundläget som exakt vinkel (API:t för steg 3) — leken 20° snett: otappat 20° snett, tappat 110°; en knuff ändrar inget
-    {
+    if (await del('VK6')) {
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       const a = vridet(75, 75, 25); kvSvar = svarFor(25);
       let s = []; for (let k = 0; k < 35; k++) s = await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));   // 5,1 s: tre nya remsmätningar (minnet gäller 2 s)
@@ -2156,7 +2356,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
             bord.length > 0 && !falt.some(k => /vinkel|grad|axel|^rot/i.test(k)) && typeof bord[0].tappad === 'boolean');
     }
     // VK8 (granskningen F1): lådan blir bara den synliga delen av kortet och har ett helt korts form i fel vinkel — kortets egen långsida (28) stämmer inte med kortets (42), mätningen räknas inte, spåret håller sin vinkel
-    {
+    if (await del('VK8')) {
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       const a = vridet(75, 75, 0); kvSvar = svarFor(0);
       let s = []; for (let k = 0; k < 25; k++) s = await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));
@@ -2169,7 +2369,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
             fore === 90 && t && vinkelGrader(t) === 90 && t.vm === null && t.vmRa && t.vmRa.storlekOk === false && Kamera.sparVinkel(t.id).matt === false);
     }
     // VK8b (granskningen F1, R2-1): sparVinkel().matt kräver tre NYA remsmätningar med samma axel — ett stilla kort mäts om när minnet gått ut (2 s)
-    {
+    if (await del('VK8b')) {
       namnSvar = osaker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       const a = vridet(75, 75, 20); kvSvar = svarFor(20);
       const matt = [], a0 = kvAnrop;
@@ -2180,7 +2380,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       namnSvar = saker;
     }
     // VK11 (granskningen R2-1, P1/P1b): utan namngivet kort — en skymd låda med ett helt korts form i fel vinkel, och leken (ingen remsa) — formen ger aldrig matt
-    {
+    if (await del('VK11')) {
       namnSvar = osaker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       const a = vridet(75, 75, 0); kvSvar = svarFor(0);
       for (let k = 0; k < 25; k++) await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));
@@ -2197,7 +2397,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       namnSvar = saker;
     }
     // VK12 (granskningen R2-2, P2b): formen säger fel långsida först, sedan remsan i en nästan kvadratisk låda som "inte rört sig" — remsan vinner, beskärningen vrids −29°
-    {
+    if (await del('VK12')) {
       namnSvar = osaker; nystart(); Kamera.satTrosklar({ spokMs: 2000, beskarRikt: 0 }); await lyft(LYFT);
       const a = vridet(75, 75, 29);
       const l1 = { x: 75 - 27, y: 75 - 24.3, w: 54, h: 48.6 }, l2 = { x: 50, y: 50, w: 50, h: 50 };
@@ -2210,7 +2410,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
             vinkelGrader(t) === 119 && t.vm && t.vm.kalla === 'remsa' && bv && Math.round(bv.rot) === -29);
     }
     // VK13 (granskningen R2-3, P3): fyra lådor som glider varje ruta före i detektorns ordning svälter inte ett femte kort som tappas
-    {
+    if (await del('VK13')) {
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       const pos = [[30, 40], [80, 40], [130, 40], [180, 40]];
       const fem = vridet(120, 110, 0), femT = vridet(120, 110, 90);
@@ -2227,7 +2427,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
             fore && forlopp.includes('T') && forlopp[forlopp.length - 1] === 'T');
     }
     // VK9 (granskningen F2): spår utan namn tappat 65° bredvid ett namngivet kort som ligger 20° snett — mot kortets egna sidor, inte dess raka låda
-    {
+    if (await del('VK9')) {
       const namnat = vridet(50, 75, 20), b = vridet(170, 75, 65);
       namnSvar = (id) => { const t = Kamera.spar.find(q => q.id === id); return t && t.cx < 110 ? saker() : osaker(); };
       nystart(); Kamera.satTrosklar({ spokMs: 2000, vinkelMat: 1 }); await lyft(LYFT);
@@ -2239,7 +2439,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       namnSvar = saker;
     }
     // VK10 (granskningen F5): sex nya kort i en ruta — högst fyra mäts, resten i nästa
-    {
+    if (await del('VK10')) {
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       const kortSex = [];
       for (const y of [40, 105]) for (const x of [40, 110, 180]) kortSex.push(vridet(x, y, 0));
@@ -2293,6 +2493,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const L = { x: 150, y: 60, w: 30, h: 42 }, L2 = { x: 40, y: 70, w: 30, h: 42 };
     const nyttBord = async upp => { nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: upp || 'v' } }); namnSvar = svar; await kor(14, [], []); };
 
+    if (await del('LK1')) {
     // LK1: leken läggs ner på ett tomt bord — library efter 1,5 s still, och dess vinkel blir otappat
     await nyttBord('h');
     const l1a = await kor(6, [hog(L)], [lada(L, 'baksida')]);
@@ -2349,6 +2550,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK5c leken i handen över L3 två rutor: ${l5f && l5f.lage} x ${l5f && l5f.ruta && Math.round(l5f.ruta.x * W)}; sedan ruta för ruta ${l5g.join(' ')}; lagd vid L3: ${l5h && l5h.lage} x ${l5h && l5h.ruta && Math.round(l5h.ruta.x * W)}, id ${l5h && l5h.id}`,
           l5f.lage === 'nere' && Math.abs(l5f.ruta.x * W - L3c.x) < 2 && l5g[2].startsWith('nere') && l5g[3] === 'upp@' + L2.x && l5h.lage === 'nere' && Math.abs(l5h.ruta.x * W - L3c.x) < 2 && l5h.id === id1);
 
+    }
+    if (await del('LK6')) {
     // LK6: två nedvända högar (starthanden nedvänd) — ingen lek förrän en plockats upp; den som ligger kvar blir library
     await nyttBord('v');
     const l6a = await kor(16, [hog(L), hog(L2)], [lada(L, 'baksida'), lada(L2, 'baksida')]);
@@ -2356,6 +2559,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK6 två högar: medan båda ligger ${l6a && l6a.lage}, när den ena plockats upp ${l6b && l6b.lage} x ${l6b && l6b.ruta && l6b.ruta.x} (väntat ${(L.x / W).toFixed(3)})`,
           l6a.lage === 'ingen' && l6b.lage === 'nere' && Math.abs(l6b.ruta.x - L.x / W) < 0.01);
 
+    }
+    if (await del('LK6b')) {
     // LK6b: två högar, och en hand vilar på den ena (ingen låda, platsen täckt) — den andra blir inte ensam; när handen gått och högen är borta: library
     await nyttBord('v');
     const handL2 = g => hand(g, W, L2.x + 15, L2.y + 21, 26, 30, 170);
@@ -2365,12 +2570,16 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK6b hand på den ena högen i 4 s: ${l6c && l6c.lage}; handen och högen borta: ${l6d && l6d.lage} x ${l6d && l6d.ruta && l6d.ruta.x}`,
           l6c.lage === 'ingen' && l6d.lage === 'nere' && Math.abs(l6d.ruta.x - L.x / W) < 0.01);
 
+    }
+    if (await del('LK7')) {
     // LK7: en hög vid bildkanten blir aldrig library
     await nyttBord('v');
     const K = { x: 0, y: 40, w: 30, h: 42 };
     const l7 = await kor(16, [hog(K)], [lada(K, 'baksida')]);
     check(`LK7 hög vid kanten: ${l7 && l7.lage}`, l7.lage === 'ingen');
 
+    }
+    if (await del('LK8')) {
     // LK8: ingen lek — första kortets vinkel blir otappat (liggande kort med upp 'v' → 0°); en lek som kommer sedan ändrar den inte
     await nyttBord('v');
     const F = { x: 60, y: 50, w: 42, h: 30 };
@@ -2409,6 +2618,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       check(`LK8e kameran startade med kort på bordet: inget grundläge först (${fore}), sedan de flestas axel (två stående, ett liggande): ${grader()}°`, fore === null && grader() === 90);
     }
 
+    }
+    if (await del('LK9')) {
     // LK9: ett uppvänt kort läggs över lekens kant (klassen kort, mitten utanför lekens ruta) — läses som vanligt, blir inte lekens skräp.
     //      Ett kort med mitten PÅ leken syns inte (lekens ruta, LK16) — som med uppstartens library-ruta.
     const P = { x: 172, y: 64, w: 30, h: 42 };   // över lekens högra kant, men ett eget kort (egen låda)
@@ -2418,12 +2629,16 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const p9 = Kamera.spar.find(t => t.klass === 'kort' && Math.abs(t.cx - (P.x + P.w / 2)) < 4);
     check(`LK9 kort över lekens kant: ${p9 && p9.tillstand} ${p9 && p9.namn} [${p9 && p9.varfor}]`, !!p9 && p9.tillstand === 'klar' && p9.namn === 'Plains');
 
+    }
+    if (await del('LK10')) {
     // LK10: kameran startar med kort på bordet och en ensam hög (som golden 08): högen blir library, och inget "första kort" sätter vinkeln
     nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v' } }); namnSvar = svar;
     const F2 = { x: 30, y: 30, w: 30, h: 42 }, F3 = { x: 80, y: 30, w: 30, h: 42 };
     const l10 = await kor(26, [kortR(F2), kortR(F3), hog(L)], [lada(F2, 'kort'), lada(F3, 'kort'), lada(L, 'baksida')]);
     check(`LK10 kort och en hög från början: ${l10 && l10.lage} (${l10 && l10.grund}), grundläget ${grader()}°`, l10.lage === 'nere' && l10.grund === 'lek' && grader() === 90);
 
+    }
+    if (await del('LK12')) {
     // LK12: sleevesens färg — medianen i lekens inre över flera rutor, också när ett blänk ligger på leken i varannan ruta; magic = false (spåret sa 'baksida ficka')
     await nyttBord('v');
     const rgbaRuta = blank => { const d = new Uint8ClampedArray(W * H * 4); for (let i = 0; i < W * H; i++) { d[4 * i] = 90; d[4 * i + 1] = 80; d[4 * i + 2] = 70; d[4 * i + 3] = 255; }
@@ -2503,7 +2718,9 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       await new Promise(r => setImmediate(r));
     }
 
+    }
     // ── Granskningen runda 1 (MES-334 steg 3): fynd 2, 3 och 5 som bänkfall (granskarens GP1–GP3) och fynd 1 (lekens ruta) ──
+    if (await del('LK13')) {
     // LK13 (GP1): grundläget ur leken nollas av en skrivning av raden utan grundläge (tillampaKalRad → satGrund(null)) — telefonen tar lekens vinkel igen
     await nyttBord('h');
     await kor(14, [hog(L)], [lada(L, 'baksida')]);
@@ -2512,6 +2729,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     await kor(30, [hog(L)], [lada(L, 'baksida')]);
     check(`LK13 grundläget ur leken efter en radskrivning utan grundläge: före ${g13a}° (${l13a}), efter 4,5 s ${grader()}° (${Kamera.lek && Kamera.lek.grund}), leken ${Kamera.lek && Kamera.lek.lage}`,
           g13a === 90 && grader() === 90 && Kamera.lek && Kamera.lek.grund === 'lek');
+    }
+    if (await del('LK14')) {
     // LK14 (GP2): leken lyfts medan ett nedvänt kort ligger still vid L2 sedan länge — Picked up, inte ett hopp till L2
     await nyttBord('v');
     await kor(14, [hog(L)], [lada(L, 'baksida')]);
@@ -2526,12 +2745,16 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const l14b = await kor(20, [hog(L2), hog(L3)], [lada(L2, 'baksida'), lada(L3, 'baksida')]);
     check(`LK14b leken lagd vid L3 medan kortet vid L2 ligger kvar: ${l14b && l14b.lage} x ${l14b && l14b.ruta && l14b.ruta.x} (L3 ${(L3.x / W).toFixed(3)}), id ${l14b && l14b.id}`,
           !!l14b && l14b.lage === 'nere' && Math.abs(l14b.ruta.x - L3.x / W) < 0.01 && l14b.id === id14);
+    }
+    if (await del('LK15')) {
     // LK15 (GP3): två högar ligger där från början, sedan läggs starthanden nedvänd — ingen av dem förrän bara en är kvar
     await nyttBord('v');
     const Hh = { x: 100, y: 95, w: 30, h: 42 };
     await kor(26, [hog(L), hog(L2)], [lada(L, 'baksida'), lada(L2, 'baksida')]);
     const l15 = await kor(16, [hog(L), hog(L2), hog(Hh)], [lada(L, 'baksida'), lada(L2, 'baksida'), lada(Hh, 'baksida')]);
     check(`LK15 två gamla högar + starthanden nedvänd: ${l15 && l15.lage}${l15 && l15.ruta ? ' x ' + l15.ruta.x : ''}`, !!l15 && l15.lage === 'ingen');
+    }
+    if (await del('LK16')) {
     // LK16: lekens egen ruta — när leken hittats föds inga spår på leken (en kortlåda mitt på den), och rutan följer med när leken läggs någon annanstans
     await nyttBord('v');
     await kor(14, [hog(L)], [lada(L, 'baksida')]);
@@ -2552,6 +2775,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const pa16d = Kamera.spar.filter(t => t.klass === 'kort' && t.tillstand !== 'skrap').length;
     check(`LK16b utan lek: kortet vid L blir ett spår (${pa16d})`, pa16d === 1);
 
+    }
+    if (await del('LK17')) {
     // LK17 (granskarens RP1, runda 2 fynd 2): leken flyttas till bildkanten — den står som upplockad vid L,
     //   men lekens ruta står inte kvar på den tomma platsen: ett riktigt kort som läggs där får ett spår
     await nyttBord('v');
@@ -2564,6 +2789,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const n17 = Kamera.spar.filter(t => t.klass === 'kort' && Math.abs(t.cx - (k17P.x + k17P.w / 2)) < 4 && t.tillstand !== 'skrap').length;
     check(`LK17 leken flyttad till kanten: ${l17 && l17.lage} x ${l17 && l17.ruta && l17.ruta.x}; kort på lekens gamla plats efter 3 s: ${n17} spår`, n17 === 1);
 
+    }
+    if (await del('LK18')) {
     // LK18 (granskarens RP2, runda 2 fynd 3): leken lyfts (söka), handen läggs nedvänd medan leken är uppe
     //   (och tas för leken), leken läggs tillbaka vid L, handen plockas upp — leken ligger vid L igen
     await nyttBord('v');
@@ -2577,6 +2804,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK18 handen nedvänd under sökningen: lyft ${l18a}; handen lagd ${l18b && l18b.lage} x ${l18b && l18b.ruta && l18b.ruta.x}; leken tillbaka vid L ${l18c && l18c.lage}; handen upplockad 6 s: ${l18d && l18d.lage} x ${l18d && l18d.ruta && l18d.ruta.x} (L ${(L.x / W).toFixed(3)})`,
           !!l18d && l18d.lage === 'nere' && Math.abs(l18d.ruta.x - L.x / W) < 0.01);
 
+    }
+    if (await del('LK19')) {
     // LK19 (granskarens RP5, runda 2 fynd 1): leken blandas i handen ovanför bordet — detektorn ser den ibland,
     //   också över lekens gamla plats — och läggs ner vid L3: leken glider dit
     await nyttBord('v');
@@ -2604,6 +2833,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK20 leken upp (${l20a}), lagd vid L3, en ruta med en baksida över den gamla platsen: efter 9 s ${l20 && l20.lage} x ${l20 && l20.ruta && l20.ruta.x} (L3 ${(k19L3.x / W).toFixed(3)})`,
           !!l20 && l20.lage === 'nere' && Math.abs(l20.ruta.x - k19L3.x / W) < 0.01);
 
+    }
+    if (await del('LK21')) {
     // LK21 (granskarens RP7, runda 3 fynd 1): sökningen med två lyft. Leken lyfts från L och läggs vid L3 (steg 3
     //   flyttar den), handen läggs nedvänd vid H, och leken lyfts igen för att blandas: leken står som upplockad
     //   (Picked up), den hoppar inte till handen. Blandningen tar 12 s, leken läggs vid L4, handen plockas upp:
@@ -2643,6 +2874,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK22 handen nedvänd under en sökning på 15 s: handen lagd ${l22a && l22a.lage} x ${xs21(l22a)}; handen upplockad 6 s: ${l22 && l22.lage} x ${xs21(l22)} (L ${(L.x / W).toFixed(3)})`,
           !!l22 && l22.lage === 'nere' && Math.abs(l22.ruta.x - L.x / W) < 0.01);
 
+    }
+    if (await del('LN1')) {
     // LN (steg 5): ensamma nedvända kort medan leken ligger — en låda, inte vid kanten; inte en hög av två lådor.
     //   Lika fort som ett vanligt kort (Rättelse 2, Jespers beslut 2026-10-05): det nedvända kortet kommer i samma ruta
     //   som ett vanligt korts skugga (rapportens kortlik) och går i samma ruta som det vanliga kortets spår. Förut: efter
@@ -2745,13 +2978,14 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
             JSON.stringify(nedX(s5a)) === JSON.stringify([T5.x]) && ned5 === 0 && sedd5 === 40 && markt5 === 0 && !!sista5 && sista5.kortlik);
     }
 
+    }
     // ── LV: lekens egen väg till grundläget (MES-334 sida 5, steg 0) ──
     /* Leken har ingen namnremsa, så steg 1:s sparVinkel().matt blir aldrig sann för den. Lekens vinkel tas
        i stället ur formens mätning (kalla 'form') när leken ligger still, högen är en låda, ingen annan låda
        ligger över den och masken runt den är matta — tre NYA mätningar i följd (vinkelminnet mäter en stilla
        låda om var 2 s) med samma axel ±5°. Videon är en attrapp, så KortVinkel.kortVinkel byts mot en stubb
        som svarar med lekens vinkel (som VK). Leken ritas vriden så att masken ser den där lådan ligger. */
-    {
+    if (await del('LV1@2754')) {
       const KVl = vm.runInContext('KortVinkel', ctx), kvForra = KVl.kortVinkel;
       let lvSvar = null;
       KVl.kortVinkel = () => typeof lvSvar === 'function' ? lvSvar() : lvSvar;
@@ -2834,7 +3068,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
        regionen 65 × 49 — under 0,85 × 79 — och varje dom otydlig: tappat i ~80 s med otappad form.
        Nu prövas måtten också mot de andra kortens. Här detektorns lådor (steg(…, det)) och ett
        namngivet otappat kort A bredvid, som ger bordet en kortstorlek. */
-    {
+    if (await del('TP1')) {
       const A = { x: 40, y: 60, w: 30, h: 42 };
       // TP1: B läggs tappat med en flik kant i kant (ramen/lådan 50 × 32), får namnet, fliken tas bort och B tappas upp rakt
       await nyttBord('v'); Kamera.satGrundGrader(90);
@@ -2865,7 +3099,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
      avskuren medan lådan nuddar kanten, och en ruta som växer mot kanten runt ett stilla kort är ingen
      flytt (inget nytt kort, ingen omläsning). Ett NYTT kort över kanten väntar som förut (MES-359).
      Detektorns lådor matas in som i appen (steg(…, det)), klippta mot bilden som detektor.js gör. */
-  {
+  if (await del('KK1')) {
     const forraSvar = namnSvar, forraDet = ctx.window.Detektor;
     ctx.window.Detektor = { para: kort => kort.map(b => Object.assign({}, b, { remsa: null, ur: 'lada', klass: b.klass || 'kort' })) };
     const V = 8, klippV = (v, hi) => Math.max(0, Math.min(hi, v));
@@ -2953,6 +3187,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     nystart(); namnSvar = forraSvar;
   }
 
+  if (barn) { skickaKlar(); process.send({ slut: true }, () => process.exit(0)); return; }
   console.log([...ok, ...fel].join('\n'));
   console.log(`\n${ok.length} OK, ${fel.length} FEL`);
   process.exit(fel.length ? 1 : 0);

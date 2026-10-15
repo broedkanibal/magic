@@ -18,23 +18,52 @@ cd "$(dirname "$0")/.."
 # krasch gav ändå slutkod 0 och raden "kördes" uteblev bara (2026-09-27:
 # "clamp is not defined" i varje pass syntes bara i stderr).
 #
-# Varje steg har en tidsgräns (KOLLA_TAK sekunder, förval 600; ett steg tar
-# normalt sekunder till ett par minuter). Natten 2026-10-12 hängde hogarna.cjs
-# i 72 minuter i huvudlös Chrome — samma kod gick på 33 s när den kördes om —
-# och leken.cjs hängde likadant samma natt; kolla.sh väntade utan att säga
-# något. Ett steg som slår i taket stoppas med allt det startat (Chrome är ett
-# barn till node) och körs om EN gång: ett häng är ingen testdom. Hänger det
-# igen fälls kolla.sh.
-TAK="${KOLLA_TAK:-600}"
+# Varje steg vaktas mot häng. Natten 2026-10-12 hängde hogarna.cjs i 72
+# minuter i huvudlös Chrome — samma kod gick på 33 s när den kördes om — och
+# leken.cjs hängde likadant samma natt; kolla.sh väntade utan att säga något.
+# Vakten mätte först väggtid (600 s per steg), men ett steg som ARBETAR får
+# inte fällas: kamerabank tar ~8 min CPU ensam (266 fall, 2026-10-15), och
+# under last (en annan kolla.sh, golden, flera sessioner) slog den i taket,
+# dödades, kördes om och dödades igen — det tolkades som att två kolla.sh
+# inte får köra samtidigt. Nu mäts stegets CPU-tid (processen och alla dess
+# barn, ur ett ps-anrop varannan sekund): ett steg räknas som hängt när
+# CPU-tiden inte vuxit med en sekund på KOLLA_STILLA sekunder (förval 120),
+# alltså när ingen i trädet gör något. Ett steg som hänger och ändå snurrar
+# fångas av väggtaket KOLLA_TAK (förval 1800 s), som bara är en sista spärr.
+# Ett hängt steg stoppas med allt det startat (Chrome är ett barn till node)
+# och körs om EN gång: ett häng är ingen testdom. Hänger det igen fälls
+# kolla.sh. Två kolla.sh kan köra samtidigt (egna Chrome-profiler, port 0,
+# egna temp-mappar): de delar bara CPU, och det syns i väggtiden, inte i vakten.
+TAK="${KOLLA_TAK:-1800}"
+STILLA="${KOLLA_STILLA:-120}"
 HANG="${TMPDIR:-/tmp}/kolla-hang.$$"
 doda_trad() { for b in $(pgrep -P "$1" 2>/dev/null); do doda_trad "$b"; done; kill "$1" 2>/dev/null; }
+# CPU-tid i hundradels sekunder för processen $1 och alla dess ättlingar.
+# ps skriver tiden som M:SS.ss (minuterna växer förbi 60, inga timmar).
+cpu_trad() {
+  ps -axo pid=,ppid=,time= | awk -v rot="$1" '
+    { pid[NR] = $1; pp[NR] = $2; t[NR] = $3 }
+    END {
+      i[rot] = 1; n = 1
+      while (n) { n = 0; for (k = 1; k <= NR; k++) if (!(pid[k] in i) && (pp[k] in i)) { i[pid[k]] = 1; n = 1 } }
+      s = 0
+      for (k = 1; k <= NR; k++) if (pid[k] in i) { m = split(t[k], a, ":"); v = 0; for (j = 1; j <= m; j++) v = v * 60 + a[j]; s += v }
+      printf "%d\n", s * 100 + 0.5
+    }'
+}
 kor_med_tak() {
   rm -f "$HANG"
   "$@" &
   p=$!
-  ( s=0
-    while [ $s -lt "$TAK" ]; do sleep 2; s=$((s + 2)); kill -0 $p 2>/dev/null || exit 0; done
-    : > "$HANG"; doda_trad $p ) &
+  ( s=0; ref=0; refS=0
+    while [ $s -lt "$TAK" ]; do
+      sleep 2; s=$((s + 2)); kill -0 $p 2>/dev/null || exit 0
+      c=$(cpu_trad $p)
+      # vuxit med en sekund, eller sjunkit (ett barn med egen CPU-tid slutade): steget lever
+      if [ "$c" -ge $((ref + 100)) ] || [ "$c" -lt "$ref" ]; then ref=$c; refS=$s; fi
+      if [ $((s - refS)) -ge "$STILLA" ]; then echo "ingen CPU-tid på $STILLA s (väggtid $s s)" > "$HANG"; doda_trad $p; exit 0; fi
+    done
+    echo "väggtaket $TAK s" > "$HANG"; doda_trad $p ) &
   v=$!
   wait $p; k=$?
   kill $v 2>/dev/null; wait $v 2>/dev/null
@@ -44,11 +73,11 @@ steg() {
   namn="$1"; shift
   kor_med_tak "$@" && return 0 || kod=$?
   if [ -f "$HANG" ]; then
-    echo "kolla.sh: steget $namn hängde i $TAK s — stoppat, körs om en gång" >&2
+    echo "kolla.sh: steget $namn hängde ($(cat "$HANG")) — stoppat, körs om en gång" >&2
     kor_med_tak "$@" && { rm -f "$HANG"; return 0; } || kod=$?
     if [ -f "$HANG" ]; then
+      echo "kolla.sh: FEL i steget $namn: hängde två gånger ($(cat "$HANG"))" >&2
       rm -f "$HANG"
-      echo "kolla.sh: FEL i steget $namn: hängde i $TAK s två gånger" >&2
       exit 1
     fi
   fi
