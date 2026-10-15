@@ -47,7 +47,7 @@ const { supa, ROT } = require('./supa.cjs');
 const { slagIRepot } = require('./sparr.cjs');   // bara för förhandsvisningen av spärren; valen går genom till-fall/satt
 const { SORT_ID } = require('./sorter.cjs');
 const { lage: bankLage } = require('./bankutgava.cjs');
-const { goldenNamn, forhandMattest } = require('./till-fall.cjs');
+const { goldenNamn, forhandMattest, raknaPastaenden } = require('./till-fall.cjs');
 
 const argv = process.argv.slice(2), arg = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const PORT = +(arg('--port') || process.env.PORT || 8279);
@@ -145,14 +145,17 @@ async function listaHandlingar() {
   for (const r of rader) {
     const vy = r.vy || {}, k = await S.konto(r.user_id), mapp = mappFor(r.kod);
     let forhand = null, fel = null;
-    if (!fs.existsSync(path.join(mapp, 'rapport.json'))) fel = `${r.kod} gick inte att hämta som en rapport (hamta.cjs: paketet saknas i hinken?)`;
+    const fallFil = path.join(MATTEST, r.kod, 'fall.json'), fall = lasJson(fallFil);
+    /* Sorterad: räkna inte om (en fråga till tabellen per rad, efter varje klick). Finns fallet visas det fallet bär. */
+    if (r.anvandning) { if (fall && Array.isArray(fall.pastaenden)) forhand = { pastaenden: fall.pastaenden, antal: raknaPastaenden(fall.pastaenden), start: Date.parse(fall.bordStart), varning: null, urFallet: true }; }
+    else if (!fs.existsSync(path.join(mapp, 'rapport.json'))) fel = `${r.kod} gick inte att hämta som en rapport (hamta.cjs: paketet saknas i hinken?)`;
     else try { forhand = await forhandMattest(r.kod, mapp, { S }); } catch (e) { fel = String(e && e.message || e); }
     ut.push({
       kod: r.kod, nar: r.created_at, vem: k ? (k.namn || k.epost) : String(r.user_id || '').slice(0, 8), game_id: r.game_id || null,
       spelkod: vy.spelkod || null, anvandning: r.anvandning || null, testSlag: r.anvandning === 'test' ? slagIRepot(r.kod) : null,
       forsta: vy.forsta || null, till: vy.till || null,
-      handlingar: (Array.isArray(vy.handlingar) ? vy.handlingar : []).map(h => Object.fromEntries(HANDLING_FALT.filter(f => h[f] != null).map(f => [f, h[f]]))),
-      forhand, fel, fallFinns: fs.existsSync(path.join(MATTEST, r.kod, 'fall.json'))
+      handlingar: (Array.isArray(vy.handlingar) ? vy.handlingar : []).filter(h => h && typeof h === 'object').map(h => Object.fromEntries(HANDLING_FALT.filter(f => h[f] != null).map(f => [f, h[f]]))),
+      forhand, fel, fallFinns: fs.existsSync(fallFil)
     });
   }
   return ut;

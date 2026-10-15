@@ -114,7 +114,7 @@ main.bara-lista .sidor { display: none; }
 .hlista .vad { color: var(--svag); }
 .hlista li.inget { opacity: .7; }
 .hrad { padding: 14px; border-top: 1px solid var(--linje); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; }
-.hrad:first-of-type { border-top: 0; }
+.parti > .huvud + .hrad { border-top: 0; }
 @media (max-width: 760px) { .hrad { grid-template-columns: 1fr; } }
 .hrad h3 { font-size: 12px; font-weight: 600; color: var(--svag); margin: 0 0 6px; text-transform: uppercase; letter-spacing: .03em; }
 .hrad .info { grid-column: 1 / -1; }
@@ -165,6 +165,7 @@ const FLIKAR = [
   { id: 'handlingar', namn: 'Handlingar', handling: true }   // rättelserna av handlingar (MES-385): egen lista
 ];
 let rader = [], flik = 'nya';
+let handlingarFel = null;   // /api/handlingar svarade inte: visas i stället för en tom lista
 let handlingar = null;   // null tills den hämtats; /api/handlingar: rättelserna av handlingar, med påståendena ur till-fall.cjs
 let bank = null;   // /api/bank: utgåvorna och bänken per sort mot målet (bankutgava.cjs)
 try { flik = localStorage.getItem('granska-flik') || 'nya'; } catch (e) {}
@@ -321,6 +322,7 @@ function pastaendeStatus(p) {
 }
 function rekommenderaHandling(h) {
   if (h.fel) return { val: 'slangd', varfor: 'Paketet går inte att göra till ett fall (se felet ovan).' };
+  if (h.fallFinns) return { val: 'slangd', varfor: 'Ett Mat test-fall med koden finns redan i dev/mattest/underlag/rapporter (gjort med --lokal?): till-fall.cjs skriver inte över det. Sätt raden med satt.cjs <kod> test i terminalen, eller Släng.' };
   const F = h.forhand;
   if (!F.antal) return F.facit ? { val: 'mattest', varfor: `Ett äldre paket utan spelarens journal: facit är ${F.facit} rad(er) ur mattans ändringar, där vem som ändrade är gissat.` }
     : { val: 'slangd', varfor: 'Inget att mäta: paketet har varken påståenden eller facit-rader.' };
@@ -329,6 +331,7 @@ function rekommenderaHandling(h) {
 }
 const hStatus = h => h.anvandning === 'test' ? (h.testSlag === 'bank' ? 'Prov (bänken)' : 'Mat test') : STATUS[h.anvandning] || h.anvandning;
 function ritaHandlingar() {
+  if (handlingarFel) { $('#lista').innerHTML = `<div class="tom">Kunde inte hämta handlingarna: ${esc(handlingarFel)}</div>`; return; }
   if (!handlingar) { $('#lista').innerHTML = '<div class="tom">Hämtar handlingarna och räknar påståendena …</div>'; return; }
   if (!handlingar.length) {
     $('#lista').innerHTML = `<div class="tom">Inga rättelser av handlingar än. De kommer när någon med <i>Share pictures of cards I correct</i> på rättar ett tap, flyttar ett kamerakort till graveyard, exile eller handen, eller använder Undo eller Follow camera.</div>`;
@@ -353,6 +356,7 @@ function hRadHtml(h) {
     : '<p class="lika">Raden bär inga rättelser.</p>';
   let past = '';
   if (h.fel) past = `<div class="not fel">${esc(h.fel)}</div>`;
+  else if (!F) past = '<p class="lika">Sorterad: påståendena räknas inte om.</p>';
   else if (!F.pastaenden) past = `<div class="lika">Paketet saknar spelarens journal (före MES-385:s påståenden): facit är ${F.facit} rad(er) ur mattans ändringar.</div>`;
   else past = `<div class="tal fyra">
         <div><b>${F.antal.raknas}</b><span>räknas</span></div>
@@ -363,13 +367,13 @@ function hRadHtml(h) {
       ${F.pastaenden.length ? `<table class="past">${F.pastaenden.map(p => { const st = pastaendeStatus(p); return `<tr class="${st.kl}"><td class="tid">${esc(tid(F.start + p.t * 1000))}</td><td><b>${esc(p.kort || '(utan namn)')}</b> ${esc(pastaendeVad(p))}${p.spar != null ? ` <span class="lika">spår ${esc(p.spar)}</span>` : ''}</td><td><span class="s ${st.kl ? '' : 'raknas'}">${st.s}</span>${st.skal ? `<span class="skal">${esc(st.skal)}</span>` : ''}</td></tr>`; }).join('')}</table>` : '<p class="lika">Inga påståenden i paketet (de hör till ett annat paket, eller är flyttar på mattan).</p>'}`;
   return `<div class="hrad" data-kod="${esc(h.kod)}">
     <div><h3>Rättelserna (${h.handlingar.length})</h3>${lista}</div>
-    <div><h3>Påståendena${F && F.pastaenden ? ` (${F.antal.alla})` : ''}</h3>${past}</div>
+    <div><h3>Påståendena${F && F.pastaenden ? ` (${F.antal.alla}${F.urFallet ? ', ur fallet' : ''})` : ''}</h3>${past}</div>
     <div class="info">
       <div class="meta"><span>${esc(h.kod)}</span>${status}<span>${esc(nar(h.nar))}</span>${h.forsta && h.till ? `<span>${esc(tid(h.forsta))}–${esc(tid(h.till))}</span>` : ''}${h.fallFinns ? '<span>fallet finns i dev/mattest/underlag/rapporter</span>' : ''}</div>
       ${F && F.varning ? `<div class="not varn">VARNING: ${esc(F.varning)}</div>` : ''}
       ${kanSortera ? `<div class="forslag-rad"><b>Förslag: ${forslag.val === 'mattest' ? 'Mat test' : 'Släng'}.</b> ${esc(forslag.varfor)}</div>
       <div class="knappar">
-        <button class="val test${fs_('mattest')}" data-hval="mattest" ${!h.fel && !upptagen ? '' : 'disabled'}>Mat test</button>
+        <button class="val test${fs_('mattest')}" data-hval="mattest" ${!h.fel && !h.fallFinns && !upptagen ? '' : 'disabled'}>Mat test</button>
         <button class="val${fs_('slangd')}" data-hval="slangd" ${upptagen ? 'disabled' : ''}>Släng</button>
       </div>` : ''}
       ${not ? `<div class="not ${not.typ}">${esc(not.text)}</div>` : ''}
@@ -377,8 +381,8 @@ function hRadHtml(h) {
   </div>`;
 }
 async function laddaHandlingar() {
-  try { handlingar = await hamta('/api/handlingar'); }
-  catch (e) { handlingar = []; if (flik === 'handlingar') { $('#lista').innerHTML = `<div class="tom">Kunde inte hämta handlingarna: ${esc(e.message)}</div>`; ritaFlikar(); return; } }
+  try { const h = await hamta('/api/handlingar'); if (!Array.isArray(h)) throw new Error((h && h.fel) || 'oväntat svar'); handlingar = h; handlingarFel = null; }
+  catch (e) { handlingar = []; handlingarFel = e.message; }
   ritaLista();
 }
 /* Mat test eller Släng: samma verktyg som i terminalen. Verktygets hela utskrift visas efteråt (antalet påståenden,
@@ -514,7 +518,7 @@ document.addEventListener('input', e => { if (e.target.dataset.namn) skrivet.set
 document.addEventListener('change', e => { if (e.target.dataset.sort) { const k = e.target.dataset.sort; if (e.target.value) valdSort.set(k, e.target.value); else valdSort.delete(k); ritaLista(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#zoom').classList.remove('pa'); });
 
-laddaBank().then(() => Promise.all([laddaLista(), laddaHandlingar()])).then(laddaTraning);
+laddaBank().then(() => { laddaHandlingar(); return laddaLista(); }).then(laddaTraning);   // handlingarna räknas på servern: träningen väntar inte på dem
 </script>
 </body>
 </html>

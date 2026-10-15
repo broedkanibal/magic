@@ -433,10 +433,11 @@ async function hamtaSenare(K, lokal, S) {
   if (lokal || !gid || !K.skapad) return `senare rättelser i partiet är inte kontrollerade (${lokal ? '--lokal' : 'partiet eller tiden okänd'}) — en Undo eller ⌘Z efter paketet syns inte`;
   const rader = await (S || supa()).rest('GET', `rapporter?game_id=eq.${encodeURIComponent(gid)}&kalla=eq.rattelse&created_at=gt.${encodeURIComponent(K.skapad)}&select=kod,vy&order=created_at.asc`);
   /* Hela de senare paketens rättelser (inte bara Undo): deras egna tap ligger då i kortets stack, så att en Undo
-     där tar tillbaka sitt eget tap och inte det här paketets. Bara det som ligger efter det här paketet. */
+     där tar tillbaka sitt eget tap och inte det här paketets. Bara det som ligger efter det här paketet.
+     Raderna är spelarens: en trasig rättelse (inte ett objekt, inget kort) hoppas över i stället för att fälla fallet. */
   K.senare = [];
-  for (const r of rader || []) for (const h of (r.vy && r.vy.handelse === 'handling' && r.vy.handlingar) || [])
-    if (K.till == null || h.t > K.till) K.senare.push({ t: h.t, typ: h.typ, cid: h.cid, spar: h.spar != null ? h.spar : null, namn: h.kort || null, rapport: h });
+  for (const r of rader || []) for (const h of (r.vy && r.vy.handelse === 'handling' && Array.isArray(r.vy.handlingar) && r.vy.handlingar) || [])
+    if (h && typeof h === 'object' && h.cid != null && (K.till == null || h.t > K.till)) K.senare.push({ t: h.t, typ: h.typ, cid: h.cid, spar: h.spar != null ? h.spar : null, namn: h.kort || null, rapport: h });
   return null;
 }
 /* Påståendenas antal, som terminalen och granskningssidan visar dem. */
