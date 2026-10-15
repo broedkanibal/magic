@@ -8642,6 +8642,9 @@ function aurorFoljer(cards, vard) {
 function flyttaTill(i, zon) {
   const c = hand(), e = c[i];
   if (!e || zonAv(e) === zon) return false;
+  /* MES-385: spelaren lade ett kort kameran följer i en hög själv. Bara spelaren anropar flyttaTill; kamerans
+     egna graveyard-regler skriver zon direkt (avstamBord: gravAuto, spellAuto). */
+  if ((zon === ZON_GRAV || zon === ZON_EXIL) && kamFoljer(e)) khHandling('grav_hand', e, { zon: zon === ZON_GRAV ? 'grav' : 'exil' });
   angraPunkt();
   e.zon = zon;
   const hog = zon === ZON_GRAV || zon === ZON_EXIL;
@@ -14758,6 +14761,7 @@ function tappa(i) {
    kort står kvar: dess Undo tar redan tillbaka tapet från före draget. */
 function tapToast(fore, kort) {
   const nya = kort.filter(e => tapMarkSyns(e)).map(e => e.cid), s = handToastStang;
+  for (const e of kort) if (tapMarkSyns(e)) khHandling('tap_hand', e);   // MES-385: före toastens egna vägar ut
   if (!nya.length) { if (handToastOppen() && s.tap) handToastStang(); return; }
   if (handToastOppen() && !s.tap && nya.every(cid => (s.cids || []).includes(cid))) return;
   visaHandToast(fore, nya, null, true);
@@ -14768,6 +14772,7 @@ function tapToast(fore, kort) {
 function foljKameran(i) {
   const c = hand()[i];
   if (!c || !paMattan(c) || !(handMarkSyns(c) || tapMarkSyns(c))) return;
+  khHandling('folj_kameran', c, { av: handMarkSyns(c) ? 'flytt' : 'tap' });   // MES-385, före kortet tar kamerans läge
   angraPunkt();
   if (c.hand) { delete c.hand; delete c.kamRitad; }
   if (c.kamTap != null) c.tapped = c.kamTap;
@@ -15450,8 +15455,17 @@ function visaHandToast(fore, cids, ofr, tap) {
   el.innerHTML = `<div class="htkort"><span class="htikon">${tap ? tapIkon(18, 2.2) : handIkon(18, 2.2)}</span><div class="httxt"><b>${titel}</b>`
     + `<span>${rad}</span></div><button type="button" class="htangra">Undo</button></div>`;
   s.tap = !!tap; s.cids = cids.slice();
+  /* MES-385: flytten för hand (tapet loggas i tapToast), och Undo — kameran hade rätt — före korten går tillbaka. */
+  const mittKort = cid => mina.find(c => c.cid === cid);
+  const r1 = v => v == null ? null : Math.round(v);
+  if (!tap) for (const cid of cids) { const c = mittKort(cid); if (c && c.hand) khHandling('flytt_hand', c, { x: r1(c.x), y: r1(c.y) }); }
   const k = el.firstElementChild;
-  k.querySelector('.htangra').onclick = ev => { ev.stopPropagation(); if (tap) tapAngra(fore, cids); else handAngra(fore, cids, efter, ofr); handToastStang(); };
+  k.querySelector('.htangra').onclick = ev => {
+    ev.stopPropagation();
+    for (const cid of cids) { const c = mittKort(cid); if (c && (tap ? tapMarkSyns(c) : c.hand)) khHandling('angrad', c, { av: tap ? 'tap' : 'flytt' }); }
+    if (tap) tapAngra(fore, cids); else handAngra(fore, cids, efter, ofr);
+    handToastStang();
+  };
   /* Pekaren över toasten räknas bara för en mus eller penna: ett finger har ingen hover, och Chrome på Android
      behåller :hover efter ett tryck — klockan hade aldrig gått vidare. */
   let over = false;
@@ -34436,7 +34450,19 @@ function autoSumMetod(t) { const v = (t && t.varfor) || ''; return /^(ai|helbild
    sekund; en skrivning som faller tappas (före migrationen finns ingen tabell). */
 const K_KH = 'sthv.kh.v1.';
 const KH_MIX = { namn: 'Card Named', namnlos: 'Card Not Identified', sent_namn: 'Card Named Later', namngiven: 'Card Named By Player',
-                 bytt: 'Card Name Changed', tillagd: 'Card Added By Hand', borttagen: 'Card Removed' };   // händelsenamnen i Mixpanel
+                 bytt: 'Card Name Changed', tillagd: 'Card Added By Hand', borttagen: 'Card Removed',
+                 tap_hand: 'Card Tapped By Hand', flytt_hand: 'Card Moved By Hand', angrad: 'Hand Change Undone',
+                 folj_kameran: 'Card Follows Camera Again', grav_hand: 'Card Put In Pile By Hand' };   // händelsenamnen i Mixpanel
+/* Rättelser av handlingar (MES-385, Jespers beslut 2026-10-15): spelaren sa emot kameran om ett kort den följer.
+     tap_hand      tappade eller otappade det så att mattan visar ett annat läge än kamerans dom (Tapped by hand)
+     flytt_hand    flyttade det på mattan (Moved by hand)
+     angrad        Undo i toasten efter tap_hand eller flytt_hand: kameran hade rätt
+     folj_kameran  Follow camera: kortet släpper spelarens läge och tar kamerans
+     grav_hand     lade det i graveyard eller exile själv (menyn, G, draget till högen)
+   Remove och Return to hand är borttagen, som förut. Varje gång loggas — inte en gång per kort som namnen — och i en
+   egen skrivning (khSkicka), så att en tabell utan migrationen 20261015090000 bara tappar de här raderna. Bara kort
+   kameran följer (kamFoljer): utan spår finns ingen dom att säga emot. Inget här frågar Claude. */
+const KH_HANDLING = new Set(['tap_hand', 'flytt_hand', 'angrad', 'folj_kameran', 'grav_hand']);
 const KH = { spel: null, ko: [], spar: new Map(), sedda: new Set(), timer: 0 };
 function khSakra() {
   const id = spelLage ? spelLage.id : null;
@@ -34450,9 +34476,11 @@ function khLoggaNu(typ, kort, f) {
   if (!khSakra() || mittLage() !== 'bord' || !Moln.inloggad()) return;
   const k = khNyckel(kort); if (!k) return;
   const sig = typ + '|' + k;
-  if (typ !== 'bytt' && KH.sedda.has(sig)) return;
-  KH.sedda.add(sig);
-  LS.set(K_KH + KH.spel, [...KH.sedda].slice(-3000));
+  if (!KH_HANDLING.has(typ)) {
+    if (typ !== 'bytt' && KH.sedda.has(sig)) return;
+    KH.sedda.add(sig);
+    LS.set(K_KH + KH.spel, [...KH.sedda].slice(-3000));
+  }
   KH.ko.push(Object.assign({ game_id: KH.spel, kort: k, typ, lage: mittLage(), tid: new Date().toISOString() }, f || {}));
   const g = f || {};
   Mix.track(KH_MIX[typ], { card: k, card_name: g.namn, previous_name: g.fran, source: g.kalla === 'claude' ? 'claude' : g.kalla ? 'phone' : null, ms: g.ms, mode: 'mirror' });
@@ -34461,7 +34489,23 @@ function khLoggaNu(typ, kort, f) {
 function khSkicka() {
   KH.timer = 0;
   const rader = KH.ko.splice(0);
-  if (rader.length) Moln.loggaKortHandelser(rader).catch(() => {});
+  const handl = rader.filter(r => KH_HANDLING.has(r.typ)), ovriga = rader.filter(r => !KH_HANDLING.has(r.typ));
+  if (ovriga.length) Moln.loggaKortHandelser(ovriga).catch(() => {});
+  if (handl.length) Moln.loggaKortHandelser(handl).catch(() => {});   // egen skrivning (KH_HANDLING)
+}
+/* En rättelse av en handling (KH_HANDLING): raden i kort_handelser, och med kontots inställning bordsloggen runt den
+   (Rattelse.handling). f: det som skiljer, sparat i radens rapport-kolumn. */
+function khHandling(typ, c, f) {
+  try {
+    if (!c || !c.cid) return;
+    const rapport = Object.assign({ spar: c.spar != null ? c.spar : null, tappad: c.tapped ? 1 : 0, kamTap: c.kamTap != null ? c.kamTap : null }, f || {});
+    khLogga(typ, c.cid, { namn: c.name || null, rapport });
+    if (typeof Rattelse !== 'undefined') Rattelse.handling(typ, c, rapport);
+    /* Svarta lådans mattlogg (slag 'matta') förs annars fram först vid nästa renderAll, och ett tap ritar bara om
+       rutnätet: kom den efter 1,5 s gissade lådan att kameran vred kortet, och facit (till-fall.cjs) blev fel. Efter
+       ändringen (en del rättelser loggas innan kortet ändras), medan klicket fortfarande är färskt. */
+    if (typeof Rapport !== 'undefined') setTimeout(() => Rapport.mattaDiff(), 0);
+  } catch (e) { console.warn('Spelupplevelsen', e); }
 }
 addEventListener('pagehide', khSkicka);
 /* Spåret som blev "Name this card": kortet heter granskningspostens id, också när kameran namnger det senare. */
@@ -39150,6 +39194,20 @@ var Rapport = (() => {
     } catch (e) { return null; }
   }
 
+  /* En tyst rättelse av en handling (MES-385, Rattelse.handling): ett paket i rapportens form, så att hamta.cjs och
+     till-fall.cjs --mattest läser det som en rapport — men bara mattans ändringar (slag 'matta') och telefonens bord
+     mellan fran och till (ms, datorns klocka), aldrig klick, anrop eller telefonens låda. Mattan vid sändningen som
+     i en rapport: mitt bord, motståndarnas utlagda kort, aldrig någons hand eller bibliotek. */
+  function handlingsPaket(fran, till) {
+    const f = bordLoggFil(); if (!f) return null;
+    const start = Date.parse(f.start), s0 = (fran - start) / 1000, s1 = (till - start) / 1000;
+    const rader = f.bordLogg.filter(r => r.s >= s0 && r.s <= s1);
+    if (!rader.length) return null;
+    mattaDiff();
+    return { v: 1, sida: 'dator', miljo: miljo(), lada: Lada.utdrag(Date.now() - fran + 1000).filter(e => e.slag === 'matta' && e.t >= fran && e.t <= till),
+             matta: mattaNu(), bordLogg: { start, id: f.id, kapad: f.kapad || f.bordLogg[0].s > s0, rader }, telefon: null, medTelefon: false };
+  }
+
   /* ── Paketet: fryses när rutan öppnas (README §9) ──────────────────── */
   const vantar = new Map();   // paketets id → { klar(lada), t0, delar }
   let telefonLyss = new Map(); // id → resolve för rapport_svar (telefonen)
@@ -39605,7 +39663,7 @@ var Rapport = (() => {
   if (knapp) knapp.onclick = () => oppna();
   bevakaYtor();
 
-  const api = { oppna, stang, frys, skicka, franTelefon, vantaBilder, glomKoder, pausaForRadering, vantaSkick, datorTagEmot, telefonKommando, mattaDiff, miljo, vy,
+  const api = { oppna, stang, frys, skicka, franTelefon, vantaBilder, glomKoder, pausaForRadering, vantaSkick, datorTagEmot, telefonKommando, mattaDiff, miljo, vy, handlingsPaket, gz,
                 get lage() { return lage; }, get oppen() { return !!(el && !el.hidden); }, get paket() { return paket; },
                 stillbilder: null, TAGGAR };
   return api;
@@ -40351,10 +40409,60 @@ var Rattelse = (() => {   // var: se Rapport
     Lada.skriv('handling', { typ: 'rättelse sparad', kod: r.kod, handelse: fakta.handelse, bild });
     return { kod: r.kod, sokvag: r.sokvag, json };
   }
+  /* ── Handlingarna (MES-385) ── En rättelse av en handling (khHandling: tap_hand, flytt_hand, angrad, folj_kameran,
+     grav_hand) blir en tyst rättelse utan bild: telefonens bord och mattans ändringar från HANDLING_FORE_MS före den
+     första rättelsen till HANDLING_EFTER_MS efter den sista (kameran hinner svara på det riktiga kortet), som ett paket
+     i rapportens form (Rapport.handlingsPaket, rapport.json.gz). Rättelser tätt efter varandra blir EN rad — högst
+     HANDLING_MAX_MS från den första — så att ett parti med många tap inte äter taket. till-fall.cjs --mattest gör det
+     till ett Mat test-fall: facit är kameran minus det spelaren rättade (byggFacit). Samma villkor som namnens:
+     rapporten finns, kontots inställning på (läst från servern när paketet skickas), läget bord. Inget frågar Claude. */
+  const HANDLING_FORE_MS = 60000, HANDLING_EFTER_MS = 20000, HANDLING_MAX_MS = 180000, HANDLING_RADER = 40;
+  let samling = null;   // { spel, spelkod, forsta, sista, rader, timer }
+  function handling(typ, c, fakta) {
+    try {
+      if (takNatt || pausad || !rapportFinns() || !c || !spelLage || !Moln.inloggad()) return;
+      if (typeof mittLage === 'function' && mittLage() !== 'bord') return;
+      const nu = Date.now();
+      if (samling && samling.spel !== spelLage.id) skickaSamling();
+      if (!samling) samling = { spel: spelLage.id || null, spelkod: spelLage.kod || null, forsta: nu, sista: nu, rader: [], timer: 0 };
+      samling.sista = nu;
+      if (samling.rader.length < HANDLING_RADER) samling.rader.push(Object.assign({ typ, t: nu, cid: c.cid, kort: c.name || null }, fakta || {}));
+      clearTimeout(samling.timer);
+      samling.timer = setTimeout(skickaSamling, Math.max(0, Math.min(HANDLING_EFTER_MS, samling.forsta + HANDLING_MAX_MS - nu)));
+    } catch (e) {}
+  }
+  function skickaSamling() {
+    const S = samling; samling = null;
+    if (!S) return null;
+    clearTimeout(S.timer);
+    stat.forsok++;
+    const lofte = sparaHandlingar(S)
+      .catch(e => { if (arTak(e)) { takNatt = true; stat.tak++; return null; } stat.fel++; Lada.skriv('fel', { kalla: 'rattelse', med: 'handlingarna: ' + Lada.kap(e && e.message, 200) }); return null; })
+      .finally(() => aktiva.delete(lofte));
+    aktiva.add(lofte);
+    return lofte;
+  }
+  async function sparaHandlingar(S) {
+    if (pausad) return null;
+    if (!(await Moln.bildInstallning())) { stat.av++; return null; }
+    const till = Date.now(), p = Rapport.handlingsPaket(S.forsta - HANDLING_FORE_MS, till);
+    if (!p) { stat.utanLogg = (stat.utanLogg || 0) + 1; return null; }   // ingen telefon, inget bord: inget fall att göra
+    const vy = { handelse: 'handling', handlingar: S.rader, spelkod: S.spelkod, fran: S.forsta - HANDLING_FORE_MS, till };
+    const r = await Moln.rapportRad({ game_id: S.spel, kalla: 'rattelse', text: null, tagg: null, vy, bilder: 'saknas' });
+    const json = JSON.stringify(Object.assign(p, { kod: r.kod, kalla: 'rattelse', text: null, tagg: null, frys: S.sista, frysIso: new Date(S.sista).toISOString(), vy }));
+    const z = await Rapport.gz(json), blob = z || new Blob([json], { type: 'application/json' });
+    await Moln.rapportFil(r.sokvag, z ? 'rapport.json.gz' : 'rapport.json', blob, z ? 'application/gzip' : 'application/json');
+    Moln.rapportUppdatera(r.kod, { storlek: blob.size });
+    stat.sparade++;
+    Lada.skriv('handling', { typ: 'rättelse sparad', kod: r.kod, handelse: 'handling', antal: S.rader.length });
+    return { kod: r.kod, sokvag: r.sokvag };
+  }
+
   /* C:s Delete: paus(true) stoppar nya rättelser, vanta() väntar in de som redan sparas (högst ms). */
-  const paus = pa => { pausad = !!pa; };
+  const paus = pa => { pausad = !!pa; if (pausad && samling) { clearTimeout(samling.timer); samling = null; } };
   const vanta = ms => Promise.race([Promise.all([...aktiva]), new Promise(r => setTimeout(r, ms || 30000))]);
-  return { fran, svar, paus, vanta, get aktiva() { return aktiva.size; }, stat: () => Object.assign({}, stat, { takNatt }), glom: () => { gjorda.clear(); pagar.clear(); takNatt = false; for (const k in stat) stat[k] = 0; } };
+  return { fran, handling, skickaHandlingar: skickaSamling, svar, paus, vanta, get aktiva() { return aktiva.size; }, stat: () => Object.assign({}, stat, { takNatt, samlar: samling ? samling.rader.length : 0 }),
+           glom: () => { gjorda.clear(); pagar.clear(); takNatt = false; if (samling) clearTimeout(samling.timer); samling = null; for (const k in stat) stat[k] = 0; } };
 })();
 
 /* Växeln i Developer-lådan (?debug): läser och skriver kontots improve_pictures (samma fält som C:s Settings). */

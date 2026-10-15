@@ -38,6 +38,7 @@ Spelarens yta: `design_handoff_rapport/README.md` (§5 rutan, §9 detaljerna).
 | `node dev/rapport/till-fall.cjs R-0412 --mattest\|--bank\|--traning` | gör rapporten till ett Mat test-fall, ett bänkfall eller träningsdata, och sätter `anvandning` (nedan) |
 | `node dev/rapport/till-fall.cjs --mattest --logg pass.json [--orden o.tsv] [--lek lek.txt] [--spelkod KOD]` | samma för ett pass utan rapportkod (bordsloggen ur appen; spelkoden står inte i den, så ge den med `--spelkod` för spärren per parti) |
 | `node dev/rapport/prov-d.cjs [--bank-kor] [--tabell]` | provet för del D: syntetiska rättelser och en rapport i en tillfällig mapp, spärren åt båda hållen, bänken på bänkfallet, och (`--tabell`) satt/lista/spärren mot produktionens tabell med två provrader som tas bort efteråt |
+| `node dev/rapport/prov-handlingar.cjs` | provet för rättelserna av handlingar (MES-385): raderna i `kort_handelser` genom appens egna vägar, den tysta rättelsen av och på, och paketet hela vägen genom `hamta.cjs --fil` och `till-fall.cjs --mattest` till ett facit. Ett steg i `dev/kolla.sh` |
 | `node dev/rapport/prov.cjs` | provet: ett parti i huvudlös Chrome med en motståndare (dold information), fel, anrop, telefonens låda (NTP-offset), rutans fem lägen, Cancel under Sending, taket, telefonens ark utan `?debug`, appen när rapportblocket kastar, hamta — utan nät och utan Claude. Ett steg i `dev/kolla.sh`. Riktiga Supabase provas inte här |
 
 Verktygen mot tabellen läser `SUPABASE_URL` och `SUPABASE_SERVICE_ROLE_KEY` ur `.env.local`
@@ -150,6 +151,29 @@ datorns klocka.
 | Kanalen | dator → telefon `rapport_rattelse_bild {kod, sokvag, spar}`; telefon → dator `rapport_rattelse_klar {kod, ok, kort, varfor, tBesk, ruta, maskade, kontext, kontextSkal}` (telefonen laddar upp `beskarning.jpg` och `kontext.jpg` själv). Inget svar på 10 s: datorns kopia (granskningens beskärning, annars kamerans foto), rutan ur bordet, maskade och kontext null; ingen bild alls: `bilder = 'saknas'` |
 | Växeln | Developer-lådan (`?debug`): *Share pictures of cards I correct*, läser/skriver `improve_pictures` + `improve_pictures_at` (`Moln.bildInstallning`, `Moln.sattBildInstallning`, `Moln.bildInstallningSedan`) |
 | Prov | `node dev/rapport/prov-b.cjs` (ringen 30 min accelererat, rapportens bilder, rättelserna av/på/av, växeln), `node dev/rapport/prov-b-uppspelaren.cjs --bilder <mapp>` (golden-video → ringen → hamta → uppspelaren), `node dev/rapport/prov-b-supabase.cjs <fil>` (rad + filer mot riktiga Supabase, hamta, städning) |
+
+### Rättelser av handlingar (MES-385, Jespers beslut 2026-10-15)
+
+Kameran missar ungefär hälften av tap och flyttar på mattan, och spelaren rättar dem i appen. Det blir två saker:
+
+| | Vad | När |
+|---|---|---|
+| **Raden i `kort_handelser`** | `tap_hand` (Tapped/Untapped by hand: mattan visar ett annat läge än kamerans dom), `flytt_hand` (Moved by hand), `angrad` (Undo i toasten: kameran hade rätt), `folj_kameran` (Follow camera), `grav_hand` (To the graveyard, G eller draget till högen, för ett kort kameran följer). Detaljerna i kolumnen `rapport`: `spar`, `tappad`, `kamTap`, `x`/`y`, `av`, `zon`. Remove och Return to hand är `borttagen` som förut | alltid i läget bord, inloggad — som namnens rader. Varje gång, inte en gång per kort, och i en egen skrivning (`khSkicka`) |
+| **En tyst rättelse utan bild** | en rad i `rapporter` (`kalla 'rattelse'`, `vy.handelse 'handling'`, `vy.handlingar`, `bilder 'saknas'`) och `rapport.json.gz` i rapportens form: telefonens bord och mattans ändringar (`slag 'matta'`, aldrig klick eller anrop) från 60 s före den första rättelsen till 20 s efter den sista, och mattan vid sändningen. Rättelser tätt efter varandra blir EN rad, högst 3 min (`Rattelse.handling`, `Rapport.handlingsPaket`) | samma villkor som namnens: rapporten finns, `improve_pictures` på (läst från servern när paketet skickas). Taket för rättelser gäller |
+
+Sedan: `node dev/rapport/hamta.cjs R-0412` hämtar den som en rapport (`rapport.json`, `bordlogg.json`, LÄS-MIG med rättelserna), och
+`node dev/rapport/till-fall.cjs R-0412 --mattest` gör den till ett Mat test-fall — **prov, aldrig träning**: handlingarna är regler i
+avstämningen, ingen modell lär sig dem. Granskningssidan (`granska.cjs`) visar dem inte (ingen bild, inget namn); `lista.cjs --rattelser` gör det.
+
+I facit (`byggFacit`) gäller dessutom: vrider spelaren tillbaka **sitt eget** tap inom 60 s (Undo, Follow camera) hade kameran rätt — spelarens
+tap stryks, eller kamerans tap som det strök gäller igen. En flytt på mattan räknas fortfarande inte i facit (spelaren kan ha ordnat mattan
+utan att röra det riktiga kortet); `flytt_hand` mäts bara i `kort_handelser`.
+
+Mattans logg (`slag 'matta'`, `av` spelare/kamera) förs fram direkt efter varje sådan rättelse, inte först vid nästa `renderAll` — annars kunde
+ett tap loggas mer än 1,5 s efter klicket och gissas vara kamerans.
+
+Mätningen: `node dev/spelupplevelse.cjs` (vyn `upplevelse_handlingar`, migrationen `20261015090000_kh_handlingar.sql`) — rättelserna per
+100 kort, per slag. Inget här frågar Claude.
 
 ### Var kortet låg: ruta, maskade och kontext.jpg (uppföljning av MES-366/368)
 

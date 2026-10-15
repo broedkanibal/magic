@@ -20,6 +20,10 @@
                          node dev/mattest/kor.cjs --visa --rapport <mappen>
    En tyst rättelse (kalla 'rattelse', del B) hämtas likadant: rattelse.json
    och beskarning.jpg, och LÄS-MIG.md säger gissning, rätt namn och domskäl.
+   En rättelse av handlingar (MES-385: tap, flytt eller hög för hand, Undo,
+   Follow camera) har ingen bild utan ett paket i rapportens form: den hämtas
+   som en rapport (rapport.json, bordlogg.json), och LÄS-MIG.md listar
+   rättelserna. till-fall.cjs <kod> --mattest gör den till ett Mat test-fall.
 
    Service role ur .env.local. Läser bara; ändrar ingenting i Supabase. */
 'use strict';
@@ -113,6 +117,13 @@ function lasMig(p, rad, linje, filer, konto) {
   L.push(`| Telefonen | ${vy.kamAnsluten ? 'ansluten' : 'inte ansluten'}${tel && tel.svarade ? `, lådan kom (offset ${tel.offset} ms, rundtur ${tel.rtt} ms)` : tel ? ', svarade inte' : ''}${rad && rad.bilder ? ' · bilder ' + rad.bilder : ''} |`);
   L.push(`| Version | ${(p.miljo && p.miljo.build) || 'okänd (lokal)'} · ${(p.miljo && p.miljo.ua) || ''} |`);
   L.push('');
+  if (vy.handelse === 'handling') {
+    /* MES-385: en tyst rättelse av handlingar — inga ord, inget snabbval; spelarens rättelser är det som säger något. */
+    const H = { tap_hand: 'tappade/otappade för hand', flytt_hand: 'flyttade för hand', angrad: 'Undo (kameran hade rätt)', folj_kameran: 'Follow camera', grav_hand: 'lade i en hög för hand' };
+    L.push('## Spelarens rättelser av handlingar (MES-385)', '', '| tid | rättelse | kort | detaljer |', '|---|---|---|---|');
+    for (const h of vy.handlingar || []) L.push(`| ${sek(h.t, fr)} | ${H[h.typ] || h.typ} | ${h.kort || '–'} | ${['spar', 'tappad', 'kamTap', 'av', 'zon'].filter(k => h[k] != null).map(k => k + ' ' + h[k]).join(', ') || '–'} |`);
+    L.push('', `Paketet täcker ${vy.fran ? klocka(vy.fran) : '–'}–${vy.till ? klocka(vy.till) : '–'}: telefonens bord och mattans ändringar, inga klick och ingen bild. Gör det till ett Mat test-fall: \`node dev/rapport/till-fall.cjs ${p.kod} --mattest\`.`, '');
+  }
   L.push('## 2. Mesas logg inom vyn, 90 s före trycket', '');
   const mattaKort = new Map(((p.matta && p.matta.mig) || []).map(k => [k.id, k]));
   const iVyn = e => { const k = mattaKort.get(e.id) || {}; return inom(s, e.x != null ? e.x : k.x, e.y != null ? e.y : k.y); };
@@ -252,7 +263,7 @@ async function main() {
     sparade.push(f.namn);
   }
   const konto = await S.konto(rad.user_id);
-  if (rad.kalla === 'rattelse') { rattelse(rad, ut, sparade); return; }
+  if (rad.kalla === 'rattelse' && !paket) { rattelse(rad, ut, sparade); return; }   // en rättelse av handlingar (MES-385) har ett paket: som en rapport
   if (!paket) {
     /* En felrapport (kalla 'fel') har inget paket: allt står i raden. */
     paket = { kod: rad.kod, text: rad.text, tagg: rad.tagg, frys: Date.parse(rad.created_at), frysIso: rad.created_at, vy: rad.vy, miljo: {}, lada: (rad.vy && rad.vy.senaste) || [], matta: null, bordLogg: null, telefon: null };

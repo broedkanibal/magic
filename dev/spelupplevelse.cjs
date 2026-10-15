@@ -9,6 +9,11 @@
    kostnad och svarstid). En rad utan modell är en fråga som räknades men vars
    svar aldrig skrevs i loggen — de visas för sig, inte som en modell.
 
+   Rättelserna av handlingar (MES-385) läses ur upplevelse_handlingar
+   (20261015090000_kh_handlingar.sql): tap, flytt och hög för hand, Undo och
+   Follow camera, per 100 kort i de spel där de loggats. Saknas vyn står det
+   en rad om migrationen, och resten skrivs ändå.
+
    Läser bara. Nycklarna ur miljön eller .env.local i repots rot:
      SUPABASE_URL                 (annars hämtas den ur produktionens /api/config)
      SUPABASE_SERVICE_ROLE_KEY    vyerna är bara läsbara för service_role */
@@ -91,14 +96,34 @@ const RUBRIK = {
   const summa = k => perSpel.reduce((a, r) => a + (+r[k] || 0), 0);
   const utanNamn = { av: summa('ej_identifierade'), namngivna: summa('namngivna'), lamnade: summa('lamnade_utan_namn') };
   utanNamn.procent_namngivna = utanNamn.av ? Math.round(1000 * utanNamn.namngivna / utanNamn.av) / 10 : null;
+  /* Handlingarna (MES-385): bara spel där de loggats, och korten i just de spelen. */
+  let handl = null, handlFel = null;
+  try {
+    const rader = await hamta(url, nyckel, 'upplevelse_handlingar');
+    const s = k => rader.reduce((a, r) => a + (+r[k] || 0), 0);
+    handl = { spel: rader.length, kort: s('kort'), tap_hand: s('tap_hand'), flytt_hand: s('flytt_hand'), grav_hand: s('grav_hand'), angrade: s('angrade'), folj_kameran: s('folj_kameran'), rader };
+    const per100 = n => handl.kort ? Math.round(1000 * n / handl.kort) / 10 : null;
+    handl.per100 = { tap_hand: per100(handl.tap_hand), flytt_hand: per100(handl.flytt_hand), grav_hand: per100(handl.grav_hand),
+                     alla: per100(handl.tap_hand + handl.flytt_hand + handl.grav_hand) };
+  } catch (e) { handlFel = /finns inte/.test(e.message) ? 'upplevelse_handlingar finns inte — kör supabase/migrations/20261015090000_kh_handlingar.sql' : e.message; }
   const claude = claudePerModell(await hamta(url, nyckel, 'claude_fragor?select=tid,mode,modell,dollar,ms,ok,spel&limit=10000', 'tid.asc'));
-  if (arg.includes('--json')) { console.log(JSON.stringify({ totalt, utanNamn, spelare, partier, perSpel, claude }, null, 2)); return; }
+  if (arg.includes('--json')) { console.log(JSON.stringify({ totalt, utanNamn, handlingar: handl, spelare, partier, perSpel, claude }, null, 2)); return; }
 
   const v = x => x == null ? '–' : String(x);
   console.log(`\nSpelupplevelsen · ${v(totalt.spel)} spel · ${v(totalt.spelare)} spelare · ${v(totalt.kort)} kort\n`);
   for (const [k, txt] of Object.entries(RUBRIK)) console.log(`  ${txt.padEnd(56)} ${v(totalt[k])}`);
   console.log(`  ${'Betyg: svar / hoppade över'.padEnd(56)} ${v(totalt.betyg_svar)} / ${v(totalt.betyg_hoppade)}`);
   console.log(`  ${'% av korten utan namn som spelaren namngav'.padEnd(56)} ${v(utanNamn.procent_namngivna)} (${utanNamn.namngivna} av ${utanNamn.av}; ${utanNamn.lamnade} lämnades utan namn)`);
+
+  if (handl) {
+    const p = handl.per100, e = n => v(n) + ' / 100 kort';
+    console.log(`\n  Rättelser av handlingar (MES-385) · ${handl.spel} spel · ${handl.kort} kort`);
+    console.log(`  ${'Tap eller untap för hand (kameran hade fel läge)'.padEnd(56)} ${handl.tap_hand} · ${e(p.tap_hand)}`);
+    console.log(`  ${'Flyttade för hand'.padEnd(56)} ${handl.flytt_hand} · ${e(p.flytt_hand)}`);
+    console.log(`  ${'Lagda i graveyard eller exile för hand'.padEnd(56)} ${handl.grav_hand} · ${e(p.grav_hand)}`);
+    console.log(`  ${'Alla tre'.padEnd(56)} ${handl.tap_hand + handl.flytt_hand + handl.grav_hand} · ${e(p.alla)}`);
+    console.log(`  ${'Undo (kameran hade rätt) / Follow camera'.padEnd(56)} ${handl.angrade} / ${handl.folj_kameran}`);
+  } else console.log(`\n  Rättelser av handlingar: ${handlFel}`);
 
   console.log('\nPer spelare');
   console.table(spelare.map(s => ({ spelare: s.spelare, spel: s.spel, kort: s.kort, '% namn': s.procent_identifierade,

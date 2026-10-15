@@ -230,9 +230,10 @@
       if (sistaC && sistaC[2] == null && sistaC[0] !== chip) sistaC[2] = t;
       if (chip && !(sistaC && sistaC[2] == null && sistaC[0] === chip)) k.chip.push([chip, t, null]);
       if (fullt) {
-        const g = lage(el), b = k.bana[k.bana.length - 1];
-        if (!b || Math.abs(b[1] - g.vx) > 0.5 || Math.abs(b[2] - g.vy) > 0.5 || Math.abs(b[3] - g.lx) > 0.5 || Math.abs(b[4] - g.ly) > 0.5)
-          k.bana.push([t, +g.vx.toFixed(1), +g.vy.toFixed(1), +g.lx.toFixed(1), +g.ly.toFixed(1), el.classList.contains('tappad') ? 1 : 0]);
+        const g = lage(el), b = k.bana[k.bana.length - 1], tp = el.classList.contains('tappad') ? 1 : 0;
+        /* Också när bara tap-läget ändras (MES-385, tap-måttet): ett kort vrids runt sin mitt, så läget står still. */
+        if (!b || Math.abs(b[1] - g.vx) > 0.5 || Math.abs(b[2] - g.vy) > 0.5 || Math.abs(b[3] - g.lx) > 0.5 || Math.abs(b[4] - g.ly) > 0.5 || b[5] !== tp)
+          k.bana.push([t, +g.vx.toFixed(1), +g.vy.toFixed(1), +g.lx.toFixed(1), +g.ly.toFixed(1), tp]);
         /* Utanför mattans kant: kortets ruta på skärmen (med mattans zoom,
            pan och kortets egen rörelse) sticker ut ur mattans fönster. */
         const r = el.getBoundingClientRect();

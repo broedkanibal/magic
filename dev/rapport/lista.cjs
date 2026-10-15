@@ -31,7 +31,7 @@ const { supa } = require('./supa.cjs');
     return;
   }
   const antal = +(arg('--antal') || 50);
-  let q = `rapporter?select=kod,created_at,user_id,game_id,kalla,tagg,text,anvandning,bilder,storlek,kontaktad_at&order=created_at.desc&limit=${antal}`;
+  let q = `rapporter?select=kod,created_at,user_id,game_id,kalla,tagg,text,vy,anvandning,bilder,storlek,kontaktad_at&order=created_at.desc&limit=${antal}`;
   if (a.includes('--rattelser')) q += '&kalla=eq.rattelse';   // de tysta rättelserna (del B), en rad var
   else if (!a.includes('--alla')) q += '&kalla=eq.rapport';
   if (a.includes('--nya')) q += '&anvandning=is.null';
@@ -41,7 +41,7 @@ const { supa } = require('./supa.cjs');
   for (const r of rader) {
     const k = await S.konto(r.user_id);
     ut.push({ kod: r.kod, nar: r.created_at.slice(0, 16).replace('T', ' '), vem: k ? `${k.namn || '–'} <${k.epost || '–'}>` : r.user_id.slice(0, 8),
-      kalla: r.kalla, tagg: r.tagg || '', text: (r.text || '').replace(/\s+/g, ' ').slice(0, 60), anvandning: r.anvandning || '',
+      kalla: r.kalla, tagg: r.tagg || '', text: (r.text || (r.vy && r.vy.handelse === 'handling' ? `handlingar: ${(r.vy.handlingar || []).map(h => h.typ).join(', ')}` : '')).replace(/\s+/g, ' ').slice(0, 60),   // MES-385 anvandning: r.anvandning || '',
       bilder: r.bilder || '', kb: r.storlek ? Math.round(r.storlek / 1024) : '', kontaktad: r.kontaktad_at ? r.kontaktad_at.slice(0, 10) : '' });
   }
   console.table(ut);

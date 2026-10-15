@@ -85,7 +85,10 @@ function bankNamn() {   // kod → namnet bänken mäter (det ändrade, om det �
 }
 
 async function lista() {
-  const rader = await S.rest('GET', 'rapporter?select=kod,created_at,user_id,game_id,anvandning,bilder,vy&kalla=eq.rattelse&order=created_at.desc&limit=1000');
+  /* En rättelse av handlingar (MES-385, vy.handelse 'handling') har ingen bild och inget namn: den blir ett Mat
+     test-fall (hamta.cjs + till-fall.cjs <kod> --mattest), aldrig träning eller bänk, och hör inte hemma här. */
+  const rader = (await S.rest('GET', 'rapporter?select=kod,created_at,user_id,game_id,anvandning,bilder,vy&kalla=eq.rattelse&order=created_at.desc&limit=1000'))
+    .filter(r => !(r.vy && r.vy.handelse === 'handling'));
   await hamtaAlla(rader.map(r => r.kod));
   const bank = bankNamn(), ut = [];
   for (const r of rader) {

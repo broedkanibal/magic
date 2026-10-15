@@ -58,6 +58,9 @@
      - spelaren lägger dit ett kort → utspel (kameran missade det)
      - spelaren tappar/otappar      → kamerans motsatta tap inom 60 s stryks,
                                        annars är spelarens tap facit
+     - spelaren vrider tillbaka sitt eget tap inom 60 s (Undo i toasten,
+       Follow camera, MES-385)       → kameran hade rätt: spelarens tap stryks,
+                                       eller kamerans tap som det strök gäller igen
    Orden (--orden, en TSV) är samma sak med spelarens röst: kolumnerna
    t (sekund i bordsloggen), gor (stryk | lagg), typ (spelar, tar_bort,
    flyttar, tappar, otappar), kort, till, text. `stryk` tar bort kamerans
@@ -189,6 +192,7 @@ function byggFacit(handelser, opt) {
   const senaste = (pred, s) => { for (let i = rader.length - 1; i >= 0; i--) { const r = rader[i]; if (s - r.t > ANGRA_S) break; if (!r.stryk && pred(r)) return r; } return null; };
   /* dok_upp gäller EN borttagning: spelarens tar_bort närmast trycket (opt.tryck, sekunder; okänt = den sista) */
   let dokE = null;
+  const egetTap = new Map();   // kortets id → spelarens senaste tap { s, typ, rad, struk } (MES-385: Undo och Follow camera)
   if (opt.dokUpp) { const tr = opt.tryck != null ? opt.tryck : Infinity; for (const e of handelser) if (e.av === 'spelare' && e.typ === 'tar_bort' && (!dokE || Math.abs(e.s - tr) <= Math.abs(dokE.s - tr))) dokE = e; }
   for (const e of handelser) {
     const s = +e.s.toFixed(2), spel = e.av === 'spelare';
@@ -230,9 +234,18 @@ function byggFacit(handelser, opt) {
     if (e.typ === 'tappar' || e.typ === 'otappar') {
       if (spel) {
         const mot = e.typ === 'tappar' ? 'otappar' : 'tappar';
+        /* Spelaren vrider tillbaka sitt eget tap: kameran hade rätt. Det spelarens tap gjorde tas tillbaka. */
+        const f = e.id != null ? egetTap.get(e.id) : null;
+        if (f && f.typ === mot && s - f.s <= ANGRA_S) {
+          egetTap.delete(e.id);
+          if (f.struk) delete f.rad.stryk; else f.rad.stryk = `spelaren vred tillbaka sitt eget tap ${s} s (Undo eller Follow camera)`;
+          rattelser.push({ t: s, vad: `ångrade sitt tap av ${e.kort} (kameran hade rätt)` });
+          continue;
+        }
         const r0 = senaste(r => r.typ === mot && r.kalla === 'kamera' && (r.id === e.id || r.kort === e.kort), s);
         if (r0) { r0.stryk = `spelaren vred tillbaka ${s} s`; rattelser.push({ t: s, vad: `${e.typ === 'tappar' ? 'tappade' : 'otappade'} ${e.kort} tillbaka` }); }
         else { rader.push({ t: s, typ: e.typ, kort: e.kort, kalla: 'spelare', id: e.id }); rattelser.push({ t: s, vad: `${e.typ === 'tappar' ? 'tappade' : 'otappade'} ${e.kort} (kameran missade det)` }); }
+        if (e.id != null) egetTap.set(e.id, { s, typ: e.typ, rad: r0 || rader[rader.length - 1], struk: !!r0 });
       } else rader.push({ t: s, typ: e.typ, kort: e.kort, kalla: 'kamera', id: e.id });
     }
   }

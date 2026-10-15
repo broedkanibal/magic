@@ -46,7 +46,9 @@ const MATT = [
   ['falskaOmlott', 'Falska omlott (kortpar · rutor)', 'lagre', 'antal'],
   ['utanforRutor', 'Kort utanför mattans kant (kort · rutor)', 'lagre', 'antal'],
   ['saknasRutor', 'Kort i facit som saknas på mattan (kort · rutor)', 'lagre', 'antal'],
-  ['fantomer', 'Kort som inte blev något (oframkallat/platshållare ≥ 3 s som försvann utan kort; fall ur rapporter)', 'lagre', 'antal']
+  ['fantomer', 'Kort som inte blev något (oframkallat/platshållare ≥ 3 s som försvann utan kort; fall ur rapporter)', 'lagre', 'antal'],
+  ['tapRatt', 'Tap och untap i facit som mattan visade', 'hogre', 'kvot'],
+  ['tapTidMedian', 'Tap: tid till rätt läge, median (miss = 10 s)', 'lagre', 's']
 ];
 
 const median = l => { if (!l.length) return null; const s = l.slice().sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -218,6 +220,27 @@ function berakna(fall, logg) {
       }
       detalj.flytt.push(Object.assign({ t: h.t, kort: h.kort }, svar || { som: 'syntes inte', dt: null }));
     }
+    /* ── tap (MES-385) ── En tappar/otappar i facit syntes när ett kort med namnet, levande vid facits tid, gick
+       från det motsatta läget till facits läge inom fönstret (före nästa facit-händelse för namnet). Ett kort
+       som redan låg i facits läge när fönstret började räknas inte: med flera länder med samma namn hade
+       vilket vridet land som helst annars svarat. Varje vridning svarar på en facit-rad: två Swamp som vrids i
+       samma ögonblick behöver två kort som vrids. */
+    detalj.tap = [];
+    const tagnaT = new Set();
+    for (const h of facit.filter(h => h.typ === 'tappar' || h.typ === 'otappar')) {
+      const mal = h.typ === 'tappar' ? 1 : 0, t0 = h.t - FORE, t1 = Math.min(h.t + EFTER, nastaFor(h.kort, h.t) - 0.01);
+      let bast = null;
+      for (const k of kort.filter(k => k.namn === h.kort && k.fodd <= h.t && (k.dod == null || k.dod > t0))) {
+        const a = vid(k, t0); if (!a || a[5] === mal) continue;
+        const x = k.bana.find(x => x[0] > t0 && x[0] <= t1 && x[5] === mal);
+        if (x && !tagnaT.has(k.cid + '@' + x[0]) && (!bast || x[0] < bast.t)) bast = { t: x[0], nyckel: k.cid + '@' + x[0] };
+      }
+      if (bast) tagnaT.add(bast.nyckel);
+      detalj.tap.push({ t: h.t, kort: h.kort, typ: h.typ, som: bast ? 'syntes' : 'syntes inte', dt: bast ? r2(bast.t - h.t) : null });
+    }
+    m.tapRatt = detalj.tap.length ? { n: detalj.tap.filter(x => x.som === 'syntes').length, av: detalj.tap.length } : null;
+    m.tapTidMedian = detalj.tap.length ? r2(median(detalj.tap.map(x => tak(x.dt)))) : null;
+
     const fl = detalj.flytt;
     m.flyttGlid = fl.length ? { n: fl.filter(x => x.som === 'glid').length, av: fl.length } : null;
     m.flyttTidMedian = r2(median(fl.map(x => tak(x.dt))));
