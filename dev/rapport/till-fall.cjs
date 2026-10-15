@@ -189,6 +189,42 @@ const UT = new Set(['graveyard', 'exile', 'hand', 'handen', 'library', 'borta'])
 /* Kamerans händelser + spelarens rättelser → facit. handelser: sorterade på s,
    { s, typ, kort, id, till, fran, av }. dokUpp: snabbvalet "A card appeared
    that I didn't play" — då är varje kamerakort spelaren tar bort en dubblett. */
+/* Spelarens påståenden ur journalen (index.html khJournal, MES-385): facit utan gissning. Varje rättelse säger
+   hur ETT kort — spåret — låg i ETT ögonblick, och att kameran visade något annat just då:
+     tap_hand            { typ: 'tappad', varde: 0|1 }   kortet stod så (Tapped/Untapped by hand)
+     grav_hand           { typ: 'borta', till }          kortet hade lämnat bordet (graveyard, exile, hand)
+     borttagen (Remove)  { typ: 'borta' }                kortet låg inte (längre) på bordet
+     bytt, namngiven     { typ: 'namn', namn }           kortet hette så
+   Ingen tidslinje vävs ihop med kamerans händelser, så inget behöver gissas om när något hände eller om kameran
+   och spelaren menar samma händelse. Ett påstående tas tillbaka av Undo i toasten och av ⌘Z (angrad, av 'tap'
+   respektive 'cmdz'). Follow camera och ett tap tillbaka för hand säger bara att mattan följer kameran NU — om
+   tapet var ett misstag eller om det riktiga kortet vreds fram och tillbaka går inte att skilja, så påståendet
+   märks osaker och räknas inte. En flytt på mattan är inget påstående (spelaren kan ha ordnat mattan), inte heller
+   ett tillagt kort (inget spår att känna igen det på). */
+function pastaendenUrJournalen(journal, s0) {
+  const ut = [], senaste = new Map();   // cid → spelarens senaste påstående om kortet
+  for (const j of journal || []) {
+    const t = +((j.t - s0) / 1000).toFixed(2), r = j.rapport || {}, cid = String(j.cid);
+    let p = null;
+    if (j.typ === 'tap_hand') p = { typ: 'tappad', varde: r.tappad ? 1 : 0 };
+    else if (j.typ === 'grav_hand') p = { typ: 'borta', till: r.zon === 'exil' ? 'exile' : r.zon === 'hand' ? 'hand' : 'graveyard' };
+    else if (j.typ === 'borttagen') p = { typ: 'borta' };
+    else if ((j.typ === 'bytt' || j.typ === 'namngiven') && j.namn) p = { typ: 'namn', namn: j.namn };
+    if (p) {
+      Object.assign(p, { t, spar: j.spar != null ? j.spar : null, kort: j.namn || null, cid, kalla: j.typ });
+      if (p.spar == null) p.ejAvgorbart = 'spåret okänt — kortet går inte att känna igen i uppspelningen';
+      ut.push(p); senaste.set(cid, p); continue;
+    }
+    const f = senaste.get(cid);
+    if (j.typ === 'angrad' && (r.av === 'cmdz' || (r.av === 'tap' && !r.hur))) {   // Undo i toasten, ⌘Z: påståendet var fel
+      if (f && (r.av === 'cmdz' || f.typ === 'tappad')) { f.tillbaka = `${r.av === 'cmdz' ? '⌘Z' : 'Undo'} ${t} s`; senaste.delete(cid); }
+    } else if ((j.typ === 'angrad' && r.av === 'tap' && r.hur === 'tap') || (j.typ === 'folj_kameran' && r.av === 'tap')) {
+      if (f && f.typ === 'tappad') { f.osaker = `mattan fick följa kameran igen ${t} s (${j.typ === 'folj_kameran' ? 'Follow camera' : 'tap tillbaka för hand'}): ett misstag eller ett riktigt tap och untap går inte att skilja`; senaste.delete(cid); }
+    }
+  }
+  return ut;
+}
+
 function byggFacit(handelser, opt) {
   opt = opt || {};
   const rader = [], kort = new Map(), rattelser = [];
@@ -304,16 +340,21 @@ function mattestFall(o) {
   rader = rader.filter(r => r.s >= fran - 1e-9 && r.s <= till + 1e-9);
   if (!rader.length) throw new Error('inga bord i bordsloggen mellan ' + fran + ' och ' + till);
   const matta = (K.matta || []).map(e => Object.assign({}, e, { s: (e.t - s0) / 1000 })).filter(e => e.s >= fran - 1e-9 && e.s <= till + 1e-9);
-  const harMatta = matta.length > 0;
-  const kamera = harMatta ? matta.filter(e => e.av !== 'spelare').map(e => Object.assign({}, e, { av: 'kamera' })) : kameranUrBordsloggen(rader);
+  /* Exakt (MES-385): paketet bär spelarens journal — då är facit spelarens påståenden (pastaendenUrJournalen), och
+     inget av kamerans händelser antas vara rätt. Annars, som förut: kamerans händelser ur lådans mattändringar (där
+     av spelare/kamera är en gissning, ett tryck de sista 1,5 s) eller ur bordsloggen, minus det spelaren rättade. */
+  const exakt = Array.isArray(K.spelare);
+  const pastaenden = exakt ? pastaendenUrJournalen(K.spelare, s0).filter(p => p.t >= fran - 1e-9 && p.t <= till + 1e-9) : null;
+  const harMatta = !exakt && matta.length > 0;
+  const kamera = exakt ? [] : harMatta ? matta.filter(e => e.av !== 'spelare').map(e => Object.assign({}, e, { av: 'kamera' })) : kameranUrBordsloggen(rader);
   const spelare = harMatta ? matta.filter(e => e.av === 'spelare') : [];
   const alla = kamera.concat(spelare).sort((a, b) => a.s - b.s);
-  /* En rättelse av handlingar (MES-385) bär spelarens Undo och Follow camera: de skiljer ett ångrat tap från ett riktigt untap. */
+  /* En rättelse av handlingar utan journal (före den) bär ändå spelarens Undo och Follow camera i vy.handlingar. */
   const angrade = (K.handlingar || []).filter(h => (h.typ === 'angrad' || h.typ === 'folj_kameran') && h.cid && h.t).map(h => ({ id: h.cid, s: (h.t - s0) / 1000 }));
   const F = byggFacit(alla, { dokUpp: K.tagg === 'dok_upp', tryck: K.frys ? (K.frys - s0) / 1000 : null, angrade });
   const orden = o.orden ? lasOrden(o.orden) : [];
   const ordenGjort = tillampaOrden(F.rader, orden);
-  const facit = F.rader.filter(r => !r.stryk).map(r => { const x = { t: r.t, typ: r.typ, kort: r.kort }; if (r.till) x.till = r.till; return x; });
+  const facit = F.rader.filter(r => !r.stryk).map(r => { const x = { t: r.t, typ: r.typ, kort: r.kort }; if (r.till) x.till = r.till; if (r.osaker) x.osaker = r.osaker; return x; });
   const struket = F.rader.filter(r => r.stryk).map(r => ({ t: r.t, typ: r.typ, kort: r.kort, kalla: r.kalla, varfor: r.stryk }));
   const kalla = K.kod ? `rapport ${K.kod}` : K.kallaNamn;
   const lek = o.lek ? lasLek(o.lek) : K.lek || null;
@@ -323,8 +364,9 @@ function mattestFall(o) {
       namn: (K.kod ? `rapport ${K.kod}` : `passet ${K.passNamn || ''}`.trim()) + `, sek ${fran}–${till}` + (K.text ? ` — «${String(K.text).slice(0, 80)}»` : ''),
       kalla, bordStart: new Date(s0).toISOString(), fran, till, upplosning: K.upplosning || null, lek, lekFil: o.lek ? path.relative(ROT, path.resolve(o.lek)) : null,
       orden: { text: K.text || null, tagg: K.tagg || null, fil: o.orden ? path.relative(ROT, path.resolve(o.orden)) : null, rader: orden },
-      facitKalla: harMatta ? 'rapportens mattändringar (kameran) + spelarens rättelser' : 'kamerans påståenden ur bordsloggen' + (orden.length ? ' + orden' : ''),
-      facit, struket, rattelser: F.rattelser, kamera: kamera.length, ordenGjort,
+      facitKalla: exakt ? 'spelarens påståenden ur journalen (exakt, MES-385) — inga av kamerans händelser antas vara rätta' + (orden.length ? ' + orden' : '')
+        : harMatta ? 'rapportens mattändringar (kameran) + spelarens rättelser (vem som ändrade mattan är gissat)' : 'kamerans påståenden ur bordsloggen' + (orden.length ? ' + orden' : ''),
+      facit, struket, rattelser: F.rattelser, pastaenden, kamera: kamera.length, ordenGjort,
       anm: 'skapat av dev/rapport/till-fall.cjs (MES-368): facit = kameran minus det spelaren rättade (LÄS-MIG i dev/rapport). Det ingen rättade antas vara rätt.',
       klocka: facit.map(r => `${r.t} ${klocka(s0 + r.t * 1000)} ${r.typ} ${r.kort}`)
     },
@@ -350,7 +392,7 @@ function kallaUrMapp(mapp, kod) {
   if (!fs.existsSync(bf)) throw new Error(`${path.relative(ROT, bf)} saknas — rapporten har ingen bordslogg (telefonen var inte ansluten?) och kan inte bli ett Mat test-fall`);
   const B = lasJsonFil(bf);
   const m = R.miljo || {};
-  return { kod: kod || R.kod, text: R.text, tagg: R.tagg, frys: typeof R.frys === 'number' ? R.frys : null, handlingar: R.vy && R.vy.handelse === 'handling' ? R.vy.handlingar || null : null, start: Date.parse(B.start), rader: B.bordLogg, matta: (R.tidslinje || []).filter(e => e.slag === 'matta'), upplosning: null, kallaNamn: 'rapport',
+  return { kod: kod || R.kod, text: R.text, tagg: R.tagg, frys: typeof R.frys === 'number' ? R.frys : null, spelare: Array.isArray(R.spelare) ? R.spelare : null, handlingar: R.vy && R.vy.handelse === 'handling' ? R.vy.handlingar || null : null, start: Date.parse(B.start), rader: B.bordLogg, matta: (R.tidslinje || []).filter(e => e.slag === 'matta'), upplosning: null, kallaNamn: 'rapport',
     parti: parti((R.rad && R.rad.game_id) || m.spelId || B.spel, m.spel || B.spelkod || B.spelKod) };
 }
 function kallaUrLogg(fil, spelkod) {
@@ -650,7 +692,8 @@ async function korInre(a) {
   else if (kod) rad.push(`tabellen: inte rörd (--lokal)`);
   if (plan.slag === 'mattest') {
     const F = plan.ut.fall;
-    rad.push(`Mat test-fall ${o.id}: ${F.facit.length} facit-rader (${F.facitKalla}), ${F.struket.length} strukna, ${F.rattelser.length} rättelser, ${plan.ut.bordlogg.bordLogg.length} bord, sek ${F.fran}–${F.till}`);
+    rad.push(F.pastaenden ? `Mat test-fall ${o.id}: ${F.pastaenden.length} påståenden (${F.facitKalla}) — ${F.pastaenden.filter(p => !p.tillbaka && !p.osaker && !p.ejAvgorbart).length} räknas, ${F.pastaenden.filter(p => p.tillbaka).length} tillbakatagna, ${F.pastaenden.filter(p => p.osaker).length} osäkra, ${F.pastaenden.filter(p => p.ejAvgorbart).length} utan spår; ${plan.ut.bordlogg.bordLogg.length} bord, sek ${F.fran}–${F.till}`
+      : `Mat test-fall ${o.id}: ${F.facit.length} facit-rader (${F.facitKalla}), ${F.struket.length} strukna, ${F.rattelser.length} rättelser, ${plan.ut.bordlogg.bordLogg.length} bord, sek ${F.fran}–${F.till}`);
     if (!o.torr) rad.push('skrivet: ' + path.relative(ROT, skrivMattest(plan.ut, o)) + '/ (fall.json, bordlogg.json.gz' + (o.orden ? ', orden.tsv' : '') + ')');
     rad.push(`kör: node dev/mattest/kor.cjs --fall ${o.id} --detalj ${o.id}`);
     for (const s of F.struket) rad.push(`  struket: ${s.t} ${s.typ} ${s.kort} — ${s.varfor}`);
@@ -678,4 +721,4 @@ if (require.main === module) {
     process.exit(e.sparr ? 3 : e.kod || 1);
   });
 }
-module.exports = { kor, lasRattelse, parti, partiUrMapp, kameranUrBordsloggen, byggFacit, mattestFall, lasOrden, tillampaOrden, arVal };
+module.exports = { kor, lasRattelse, parti, partiUrMapp, kameranUrBordsloggen, pastaendenUrJournalen, byggFacit, mattestFall, lasOrden, tillampaOrden, arVal };

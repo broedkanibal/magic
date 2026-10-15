@@ -183,6 +183,10 @@ function detaljUt(r) {
   if (d.hopp.length) { L.push('  hopp:'); for (const h of d.hopp) { const k = r.logg.kort.find(k => k.s === h.ser); L.push(`    ${pad(h.s, 8)} ${pad(k ? k.namn : h.ser, 26)} ${h.d} kortbredder, ${h.slag}${h.vad ? ' (' + h.vad + ')' : ''}`); } }
   if (d.grid && d.grid.length > 1) { L.push('  mattans transform:'); for (const g of d.grid) L.push(`    ${pad(g.s, 8)} zoom ${g.z != null ? g.z.toFixed(3) : '?'} pan ${g.px},${g.py}${g.glider ? ' (glider)' : ''}`); }
   if (d.fantomer && d.fantomer.length) { L.push('  kort som inte blev något (oframkallat/platshållare utan kort):'); for (const f of d.fantomer) L.push(`    ${pad(f.t, 7)} till ${f.slut} (${visa(f.s)} s), spår ${f.spar}`); }
+  if (d.pastaenden && d.pastaenden.length) {   // MES-385: spelarens rättelser, och om uppspelningen redan visade läget
+    L.push('  spelarens rättelser (påståenden ur journalen):');
+    for (const p of d.pastaenden) L.push(`    ${pad(p.t, 7)} ${p.typ === 'tappad' ? (p.varde ? 'tappad' : 'upprätt') : p.typ === 'borta' ? 'borta' + (p.till ? ' (' + p.till + ')' : '') : 'heter ' + p.namn} ${p.kort || '?'}, spår ${p.spar != null ? p.spar : '?'} — ${p.som}${p.tillbaka ? ' (' + p.tillbaka + ')' : ''}${p.osaker ? ' (' + p.osaker + ')' : ''}`);
+  }
   if (d.platser && d.platser.length) L.push(`  platshållare: ${d.platser.map(e => `${e.fodd}–${e.dod == null ? 'slut' : e.dod} spår ${e.spar}`).join(', ')}`);
   if (d.v2) { L.push(`  v2: ${d.v2.par} kortpar; falska omlott: ${d.v2.omlott.map(o => `ruta ${o.ruta} kort ${o.a}+${o.b} (bord ${o.bord} kb, matta ${o.matta} kb)`).join(', ') || 'inga'}`); L.push(`      utanför kanten: ${d.v2.utanfor.map(o => `${o.ruta}:${o.id}`).join(' ') || 'inga'}; saknas: ${d.v2.saknas.map(o => `${o.ruta}:${o.id}`).join(' ') || 'inga'}`); if (d.v2.somPlats && d.v2.somPlats.length) L.push(`      utan kort med namn (spårets oframkallade kort eller platshållare): ${d.v2.somPlats.length} — ${d.v2.somPlats.map(o => `${o.ruta}:${o.id}`).join(' ')}`); }
   return L.join('\n');

@@ -220,6 +220,13 @@
       const k = kortPost(el, c, t);
       sedda.add(k.s);
       if (c && k.namn !== c.name) k.namn = c.name;
+      /* Spåret och namnet över tid (MES-385): spelarens påståenden gäller ett spår vid en tid, och ett kort kan
+         bindas om till ett annat spår eller få ett annat namn. [[t, värde], …], en rad per ändring. */
+      if (c) {
+        const sb = k.sparBana || (k.sparBana = []), nb = k.namnBana || (k.namnBana = []), sp = c.spar != null ? c.spar : null;
+        if (!sb.length || sb[sb.length - 1][1] !== sp) sb.push([t, sp]);
+        if (!nb.length || nb[nb.length - 1][1] !== (c.name || '')) nb.push([t, c.name || '']);
+      }
       const lyft = el.classList.contains('lyft');
       if (c && (c.lyft != null) !== lyft) tolk('klassen .lyft stämmer inte med kortets lyft (' + (c.lyft != null ? 'lyft utan klass' : 'klass utan lyft') + ')');
       const sistaL = k.lyft[k.lyft.length - 1];
@@ -478,7 +485,8 @@
     };
     for (const k of ut.kort) for (const b of k.bana) b[0] = +U.sek(b[0]).toFixed(3);
     const sek = v => v == null ? null : +U.sek(v).toFixed(3);
-    for (const k of ut.kort) { k.fodd = sek(k.fodd); k.dod = sek(k.dod); k.lyft = k.lyft.map(([a, b]) => [sek(a), sek(b)]); k.chip = k.chip.map(([c, a, b]) => [c, sek(a), sek(b)]); }
+    for (const k of ut.kort) { k.fodd = sek(k.fodd); k.dod = sek(k.dod); k.lyft = k.lyft.map(([a, b]) => [sek(a), sek(b)]); k.chip = k.chip.map(([c, a, b]) => [c, sek(a), sek(b)]);
+      if (k.sparBana) k.sparBana = k.sparBana.map(([a, v]) => [sek(a), v]); if (k.namnBana) k.namnBana = k.namnBana.map(([a, v]) => [sek(a), v]); }
     for (const q of ut.platser) { q.fodd = sek(q.fodd); q.dod = sek(q.dod); }
     for (const h of ut.hopp) { h.s = sek(h.s); if (h.till != null) h.till = sek(h.till); }
     for (const g of ut.grid) g.s = sek(g.s);

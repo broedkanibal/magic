@@ -158,18 +158,31 @@ Kameran missar ungefär hälften av tap och flyttar på mattan, och spelaren rä
 
 | | Vad | När |
 |---|---|---|
-| **Raden i `kort_handelser`** | `tap_hand` (Tapped/Untapped by hand: mattan visar ett annat läge än kamerans dom), `flytt_hand` (Moved by hand), `angrad` (Undo i toasten: kameran hade rätt), `folj_kameran` (Follow camera), `grav_hand` (To the graveyard, G eller draget till högen, för ett kort kameran följer). Detaljerna i kolumnen `rapport`: `spar`, `tappad`, `kamTap`, `x`/`y`, `av`, `zon`. Remove och Return to hand är `borttagen` som förut | alltid i läget bord, inloggad — som namnens rader. Varje gång, inte en gång per kort, och i en egen skrivning (`khSkicka`) |
-| **En tyst rättelse utan bild** | en rad i `rapporter` (`kalla 'rattelse'`, `vy.handelse 'handling'`, `vy.handlingar`, `bilder 'saknas'`) och `rapport.json.gz` i rapportens form: telefonens bord och mattans ändringar (`slag 'matta'`, aldrig klick eller anrop) från 60 s före den första rättelsen till 20 s efter den sista, och mattan vid sändningen. Rättelser tätt efter varandra blir EN rad, högst 3 min (`Rattelse.handling`, `Rapport.handlingsPaket`) | samma villkor som namnens: rapporten finns, `improve_pictures` på (läst från servern när paketet skickas). Taket för rättelser gäller |
+| **Raden i `kort_handelser`** | `tap_hand` (Tapped/Untapped by hand: mattan visar ett annat läge än kamerans dom), `flytt_hand` (Moved by hand), `angrad` (Undo i toasten: kameran hade rätt), `folj_kameran` (Follow camera), `grav_hand` (To the graveyard, G, Return to hand eller draget till en hög, för ett kort kameran följer — `zon` grav, exil eller hand; aldrig en flytt mellan högarna). Ett tap som gör mattan och kameran överens igen är `angrad` med `hur: 'tap'`. Detaljerna i kolumnen `rapport`: `spar`, `tappad`, `kamTap`, `x`/`y`, `av`, `hur`, `zon`. Remove är `borttagen` som förut | alltid i läget bord, inloggad — som namnens rader. Varje gång, inte en gång per kort, och i en egen skrivning (`khSkicka`) |
+| **En tyst rättelse utan bild** | en rad i `rapporter` (`kalla 'rattelse'`, `vy.handelse 'handling'`, `vy.handlingar`, `bilder 'saknas'`) och `rapport.json.gz` i rapportens form: telefonens bord, **spelarens journal** (`spelare`: allt spelaren gjorde med bordets kort — namn, tillagda, borttagna och handlingarna — skrivet av handlingen själv, med kortets spår) och, som diagnos, mattans ändringar (`slag 'matta'`, aldrig klick eller anrop) från 60 s före den första rättelsen till 20 s efter den sista, och mattan vid sändningen. Rättelser tätt efter varandra blir EN rad, högst 3 min (`Rattelse.handling`, `Rapport.handlingsPaket`) | samma villkor som namnens: rapporten finns, `improve_pictures` på (läst från servern när paketet skickas). Taket för rättelser gäller |
 
 Sedan: `node dev/rapport/hamta.cjs R-0412` hämtar den som en rapport (`rapport.json`, `bordlogg.json`, LÄS-MIG med rättelserna), och
 `node dev/rapport/till-fall.cjs R-0412 --mattest` gör den till ett Mat test-fall — **prov, aldrig träning**: handlingarna är regler i
 avstämningen, ingen modell lär sig dem. Granskningssidan (`granska.cjs`) visar dem inte (ingen bild, inget namn); `lista.cjs --rattelser` gör det.
 
-I facit (`byggFacit`) gäller dessutom: vrider spelaren tillbaka **sitt eget** tap med Undo eller Follow camera hade kameran rätt — spelarens
-tap stryks, eller kamerans tap som det strök gäller igen. Undo/Follow camera = en `angrad`/`folj_kameran` för kortet inom 2 s i
-`vy.handlingar`, annars inom 10 s (toasten står i 4 s); ett untap senare är ett riktigt untap och står kvar.
-`grav_hand` loggas inte för en flytt mellan högarna (graveyard → exile): draget började i en hög. En flytt på mattan räknas fortfarande inte i facit (spelaren kan ha ordnat mattan
-utan att röra det riktiga kortet); `flytt_hand` mäts bara i `kort_handelser`.
+**Facit utan gissning** (en rättelse med journal) är **spelarens påståenden**, inte en tidslinje av händelser
+(`pastaendenUrJournalen`): varje rättelse säger hur ETT kort — spåret — låg i ETT ögonblick, och att kameran visade
+något annat just då. `tap_hand` = tappad/upprätt, `grav_hand` = borta (graveyard, exile, hand), Remove = borta,
+`bytt`/`namngiven` = namnet. Inga av kamerans händelser antas vara rätta (`facit` är tom), och ingenting vävs ihop
+med kamerans tidslinje — så ingenting behöver gissas om när något hände, eller om kameran och spelaren menar samma
+händelse. Ett påstående tas tillbaka av **Undo i toasten** och av **⌘Z** (spelaren säger att det var fel). Follow camera
+och ett tap tillbaka för hand säger bara att mattan följer kameran **nu**: om tapet var ett misstag eller om det
+riktiga kortet vreds fram och tillbaka går inte att skilja, så påståendet märks `osaker` och räknas inte. Ett påstående
+utan spår (`ejAvgorbart`) räknas inte heller. En flytt på mattan och ett tillagt kort blir inga påståenden.
+
+Mat test mäter fallet med **"Spelarens rättelser som uppspelningen redan visade"**: visade uppspelningen påståendets
+läge vid dess tid hade rättelsen inte behövts. På koden som spelades är svaret nästan alltid 0 av N — det är just
+därför spelaren rättade; måttet blir bättre när kameran blir bättre. Kortet hittas på sitt spår (uppspelningens
+`sparBana`), aldrig på namnet; går det inte är det "ej avgörbart".
+
+En vanlig problemrapport (utan journal) byggs som förut ur lådans mattändringar, där `av` spelare/kamera är en gissning
+(ett tryck de sista 1,5 s); där tas ett eget tap tillbaka av `angrad`/`folj_kameran` inom 2 s eller inom 10 s.
+`grav_hand` loggas inte för en flytt mellan högarna (graveyard → exile): draget började i en hög.
 
 Mattans logg (`slag 'matta'`, `av` spelare/kamera) förs fram direkt efter varje sådan rättelse, inte först vid nästa `renderAll` — annars kunde
 ett tap loggas mer än 1,5 s efter klicket och gissas vara kamerans.

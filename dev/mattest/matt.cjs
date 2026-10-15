@@ -48,7 +48,9 @@ const MATT = [
   ['saknasRutor', 'Kort i facit som saknas på mattan (kort · rutor)', 'lagre', 'antal'],
   ['fantomer', 'Kort som inte blev något (oframkallat/platshållare ≥ 3 s som försvann utan kort; fall ur rapporter)', 'lagre', 'antal'],
   ['tapRatt', 'Tap och untap i facit som mattan visade', 'hogre', 'kvot'],
-  ['tapTidMedian', 'Tap: tid till rätt läge, median (miss = 10 s)', 'lagre', 's']
+  ['tapTidMedian', 'Tap: tid till rätt läge, median (miss = 10 s)', 'lagre', 's'],
+  ['pastaendenRatt', 'Spelarens rättelser som uppspelningen redan visade (rättelsen hade inte behövts)', 'hogre', 'kvot'],
+  ['pastaendenEjAvgorbara', 'Spelarens rättelser som inte går att avgöra (kortet syns inte i uppspelningen, spåret okänt)', 'lagre', 'antal']
 ];
 
 const median = l => { if (!l.length) return null; const s = l.slice().sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -321,6 +323,37 @@ function berakna(fall, logg) {
     detalj.fantomer = kedjor.filter(k => !k.overtagen && k.slut - k.fodd >= FANTOM_S).map(k => ({ t: r2(k.fodd), slut: r2(k.slut), s: r2(k.slut - k.fodd), spar: k.spar.join('→') }));
     m.fantomer = detalj.fantomer.length;
   } else m.fantomer = null;
+
+  /* ── spelarens påståenden (MES-385) ── Fall ur en rättelse av handlingar: facit är det spelaren rättade — hur
+     ETT kort (spåret) låg i ETT ögonblick (till-fall.cjs pastaendenUrJournalen). Visade uppspelningen redan det
+     läget då hade rättelsen inte behövts. Kortet = elementet som senast före tiden var bundet till spåret (motorns
+     sparBana). Ett påstående som togs tillbaka (Undo, ⌘Z) eller är osäkert räknas inte; ett vars kort inte går att
+     hitta i uppspelningen är "ej avgörbart" — aldrig gissat ur namnet. Borta = kortet har lämnat mattan eller tonas
+     ned; till graveyard/exile måste det ha gått dit. */
+  if (Array.isArray(fall.pastaenden)) {
+    detalj.pastaenden = [];
+    const vidBana = (bana, t, forval) => { let v = forval; for (const [x, val] of bana || []) { if (x > t + 1e-9) break; v = val; } return v; };
+    for (const p of fall.pastaenden) {
+      let som = p.tillbaka ? 'tillbakatagen' : p.osaker ? 'osäker' : p.ejAvgorbart ? 'ej avgörbar' : null;
+      if (!som) {
+        let k = null, kt = -Infinity;
+        for (const c of kort) for (const [x, sp] of c.sparBana || [[c.fodd, c.sparFodd]]) if (x <= p.t + 1e-9 && sp != null && String(sp) === String(p.spar) && x >= kt) { k = c; kt = x; }
+        const levande = k && k.fodd <= p.t + 1e-9 && (k.dod == null || k.dod > p.t);
+        const nedtonad = k && k.lyft.some(([a, b]) => a <= p.t + 1e-9 && (b == null || b > p.t));
+        if (!k) som = 'ej avgörbar';
+        else if (p.typ === 'tappad') { const b = levande ? vid(k, p.t) : null; som = !b ? 'ej avgörbar' : b[5] === p.varde ? 'visade' : 'visade inte'; }
+        else if (p.typ === 'borta') {
+          const zonOk = levande || !p.till || (p.till === 'hand' ? /hand|borttaget/.test(k.dodSom || '') : k.dodSom === p.till);
+          som = (!levande || nedtonad) && zonOk ? 'visade' : 'visade inte';
+        } else if (p.typ === 'namn') som = levande && vidBana(k.namnBana, p.t, k.namn) === p.namn ? 'visade' : 'visade inte';
+        else som = 'ej avgörbar';
+      }
+      detalj.pastaenden.push(Object.assign({}, p, { som }));
+    }
+    const avg = detalj.pastaenden.filter(x => x.som === 'visade' || x.som === 'visade inte');
+    m.pastaendenRatt = avg.length ? { n: avg.filter(x => x.som === 'visade').length, av: avg.length } : null;
+    m.pastaendenEjAvgorbara = detalj.pastaenden.filter(x => x.som === 'ej avgörbar').length;
+  } else { m.pastaendenRatt = null; m.pastaendenEjAvgorbara = null; }
 
   /* ── utanför kanten ── */
   const utanfor = logg.utanfor.filter(x => x[0] >= T0);

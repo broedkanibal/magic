@@ -86,13 +86,13 @@ const PROV = async () => {
   kamAnsluten = true; kamFas = ''; kamGrund = 0; prefs.autoLage = true;
   renderAll(true);
   const spar = (id, namn, x, y) => ({ id, tillstand: 'klar', namn, saker: true, x, y, w: 0.08, h: 0.11, tappad: false, vilar: true, varfor: 'remsa' });
-  const bord = [spar(1, 'Llanowar Elves', 0.2, 0.2), spar(2, 'Forest', 0.42, 0.2), spar(3, 'Serra Angel', 0.64, 0.2), spar(4, 'Giant Growth', 0.2, 0.5)];
+  const bord = [spar(1, 'Llanowar Elves', 0.2, 0.2), spar(2, 'Forest', 0.42, 0.2), spar(3, 'Serra Angel', 0.64, 0.2), spar(4, 'Giant Growth', 0.2, 0.5), spar(5, 'Shock', 0.42, 0.5)];
   const skicka = () => kamTogsEmot({ typ: 'bord', av: 'u-prov', fran: 'kamera', spar: bord, fas: '' });
   skicka(); await vanta(1200);
   for (let i = 0; i < 4; i++) { skicka(); await vanta(250); }   // bordsloggen får några rader, kamerans tap-dom sätts
   const kort = n => mig.cards.find(k => k.name === n);
   const idx = n => hand().indexOf(kort(n));
-  ok('partiet: fyra kamerakort på mattan, kameran säger upprätt (kamTap 0)', ['Llanowar Elves', 'Forest', 'Serra Angel', 'Giant Growth'].every(n => kort(n) && kort(n).spar != null && kort(n).kamTap === 0),
+  ok('partiet: fem kamerakort på mattan, kameran säger upprätt (kamTap 0)', ['Llanowar Elves', 'Forest', 'Serra Angel', 'Giant Growth', 'Shock'].every(n => kort(n) && kort(n).spar != null && kort(n).kamTap === 0),
      mig.cards.map(k => `${k.name}:${k.spar}:${k.kamTap}`).join(', '));
   /* Ett klick före varje rättelse, som i spelet: lådan gissar då att mattans ändring var spelarens (av 'spelare'). */
   const klick = () => document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -121,10 +121,11 @@ const PROV = async () => {
   const h3 = handl();
   ok('samma kort tappat två gånger ger två tap_hand (inte en gång per kort som namnen)', h3.filter(r => r.typ === 'tap_hand' && r.namn === 'Llanowar Elves').length === 2);
   ok('Follow camera: folj_kameran { av: tap }, och kortet tar kamerans läge', h3.some(r => r.typ === 'folj_kameran' && r.namn === 'Llanowar Elves' && r.rapport.av === 'tap') && !kort('Llanowar Elves').tapped);
-  /* Ett tap som gör mattan och kameran överens är ingen rättelse: Forest tillbaka upp. */
+  /* Ett tap som gör mattan och kameran överens igen tar tillbaka spelarens eget tap: angrad { av tap, hur tap }. */
   const n0 = handl().length;
   klick(); tappa(idx('Forest')); await vanta(100);
-  ok('ett tap som gör mattan och kameran överens igen loggas inte', handl().length === n0, JSON.stringify(handl().slice(n0)));
+  const nya0 = handl().slice(n0);
+  ok('Forest vriden tillbaka för hand (överens med kameran igen): angrad { av tap, hur tap }, ingen tap_hand', nya0.length === 1 && nya0[0].typ === 'angrad' && nya0[0].namn === 'Forest' && nya0[0].rapport.hur === 'tap', JSON.stringify(nya0));
   klick(); tappa(idx('Forest')); await vanta(100);   // Forest vriden igen: spelarens tap gäller
   /* Flytten för hand (samma väg som efter ett släpp: c.hand + visaHandToast). */
   const gg = kort('Giant Growth'), fore = JSON.stringify(mig.cards);
@@ -139,13 +140,16 @@ const PROV = async () => {
   const serra = kort('Serra Angel'); delete serra.zon;   // som spawnFromGrave under draget
   klick(); flyttaTill(idx('Serra Angel'), ZON_EXIL, true); await vanta(100);
   ok('en flytt mellan högarna (graveyard → exile) säger inte emot kameran: ingen grav_hand', handl().length === g0 && zonAv(serra) === ZON_EXIL, JSON.stringify(handl().slice(g0)));
+  /* Return to hand (H, menyn): kortet lämnade bordet — grav_hand { zon: hand }. */
+  klick(); tillLeken(idx('Shock')); await vanta(100);
+  ok('Return to hand för ett kamerakort: grav_hand { zon: hand }', handl().some(r => r.typ === 'grav_hand' && r.namn === 'Shock' && r.rapport.zon === 'hand') && !kort('Shock'), JSON.stringify(handl().filter(r => r.namn === 'Shock')));
   Rattelse.skickaHandlingar(); await vanta(300);
   ok('inställningen AV: ingen tyst rättelse, ingen fil', A.rader.length === 0 && !Object.keys(A.filer).length, JSON.stringify(Rattelse.stat()));
 
   /* ── 2. Den tysta rättelsen, inställningen PÅ ── */
   A.bildPa = true;
   klick(); tappa(idx('Giant Growth')); await vanta(100);
-  klick(); tappa(idx('Giant Growth')); await vanta(100);   // tillbaka: överens med kameran, ingen ny rad
+  klick(); tappa(idx('Giant Growth')); await vanta(100);   // tillbaka: överens med kameran igen (angrad)
   ok('PÅ: inget skickas förrän rättelserna stannat (samlas)', A.rader.length === 0 && Rattelse.stat().samlar >= 1, JSON.stringify(Rattelse.stat()));
   for (let i = 0; i < 2; i++) { skicka(); await vanta(250); }
   await Rattelse.skickaHandlingar();
@@ -158,8 +162,11 @@ const PROV = async () => {
   ok('paketet: rapportens form, bara mattans ändringar (inga klick), bordsloggen och mattan', paket && paket.kod === r.kod && paket.kalla === 'rattelse' && paket.bordLogg && paket.bordLogg.rader.length > 0
      && Array.isArray(paket.lada) && paket.lada.length > 0 && paket.lada.every(e => e.slag === 'matta') && paket.matta && Array.isArray(paket.matta.mig) && paket.telefon === null && paket.miljo && paket.miljo.spel === 'PROVH1',
      paket ? `bord ${paket.bordLogg.rader.length}, lådan ${paket.lada.length} (${[...new Set(paket.lada.map(e => e.slag))]}), storlek ${fil.size} B` : 'inget paket');
+  const jt = paket && Array.isArray(paket.spelare) ? paket.spelare.map(j => j.typ + ':' + j.namn) : null;
+  ok('paketet: spelarens journal (exakt) — varje handling i ordning, med kortets spår', jt && jt.join(',') === 'tap_hand:Forest,tap_hand:Llanowar Elves,angrad:Llanowar Elves,tap_hand:Llanowar Elves,folj_kameran:Llanowar Elves,angrad:Forest,tap_hand:Forest,flytt_hand:Giant Growth,grav_hand:Serra Angel,grav_hand:Shock,tap_hand:Giant Growth,angrad:Giant Growth'
+     && paket.spelare.every(j => j.spar != null && j.cid && j.t), jt && jt.join(','));
   ok('paketet: ingen bild, inga anrop, inget som frågar Claude', paket && !JSON.stringify(paket).includes('data:image') && !Lada.utdrag().some(e => e.slag === 'claude'));
-  ok('raden bär bara rättelserna sedan förra sändningen (vy.handlingar), paketet hela fönstret före', r && r.vy.handlingar.map(h => h.typ + ':' + h.kort).join(',') === 'tap_hand:Giant Growth',
+  ok('raden bär bara rättelserna sedan förra sändningen (vy.handlingar), paketet hela fönstret före', r && r.vy.handlingar.map(h => h.typ + ':' + h.kort).join(',') === 'tap_hand:Giant Growth,angrad:Giant Growth',
      r && r.vy.handlingar.map(h => h.typ + ':' + h.kort).join(','));
   return { rad, paket };
 };
@@ -200,10 +207,36 @@ const PROV = async () => {
       const f = spawnSync(process.execPath, [path.join(__dirname, 'till-fall.cjs'), ut.paket.kod, '--mattest', '--mapp', mapp, '--lokal', '--id', 'prov-h1'], { encoding: 'utf8', env: Object.assign({}, process.env, { MESA_FALL_UT: tmp }) });
       let fall = null; try { fall = JSON.parse(fs.readFileSync(path.join(tmp, 'dev', 'mattest', 'underlag', 'rapporter', 'prov-h1', 'fall.json'), 'utf8')); } catch (e) {}
       const har = (typ, kort) => fall && fall.facit.some(x => x.typ === typ && x.kort === kort);
-      ok('till-fall --mattest: ett fall med bordsloggen', f.status === 0 && !!fall, (f.stderr || f.stdout).trim().slice(-300));
-      ok('facit: spelarens tap av Forest (kameran missade det) och Serra Angel till graveyard', har('tappar', 'Forest') && fall.facit.some(x => x.typ === 'tar_bort' && x.kort === 'Serra Angel'), fall && JSON.stringify(fall.facit));
-      ok('facit: Llanowar Elves tap ångrades (Undo, Follow camera) — inget tap kvar för kortet, och det strukna står med skälet', fall && !har('tappar', 'Llanowar Elves') && !har('otappar', 'Llanowar Elves') && fall.struket.some(x => x.kort === 'Llanowar Elves' && /eget tap/.test(x.varfor)),
-         fall && JSON.stringify(fall.struket));
+      ok('till-fall --mattest: ett fall med bordsloggen, facit ur journalen (exakt)', f.status === 0 && !!fall && /journalen \(exakt/.test(fall.facitKalla), (f.stderr || f.stdout).trim().slice(-300));
+      const P = (fall && fall.pastaenden) || [], kort = x => `${x.typ}:${x.kort}${x.till ? ':' + x.till : ''}`;
+      const raknas = P.filter(x => !x.tillbaka && !x.osaker && !x.ejAvgorbart);
+      ok('facit = spelarens påståenden, inga kamerahändelser antas rätta', fall && fall.facit.length === 0 && P.length === 7, fall && JSON.stringify(P.map(x => [x.t, kort(x), x.spar, x.tillbaka || x.osaker || ''])));
+      ok('påståendena som räknas: Forest tappad, Serra Angel borta till graveyard, Shock borta till handen — med spåret', raknas.map(kort).join(',') === 'tappad:Forest,borta:Serra Angel:graveyard,borta:Shock:hand' && raknas.every(x => x.spar != null), JSON.stringify(raknas));
+      ok('Undo i toasten tar tillbaka Llanowar Elves första tap', P.filter(x => x.kort === 'Llanowar Elves' && /Undo/.test(x.tillbaka || '')).length === 1);
+      ok('Follow camera (Llanowar) och tap tillbaka för hand (Forest, Giant Growth): osäkra, inget gissat', ['Llanowar Elves', 'Forest', 'Giant Growth'].every(n => P.some(x => x.kort === n && /går inte att skilja/.test(x.osaker || ''))), JSON.stringify(P.filter(x => x.osaker).map(kort)));
+      /* Mat test på fallet: uppspelningen hittar korten på spåret (inte "ej avgörbar"), och telefonens bord sa aldrig
+         det spelaren rättade — rättelserna hade alltså behövts (visade inte). Fallet läggs i underlag/rapporter en
+         stund och tas bort efteråt. */
+      const UND = path.join(ROT, 'dev', 'mattest', 'underlag', 'rapporter', 'prov-h1');
+      if (fall && !fs.existsSync(UND)) {
+        try {
+          fs.cpSync(path.join(tmp, 'dev', 'mattest', 'underlag', 'rapporter', 'prov-h1'), UND, { recursive: true });
+          const jf = path.join(tmp, 'mt.json');
+          const m = spawnSync(process.execPath, [path.join(ROT, 'dev', 'mattest', 'kor.cjs'), '--fall', 'prov-h1', '--json', jf], { encoding: 'utf8' });
+          let d = null; try { const J = JSON.parse(fs.readFileSync(jf, 'utf8')); const f0 = (Array.isArray(J) ? J : J.fall || []).find(x => x.id === 'prov-h1'); d = f0 && (f0.detalj || (f0.matt && f0.matt.detalj)); } catch (e) {}
+          const som = d && d.pastaenden ? d.pastaenden.filter(x => !x.tillbaka && !x.osaker).map(x => x.som) : null;
+          ok('Mat test: de tre påståendena hittar sitt kort på spåret och uppspelningen visade inte läget (0 av 3)', som && som.length === 3 && som.every(x => x === 'visade inte'), som ? JSON.stringify(d.pastaenden.map(x => [kort(x), x.som])) : (m.stderr || m.stdout).slice(-300));
+          /* Åt andra hållet: en telefon som såg Forest vridas (spår 2 tappat i bordsloggen från 0,5 s) — uppspelningen
+             visar tapet, och rättelsen hade inte behövts. */
+          const bf = path.join(UND, 'bordlogg.json.gz'), B = JSON.parse(zlib.gunzipSync(fs.readFileSync(bf)).toString('utf8'));
+          for (const r of B.bordLogg) if (r.s >= 0.5) for (const t of r.spar || []) if (t.id === 2) t.tappad = true;
+          fs.writeFileSync(bf, zlib.gzipSync(JSON.stringify(B)));
+          spawnSync(process.execPath, [path.join(ROT, 'dev', 'mattest', 'kor.cjs'), '--fall', 'prov-h1', '--json', jf], { encoding: 'utf8' });
+          let d2 = null; try { const J = JSON.parse(fs.readFileSync(jf, 'utf8')); const f0 = J.fall.find(x => x.id === 'prov-h1'); d2 = f0 && { detalj: f0.detalj, matt: f0.matt }; } catch (e) {}
+          const fo = d2 && d2.detalj.pastaenden.find(x => x.kort === 'Forest' && !x.osaker);
+          ok('Mat test: en telefon som såg tapet — Forest "visade", 1 av 3 rättelser hade inte behövts', fo && fo.som === 'visade' && d2.matt.pastaendenRatt && d2.matt.pastaendenRatt.n === 1 && d2.matt.pastaendenRatt.av === 3, d2 ? JSON.stringify(d2.matt.pastaendenRatt) + ' ' + JSON.stringify(fo) : 'ingen körning');
+        } finally { fs.rmSync(UND, { recursive: true, force: true }); }
+      } else ok('Mat test på fallet', !fall ? false : false, fall ? `${UND} finns redan — rör den inte` : 'inget fall');
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   } else ok('hela vägen till ett fall', false, 'inget paket ur steg 2');
 

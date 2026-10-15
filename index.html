@@ -14338,11 +14338,15 @@ function addCards(items, opts) {
   save(); renderAll(); resolveAll();
   return added;
 }
-function removeAt(i, msg) {
+function removeAt(i, msg, fraHog) {
   const h = hand();
   if (i < 0 || i >= h.length) return;
+  /* MES-385: Return to hand (H, menyn, draget till Library) för ett kort kameran följer — spelaren säger att kortet
+     lämnat bordet. En riktig borttagning (utan msg) är borttagen, som förut. fraHog: draget började i en hög. */
+  const tillHand = !!msg && !fraHog && kamFoljer(h[i]);
   angraPunkt();
   const [gone] = h.splice(i, 1);
+  if (tillHand) khHandling('grav_hand', gone, { zon: 'hand' });
   /* En förflyttning till hand eller library (msg): auran på kortet går till
      graveyard, som när värden går dit (aurorFoljer). Förut blev den
      liggande lös på mattan när losBifogade släppte den. Utrustning blir
@@ -14352,7 +14356,7 @@ function removeAt(i, msg) {
   /* Kameran ser kortet tills det lyfts. Utan spärren låg det på bordet igen
      tre sekunder senare, som ett nytt kort. */
   if (gone.spar != null) borttagna.add(gone.spar);
-  if (!msg && gone.spar != null) khLogga('borttagen', gone.cid, { namn: gone.name || null });   // spelupplevelsen: kameran lade dit något som inte var där
+  if (!msg && gone.spar != null) khLogga('borttagen', gone.cid, { namn: gone.name || null, rapport: { spar: gone.spar } });   // rapport.spar: journalen (MES-385), kortet är redan borta   // spelupplevelsen: kameran lade dit något som inte var där
   if (!msg && gone.spar != null && typeof Rattelse !== 'undefined') Rattelse.fran('borttaget', gone, null);   // den tysta rättelsen (MES-366)
   const sel = state.sel;
   state.sel = clamp(state.sel, 0, Math.max(0, h.length - 1));
@@ -14763,7 +14767,14 @@ function tappa(i) {
    kort står kvar: dess Undo tar redan tillbaka tapet från före draget. */
 function tapToast(fore, kort) {
   const nya = kort.filter(e => tapMarkSyns(e)).map(e => e.cid), s = handToastStang;
-  for (const e of kort) if (tapMarkSyns(e)) khHandling('tap_hand', e);   // MES-385: före toastens egna vägar ut
+  /* MES-385, före toastens egna vägar ut: ett tap mot kameran är tap_hand; ett tap som gör mattan och kameran
+     överens igen tar tillbaka spelarens eget tap (angrad, hur 'tap') — kameran hade rätt, som med Undo. */
+  let f0 = null; try { f0 = new Map(JSON.parse(fore).map(k => [k.cid, k])); } catch (e) {}
+  for (const e of kort) {
+    if (tapMarkSyns(e)) { khHandling('tap_hand', e); continue; }
+    const f = f0 && f0.get(e.cid);
+    if (f && kamFoljer(e) && e.kamTap != null && (f.tapped ? 1 : 0) !== e.kamTap) khHandling('angrad', e, { av: 'tap', hur: 'tap' });
+  }
   if (!nya.length) { if (handToastOppen() && s.tap) handToastStang(); return; }
   if (handToastOppen() && !s.tap && nya.every(cid => (s.cids || []).includes(cid))) return;
   visaHandToast(fore, nya, null, true);
@@ -14774,7 +14785,9 @@ function tapToast(fore, kort) {
 function foljKameran(i) {
   const c = hand()[i];
   if (!c || !paMattan(c) || !(handMarkSyns(c) || tapMarkSyns(c))) return;
-  khHandling('folj_kameran', c, { av: handMarkSyns(c) ? 'flytt' : 'tap' });   // MES-385, före kortet tar kamerans läge
+  /* MES-385, före kortet tar kamerans läge: en rad per sak som släpps — flytten och tapet kan båda vara spelarens. */
+  if (handMarkSyns(c)) khHandling('folj_kameran', c, { av: 'flytt' });
+  if (tapMarkSyns(c)) khHandling('folj_kameran', c, { av: 'tap' });
   angraPunkt();
   if (c.hand) { delete c.hand; delete c.kamRitad; }
   if (c.kamTap != null) c.tapped = c.kamTap;
@@ -15465,7 +15478,10 @@ function visaHandToast(fore, cids, ofr, tap) {
   k.querySelector('.htangra').onclick = ev => {
     ev.stopPropagation();
     for (const cid of cids) { const c = mittKort(cid); if (c && (tap ? tapMarkSyns(c) : c.hand)) khHandling('angrad', c, { av: tap ? 'tap' : 'flytt' }); }
+    const tapFore = new Map(cids.map(cid => [cid, (mittKort(cid) || {}).tapped ? 1 : 0]));
     if (tap) tapAngra(fore, cids); else handAngra(fore, cids, efter, ofr);
+    /* Flyttens Undo lägger också tillbaka ett tap från efter draget (handAngra): det tapet var också fel. */
+    if (!tap) for (const cid of cids) { const c = (minSpelare() || { cards: [] }).cards.find(k => k.cid === cid); if (c && kamFoljer(c) && (c.tapped ? 1 : 0) !== tapFore.get(cid)) khHandling('angrad', c, { av: 'tap' }); }
     handToastStang();
   };
   /* Pekaren över toasten räknas bara för en mus eller penna: ett finger har ingen hover, och Chrome på Android
@@ -15773,7 +15789,7 @@ function matDndSlut(ev, avbryt) {
        att Undo lägger det där det låg. */
     c.x = d.start.x; c.y = d.start.y;
     flygTillBib(el);
-    utanAngra(() => removeAt(h.indexOf(c), `${namnAv(c)} → hand or library`));
+    utanAngra(() => removeAt(h.indexOf(c), `${namnAv(c)} → hand or library`, !!d.fraZon));
     bibBumpa();
     fjarrIkapp(); return;
   }
@@ -15869,7 +15885,18 @@ function angra() {
     const p = state.players.find(q => q.id === s.pid);
     if (!p || !arMitt(p) || (JSON.stringify(p.cards) === s.bild && !(s.ofr && s.ofr.some(([id]) => ofrMinne.has(id))))) continue;
     closeKortMeny(); closeCounters(); if (ark) closeArk();
+    const fore = p === minSpelare() ? new Map(p.cards.map(k => [k.cid, k])) : null;
     p.cards = JSON.parse(s.bild);
+    /* MES-385: ⌘Z tar tillbaka det spelaren just gjorde — en rättelse av ett kort kameran följer var fel. Journalen får
+       angrad { av: 'cmdz' } för varje kamerakort som ändrades (tap, zon, namn, på eller av bordet). */
+    if (fore) {
+      const sig = k => k ? [k.tapped ? 1 : 0, k.zon || '', k.name || ''].join('|') : '-';
+      const nu = new Map(p.cards.map(k => [k.cid, k]));
+      for (const cid of new Set([...fore.keys(), ...nu.keys()])) {
+        const k = nu.get(cid) || fore.get(cid);
+        if (k && k.spar != null && sig(fore.get(cid)) !== sig(nu.get(cid))) khHandling('angrad', k, { av: 'cmdz' });
+      }
+    }
     ofrAterstall(s.ofr);
     /* Match the camera (MES-357): spökena den spärrade får sina spår tillbaka, och ett kort som Match skickade
        till raden vid nederkanten och som nu ligger på mattan igen står inte kvar i raden (Still on the table hade
@@ -34460,16 +34487,36 @@ const KH_MIX = { namn: 'Card Named', namnlos: 'Card Not Identified', sent_namn: 
      flytt_hand    flyttade det på mattan (Moved by hand)
      angrad        Undo i toasten efter tap_hand eller flytt_hand: kameran hade rätt
      folj_kameran  Follow camera: kortet släpper spelarens läge och tar kamerans
-     grav_hand     lade det i graveyard eller exile själv (menyn, G, draget till högen)
-   Remove och Return to hand är borttagen, som förut. Varje gång loggas — inte en gång per kort som namnen — och i en
+     grav_hand     lade det i graveyard, exile eller handen själv (menyn, G, H, draget till en hög; zon grav/exil/hand)
+   Remove är borttagen, som förut. angrad bär av: 'tap' | 'flytt' | 'cmdz' (⌘Z), och hur: 'tap' när spelaren vred
+   tillbaka sitt eget tap för hand i stället för Undo. Varje gång loggas — inte en gång per kort som namnen — och i en
    egen skrivning (khSkicka), så att en tabell utan migrationen 20261015090000 bara tappar de här raderna. Bara kort
    kameran följer (kamFoljer): utan spår finns ingen dom att säga emot. Inget här frågar Claude. */
 const KH_HANDLING = new Set(['tap_hand', 'flytt_hand', 'angrad', 'folj_kameran', 'grav_hand']);
-const KH = { spel: null, ko: [], spar: new Map(), sedda: new Set(), timer: 0 };
+/* Spelarens journal (MES-385, facit utan gissning): allt spelaren själv gjorde med bordets kort, i den ordning det
+   gjordes, med tiden och kortets spår — skrivet av handlingen själv, inte gissat ur mattans ändringar. Det är
+   underlaget när en rättelse av handlingar blir ett Mat test-fall: kamerans påståenden ur telefonens bordslogg,
+   och det spelaren sa emot, härifrån (till-fall.cjs). Bara i minnet, de senaste JOURNAL_MS, töms vid nytt parti. */
+const KH_SPELARE = new Set(['namngiven', 'bytt', 'tillagd', 'borttagen', ...KH_HANDLING]), JOURNAL_MS = 10 * 60 * 1000;
+function khJournalfor(typ, kort, f) {
+  const nu = Date.now(), j = KH.journal || (KH.journal = []);
+  let spar = f.rapport && f.rapport.spar != null ? f.rapport.spar : null, namn = f.namn || null;
+  if (spar == null || !namn) {
+    const mig = minSpelare(), c = mig && mig.cards.find(k => k.cid === String(kort));
+    const q = !c && mig && mig.pending ? mig.pending.find(p => String(p.id) === String(kort)) : null;
+    if (spar == null) spar = c && c.spar != null ? c.spar : q && q.spar != null ? q.spar : null;
+    if (!namn) namn = (c && c.name) || null;
+  }
+  j.push(Object.assign({ t: nu, typ, cid: String(kort), spar, namn }, f.fran ? { fran: f.fran } : {}, f.rapport ? { rapport: f.rapport } : {}));
+  while (j.length && j[0].t < nu - JOURNAL_MS) j.shift();
+}
+/* Journalens rader mellan fran och till (ms, datorns klocka), som kopior. */
+function khJournal(fran, till) { return ((KH.spel && KH.journal) || []).filter(r => r.t >= fran && r.t <= till).map(r => JSON.parse(JSON.stringify(r))); }
+const KH = { spel: null, ko: [], spar: new Map(), sedda: new Set(), timer: 0, journal: [] };
 function khSakra() {
   const id = spelLage ? spelLage.id : null;
   if (KH.spel === id) return !!id;
-  KH.spel = id; KH.ko = []; KH.spar = new Map(); KH.sedda = new Set(id ? LS.get(K_KH + id, []) : []);
+  KH.spel = id; KH.ko = []; KH.spar = new Map(); KH.sedda = new Set(id ? LS.get(K_KH + id, []) : []); KH.journal = [];
   return !!id;
 }
 function khNyckel(id) { return id == null ? null : KH.spar.get(String(id)) || String(id); }
@@ -34477,6 +34524,7 @@ function khLogga(typ, kort, f) { try { khLoggaNu(typ, kort, f); } catch (e) { co
 function khLoggaNu(typ, kort, f) {
   if (!khSakra() || mittLage() !== 'bord' || !Moln.inloggad()) return;
   const k = khNyckel(kort); if (!k) return;
+  if (KH_SPELARE.has(typ)) khJournalfor(typ, kort, f || {});
   const sig = typ + '|' + k;
   if (!KH_HANDLING.has(typ)) {
     if (typ !== 'bytt' && KH.sedda.has(sig)) return;
@@ -39206,8 +39254,10 @@ var Rapport = (() => {
     const rader = f.bordLogg.filter(r => r.s >= s0 && r.s <= s1);
     if (!rader.length) return null;
     mattaDiff();
+    /* spelare: journalen (khJournal) — facit byggs ur den och ur bordsloggen, aldrig ur lådans gissning om vem som
+       ändrade mattan; lådans mattändringar följer med som diagnos. */
     return { v: 1, sida: 'dator', miljo: miljo(), lada: Lada.utdrag(Date.now() - fran + 1000).filter(e => e.slag === 'matta' && e.t >= fran && e.t <= till),
-             matta: mattaNu(), bordLogg: { start, id: f.id, kapad: f.kapad || f.bordLogg[0].s > s0, rader }, telefon: null, medTelefon: false };
+             spelare: typeof khJournal === 'function' ? khJournal(fran, till) : null, matta: mattaNu(), bordLogg: { start, id: f.id, kapad: f.kapad || f.bordLogg[0].s > s0, rader }, telefon: null, medTelefon: false };
   }
 
   /* ── Paketet: fryses när rutan öppnas (README §9) ──────────────────── */

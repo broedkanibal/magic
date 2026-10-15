@@ -250,6 +250,7 @@ function rapportFall(id) {
     id, namn: F.namn, slag: 'rapport', kalla: F.kalla + (F.rapport ? ` (rapport ${F.rapport})` : ''), rapport: F.rapport || null,
     rader: B.bordLogg, facit: F.facit, fran: F.fran, till: F.till, matFran: F.matFran != null ? F.matFran : undefined,
     upplosning: F.upplosning || { w: 1920, h: 1080 }, lek: F.lek || null,
+    pastaenden: Array.isArray(F.pastaenden) ? F.pastaenden : undefined,   // MES-385: spelarens påståenden (matt.cjs)
     media: { slag: 'ingen' }, anm: F.anm
   };
 }

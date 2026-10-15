@@ -166,7 +166,8 @@ function bygg(p, rad, filer, ut, konto) {
   const linje = tidslinje(p);
   fs.writeFileSync(path.join(ut, 'paket.json'), JSON.stringify(p));
   fs.writeFileSync(path.join(ut, 'rapport.json'), JSON.stringify({ kod: p.kod, rad: rad || null, text: p.text, tagg: p.tagg, frys: p.frys, frysIso: p.frysIso, vy: p.vy, miljo: p.miljo,
-    telefon: p.telefon ? { svarade: p.telefon.svarade, offset: p.telefon.offset, rtt: p.telefon.rtt, miljo: p.telefon.miljo } : null, tidslinje: linje }, null, 1));
+    telefon: p.telefon ? { svarade: p.telefon.svarade, offset: p.telefon.offset, rtt: p.telefon.rtt, miljo: p.telefon.miljo } : null,
+    spelare: Array.isArray(p.spelare) ? p.spelare : undefined, tidslinje: linje }, null, 1));   // spelare: journalen (MES-385), facit utan gissning
   fs.writeFileSync(path.join(ut, 'mattan.json'), JSON.stringify(p.matta, null, 1));
   if (p.bordLogg) fs.writeFileSync(path.join(ut, 'bordlogg.json'), JSON.stringify({ id: 'rapport-' + p.kod, app: 'mesa', v: 1, start: new Date(p.bordLogg.start).toISOString(), spel: p.miljo && p.miljo.spelId, kapad: p.bordLogg.kapad, rapport: p.kod, bordLogg: p.bordLogg.rader }));
   fs.writeFileSync(path.join(ut, 'LÄS-MIG.md'), lasMig(p, rad, linje, filer, konto));
