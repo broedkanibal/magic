@@ -138,6 +138,38 @@ async function lista() {
 /* Rättelserna av handlingar (MES-385): paketets rättelser som spelaren gjorde dem, och påståendena som ett Mat
    test-fall skulle räkna — ur till-fall.cjs (forhandMattest), inte räknade här. */
 const HANDLING_FALT = ['typ', 't', 'cid', 'kort', 'spar', 'tappad', 'kamTap', 'zon', 'av', 'hur', 'efter'];
+/* Godkännandet (Jespers beslut 2026-10-15): bara påståenden Jesper godkänt räknas i Mat test. Sidan skriver
+   godkant.json = { "<id>": "godkand" | "kastad" } i rättelsens mapp, och till-fall.cjs --mattest läser den (resten
+   märks ejGodkand). Ett påstående som redan är tillbakataget, osäkert eller utan spår räknas aldrig och har inget val.
+   Id:t (<cid>-<t>) och bilden (handling-<id>.jpg) kommer ur till-fall.cjs och hamta.cjs, inte härifrån. */
+const GODKANT = 'godkant.json', GODK_VAL = new Set(['godkand', 'kastad']);
+const PID_RE = /^[\w.-]{1,120}$/, HBILD_RE = /^handling-[\w-]{1,120}\.jpg$/;   // bildnamnen till-fall.cjs läser (lasGodkant), med ett längdtak
+const valbart = p => !p.tillbaka && !p.osaker && !p.ejAvgorbart;
+function lasGodkant(kod) { const g = lasJson(path.join(mappFor(kod), GODKANT)); return g && typeof g === 'object' && !Array.isArray(g) ? g : {}; }
+async function godkann(b) {
+  const kod = String(b.kod || '').toUpperCase(), id = String(b.id || ''), val = b.val == null ? null : String(b.val);
+  if (!KOD_RE.test(kod) || !PID_RE.test(id)) return { ok: false, text: 'okänd kod eller påstående' };
+  if (val != null && !GODK_VAL.has(val)) return { ok: false, text: 'välj godkänd eller kastad' };
+  const mapp = mappFor(kod);
+  if (!fs.existsSync(path.join(mapp, 'rapport.json'))) return { ok: false, text: `${kod} är inte hämtad` };
+  /* Efter valet är fallet skrivet med det godkännande som gällde då: ändras det nu stämmer filen inte med fallet. */
+  if (fs.existsSync(path.join(MATTEST, kod, 'fall.json'))) return { ok: false, text: `Mat test-fallet ${kod} är redan skrivet — godkännandet går inte att ändra` };
+  const [rad] = await S.rest('GET', `rapporter?kod=eq.${encodeURIComponent(kod)}&select=anvandning`);
+  if (!rad) return { ok: false, text: `${kod} finns inte i tabellen` };
+  if (rad.anvandning) return { ok: false, text: `${kod} är redan ${rad.anvandning}` };
+  const F = await forhandMattest(kod, mapp, { S }), p = (F.pastaenden || []).find(x => x.id === id);
+  if (!p) return { ok: false, text: `påståendet ${id} finns inte i ${kod}` };
+  if (!valbart(p)) return { ok: false, text: 'påståendet räknas aldrig (tillbakataget, osäkert eller utan spår) — inget att välja' };
+  /* En fil som inte går att läsa skrivs inte över: då försvinner tidigare val tyst (till-fall varnar för den). */
+  const gf = path.join(mapp, GODKANT);
+  if (fs.existsSync(gf) && !lasJson(gf)) return { ok: false, text: `${GODKANT} i ${kod} går inte att läsa — rätta eller ta bort den för hand` };
+  const g = lasGodkant(kod);
+  if (val) g[id] = val; else delete g[id];
+  fs.writeFileSync(path.join(mapp, GODKANT), JSON.stringify(g, null, 1) + '\n');
+  /* Siffrorna efter valet räknas av till-fall.cjs (forhandMattest läser godkant.json), inte här. */
+  return { ok: true, godkant: g, forhand: await forhandMattest(kod, mapp, { S }) };
+}
+
 async function listaHandlingar() {
   const rader = (await rattelseRader()).filter(arHandling);
   await hamtaAlla(rader.map(r => r.kod));
@@ -155,7 +187,7 @@ async function listaHandlingar() {
       spelkod: vy.spelkod || null, anvandning: r.anvandning || null, testSlag: r.anvandning === 'test' ? slagIRepot(r.kod) : null,
       forsta: vy.forsta || null, till: vy.till || null,
       handlingar: (Array.isArray(vy.handlingar) ? vy.handlingar : []).filter(h => h && typeof h === 'object').map(h => Object.fromEntries(HANDLING_FALT.filter(f => h[f] != null).map(f => [f, h[f]]))),
-      forhand, fel, fallFinns: fs.existsSync(fallFil)
+      forhand, fel, fallFinns: fs.existsSync(fallFil), godkant: lasGodkant(r.kod)
     });
   }
   return ut;
@@ -171,7 +203,19 @@ async function sortera(b) {
   if (val !== 'traning' && val !== 'test' && val !== 'mattest') return { ok: false, text: 'välj träning, test, Mat test eller släng' };
   if (!(await hamtaLokalt(kod))) return { ok: false, text: `${kod} gick inte att hämta (hamta.cjs)` };
   /* En rättelse av handlingar (MES-385): Mat test-fallet, som i terminalen — spärren och VARNING-raderna är till-fall.cjs. */
-  if (val === 'mattest') { const r = await korNode('till-fall.cjs', [kod, '--mattest', '--mapp', mappFor(kod)]); return { ok: r.kod === 0, sparr: r.kod === 3, text: r.ut }; }
+  if (val === 'mattest') {
+    /* Först när varje påstående som kan räknas är bedömt (godkant.json) och minst ett är godkänt: det obedömda
+       räknas inte, och ett fall som tyst tappat dem mäter mindre än det ser ut att göra. Siffrorna: till-fall.cjs. */
+    let F;
+    try { F = await forhandMattest(kod, mappFor(kod), { S }); } catch (e) { return { ok: false, text: String(e && e.message || e) }; }
+    if (F.antal) {
+      const vantar = F.pastaenden.filter(p => p.ejGodkand);
+      if (vantar.length) return { ok: false, text: `${vantar.length} påstående${vantar.length === 1 ? '' : 'n'} väntar på Godkänn eller Kasta: ${vantar.map(p => `${p.kort || '?'} (${p.id})`).join(', ')}` };
+      if (!F.antal.raknas) return { ok: false, text: 'inget godkänt påstående — fallet skulle mäta 0 av 0. Släng i stället' };
+    }
+    const r = await korNode('till-fall.cjs', [kod, '--mattest', '--mapp', mappFor(kod)]);
+    return { ok: r.kod === 0, sparr: r.kod === 3, text: r.ut };
+  }
   if (val === 'test' && !SORT_ID.has(b.sort)) return { ok: false, text: 'välj sorts fel först — bänken räknas per sort' };
   const args = [kod, val === 'traning' ? '--traning' : '--bank', '--mapp', mappFor(kod)];
   if (val === 'test') args.push('--sort', b.sort);
@@ -326,6 +370,12 @@ const server = http.createServer(async (req, res) => {
     if (p === '/' && req.method === 'GET') return svara(res, 200, fs.readFileSync(path.join(__dirname, 'granska.html')), 'text/html; charset=utf-8');
     if (p === '/api/lista') return svara(res, 200, await lista());
     if (p === '/api/handlingar') return svara(res, 200, await listaHandlingar());
+    if (p === '/api/godkann' && req.method === 'POST') { const b = await lasKropp(req); return svara(res, 200, await iTur(() => godkann(b))); }
+    const mh = p.match(/^\/api\/handlingsbild\/(R-\d{4,})\/([^/]+)$/);
+    if (mh) {   // telefonens utsnitt för ett påstående (handling-<id>.jpg), bara det namnet och bara i rättelsens mapp
+      const f = path.join(mappFor(mh[1]), mh[2]);
+      return HBILD_RE.test(mh[2]) && fs.existsSync(f) ? svara(res, 200, fs.readFileSync(f), 'image/jpeg') : svara(res, 404, { fel: 'ingen bild' });
+    }
     let m = p.match(/^\/api\/bild\/(R-\d{4,})$/);
     if (m) {
       const f = path.join(mappFor(m[1]), 'beskarning.jpg');

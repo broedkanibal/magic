@@ -122,6 +122,10 @@ async function provGranska(paket, rattRad, ok) {
     ];
     const gz = zlib.gzipSync(JSON.stringify(paket));
     const hink = { [`u-prov/rapporter/${K1}/rapport.json.gz`]: gz, [`u-prov/rapporter/${K2}/rapport.json.gz`]: gz };
+    /* Telefonens bild för Serra Angels påstående (handling-<id>.jpg, id som till-fall.cjs: <cid>-<t>), som hamta.cjs hämtar. */
+    const serra = paket.spelare.find(j => j.typ === 'grav_hand' && j.namn === 'Serra Angel');
+    const SERRA_ID = serra.id || String(serra.cid).replace(/[^\w]/g, '') + '-' + serra.t, JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
+    hink[`u-prov/rapporter/${K1}/handling-${SERRA_ID}.jpg`] = JPEG;
     supa = await attrappSupabase(tabell, hink);
     const port = await ledigPort(), bas = `http://127.0.0.1:${port}`;
     gr = spawn(process.execPath, [path.join(__dirname, 'granska.cjs'), '--port', String(port)], { stdio: ['ignore', 'pipe', 'pipe'],
@@ -141,15 +145,49 @@ async function provGranska(paket, rattRad, ok) {
     ok('granska: ett paket i ett annat parti räknas utan den Undo:n (3 att bedöma), senare paket kontrollerade', r2 && r2.forhand && r2.forhand.antal.attBedoma === 3 && !r2.forhand.varning, r2 && JSON.stringify(r2.forhand && r2.forhand.antal));
     ok('granska: ett paket utan fil i hinken säger det, och blir inget fall', r3 && !r3.forhand && /gick inte att hämta/.test(r3.fel || ''), r3 && r3.fel);
 
+    /* Godkännandet (Jespers beslut 2026-10-15): bara godkända påståenden räknas, och Mat test körs först när varje
+       påstående som kan räknas är bedömt. Tillbakatagna, osäkra och utan spår räknas aldrig och har inget val. */
+    const FALL = path.join(tmp, 'dev', 'mattest', 'underlag', 'rapporter', K1, 'fall.json'), GODK = path.join(tmp, 'rapporter', K1, 'godkant.json');
+    const godk = async (kod, id, val) => (await fetch(bas + '/api/godkann', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: bas }, body: JSON.stringify({ kod, id, val }) })).json();
+    const P1 = (r1 && r1.forhand && r1.forhand.pastaenden) || [], valb = P1.filter(p => !p.tillbaka && !p.osaker && !p.ejAvgorbart);
+    ok('granska: varje påstående har ett id (<cid>-<t>) ur till-fall, och de två som kan räknas är Serra Angel och Shock', P1.length === 8 && P1.every(p => /^[\w.-]+-\d+$/.test(p.id || '')) && valb.map(p => p.kort).join(',') === 'Serra Angel,Shock',
+       JSON.stringify(P1.map(p => [p.kort, p.id])));
+    const m0 = await sortera(K1, 'mattest');
+    ok('granska: Mat test vägras medan ett påstående väntar på Godkänn eller Kasta — inget skrivet, raden orörd', !m0.ok && /väntar på Godkänn/.test(m0.text) && !fs.existsSync(FALL) && tabell.find(r => r.kod === K1).anvandning === null, m0.text);
+    const tb = P1.find(p => p.tillbaka), g0 = tb ? await godk(K1, tb.id, 'godkand') : { ok: true };
+    const gx = await godk(K1, 'finns-inte-1', 'godkand'), gy = valb[0] ? await godk(K1, valb[0].id, 'kanske') : { ok: true };
+    ok('granska: ett tillbakataget påstående, ett okänt id och ett okänt val vägras', !g0.ok && !gx.ok && !gy.ok && !fs.existsSync(GODK), [g0.text, gx.text, gy.text].join(' | '));
+    /* Båda kastade: inget godkänt, så Mat test vägras (fallet skulle mäta 0 av 0). Sedan godkänns Serra Angel. */
+    const g2 = valb[1] ? await godk(K1, valb[1].id, 'kastad') : {}, gk = valb[0] ? await godk(K1, valb[0].id, 'kastad') : {};
+    const mk = await sortera(K1, 'mattest');
+    ok('granska: allt kastat — Mat test vägras (inget godkänt), inget skrivet', gk.ok && gk.forhand && gk.forhand.antal.kastade === 2 && gk.forhand.antal.raknas === 0 && !mk.ok && /inget godkänt/.test(mk.text) && !fs.existsSync(FALL), mk.text);
+    const g1 = valb[0] ? await godk(K1, valb[0].id, 'godkand') : {};
+    ok('granska: efter Godkänn räknar till-fall om (forhandMattest läser godkant.json): 1 godkänd, 1 kastad, 0 väntar', g1.ok && g1.forhand && g1.forhand.antal.raknas === 1 && g1.forhand.antal.kastade === 1 && g1.forhand.antal.ejGodkanda === 0,
+       JSON.stringify(g1.forhand && g1.forhand.antal));
+    let G = null; try { G = JSON.parse(fs.readFileSync(GODK, 'utf8')); } catch (e) {}
+    ok('granska: Godkänn och Kasta skrivs i godkant.json i rättelsens mapp', g1.ok && g2.ok && G && G[valb[0].id] === 'godkand' && G[valb[1].id] === 'kastad' && Object.keys(G).length === 2, JSON.stringify(G));
+    const bildUt = await fetch(bas + `/api/handlingsbild/${K1}/godkant.json`), bildUpp = await fetch(bas + `/api/handlingsbild/${K1}/rapport.json`);   // båda finns i mappen
+    const ps = (g1.forhand && g1.forhand.pastaenden || []).find(p => p.kort === 'Serra Angel'), bildRes = ps && ps.bild ? await fetch(bas + `/api/handlingsbild/${K1}/${encodeURIComponent(ps.bild)}`) : null;
+    ok('granska: Serra Angels bild hämtad (hamta) och utlämnad som jpeg; Shock utan bild', ps && ps.bild === `handling-${SERRA_ID}.jpg` && bildRes && bildRes.status === 200 && /jpeg/.test(bildRes.headers.get('content-type'))
+       && g1.forhand.antal.medBild === 1, JSON.stringify(ps && ps.bild) + ' ' + (bildRes && bildRes.status));
+    ok('granska: bildvägen lämnar bara ut handling-<id>.jpg, inte mappens andra filer', fs.existsSync(GODK) && bildUt.status === 404 && bildUpp.status === 404);
+    const gUtan = await fetch(bas + '/api/godkann', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod: K1, id: valb[1].id, val: 'godkand' }) });
+    ok('granska: Godkänn utan sidans Origin vägras', gUtan.status === 403 && JSON.parse(fs.readFileSync(GODK, 'utf8'))[valb[1].id] === 'kastad');
+    const r1b = (await H()).find(x => x.kod === K1);
     const m = await sortera(K1, 'mattest');
-    let fall = null; try { fall = JSON.parse(fs.readFileSync(path.join(tmp, 'dev', 'mattest', 'underlag', 'rapporter', K1, 'fall.json'), 'utf8')); } catch (e) {}
-    ok('granska: Mat test kör till-fall --mattest — samma siffror som sidan visade, fallet skrivet, raden test', m.ok && m.text.includes(r1.forhand.text) && !!fall && fall.pastaenden.length === 8 && tabell.find(r => r.kod === K1).anvandning === 'test',
-       String(m.text).slice(-400));
+    let fall = null; try { fall = JSON.parse(fs.readFileSync(FALL, 'utf8')); } catch (e) {}
+    const ejG = fall ? fall.pastaenden.filter(p => p.ejGodkand || p.kastad).map(p => p.kort + (p.kastad ? ':kastad' : ':ejGodkand')) : null;
+    ok('granska: Mat test kör till-fall --mattest — samma siffror som sidan visade, bara det godkända räknas, raden test', m.ok && r1b && m.text.includes(r1b.forhand.text) && /1 godkända räknas/.test(m.text)
+       && !!fall && fall.pastaenden.length === 8 && ejG.join(',') === 'Shock:kastad' && tabell.find(r => r.kod === K1).anvandning === 'test', String(m.text).slice(-400) + ' ' + JSON.stringify(ejG));
+    const g3 = await godk(K1, valb[1].id, 'godkand');
+    ok('granska: godkännandet går inte att ändra när fallet är skrivet', !g3.ok && /redan skrivet/.test(g3.text), g3.text);
     const s2 = await sortera(K2, 'slangd');
     ok('granska: Släng kör satt.cjs slangd', s2.ok && tabell.find(r => r.kod === K2).anvandning === 'slangd' && /slangd/.test(s2.text), s2.text);
+    const r2p = r2 && r2.forhand && r2.forhand.pastaenden.find(p => !p.tillbaka && !p.osaker && !p.ejAvgorbart), g4 = r2p ? await godk(K2, r2p.id, 'godkand') : { ok: true };
+    ok('granska: en slängd rad (utan fall) går inte att godkänna', !g4.ok && /redan slangd/.test(g4.text) && !fs.existsSync(path.join(tmp, 'rapporter', K2, 'godkant.json')), g4.text);
     const L2 = await H(), e1 = L2.find(x => x.kod === K1);
     ok('granska: efteråt är R1 ett Mat test-fall (slaget ur repot), och sidan visar fallets påståenden utan att räkna om', e1 && e1.anvandning === 'test' && e1.testSlag === 'mattest' && e1.fallFinns
-       && e1.forhand && e1.forhand.urFallet && e1.forhand.antal.attBedoma === 2, JSON.stringify(e1 && { a: e1.anvandning, s: e1.testSlag, f: e1.fallFinns, n: e1.forhand && e1.forhand.antal }));
+       && e1.forhand && e1.forhand.urFallet && e1.forhand.antal.raknas === 1 && e1.forhand.antal.kastade === 1, JSON.stringify(e1 && { a: e1.anvandning, s: e1.testSlag, f: e1.fallFinns, n: e1.forhand && e1.forhand.antal }));
     const igen = await sortera(K1, 'mattest');
     ok('granska: Mat test en gång till skriver inte över fallet', !igen.ok && /finns redan/.test(igen.text), igen.text);
     const utan = await fetch(bas + '/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod: K3, val: 'slangd' }) });

@@ -118,14 +118,21 @@ main.bara-lista .sidor { display: none; }
 @media (max-width: 760px) { .hrad { grid-template-columns: 1fr; } }
 .hrad h3 { font-size: 12px; font-weight: 600; color: var(--svag); margin: 0 0 6px; text-transform: uppercase; letter-spacing: .03em; }
 .hrad .info { grid-column: 1 / -1; }
-.tal.fyra { grid-template-columns: repeat(4, 1fr); }
-table.past { width: 100%; border-collapse: collapse; font-size: 12px; }
-table.past td { padding: 4px 6px; border-top: 1px solid var(--linje); vertical-align: top; }
-table.past td.tid { color: var(--svag); font-variant-numeric: tabular-nums; white-space: nowrap; width: 1%; }
-table.past .s { font-weight: 600; white-space: nowrap; }
-table.past .s.raknas { color: var(--tran); }
-table.past tr.ej td { color: var(--svag); }
-table.past .skal { display: block; font-size: 11px; color: var(--svag); }
+.tal.sju { grid-template-columns: repeat(7, 1fr); }
+@media (max-width: 1100px) { .tal.sju { grid-template-columns: repeat(4, 1fr); } }
+.tal div.vantar { box-shadow: inset 0 0 0 2px var(--accent); }
+.pkorten { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.pkort { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; padding: 10px; border: 1px solid var(--linje); border-radius: 8px; font-size: 13px; }
+.pkort .bild img { cursor: zoom-in; }
+.pkort .ingen { aspect-ratio: 4/3; }
+.pkort .ptext { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pkort .s { font-weight: 600; font-size: 12px; }
+.pkort .s.raknas { color: var(--tran); }
+.pkort .skal { display: block; font-size: 11px; color: var(--svag); }
+.pkort.ej { opacity: .65; }
+.pkort.kastad { opacity: .5; }
+button.val.vald { font-weight: 600; box-shadow: 0 0 0 2px currentColor; }
+@media (max-width: 640px) { .pkort { grid-template-columns: 100px minmax(0, 1fr); } }
 code { font-size: 12px; background: var(--yta2); padding: 1px 4px; border-radius: 4px; }
 </style>
 </head>
@@ -308,26 +315,33 @@ function handlingVad(h) {
   if (h.typ === 'folj_kameran') return { vad: 'Follow camera' };
   return { vad: h.typ };
 }
+const sek = t => t == null || !isFinite(t) ? '' : (+t).toFixed(1).replace('.', ',') + ' s';
+/* Vad påståendet säger, som "spår 2 tappat vid 12,4 s" (t = sekunder i bordsloggen, som Mat test räknar). */
 function pastaendeVad(p) {
-  if (p.typ === 'tappad') return p.varde ? 'tappad' : 'upprätt';
-  if (p.typ === 'borta') return p.till ? `borta till ${p.till === 'hand' ? 'handen' : p.till}` : 'borta (Remove)';
-  if (p.typ === 'namn') return `hette ${p.namn}`;
-  return p.typ;
+  const vad = p.typ === 'tappad' ? (p.varde ? 'tappat' : 'upprätt') : p.typ === 'borta' ? (p.till ? `borta till ${p.till === 'hand' ? 'handen' : p.till}` : 'borta (Remove)')
+    : p.typ === 'namn' ? `hette ${p.namn}` : p.typ;
+  return `${p.spar != null ? `spår ${p.spar} ` : ''}${vad} vid ${sek(p.t)}`;
 }
+/* Räknas aldrig, inget val: tillbakataget, osäkert, utan spår. (ejGodkand = inte godkänt än; kastad = kastat.) */
 function pastaendeStatus(p) {
-  if (p.tillbaka) return { kl: 'ej', s: 'tillbakatagen', skal: p.tillbaka };
-  if (p.osaker) return { kl: 'ej', s: 'osäker', skal: p.osaker };
-  if (p.ejAvgorbart) return { kl: 'ej', s: 'utan spår', skal: p.ejAvgorbart };
-  return { kl: '', s: 'räknas', skal: '' };
+  if (p.tillbaka) return { s: 'tillbakatagen', skal: p.tillbaka };
+  if (p.osaker) return { s: 'osäker', skal: p.osaker };
+  if (p.ejAvgorbart) return { s: 'utan spår', skal: p.ejAvgorbart };
+  return null;
 }
+/* Godkännandets siffror: till-fall.cjs raknaPastaenden (raknas = godkända, attBedoma = de som kan räknas,
+   ejGodkanda = de som väntar på ett val, kastade). Sidan räknar dem inte själv. */
 function rekommenderaHandling(h) {
   if (h.fel) return { val: 'slangd', varfor: 'Paketet går inte att göra till ett fall (se felet ovan).' };
   if (h.fallFinns) return { val: 'slangd', varfor: 'Ett Mat test-fall med koden finns redan i dev/mattest/underlag/rapporter (gjort med --lokal?): till-fall.cjs skriver inte över det. Sätt raden med satt.cjs <kod> test i terminalen, eller Släng.' };
   const F = h.forhand;
-  if (!F.antal) return F.facit ? { val: 'mattest', varfor: `Ett äldre paket utan spelarens journal: facit är ${F.facit} rad(er) ur mattans ändringar, där vem som ändrade är gissat.` }
+  if (!F.pastaenden) return F.facit ? { val: 'mattest', varfor: `Ett äldre paket utan spelarens journal: facit är ${F.facit} rad(er) ur mattans ändringar, där vem som ändrade är gissat.` }
     : { val: 'slangd', varfor: 'Inget att mäta: paketet har varken påståenden eller facit-rader.' };
-  if (F.antal.raknas) return { val: 'mattest', varfor: `${F.antal.raknas} påstående${F.antal.raknas === 1 ? '' : 'n'} räknas. Mat test mäter om uppspelningen visade läget spelaren rättade till.` };
-  return { val: 'slangd', varfor: 'Inget påstående räknas (alla tillbakatagna, osäkra eller utan spår): fallet skulle mäta 0 av 0.' };
+  const n = F.antal;
+  if (!n.attBedoma) return { val: 'slangd', varfor: 'Inget påstående kan räknas (alla tillbakatagna, osäkra eller utan spår): fallet skulle mäta 0 av 0.' };
+  if (n.ejGodkanda) return { val: null, varfor: `Bedöm påståendena (${n.ejGodkanda} av ${n.attBedoma} kvar): Godkänn det du ser stämma i bilden — kortet låg så, och kameran visade något annat. Kasta det du inte kan se eller som ser fel ut. Bara de godkända räknas.` };
+  if (n.raknas) return { val: 'mattest', varfor: `${n.raknas} godkänt påstående${n.raknas === 1 ? '' : 'n'} räknas. Mat test mäter om uppspelningen visade läget spelaren rättade till.` };
+  return { val: 'slangd', varfor: 'Alla påståenden är kastade: fallet skulle mäta 0 av 0.' };
 }
 const hStatus = h => h.anvandning === 'test' ? (h.testSlag === 'bank' ? 'Prov (bänken)' : 'Mat test') : STATUS[h.anvandning] || h.anvandning;
 function ritaHandlingar() {
@@ -347,39 +361,78 @@ function ritaHandlingar() {
     </div>`;
   }).join('');
 }
+/* Ett påstående: telefonens utsnitt runt kortet i ögonblicket för rättelsen (rutan inritad), vad det säger, och
+   Godkänn / Kasta — eller varför det aldrig räknas. */
+function pastaendeHtml(h, p, kanValja) {
+  const st = pastaendeStatus(p), g = p.kastad ? 'kastad' : st || p.ejGodkand ? '' : 'godkand';   // ur till-fall.cjs, som läst godkant.json
+  const src = p.bild ? `/api/handlingsbild/${encodeURIComponent(h.kod)}/${encodeURIComponent(p.bild)}` : '';
+  const bild = src ? `<img src="${esc(src)}" alt="Utsnittet runt kortet" data-zoomsrc="${esc(src)}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ingen',textContent:'Bilden saknas'}))">`
+    : '<div class="ingen">Ingen bild från telefonen</div>';
+  let val;
+  if (st) val = `<span class="s">${esc(st.s)}</span>${st.skal ? `<span class="skal">${esc(st.skal)}</span>` : ''}`;
+  else if (!kanValja || !p.id) val = `<span class="s${g === 'godkand' ? ' raknas' : ''}">${g === 'godkand' ? 'godkänd — räknas' : g === 'kastad' ? 'kastad' : 'inte godkänd — räknas inte'}</span>`;
+  else val = `<div class="knappar">
+      <button class="val tran${g === 'godkand' ? ' vald' : ''}" data-godk="godkand" data-pid="${esc(p.id)}" aria-pressed="${g === 'godkand'}" ${upptagen ? 'disabled' : ''}>Godkänn</button>
+      <button class="val${g === 'kastad' ? ' vald' : ''}" data-godk="kastad" data-pid="${esc(p.id)}" aria-pressed="${g === 'kastad'}" ${upptagen ? 'disabled' : ''}>Kasta</button>
+    </div>`;
+  return `<div class="pkort${st ? ' ej' : g === 'kastad' ? ' kastad' : ''}">
+    <div class="bild">${bild}</div>
+    <div class="ptext"><div><b>${esc(p.kort || '(utan namn)')}</b></div><div>${esc(pastaendeVad(p))}</div>
+      <div class="lika">${esc(tid(h.forhand.start + p.t * 1000))}${p.id ? ' · ' + esc(p.id) : ''}</div>${val}</div>
+  </div>`;
+}
 function hRadHtml(h) {
   const F = h.forhand, not = noter.get(h.kod), kanSortera = !h.anvandning;
   const status = h.anvandning ? `<span class="status ${h.anvandning}">${esc(hStatus(h))}</span>` : '<span class="status osorterad">Osorterad</span>';
   const forslag = kanSortera ? rekommenderaHandling(h) : null;
   const fs_ = v => forslag && forslag.val === v ? ' forslag' : '';
+  const n = F && F.antal;
+  const kanValja = kanSortera && !h.fallFinns;
   const lista = h.handlingar.length ? `<ul class="hlista">${h.handlingar.map(x => { const v = handlingVad(x); return `<li class="${v.pastar || x.typ === 'angrad' || x.typ === 'folj_kameran' ? '' : 'inget'}"><span class="tid">${esc(tid(x.t))}</span><span><b>${esc(x.kort || '(utan namn)')}</b> <span class="vad">${esc(v.vad)}</span></span></li>`; }).join('')}</ul>`
     : '<p class="lika">Raden bär inga rättelser.</p>';
   let past = '';
   if (h.fel) past = `<div class="not fel">${esc(h.fel)}</div>`;
   else if (!F) past = '<p class="lika">Sorterad: påståendena räknas inte om.</p>';
   else if (!F.pastaenden) past = `<div class="lika">Paketet saknar spelarens journal (före MES-385:s påståenden): facit är ${F.facit} rad(er) ur mattans ändringar.</div>`;
-  else past = `<div class="tal fyra">
-        <div><b>${F.antal.raknas}</b><span>räknas</span></div>
-        <div><b>${F.antal.tillbaka}</b><span>tillbakatagna</span></div>
-        <div><b>${F.antal.osakra}</b><span>osäkra</span></div>
-        <div><b>${F.antal.utanSpar}</b><span>utan spår</span></div>
+  else past = `<div class="tal sju">
+        <div><b>${n.raknas}</b><span>godkända (räknas)</span></div>
+        <div><b>${n.kastade}</b><span>kastade</span></div>
+        <div class="${n.ejGodkanda && !F.urFallet ? 'vantar' : ''}"><b>${n.ejGodkanda}</b><span>${F.urFallet ? 'inte godkända' : `väntar av ${n.attBedoma} att bedöma`}</span></div>
+        <div><b>${n.tillbaka}</b><span>tillbakatagna</span></div>
+        <div><b>${n.osakra}</b><span>osäkra</span></div>
+        <div><b>${n.utanSpar}</b><span>utan spår</span></div>
+        <div><b>${n.medBild != null ? n.medBild : '–'}</b><span>med bild</span></div>
       </div>
-      ${F.pastaenden.length ? `<table class="past">${F.pastaenden.map(p => { const st = pastaendeStatus(p); return `<tr class="${st.kl}"><td class="tid">${esc(tid(F.start + p.t * 1000))}</td><td><b>${esc(p.kort || '(utan namn)')}</b> ${esc(pastaendeVad(p))}${p.spar != null ? ` <span class="lika">spår ${esc(p.spar)}</span>` : ''}</td><td><span class="s ${st.kl ? '' : 'raknas'}">${st.s}</span>${st.skal ? `<span class="skal">${esc(st.skal)}</span>` : ''}</td></tr>`; }).join('')}</table>` : '<p class="lika">Inga påståenden i paketet (de hör till ett annat paket, eller är flyttar på mattan).</p>'}`;
+      ${F.pastaenden.length ? `<div class="pkorten">${F.pastaenden.map(p => pastaendeHtml(h, p, kanValja)).join('')}</div>` : '<p class="lika">Inga påståenden i paketet (de hör till ett annat paket, eller är flyttar på mattan).</p>'}`;
+  /* Mat test först när allt som kan räknas är bedömt och minst ett är godkänt (servern prövar samma sak). */
+  const matTestKan = !h.fel && !h.fallFinns && !upptagen && !(n && (n.ejGodkanda || !n.raknas));
   return `<div class="hrad" data-kod="${esc(h.kod)}">
     <div><h3>Rättelserna (${h.handlingar.length})</h3>${lista}</div>
     <div><h3>Påståendena${F && F.pastaenden ? ` (${F.antal.alla}${F.urFallet ? ', ur fallet' : ''})` : ''}</h3>${past}</div>
     <div class="info">
       <div class="meta"><span>${esc(h.kod)}</span>${status}<span>${esc(nar(h.nar))}</span>${h.forsta && h.till ? `<span>${esc(tid(h.forsta))}–${esc(tid(h.till))}</span>` : ''}${h.fallFinns ? '<span>fallet finns i dev/mattest/underlag/rapporter</span>' : ''}</div>
       ${F && F.varning ? `<div class="not varn">VARNING: ${esc(F.varning)}</div>` : ''}
-      ${kanSortera ? `<div class="forslag-rad"><b>Förslag: ${forslag.val === 'mattest' ? 'Mat test' : 'Släng'}.</b> ${esc(forslag.varfor)}</div>
+      ${kanSortera ? `<div class="forslag-rad"><b>${forslag.val ? `Förslag: ${forslag.val === 'mattest' ? 'Mat test' : 'Släng'}.` : 'Först:'}</b> ${esc(forslag.varfor)}</div>
       <div class="knappar">
-        <button class="val test${fs_('mattest')}" data-hval="mattest" ${!h.fel && !h.fallFinns && !upptagen ? '' : 'disabled'}>Mat test</button>
+        <button class="val test${fs_('mattest')}" data-hval="mattest" ${matTestKan ? '' : 'disabled'} ${n && n.ejGodkanda ? `title="${n.ejGodkanda} påstående(n) väntar på Godkänn eller Kasta"` : n && !n.raknas ? 'title="Inget påstående är godkänt"' : ''}>Mat test</button>
         <button class="val${fs_('slangd')}" data-hval="slangd" ${upptagen ? 'disabled' : ''}>Släng</button>
       </div>` : ''}
       ${not ? `<div class="not ${not.typ}">${esc(not.text)}</div>` : ''}
     </div>
   </div>`;
 }
+/* Godkänn eller Kasta ett påstående (godkant.json på servern). Ett klick på det valda tar bort valet. */
+async function godkann(kod, id, val) {
+  const h = handlingar.find(x => x.kod === kod); if (!h) return;
+  const nytt = (h.godkant || {})[id] === val ? null : val;   // ett klick på det valda tar bort valet
+  upptagen++; ritaLista();
+  try {
+    const s = await hamta('/api/godkann', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod, id, val: nytt }) });
+    if (s.ok) { h.godkant = s.godkant; h.forhand = s.forhand; noter.delete(kod); } else noter.set(kod, { typ: 'fel', text: s.text });
+  } catch (e) { noter.set(kod, { typ: 'fel', text: e.message }); }
+  upptagen--; ritaLista();
+}
+
 async function laddaHandlingar() {
   try { const h = await hamta('/api/handlingar'); if (!Array.isArray(h)) throw new Error((h && h.fel) || 'oväntat svar'); handlingar = h; handlingarFel = null; }
   catch (e) { handlingar = []; handlingarFel = e.message; }
@@ -502,6 +555,8 @@ async function kopiera(text, knapp) {
 document.addEventListener('click', async e => {
   const t = e.target;
   if (t.dataset.flik) { flik = t.dataset.flik; try { localStorage.setItem('granska-flik', flik); } catch (x) {} ritaLista(); return; }
+  if (t.dataset.godk) { if (!upptagen) godkann(t.closest('.hrad').dataset.kod, t.dataset.pid, t.dataset.godk); return; }
+  if (t.dataset.zoomsrc) { $('#zoom').innerHTML = `<img src="${esc(t.dataset.zoomsrc)}" alt="Utsnittet runt kortet">`; $('#zoom').classList.add('pa'); return; }
   if (t.dataset.hval) { if (!upptagen) sorteraHandling(t.closest('.hrad').dataset.kod, t.dataset.hval); return; }
   if (t.dataset.val) { if (!upptagen) sortera(t.closest('.rad').dataset.kod, t.dataset.val); return; }
   if (t.dataset.alla) { if (!upptagen) allaTillTraning(t.dataset.alla); return; }
