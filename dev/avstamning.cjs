@@ -73,6 +73,9 @@ function gravIgnoreAktivt() { return gravSpeglar; }
    handen och högarna. delaHand ger index per zon, som appens. */
 const ZON_EXIL = 'exil';
 const paMattan = e => { const z = zonAv(e); return z !== ZON_GRAV && z !== ZON_EXIL; };
+/* Appens kamFoljer utan spelLage/kamSpeglar (bänken speglar alltid): kortet kameran följer, på mattan, inte bifogat.
+   flyttaTill anropar den sedan 06a01c3 (MES-385: handflytt till en hög loggas som grav_hand). */
+const kamFoljer = c => !!c && c.spar != null && paMattan(c) && !c.attachedTo;
 const Moln = { sandKam() {}, inloggad: () => false };
 const addEventListener = () => {};   // spelupplevelsens pagehide (khSkicka) ligger i utdraget
 const mittLage = () => 'bord';   // spelupplevelsens korthändelser (khLogga); Moln.inloggad ovan säger utloggad, så inget loggas
