@@ -126,6 +126,10 @@ async function provGranska(paket, rattRad, ok) {
     const serra = paket.spelare.find(j => j.typ === 'grav_hand' && j.namn === 'Serra Angel');
     const SERRA_ID = serra.id || String(serra.cid).replace(/[^\w]/g, '') + '-' + serra.t, JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
     hink[`u-prov/rapporter/${K1}/handling-${SERRA_ID}.jpg`] = JPEG;
+    /* Telefonens handling-bilder.json: Serra Angels bild togs 120 ms efter rättelsen; Shocks saknas, med skälet. */
+    const shock = paket.spelare.find(j => j.typ === 'grav_hand' && j.namn === 'Shock');
+    const SHOCK_ID = shock && (shock.id || String(shock.cid).replace(/[^\w]/g, '') + '-' + shock.t);
+    hink[`u-prov/rapporter/${K1}/handling-bilder.json`] = Buffer.from(JSON.stringify({ v: 1, gransMs: 500, poster: { [SERRA_ID]: { dt: 120, orsak: 'markering' }, [SHOCK_ID]: { dt: -900, skal: 'ingen bild inom ±500 ms från rättelsen (närmaste -900 ms)' } } }));
     supa = await attrappSupabase(tabell, hink);
     const port = await ledigPort(), bas = `http://127.0.0.1:${port}`;
     gr = spawn(process.execPath, [path.join(__dirname, 'granska.cjs'), '--port', String(port)], { stdio: ['ignore', 'pipe', 'pipe'],
@@ -170,6 +174,8 @@ async function provGranska(paket, rattRad, ok) {
     const ps = (g1.forhand && g1.forhand.pastaenden || []).find(p => p.kort === 'Serra Angel'), bildRes = ps && ps.bild ? await fetch(bas + `/api/handlingsbild/${K1}/${encodeURIComponent(ps.bild)}`) : null;
     ok('granska: Serra Angels bild hämtad (hamta) och utlämnad som jpeg; Shock utan bild', ps && ps.bild === `handling-${SERRA_ID}.jpg` && bildRes && bildRes.status === 200 && /jpeg/.test(bildRes.headers.get('content-type'))
        && g1.forhand.antal.medBild === 1, JSON.stringify(ps && ps.bild) + ' ' + (bildRes && bildRes.status));
+    const psh = (g1.forhand && g1.forhand.pastaenden || []).find(p => p.kort === 'Shock');
+    ok('granska: bildens avstånd i tid (Serra Angel +120 ms) och skälet där bilden saknas (Shock)', ps && ps.bildDt === 120 && psh && !psh.bild && /±500 ms/.test(psh.bildSkal || ''), JSON.stringify([ps && ps.bildDt, psh && psh.bildSkal]));
     ok('granska: bildvägen lämnar bara ut handling-<id>.jpg, inte mappens andra filer', fs.existsSync(GODK) && bildUt.status === 404 && bildUpp.status === 404);
     const gUtan = await fetch(bas + '/api/godkann', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod: K1, id: valb[1].id, val: 'godkand' }) });
     ok('granska: Godkänn utan sidans Origin vägras', gUtan.status === 403 && JSON.parse(fs.readFileSync(GODK, 'utf8'))[valb[1].id] === 'kastad');
@@ -334,16 +340,36 @@ const PROV = async () => {
   ok('raden bär rättelserna sedan förra sändningen (vy.handlingar: Forest … Giant Growth, inte Mountain) och forsta', vh.length === 14 && vh[0] === 'tap_hand:Forest' && vh[13] === 'angrad:Giant Growth' && !vh.some(x => /Mountain/.test(x)) && r.vy.forsta > 0 && r.vy.agerFran >= r.vy.forsta - 60000 && r.vy.agerFran < r.vy.forsta && r.vy.till >= r.vy.forsta, vh.join(','));
   /* Bilden per rättelse (MES-385): telefonen markerade varje påstående i ögonblicket och laddade upp handling-<id>.jpg
      för de som paketet äger. */
-  const bildFiler = Object.keys(A.filer).filter(k => r && k.startsWith(`u-prov/rapporter/${r.kod}/handling-`));
+  const bildFiler = Object.keys(A.filer).filter(k => r && k.startsWith(`u-prov/rapporter/${r.kod}/handling-`) && k.endsWith('.jpg'));
   const agda = paket ? paket.spelare.filter(j => ['tap_hand', 'grav_hand', 'borttagen', 'bytt', 'namngiven'].includes(j.typ) && j.t > r.vy.agerFran && j.t <= r.vy.till) : [];
   ok('bild per rättelse: en handling-<id>.jpg för varje påstående paketet äger, raden bilder klar', agda.length === 8 && bildFiler.length === 8 && agda.every(j => bildFiler.some(k => k.endsWith(`handling-${j.id}.jpg`))) && A.uppd.some(u => u[0] === r.kod && u[1].bilder === 'klar'),
      `${bildFiler.length} bilder för ${agda.length} påståenden; ${JSON.stringify(A.uppd.filter(u => u[1].bilder))}`);
   ok('markeringen går till telefonen i ögonblicket (en per påstående med spår)', A.kanal.filter(m => m.typ === 'rapport_handling_markera').length >= 9, String(A.kanal.filter(m => m.typ === 'rapport_handling_markera').length));
   const b0 = bildFiler.length ? A.filer[bildFiler[0]] : null;
   ok('bilden är ett JPEG-utsnitt runt kortet (inte hela bordet)', b0 && b0.type === 'image/jpeg' && b0.size > 500, b0 ? `${b0.size} B` : 'ingen');
+  /* Bilden är ögonblicket (Jespers beslut 2026-10-15): telefonen tar en egen bild vid markeringen, och avståndet i tid
+     står i handling-bilder.json — högst ±500 ms, och för varje bild den som togs för just den rättelsen. */
+  let bi = null;
+  try { bi = JSON.parse(await A.filer[`u-prov/rapporter/${r.kod}/handling-bilder.json`].text()); } catch (e) {}
+  const biP = bi && bi.poster ? agda.map(j => bi.poster[j.id]) : [];
+  ok('handling-bilder.json: varje bild togs vid markeringen (orsak markering), inom ±500 ms', bi && bi.gransMs === 500 && biP.length === 8 && biP.every(x => x && x.orsak === 'markering' && typeof x.dt === 'number' && Math.abs(x.dt) <= 500),
+     JSON.stringify(bi));
+  /* Kameran står still (inga analyssteg): ringens senaste bild är äldre än 0,5 s → ingen bild, och skälet. Ingen låda ur
+     en annan tid (den gamla 10 s-reserven). */
+  await vanta(800);
+  Stillbilder.handlingMarkera({ id: 'Stilla-1', spar: 1 });
+  await vanta(700);
+  const k0 = A.kanal.length;
+  await Stillbilder.handlingBilder({ kod: 'R-9385', sokvag: 'u-prov/rapporter/R-9385', poster: [{ id: 'Stilla-1', spar: 1 }] });
+  const klar = A.kanal.slice(k0).find(m => m.typ === 'rapport_handling_bilder_klar');
+  let bi2 = null;
+  try { bi2 = JSON.parse(await A.filer['u-prov/rapporter/R-9385/handling-bilder.json'].text()); } catch (e) {}
+  ok('kameran stilla: ingen bild äldre än 0,5 s, skälet i svaret och i handling-bilder.json', klar && klar.antal === 0 && !A.filer['u-prov/rapporter/R-9385/handling-Stilla-1.jpg']
+     && klar.saknas.length === 1 && /±500 ms/.test(klar.saknas[0].skal) && bi2 && bi2.poster['Stilla-1'] && bi2.poster['Stilla-1'].dt < -500 && /±500 ms/.test(bi2.poster['Stilla-1'].skal),
+     JSON.stringify({ klar, bi2 }));
   const bilder = [];
   for (const k of bildFiler) bilder.push({ namn: k.split('/').pop(), b64: await new Promise(res => { const f = new FileReader(); f.onload = () => res(String(f.result).split(',')[1]); f.readAsDataURL(A.filer[k]); }) });
-  return { rad, paket, bilder, rattRad: r ? { kod: r.kod, game_id: r.game_id || null, vy: r.vy } : null };
+  return { rad, paket, bilder, bildInfo: bi, rattRad: r ? { kod: r.kod, game_id: r.game_id || null, vy: r.vy } : null };
 };
 
 (async () => {
@@ -379,6 +405,7 @@ const PROV = async () => {
       fs.writeFileSync(pf, zlib.gzipSync(JSON.stringify(ut.paket)));
       const h = spawnSync(process.execPath, [path.join(__dirname, 'hamta.cjs'), '--fil', pf, '--ut', mapp], { encoding: 'utf8' });
       for (const b of ut.bilder || []) fs.writeFileSync(path.join(mapp, b.namn), Buffer.from(b.b64, 'base64'));   // som hamta.cjs <kod> lägger dem
+      if (ut.bildInfo) fs.writeFileSync(path.join(mapp, 'handling-bilder.json'), JSON.stringify(ut.bildInfo));
       ok('hamta.cjs --fil: rapport.json, bordlogg.json och LÄS-MIG med rättelserna', h.status === 0 && fs.existsSync(path.join(mapp, 'bordlogg.json')) && /rättelser av handlingar/.test(fs.readFileSync(path.join(mapp, 'LÄS-MIG.md'), 'utf8')), (h.stderr || h.stdout).trim().slice(0, 200));
       const tillFall = extra => spawnSync(process.execPath, [path.join(__dirname, 'till-fall.cjs'), ut.paket.kod, '--mattest', '--mapp', mapp, '--lokal', '--id', 'prov-h1', '--skriv-over', ...extra], { encoding: 'utf8', env: Object.assign({}, process.env, { MESA_FALL_UT: tmp }) });
       const lasFall = () => { try { return JSON.parse(fs.readFileSync(path.join(tmp, 'dev', 'mattest', 'underlag', 'rapporter', 'prov-h1', 'fall.json'), 'utf8')); } catch (e) { return null; } };
@@ -404,6 +431,7 @@ const PROV = async () => {
       const P = (fall && fall.pastaenden) || [], kort = x => `${x.typ}:${x.kort}${x.till ? ':' + x.till : ''}`;
       const raknas = P.filter(x => !x.tillbaka && !x.osaker && !x.ejAvgorbart && !x.kastad && !x.ejGodkand);
       ok('varje påstående med spår har sin bild (handling-<id>.jpg)', P.length && P.every(x => x.spar == null || x.bild === `handling-${x.id}.jpg`), JSON.stringify(P.map(x => [x.kort, x.bild])));
+      ok('fallet bär bildens avstånd i tid (bildDt ur handling-bilder.json), högst ±500 ms', P.length && P.filter(x => x.bild).every(x => typeof x.bildDt === 'number' && Math.abs(x.bildDt) <= 500), JSON.stringify(P.map(x => [x.kort, x.bildDt])));
       ok('godkända räknas, Shock kastad', raknas.map(kort).join(',') === 'tappad:Forest,borta:Serra Angel:graveyard' && P.some(x => x.kort === 'Shock' && x.kastad), JSON.stringify(raknas.map(kort)));
       ok('facit = spelarens påståenden, inga kamerahändelser antas rätta; Mountain (förra paketet) inte med', fall && fall.facit.length === 0 && P.length === 8 && !P.some(x => x.kort === 'Mountain'), fall && JSON.stringify(P.map(x => [x.t, kort(x), x.spar, x.tillbaka || x.osaker || ''])));
       const bedombara = P.filter(x => !x.tillbaka && !x.osaker && !x.ejAvgorbart);

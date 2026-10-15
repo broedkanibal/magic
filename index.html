@@ -40199,13 +40199,18 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
       kollaAgare();
       const s = sigAv(spar || [], aw);
       const andrat = sig !== null && s !== sig;
-      const orsak = nu - senast >= VAR_MS ? 'tid' : andrat && nu - senastHand >= HAND_MIN_MS ? 'handelse' : null;
+      /* En rättelse av en handling (handlingMarkera) väntar på sin egen bild: den tas i det här steget, före tiden och
+         händelserna. Har den väntat längre än HANDLING_DT_MS är en bild nu inte längre ögonblicket — då ingen. */
+      const vant = vantarPaBild();
+      const orsak = vant.length ? 'markering' : nu - senast >= VAR_MS ? 'tid' : andrat && nu - senastHand >= HAND_MIN_MS ? 'handelse' : null;
       if (!orsak) return;   // sig står kvar: en händelse inom 300 ms tas i nästa steg (punkt 9)
       /* En analysbredd över 480 (bara ?debug, och golden-fallens foton) skalas ned ur analysbilden i koda — aldrig ur videon. */
-      const post = { t: Date.now(), orsak, w: 0, h: 0, spar: sparAv(spar || [], aw, ah), blob: null };
-      if (!koda(canvas, KVAL, (b, w, h) => { post.blob = b; post.w = w; post.h = h; ring.push(post); bytes += b.size; stat.tagna++; slappRing(); })) return;   // kön full: sig står kvar, händelsen tas nästa steg
+      const post = { t: Date.now(), orsak, w: 0, h: 0, spar: sparAv(spar || [], aw, ah), blob: null, mark: vant.length ? vant : null };
+      if (!koda(canvas, KVAL, (b, w, h) => { post.blob = b; post.w = w; post.h = h; ring.push(post); bytes += b.size; stat.tagna++; slappRing(); })) return;   // kön full: sig och markeringen står kvar, bilden tas nästa steg
+      for (const id of vant) { const mk = markeringar.get(id); if (mk) mk.tagen = true; }
       sig = s;   // först när bilden är tagen (punkt 9)
-      if (orsak === 'tid') senast = nu; else senastHand = nu;
+      if (orsak === 'markering') { /* tidsbildens och händelsernas takt rörs inte */ }
+      else if (orsak === 'tid') senast = nu; else senastHand = nu;
       if (orsak === 'handelse' && nu - senast >= VAR_MS / 2) senast = nu;   // en händelsebild nyss räcker som tidsbild
     } catch (e) { /* lådan får aldrig stoppa analysen */ }
     finally { const d = performance.now() - t0; stat.stegMs += d; stat.stegN++; if (d > stat.stegMax) stat.stegMax = d; }
@@ -40338,46 +40343,58 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
 
   /* ── Handlingarna (MES-385, Jespers beslut 2026-10-15: bild per rättelse, bara godkända påståenden räknas) ──
      Datorn säger till i samma ögonblick som spelaren rättar ett kort (rapport_handling_markera { id, spar }): telefonen
-     noterar sin egen tid — ingen klocka behöver räknas om. När paketet skickas (rapport_handling_bilder) skär telefonen
-     ut kortet ur ringens bild närmast det ögonblicket (högst KONTEXT_DT_MS bort), med samma utsnittsregel som kontext.jpg,
-     och laddar upp handling-<id>.jpg. Rutan: spårets låda i den bilden, annars i ringens bild närmast i tid som har
-     spåret (högst KONTEXT_UTAN_MS bort) — ett kort som just lämnat bordet syns då som platsen där det låg. Bilden är
-     till för Jesper: han ser den bredvid påståendet och godkänner eller kastar det. Inget här frågar Claude. */
-  const MARK_MAX = 300, markeringar = new Map();   // id → { spar, t } (telefonens klocka)
+     noterar sin egen tid — ingen klocka behöver räknas om — och tar en egen bild i nästa analyssteg (steg, orsak
+     'markering'). När paketet skickas (rapport_handling_bilder) skär telefonen ut kortet ur den bilden, med samma
+     utsnittsregel som kontext.jpg, och laddar upp handling-<id>.jpg. Saknas den (kön full, kameran stod still) gäller
+     ringens bild närmast ögonblicket, men bara inom HANDLING_DT_MS (Jespers beslut 2026-10-15: bilden ska visa
+     ögonblicket, inte en bild en sekund före, när spelaren kan ha vridit kortet samtidigt). Rutan är spårets låda i
+     just den bilden; finns spåret inte där blir det ingen bild — ingen låda ur en annan tid. dt (bildens tid minus
+     markeringens) står i bilden och i handling-bilder.json, som granskningssidan visar. Bilden är till för Jesper:
+     han ser den bredvid påståendet och godkänner eller kastar det. Inget här frågar Claude. */
+  const MARK_MAX = 300, HANDLING_DT_MS = 500, markeringar = new Map();   // id → { spar, t, tagen } (telefonens klocka)
   function handlingMarkera(m) {
     if (av() || !m || m.id == null) return;
     kollaAgare();
-    markeringar.set(String(m.id), { spar: m.spar, t: Date.now() });
+    markeringar.set(String(m.id), { spar: m.spar, t: Date.now(), tagen: false });
     while (markeringar.size > MARK_MAX) markeringar.delete(markeringar.keys().next().value);
   }
-  async function handlingBild(mk) {
+  /* Markeringarna som väntar på sin bild, inom HANDLING_DT_MS; äldre ger aldrig upp någon bild (tagen = for sent). */
+  function vantarPaBild() {
+    const nu = Date.now(), ut = [];
+    for (const [id, mk] of markeringar) {
+      if (mk.tagen) continue;
+      if (nu - mk.t > HANDLING_DT_MS) { mk.tagen = 'for_sent'; continue; }
+      ut.push(id);
+    }
+    return ut;
+  }
+  async function handlingBild(id, mk) {
     let bast = null;
-    for (const b of ring) if (b.blob && (!bast || Math.abs(b.t - mk.t) < Math.abs(bast.t - mk.t))) bast = b;
+    for (const b of ring) if (b.blob && b.mark && b.mark.includes(id)) { bast = b; break; }   // bilden tagen för just den här rättelsen
+    if (!bast) for (const b of ring) if (b.blob && (!bast || Math.abs(b.t - mk.t) < Math.abs(bast.t - mk.t))) bast = b;
     if (!bast) return { skal: 'ringen är tom' };
     const dt = bast.t - mk.t;
-    if (Math.abs(dt) > KONTEXT_DT_MS) return { skal: `ringens närmaste bild är ${(dt / 1000).toFixed(1)} s från rättelsen (gränsen ±${KONTEXT_DT_MS / 1000} s)` };
-    const har = b => b.spar && b.spar.some(q => q.id === mk.spar);
-    let rutBild = har(bast) ? bast : null;
-    if (!rutBild) for (const b of ring) if (har(b) && Math.abs(b.t - mk.t) <= KONTEXT_UTAN_MS && (!rutBild || Math.abs(b.t - mk.t) < Math.abs(rutBild.t - mk.t))) rutBild = b;
-    if (!rutBild) return { skal: 'spåret finns inte i ringens bilder nära rättelsen' };
-    if (typeof createImageBitmap !== 'function') return { skal: 'createImageBitmap saknas' };
-    const egen = rutBild.spar.find(q => q.id === mk.spar), ruta = { x: egen.x, y: egen.y, w: egen.w, h: egen.h };
+    if (Math.abs(dt) > HANDLING_DT_MS) return { dt, skal: `ingen bild inom ±${HANDLING_DT_MS} ms från rättelsen (närmaste ${dt > 0 ? '+' : ''}${dt} ms)` };
+    const egen = bast.spar && bast.spar.find(q => q.id === mk.spar);
+    if (!egen) return { dt, skal: `spår ${mk.spar} syns inte i bilden vid rättelsen` };
+    if (typeof createImageBitmap !== 'function') return { dt, skal: 'createImageBitmap saknas' };
+    const ruta = { x: egen.x, y: egen.y, w: egen.w, h: egen.h };
     const bm = await createImageBitmap(bast.blob);
     const Wb = bm.width || bast.w, Hb = bm.height || bast.h, U = kontextUtsnitt(ruta, Wb, Hb);
     const c = document.createElement('canvas'); c.width = U.W; c.height = U.H;
     const x = c.getContext('2d');
     x.drawImage(bm, U.x0, U.y0, U.sw, U.sh, 0, 0, U.W, U.H); try { bm.close(); } catch (e) {}
     const a = (ruta.x * Wb - U.x0) * U.sk, b = (ruta.y * Hb - U.y0) * U.sk, w = ruta.w * Wb * U.sk, h = ruta.h * Hb * U.sk;
-    x.lineWidth = 4; x.strokeStyle = '#ff2d55'; if (rutBild !== bast) x.setLineDash([8, 5]); x.strokeRect(a, b, w, h); x.setLineDash([]);
-    const text = 'spår ' + mk.spar + (rutBild !== bast ? ' (där det låg)' : '');
+    x.lineWidth = 4; x.strokeStyle = '#ff2d55'; x.strokeRect(a, b, w, h);
+    const text = 'spår ' + mk.spar + ' · ' + (dt > 0 ? '+' : '') + dt + ' ms';
     x.font = 'bold 13px system-ui, sans-serif'; const tw = x.measureText(text).width + 8, ty = Math.max(0, b - 18);
     x.fillStyle = '#ff2d55'; x.fillRect(a, ty, tw, 17); x.fillStyle = '#fff'; x.fillText(text, a + 4, ty + 13);
     const blob = await new Promise(res => { try { c.toBlob(res, 'image/jpeg', 0.85); } catch (e) { res(null); } });
-    return blob && blob.size ? { blob, dt, rutaUr: rutBild === bast ? 'bilden' : 'en bild ' + (rutBild.t - bast.t) + ' ms bort' } : { skal: 'kodningen gav ingen bild' };
+    return blob && blob.size ? { blob, dt, orsak: bast.orsak } : { dt, skal: 'kodningen gav ingen bild' };
   }
   async function handlingBilder(m) {
     kollaAgare();
-    const mapp = String((m && m.sokvag) || ''), saknas = [];
+    const mapp = String((m && m.sokvag) || ''), saknas = [], info = {};
     let antal = 0, nej = 0;
     try {
       /* Telefonen läser kontots inställning själv före uppladdningen, som rattelseBild. */
@@ -40385,12 +40402,17 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
         for (const p of ((m && m.poster) || []).slice(0, 150)) {
           const id = String(p.id), mk = markeringar.get(id);
           if (!/^[\w-]+$/.test(id)) continue;
-          if (!mk) { saknas.push({ id, skal: 'ingen markering på telefonen' }); continue; }
+          if (!mk) { saknas.push({ id, skal: 'ingen markering på telefonen' }); info[id] = { skal: 'ingen markering på telefonen' }; continue; }
           try {
-            const k = await handlingBild(mk);
-            if (k.blob) { await Moln.rapportFil(mapp, `handling-${id}.jpg`, k.blob, 'image/jpeg'); antal++; }
-            else saknas.push({ id, skal: k.skal });
-          } catch (e) { saknas.push({ id, skal: 'fel: ' + Lada.kap(e && e.message, 120) }); }
+            const k = await handlingBild(id, mk);
+            if (k.blob) { await Moln.rapportFil(mapp, `handling-${id}.jpg`, k.blob, 'image/jpeg'); antal++; info[id] = { dt: k.dt, orsak: k.orsak }; }
+            else { saknas.push({ id, skal: k.skal }); info[id] = { dt: k.dt != null ? k.dt : null, skal: k.skal }; }
+          } catch (e) { const skal = 'fel: ' + Lada.kap(e && e.message, 120); saknas.push({ id, skal }); info[id] = { skal }; }
+        }
+        /* Avståndet i tid per bild, och skälet där bilden saknas: granskningssidan visar det bredvid påståendet. */
+        if (Object.keys(info).length) {
+          try { await Moln.rapportFil(mapp, 'handling-bilder.json', new Blob([JSON.stringify({ v: 1, gransMs: HANDLING_DT_MS, poster: info })], { type: 'application/json' }), 'application/json'); }
+          catch (e) { Lada.skriv('fel', { kalla: 'rattelse', med: 'handling-bilder.json: ' + Lada.kap(e && e.message, 200) }); }
         }
       } else nej = 1;
     } catch (e) { Lada.skriv('fel', { kalla: 'rattelse', med: 'handlingarnas bilder: ' + Lada.kap(e && e.message, 200) }); }

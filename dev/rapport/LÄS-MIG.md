@@ -198,11 +198,18 @@ så att en Undo där av ett tap där inte träffar det här paketets tap — och
 
 **Bild per rättelse och godkännande** (Jespers beslut 2026-10-15): ett klick kan vara ett misstag eller ett prov av
 knappen, så klicket ensamt är inget facit. I samma ögonblick som spelaren rättar ett kort med spår säger datorn till
-telefonen (`rapport_handling_markera { id, spar }`), som noterar sin egen tid. När paketet sparats ber datorn om
-bilderna (`rapport_handling_bilder { kod, sokvag, poster }`): telefonen skär ut kortet ur ringens bild närmast
-ögonblicket (högst 2 s bort; rutan ur den bilden, eller där kortet låg om det just lämnat bordet — streckad), med
-samma utsnittsregel som `kontext.jpg`, och laddar upp `handling-<id>.jpg` (kontots inställning läses först, på
-telefonen). Svaret (`rapport_handling_bilder_klar`) sätter radens `bilder`. **Bara godkända påståenden räknas**:
+telefonen (`rapport_handling_markera { id, spar }`), som noterar sin egen tid och tar en **egen bild i nästa
+analyssteg** (orsak `markering` i ringen). När paketet sparats ber datorn om bilderna (`rapport_handling_bilder { kod,
+sokvag, poster }`): telefonen skär ut kortet ur den bilden, med samma utsnittsregel som `kontext.jpg`, och laddar upp
+`handling-<id>.jpg` (kontots inställning läses först, på telefonen). Saknas markeringens bild (kön full, kameran stod
+still) gäller ringens närmaste bild, men **bara inom ±0,5 s** (Jespers beslut 2026-10-15: bilden ska visa ögonblicket —
+en bild en sekund före kan visa kortet otappat när spelaren vred det samtidigt som hen klickade). Rutan är spårets låda
+i just den bilden; finns spåret inte där blir det ingen bild, aldrig en låda ur en annan tid. Bilden bär `spår N · +dt ms`,
+och telefonen laddar upp `handling-bilder.json` (`{ v, gransMs, poster: { <id>: { dt, orsak } | { dt, skal } } }`):
+`dt` = bildens tid minus markeringens, på telefonens klocka. `till-fall.cjs` lägger den i påståendet som `bildDt` (och
+`bildSkal` där bilden saknas), och granskningssidan visar den under bilden. Paket från före ändringen saknar filen: där
+är avståndet okänt och kan vara upp till 2 s. Markeringen når telefonen ~100 ms efter klicket (kanalen), och dt räknas
+från när den kom fram. Svaret (`rapport_handling_bilder_klar`) sätter radens `bilder`. **Bara godkända påståenden räknas**:
 `godkant.json` i rättelsens mapp (`{ "<id>": "godkand" | "kastad" }`, skrivs av granskningssidan) eller
 `till-fall.cjs <kod> --mattest --godkand <id,…|alla>`. Utan godkännande mäter fallet ingenting, och till-fall säger det.
 Påståendets id = `<cid>-<t>` (journalens tid i ms), samma i journalen, i `fall.pastaenden[].id` och i bildens namn.

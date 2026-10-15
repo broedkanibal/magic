@@ -369,6 +369,9 @@ function mattestFall(o) {
   for (const p of pastaenden || []) {
     const fil = `handling-${p.id}.jpg`;
     p.bild = K.bilder && K.bilder.has(fil) ? fil : null;
+    const bi = K.bildInfo && K.bildInfo[p.id];
+    if (bi && typeof bi.dt === 'number' && isFinite(bi.dt)) p.bildDt = bi.dt;
+    if (!p.bild && bi && typeof bi.skal === 'string') p.bildSkal = bi.skal.slice(0, 200);
     if (p.tillbaka || p.osaker || p.ejAvgorbart) continue;
     /* Ett kastat påstående (granskningssidan) är kastat också med --godkand alla. */
     const g0 = (K.godkant || {})[p.id], g = g0 === 'kastad' ? 'kastad' : K.godkantAlla ? 'godkand' : g0;
@@ -474,6 +477,10 @@ function lasGodkant(K, mapp, o) {
   if (o.godkand === 'alla') K.godkantAlla = true;
   else if (o.godkand) for (const id of o.godkand.split(',').map(x => x.trim()).filter(Boolean)) K.godkant[id] = 'godkand';
   K.bilder = new Set(mapp && fs.existsSync(mapp) ? fs.readdirSync(mapp).filter(f => /^handling-[\w-]+\.jpg$/.test(f)) : []);
+  /* Telefonens handling-bilder.json: per påstående bildens avstånd i tid till rättelsen (dt, ms) och, där bilden
+     saknas, varför. Saknas filen (paket före 2026-10-15) är avståndet okänt — då kan bilden ligga upp till 2 s bort. */
+  const bi = mapp ? lasJsonEllerNull(path.join(mapp, 'handling-bilder.json')) : null;
+  K.bildInfo = bi && bi.poster && typeof bi.poster === 'object' ? bi.poster : null;
 }
 /* Fallet --mattest skulle ge, utan att något skrivs eller spärren prövas: granskningssidan visar det före klicket.
    Samma väg som korInre (kallaUrMapp, hamtaSenare, mattestFall). */
