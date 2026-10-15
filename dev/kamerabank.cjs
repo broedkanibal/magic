@@ -1510,13 +1510,13 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       nu += TAKT; const sl = lcg(1000 + nu); const g = matta(W, H, 100, 3, sl); if (bygg) bygg(g, sl);
       Kamera.steg(g, nu, H, undefined, V, d);
       await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
-      return Kamera.spar.map(t => ({ id: t.id, st: t.tillstand, namn: t.namn, varfor: t.varfor, tackt: !!(t.tackt && t.tackt.length) }));
+      return Kamera.spar.map(t => ({ id: t.id, st: t.tillstand, namn: t.namn, varfor: t.varfor, tackt: !!(t.tackt && t.tackt.length), omlott: !!t.omlott, remsa: !!t.remsaLada }));
     };
     const vek = seed => { const v = new Float32Array(512); for (let k = 0; k < 512; k++) v[k] = Math.sin(seed * 7 + k * 0.37); return v; };
     let fangster = 0, remsFragor = [], sistaBesk = null;
     const fakeVideo = { videoWidth: W * V, videoHeight: H * V, paused: false, play: () => Promise.resolve(), srcObject: null };
     await Kamera.start({ video: fakeVideo, overlay: { getContext: () => ({}) } }, {
-      status: () => {}, bord: (spar) => { bord = spar; }, identifiera: (c, id, gissning, kortArg) => { identifieringar++; sistaBesk = { c, id, kort: kortArg || null, w: c && c.width, h: c && c.height }; return Promise.resolve(namnSvar(id, gissning)); },
+      status: () => {}, bord: (spar) => { bord = spar; }, identifiera: (c, id, gissning, kortArg, o) => { identifieringar++; sistaBesk = { c, id, kort: kortArg || null, w: c && c.width, h: c && c.height }; return Promise.resolve(namnSvar(id, gissning, o)); },   // o: appens { tackt, detPoang, remsa } (LV-proven läser remsa)
       remsVektor: () => { fangster++; return Promise.resolve({ hel: vek(1), titel: vek(2), ms: 1 }); },
       lasRemsa: (c, id, o) => {
         const m = (o && o.minnen) || [];
@@ -1649,6 +1649,45 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
           fangster === 0 && Kamera.remsMinne.length === 0 && c6.st === 'okand' && !!q6 && q6.minnen.length === 0);
     Kamera.satTrosklar({ remsaMinne: 1 });
     namnSvar = saker;
+
+    // ── LV: 'modell land' på ett täckt spår UTAN remslåda kräver också vittne (hålet granskningen fann 2026-10-15) ──
+    /* Två kort omlott (bygg3) där INGEN låda har remsa (det([A, B], [])):
+       då får ingen heller en syntetisk remsa (fyndUrLador kräver en granne
+       med remsa), ordningen är okänd (ingen tackt, ingen maskad) och båda
+       spåren är omlott — arTackt sant. Kedjan svarar ett SÄKERT 'modell
+       land' Swamp (marginal 0,369, utan ORB) för varje spår. Före
+       rättelsen returnerade medRemsa svaret orört så snart spåret saknade
+       remslåda, och kortet blev klar Swamp [modell land] utan något vittne:
+       just v2:s två säkra fel (historik 2026-10-06). Titelraden på
+       beskärningen (namnLast) är det enda vittnet som finns utan remsa. */
+    {
+      const landSvar = namnLast => () => Object.assign({ namn: 'Swamp', sid: 's3', saker: true, varfor: 'modell land', cands: [{ name: 'Swamp', sid: 's3', score: 0.6 }],
+        bild: { accept: false, inliers: 0, modell: true, marginal: 0.369, ensamt: true, stod: 0, orbNamn: null, skala: null } }, namnLast ? { namnLast } : {});
+      const detLV = det([lada(A.x, A.y, A.w, A.h), lada(B.x, B.y, B.w, B.h)], []), detLV3 = det([lada(A.x, A.y, A.w, A.h)], []);
+      const fmtLV = l => l.map(t => `#${t.id} ${t.st} ${t.namn || '–'} [${t.varfor || ''}] omlott=${t.omlott ? 1 : 0} tackt=${t.tackt ? 1 : 0} remsa=${t.remsa ? 1 : 0}`).join(', ');
+      const prov = async (svar, tro, bygg, d) => {
+        namnSvar = svar; nystart(); Kamera.satTrosklar(Object.assign({ remsaMinne: 0, spokMs: 2000, remsaLandVittne: 1 }, tro || {})); await lyft(LYFT);
+        for (let i = 0; i < 20; i++) s = await rutaDet(bygg, d);
+        return s;
+      };
+      const utanRemsa = l => l.length > 0 && l.every(t => !t.remsa && !t.tackt);
+      /* Blir båda spåren säkra Swamp slår dubblettregeln till (samma kort som #N → skrap): ett klart med rätt skäl, inget okänt. */
+      const klara = (l, varfor) => l.some(t => t.omlott && t.st === 'klar' && t.namn === 'Swamp' && t.varfor === varfor) && l.every(t => t.st === 'klar' || (t.st === 'skrap' && /samma kort/.test(t.varfor || '')));
+      // LV1: täckt (omlott) utan remsa, inget vittne → okand 'modell land utan vittne'. Före rättelsen: klar Swamp [modell land] — hålet.
+      const l1 = await prov(landSvar(null), null, bygg3, detLV);
+      check(`LV1 täckt utan remsa, inget vittne: ${fmtLV(l1)}`, l1.length === 2 && utanRemsa(l1) && l1.every(t => t.omlott && t.st === 'okand' && t.varfor === 'modell land utan vittne'));
+      // LV2: samma, men titelraden på beskärningen säger Swamp (0,6 ≥ 0,5) → klar Swamp [modell land+vittne]
+      const l2 = await prov(landSvar({ namn: 'Swamp', poang: 0.6 }), null, bygg3, detLV);
+      check(`LV2 täckt utan remsa, titelraden vittnar: ${fmtLV(l2)}`, l2.length === 2 && utanRemsa(l2) && klara(l2, 'modell land+vittne'));
+      // LV3: ett ENSAMT kort utan remsa (inte täckt) → rörs inte: klar Swamp [modell land]
+      const l3 = await prov(landSvar(null), null, kortA, detLV3);
+      check(`LV3 ensamt kort utan remsa: ${fmtLV(l3)}`, l3.length === 1 && utanRemsa(l3) && !l3[0].omlott && l3[0].st === 'klar' && l3[0].namn === 'Swamp' && l3[0].varfor === 'modell land');
+      // LV4: brytaren av (remsaLandVittne 0) → täckt utan remsa blir klar Swamp [modell land] som förut
+      const l4 = await prov(landSvar(null), { remsaLandVittne: 0 }, bygg3, detLV);
+      check(`LV4 remsaLandVittne 0: ${fmtLV(l4)}`, l4.length === 2 && utanRemsa(l4) && klara(l4, 'modell land'));
+      Kamera.satTrosklar({ remsaMinne: 1, remsaLandVittne: 1 });   // satTrosklar slår ihop: LV4:s 0 stod annars kvar i proven efter
+      namnSvar = saker;
+    }
 
     // ── HB: helbilden och lekens antal (MES-334, golden 05 med Claude) ──
     /* Två kort omlott (bygg3/det3). Det första spåret i listan är osäkert

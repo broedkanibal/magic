@@ -31356,15 +31356,25 @@ const Kamera = (() => {
      titelraden på beskärningen (namnLast ≥ 0,5). Utan vittne blir svaret
      osäkert ('modell land utan vittne'): Claude eller remsan nästa gång.
      Ett helt synligt land (inte täckt) rörs inte. T.remsaLandVittne 0
-     stänger av (golden --tro "remsaLandVittne:0"). */
+     stänger av (golden --tro "remsaLandVittne:0").
+     Kravet gäller också när spåret SAKNAR remslåda (2026-10-15): fram till
+     dess returnerade funktionen svaret orört så snart !t.remsaLada, så ett
+     täckt spår utan remsa fick ett säkert 'modell land' utan något vittne
+     alls — just den väg v2:s två säkra fel gick (de hade varken remsa eller
+     ORB), och ett kort omlott utan egen remsa är vanligt i landhögar på
+     0,5× (golden 17, 18). Granskningen av ORB-vittnet fann hålet
+     (dev/plan/golden-platan-2026-10-15.md). Utan remslåda läses ingen
+     remsa; då är titelraden på beskärningen det enda vittnet. */
   async function medRemsa(t, svar, maskad) {
     t.remsa = null;
-    if (!T.remsa || !svar || svar.skrap || svar.baksida || !t.remsaLada || !cb.lasRemsa) return svar;
+    if (!T.remsa || !svar || svar.skrap || svar.baksida) return svar;
     const landVittne = !!(T.remsaLandVittne && svar.saker && svar.varfor === 'modell land' && arTackt(t, maskad));
+    const kanLasa = !!(t.remsaLada && cb.lasRemsa);
+    if (!kanLasa && !landVittne) return svar;   // utan remslåda rörs bara ett täckt 'modell land'
     if (svar.saker && !landVittne) return svar;
     if (!svar.saker && !(T.remsaAlla || maskad || t.omlott)) return svar;
     let rs = null;
-    try { rs = await lasRemsa(t, maskad, { vittneBara: landVittne }); } catch (e) { rs = null; }   // vittnesläsningen utan textläsaren: bara marginalen behövs (granskningen fynd 9)
+    if (kanLasa) { try { rs = await lasRemsa(t, maskad, { vittneBara: landVittne }); } catch (e) { rs = null; } }   // vittnesläsningen utan textläsaren: bara marginalen behövs (granskningen fynd 9)
     if (rs) t.remsa = rs;
     const skal = rs && rs.saker && rs.namn ? remsaDomSkal(t) : null;
     if (skal) { rs = Object.assign({}, rs, { saker: false, varfor: (rs.varfor || 'remsa') + ' väntar: ' + skal }); t.remsa = rs; }
