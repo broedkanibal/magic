@@ -19,6 +19,7 @@ Spelarens yta: `design_handoff_rapport/README.md` (§5 rutan, §9 detaljerna).
 | 7. Höra av sig | du | mejla spelaren (e-posten står i listan) med koden, och `lista.cjs --kontaktad R-0412` |
 | 7b. Sortera | du | vad blev rapporten? `till-fall.cjs <kod> --mattest \| --bank \| --traning` gör ett fall och sätter `anvandning`; annars `satt.cjs <kod> fix \| slangd` (se *Från rapport till något som mäter* nedan) |
 | 8. Gallra | du / schema | `node dev/rapport/gallra.cjs --torr`, sedan utan `--torr` |
+| 9. Radera | du | spelaren raderade sina rapporter: `node dev/rapport/radera.cjs --torr`, sedan utan (se *Raderade rapporter*) |
 
 ## Verktygen
 
@@ -30,10 +31,13 @@ Spelarens yta: `design_handoff_rapport/README.md` (§5 rutan, §9 detaljerna).
 | `… --nya` | bara de som inte sorterats (`anvandning` null) |
 | `… --alla` | också felrapporter (`kalla = 'fel'`) och rättelser (`'rattelse'`, del B) |
 | `… --kontaktad R-0412` | sätter `kontaktad_at` = nu |
-| `… --raderade` | koderna i `raderingar`: rapporter spelaren raderat. Ta bort fall i repot som bär koden (`grep -r R-0412 dev/`) — privacy-texten lovar det |
+| `… --raderade` | koderna i `raderingar`: rapporter spelaren raderat. Kopiorna tas bort med `radera.cjs` (nedan) |
 | `node dev/rapport/hamta.cjs R-0412` | hämtar raden och filerna, skriver mappen nedan |
 | `node dev/rapport/hamta.cjs --fil paket.json[.gz]` | samma av ett paket som redan ligger lokalt |
-| `node dev/rapport/gallra.cjs [--torr]` | tar bort rader och filer äldre än 90 dagar med `anvandning` null eller `slangd` |
+| `node dev/rapport/gallra.cjs [--torr]` | gallringen (tabellen under *Raderade rapporter*): rader och filer efter 90 dagar, slängdas filer efter 7, exporterades filer 14 dagar efter kopian, lokala kopior 30 dagar efter beslutet. `--torr` visar allt först |
+| `node dev/rapport/radera.cjs [--torr]` | tar bort varje kopia av de rapporter spelaren raderat (`raderingar` som inte hanterats), kör grep på koden och märker raderingen hanterad. `--lokal R-0412 …` utan tabellen |
+| `node dev/rapport/kopior.cjs [--fyll [--torr]]` | kopieindexet: var varje kopia ligger; `--fyll` lägger till rader för kopior som saknar en |
+| `node dev/rapport/prov-radera.cjs [--bank-kor]` | provet för raderingen och gallringen: en syntetisk rapport genom bänken, träningen och Mat test, raderad, 0 träffar på koden efteråt; tabellen och hinken som attrapp. Ett steg i `dev/kolla.sh` |
 | `… --rattelser` | bara de tysta rättelserna (`kalla = 'rattelse'`, del B); går att kombinera med `--nya` |
 | `node dev/rapport/satt.cjs R-0412 fix\|test\|traning\|slangd` | sätter vad rapporten blev. Spärren: test och traning byts aldrig (slutkod 3) |
 | `node dev/rapport/till-fall.cjs R-0412 --mattest\|--bank\|--traning` | gör rapporten till ett Mat test-fall, ett bänkfall eller träningsdata, och sätter `anvandning` (nedan) |
@@ -458,10 +462,53 @@ på all kod.
 
 ### Raderade rapporter
 
-Spelaren raderar sina rapporter (C:s *Delete my reports and pictures*) → koderna hamnar i `raderingar`.
-`till-fall.cjs` skriver koden i klartext i varje fall det skapar (`fall.json`, bänkens `manifest.json`,
-`markning.json`), så: `node dev/rapport/lista.cjs --raderade`, sedan `grep -rl R-0412 dev/` och ta bort
-kopiorna för hand (fallmappen, bänkposten och bilden, träningsmappen). Privacy-texten lovar det.
+Spelaren raderar sina rapporter (C:s *Delete my reports and pictures*) → koderna hamnar i `raderingar`, och
+appen tar själv bort raden i `rapporter` och filerna i hinken. Kvar är **kopiorna** som `till-fall.cjs` gjort.
+Privacy-texten lovar att de också tas bort:
+
+    node dev/rapport/radera.cjs --torr     visar vad som skulle tas bort
+    node dev/rapport/radera.cjs            tar bort det och märker raderingen hanterad
+
+| Steg | Vad |
+|---|---|
+| Hitta | **kopieindexet** (nedan) + det som ligger i platserna själva (`fall.json`:s `rapport`, bänkens `manifest.json`, `markning.json`): en kopia utan rad hittas ändå |
+| Ta bort | Mat test-fallets mapp, bänkposten ur `manifest.json` med bilden och kontextbilden, träningsmappen, den hämtade mappen `dev/diagnos/rapporter/<kod>/` och kodens rader i indexet |
+| Fryst utgåva | bänkfallet tas bort **ändå** (privacy-löftet). Filnamnet stryks ur `utgavor.json` och utgåvans `raderade` räknas upp, så `helkort_jamfor.py --utgava N` skriver *1 av utgåvans N saknas (1 raderade av spelaren)* |
+| Kontrollen | grep på koden i `dev/` (innehåll och filnamn; i träningsmaterialet json/jsonl/tsv). En träff i en `.md` är ett omnämnande i text (en plan, den här filen) och blir en varning. En träff i något annat är en kopia som finns kvar: raderingen märks **inte** hanterad, slutkod 1 |
+| Märk | `raderingar.hanterad_at` = nu. `/overview` (`dev/laget.cjs`) räknar de ohanterade |
+
+Kolumnen `hanterad_at` kommer med `supabase/migrations/20261015120000_raderingar_hanterad.sql`. Innan den körts
+går bara `--torr` (alla raderingar visas) och `--lokal R-0412 …`; skarpt vägras (slutkod 2).
+
+**Det radera.cjs inte når** (planens beslut 7, Jespers): bänkens bilder ligger i git, så en raderad bild finns kvar
+i historiken; och en bild som redan använts i en träning finns kvar i Kaggles äldre dataset-versioner och i den
+tränade modellen.
+
+### Kopieindexet (`kopior.cjs`)
+
+`till-fall.cjs` skriver en rad varje gång det gör en kopia: `{ kod, plats: mattest | bank | traning, id, filer,
+parti, nar }`. Indexet ligger **där kopiorna ligger**, ett per sida:
+
+| Index | Kopior | Varför där |
+|---|---|---|
+| `dev/rapport/kopior.jsonl` | Mat test-fallen och bänken (i git) | raden följer med samma commit som kopian: en gren som gör ett fall bär sin rad, och en worktree ser precis de kopior den har. `merge=union` i `.gitattributes`, så två grenar som lägger till rader inte krockar |
+| `dev/material/arbete/markning/rapporter-traning-mesa/kopior.jsonl` | träningen (utanför git) | träningen finns bara på Jespers Mac; ett index i git skulle peka på mappar som inte finns i en annan klon |
+
+Ett pass utan rapportkod (`--mattest --logg`) får ingen rad: det finns ingen kod att radera. Kopior från före
+indexet: `node dev/rapport/kopior.cjs --fyll` (gjort 2026-10-15 för R-0003, R-0013 och R-0009/`r0009-slow`).
+Gallringen läser kopians dag (`nar`) ur indexet.
+
+### Gallringen (`gallra.cjs`)
+
+| Vad | Tas bort |
+|---|---|
+| Raden i `rapporter` + filerna i hinken | 90 dagar efter rapporten, när `anvandning` är null eller `slangd` |
+| Filerna i hinken, slängd | 7 dagar efter rapporten (raden ligger kvar till 90 dagar) |
+| Filerna i hinken, exporterad till bänken eller träningen | 14 dagar efter kopian (indexets `nar`). Raden ligger kvar: spärren behöver den |
+| Den lokala kopian `dev/diagnos/rapporter/<kod>/` | 30 dagar efter beslutet: kopians dag i indexet, för fix och slängd (ingen dag) mappens senaste ändring; och när raden inte finns längre |
+
+Ligger kvar: raden för fix, test och träning; hinkens filer för ett Mat test-fall och en fix (diagnosen bakom
+fixen); en osorterad rapports lokala kopia. Reserven över taken (planens steg 6) finns inte än.
 
 ### En rutin, inte en issue per rapport
 

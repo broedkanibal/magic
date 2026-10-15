@@ -43,7 +43,11 @@ if UTGAVA is not None:
         sys.exit(f'helkort_jamfor.py: utgåva v{UTGAVA} finns inte (utgåvor: {sorted(utg) or "inga"} — dev/rapport/bankutgava.cjs --klipp)')
     man = [p for p in man if p.get('utgava') is not None and p['utgava'] <= UTGAVA]
     saknas = sorted(set(utg[UTGAVA]['filer']) - {p['fil'] for p in man})
-    print(f"utgåva v{UTGAVA}: {len(man)} fall" + (f" — {len(saknas)} av utgåvans {utg[UTGAVA]['antal']} saknas (raderade?): {', '.join(saknas[:5])}" if saknas else ''))
+    # radera.cjs stryker en raderad rapports fil ur utgavor.json (koden får inte stå kvar) och räknar upp `raderade`
+    raderade = utg[UTGAVA].get('raderade', 0)
+    print(f"utgåva v{UTGAVA}: {len(man)} fall" + (f" — {len(saknas) + raderade} av utgåvans {utg[UTGAVA]['antal']} saknas"
+          + (f" ({raderade} raderade av spelaren)" if raderade else '') + (f" (raderade?): {', '.join(saknas[:5])}" if saknas else '')
+          if saknas or raderade else ''))
 elif any('utgava' in p for p in man):
     print(f"alla {len(man)} fall, också {sum(p.get('utgava') is None for p in man)} inkommande — jämförbart bara inom körningen (--utgava N för en fryst utgåva)")
 bilder = las_referensbilder()

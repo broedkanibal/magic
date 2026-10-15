@@ -87,6 +87,7 @@ steg kanten-vridningen node dev/kanten-vridningen.cjs   # MES-359: mattan vrids 
 steg rapport node dev/rapport/prov.cjs > /dev/null   # MES-365: problemrapporten (rutan, paketet, Cancel, dold information), attrapp för Supabase
 steg rapport-c node dev/rapport/prov-c.cjs > /dev/null   # MES-367: kontot, Settings, Delete, knappen och telefonens ark; flaggan av = inga ytor (attrapp av supabase-js)
 steg handlingar node dev/rapport/prov-handlingar.cjs > /dev/null   # MES-385: rättelser av handlingar i kort_handelser, den tysta rättelsen och vägen till ett Mat test-fall
+steg rapport-radera node dev/rapport/prov-radera.cjs > /dev/null   # granskningen i skala, steg 5: kopieindexet, radera.cjs (0 träffar på koden efteråt) och gallra.cjs, attrapp för Supabase
 echo "rapport: OK"
 steg mattest node dev/mattest/kor.cjs --fall g07,g09,g10,g11,g12,p0921,parti-kedjan > /dev/null
 echo "mattest: kördes"

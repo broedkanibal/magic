@@ -41,8 +41,9 @@
    bildmodellen). Säger spärren nej skrivs ingenting och slutkoden är 3.
 
    Rapportkoden skrivs i klartext i varje fall det skapar (fall.json,
-   bänkens manifest.json, markning.json), så att lista.cjs --raderade +
-   `grep -r <kod> dev/` hittar kopiorna när spelaren raderat sin rapport.
+   bänkens manifest.json, markning.json), och varje kopia får en rad i
+   kopieindexet (kopior.cjs), så att radera.cjs hittar och tar bort kopiorna
+   när spelaren raderat sin rapport.
 
    ── Facit för Mat test: spelarens rättelser + orden ─────────────────────
    Utgångsläget är vad kameran gjorde med mattan: rapportens mattändringar
@@ -106,6 +107,7 @@ const fs = require('fs'), path = require('path'), zlib = require('zlib'), crypto
 const { supa, ROT } = require('./supa.cjs');
 const { kravLokal, sattAnvandning, harParti, partiNycklar, kopiorDetalj } = require('./sparr.cjs');
 const { SORT_ID, sortNamn } = require('./sorter.cjs');
+const kopior = require('./kopior.cjs');
 const KOD_RE = /^R-\d{4,}$/, ID_RE = /^[\w-]+$/;
 /* Partiets nyckel { game_id, spelkod } (null-fält tas bort), eller null. */
 function parti(game_id, spelkod) {
@@ -409,6 +411,7 @@ function skrivMattest(ut, o) {
   fs.writeFileSync(path.join(mapp, 'fall.json'), JSON.stringify(fall, null, 1) + '\n');
   fs.writeFileSync(path.join(mapp, 'bordlogg.json.gz'), zlib.gzipSync(JSON.stringify(ut.bordlogg), { level: 9 }));
   if (o.orden) fs.copyFileSync(path.resolve(o.orden), path.join(mapp, 'orden.tsv'));
+  kopior.lagg(kopior.radMattest(fall.rapport, mapp, fall.parti));   // ett pass utan kod får ingen rad
   return mapp;
 }
 
@@ -665,6 +668,7 @@ function skrivBank(kod, b, o) {
   if (kfil) fs.copyFileSync(b.kontext, path.join(BANK, kfil));
   const ny = lista.filter(p => !sammaFall(kod, b)(p)).concat([post]);
   fs.writeFileSync(man, JSON.stringify(ny, null, 1) + '\n');
+  kopior.lagg(kopior.radBank(kod, post));
   return { mapp: BANK, post, antal: ny.length };
 }
 
@@ -699,6 +703,7 @@ function skrivTraning(kod, b, o) {
     filer: [{ fil, spar: namn, lage: 0, t: b.t, namn: b.ratt, typ: 'hel', utsnitt: 'app', upplosning: 'tel', val: arVal(b.ratt), px: [st.w, st.h], ur: 'lada' }]
   };
   fs.writeFileSync(path.join(mapp, 'markning.json'), JSON.stringify(M, null, 1) + '\n');
+  kopior.lagg(kopior.radTraning(kod, mapp, b.parti));
   return { mapp, utanfor, val: M.spar[0].val };
 }
 
