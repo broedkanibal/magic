@@ -343,26 +343,37 @@ const PROV = async () => {
   }
 
   {
-    /* MES-387, granskningens fynd 2: ett andra byte rättar kamerans namn, inte spelarens förra, och tar tillbaka den förra
-       rättelsen. Ett kort spelaren själv namngav (spårets domskäl hand) har ingen kamerans gissning: ingen rättelse. */
+    /* MES-387, granskningarnas fynd: ett andra byte rättar kamerans läsning (namn OCH domskäl, fast telefonen satt 'hand'
+       på spåret efter det första), den förra rättelsen raderas, och Undo av det andra lägger tillbaka den första.
+       Ett kort spelaren själv namngav (spårets domskäl hand före första bytet) ger ingen rättelse. */
+    const t3 = senasteSpar.find(u => u.id === 3), v0 = t3.varfor;
+    const json = async r => { try { return JSON.parse(await A.filer[`u-prov/rapporter/${r.kod}/rattelse.json`].text()); } catch (e) { return null; } };
     const n0 = rattelser().length, rad0 = A.raderade.length;
     kortBytNamn(serra.cid, 'Shivan Dragon', null, false);
     await vantaRader(n0 + 1);
     const forsta = rattelser()[n0];
+    t3.varfor = 'hand';   // telefonen fick namnet (Kamera.namnge)
     kortBytNamn(serra.cid, 'Baneslayer Angel', null, false);
+    const undo2 = document.querySelector('#handToast .htkort');
+    if (undo2) undo2.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }));
     await vantaRader(n0 + 2);
     for (let i = 0; i < 100 && A.raderade.length === rad0; i++) await vanta(10);
-    const andra = rattelser()[n0 + 1];
-    const t3 = senasteSpar.find(u => u.id === 3), v0 = t3.varfor, n1 = rattelser().length;
-    t3.varfor = 'hand'; const giant = kort('Giant Growth'); const v4 = senasteSpar.find(u => u.id === 4); const v4f = v4.varfor; v4.varfor = 'hand';
+    const andra = rattelser()[n0 + 1], ja = andra && await json(andra);
+    const kan = document.querySelector('#handToast .htkort.on .htangra'); if (kan) kan.click();
+    await vantaRader(n0 + 3);
+    const tredje = rattelser()[n0 + 2];
+    const giant = kort('Giant Growth'), v4 = senasteSpar.find(u => u.id === 4), v4f = v4.varfor; v4.varfor = 'hand';
+    const n1 = rattelser().length;
     kortBytNamn(giant.cid, 'Giant Spider', null, false);
     await vanta(300);
-    ok('MES-387: andra bytet rättar kamerans namn (Serra Angel → Baneslayer Angel), den förra rättelsen raderas; ett kort spelaren namngav ger ingen rättelse',
+    ok('MES-387: andra bytet rättar kamerans läsning (Serra Angel, modell+orb) fast spåret säger hand, den förra raderas; Undo ger den första igen; ett kort spelaren namngav ger ingen rättelse',
        forsta && forsta.vy.gissning === 'Serra Angel' && forsta.vy.ratt === 'Shivan Dragon' && andra && andra.vy.gissning === 'Serra Angel' && andra.vy.ratt === 'Baneslayer Angel'
-       && A.raderade.includes(forsta.kod) && rattelser().length === n1 && giant.name === 'Giant Spider',
-       JSON.stringify({ forsta: forsta && forsta.vy, andra: andra && andra.vy, raderade: A.raderade, efter: rattelser().length - n1 }));
+       && ja && ja.varfor === 'modell+orb' && ja.saker === true && A.raderade.includes(forsta.kod)
+       && !!kan && serra.name === 'Shivan Dragon' && tredje && tredje.vy.ratt === 'Shivan Dragon' && tredje.vy.gissning === 'Serra Angel'
+       && rattelser().length === n1 && giant.name === 'Giant Spider',
+       JSON.stringify({ forsta: forsta && [forsta.vy.gissning, forsta.vy.ratt], andra: andra && [andra.vy.gissning, andra.vy.ratt, ja && ja.varfor], tredje: tredje && [tredje.vy.gissning, tredje.vy.ratt], undo: !!kan, serra: serra.name, raderade: A.raderade, efter: rattelser().length - n1 }));
     t3.varfor = v0; v4.varfor = v4f;
-    giant.name = 'Giant Growth'; delete giant.namnHand; serra.name = 'Serra Angel'; delete serra.namnHand;
+    giant.name = 'Giant Growth'; delete giant.namnHand; delete giant.kamLas; serra.name = 'Serra Angel'; delete serra.namnHand;
     handToastStang();
   }
 

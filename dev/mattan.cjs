@@ -1630,7 +1630,11 @@ const PROV = async () => {
       const efterGammalt = mig.cards.filter(c => paMattan(c)).map(c => c.name).sort().join('|');
       ok('C: ett bord som säger Shock (skickat före bytet) knyter inte loss kortet — ingen ny Shock bredvid', k.spar === 91 && k.name === 'Lightning Bolt' && efterGammalt === 'Lightning Bolt|Opt', efterGammalt);
       avstamBord(bord('Lightning Bolt'), false);
-      ok('C: telefonens bord säger Lightning Bolt — väntan släpper', k.kamNamnFore === undefined && k.spar === 91 && k.name === 'Lightning Bolt');
+      const inom2s = k.kamNamnFore === 'Shock';
+      k.kamNamnSkickat -= 2500;   // 2,5 s senare
+      avstamBord(bord('Lightning Bolt'), false);
+      ok('C: telefonens bord säger Lightning Bolt — väntan släpper, men först 2 s efter sändningen (en snabb Undo kan mötas av ett bord från före bytet)',
+        inom2s && k.kamNamnFore === undefined && k.spar === 91 && k.name === 'Lightning Bolt', `inom 2 s ${inom2s}, efter ${k.kamNamnFore}`);
       $('#handToast').querySelector('.htangra').click();
       renderGrid(true); await vanta(50);
       const tillbaka = sandt.filter(m => m.typ === 'namn').pop();
@@ -1642,7 +1646,7 @@ const PROV = async () => {
       avstamBord(bord(), false);
       /* Granskningens fynd: ⌘Z efter bytet, tillbaka till kamerans namn, pennan genom en omladdning. */
       ofrSokOppna(null, k.cid); kortBytNamn(k.cid, 'Lightning Bolt', null, false);
-      const slim = slimKort([k])[0];
+      const slim = slimDelat([k])[0], k0 = Object.assign({}, k, { flipped: 1 }), slimDold = slimDelat([k0])[0];
       avstamBord(bord('Lightning Bolt'), false);
       const n0 = sandt.length;
       angra(); renderGrid(true);
@@ -1650,14 +1654,21 @@ const PROV = async () => {
       avstamBord(bord('Lightning Bolt'), false); avstamBord(bord('Lightning Bolt'), false); renderGrid(true);
       const k2 = mig.cards.find(c => c.spar === 91), efterZ = mig.cards.filter(c => paMattan(c)).map(c => c.name).sort().join('|');
       ok('C: ⌘Z efter Change card — Shock igen, telefonen får Shock, och ett bord som ännu säger Lightning Bolt ger ingen dubblett; pennan sparas med kortet',
-        !!k2 && k2.name === 'Shock' && !k2.namnHand && zTel.length === 1 && zTel[0].namn === 'Shock' && efterZ === 'Opt|Shock' && !!slim.namnHand && slim.namnHand.fran === 'Shock' && slim.kamNamnFore === 'Shock',
-        `${k2 && k2.name}, telefonen ${JSON.stringify(zTel)}, mattan ${efterZ}, sparat ${JSON.stringify(slim.namnHand)}`);
+        !!k2 && k2.name === 'Shock' && !k2.namnHand && zTel.length === 1 && zTel[0].namn === 'Shock' && efterZ === 'Opt|Shock'
+          && !!slim.namnHand && slim.namnHand.fran === 'Shock' && slim.kamLas && slim.kamLas.namn === 'Shock' && slim.kamLas.varfor === 'modell+orb' && !slimDold.namnHand && !slimDold.kamLas,
+        `${k2 && k2.name}, telefonen ${JSON.stringify(zTel)}, mattan ${efterZ}, sparat i spelets rad ${JSON.stringify({ namnHand: slim.namnHand, kamLas: slim.kamLas })}, nedvänt ${JSON.stringify({ namnHand: slimDold.namnHand, kamLas: slimDold.kamLas })}`);
       avstamBord(bord(), false);
       kortBytNamn(k2.cid, 'Lightning Bolt', null, false); avstamBord(bord('Lightning Bolt'), false);
       kortBytNamn(k2.cid, 'Shock', null, false); renderGrid(true);
       const tk2 = $('#handToast').querySelector('.htkort');
       ok('C: tillbaka till kamerans namn med Change card — pennan går', k2.name === 'Shock' && !k2.namnHand && !elK(k2).querySelector('.handmark') && !!tk2 && /Lightning Bolt → Shock/.test(tk2.textContent),
         `${k2.name}, namnHand ${JSON.stringify(k2.namnHand)}`);
+      /* Telefonen har satt domskälet hand på spåret (bord('…')): rutan vet ändå vad kameran läste. */
+      avstamBord(bord('Shock'), false);
+      ofrSokOppna(null, k2.cid);
+      const las2 = document.querySelector('.ofrsok .sok-las');
+      ok('C: efter byten och Undo, när spåret bär telefonens hand — rutan säger fortfarande "The camera read Shock"', !!las2 && las2.textContent === 'The camera read Shock', las2 ? las2.textContent : 'ingen rad');
+      ofrSokStang();
       avstamBord(bord(), false);
     } catch (e) { ok('Change card: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); }
     lekKort = lek0; lekTal = tal0; Moln.sandKam = sand0; handToastStang(); ofrSokStang(); closeKortMeny();
