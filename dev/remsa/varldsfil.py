@@ -172,8 +172,8 @@ def bygg(variant):
         if len(hb) == hlen:
             break
         hlen = len(hb)
-    assert len(hb) <= hlen, 'huvudets längd stabiliserades inte'
-    hb = hb.ljust(hlen)
+    else:
+        raise SystemExit('huvudets längd stabiliserades inte på fem varv')
     os.makedirs(UT, exist_ok=True)
     f = filnamn(variant)
     with open(f + '.tmp', 'wb') as ut:

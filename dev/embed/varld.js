@@ -28,7 +28,7 @@
      const s = Varld.sok(v, [q0, q90, q180, q270], 5); // Float32Array(512) var
      // s = { rot, namn, poang, marginal, topp: [{ namn, poang, ref, id, sida }] }
 
-   En fristående fil, window.Varld, inga paket.
+   En fristående fil, Varld på window (eller self i en worker), inga paket.
    ══════════════════════════════════════════════════════════════════ */
 (function (global) {
   'use strict';
@@ -65,7 +65,9 @@
     const hlen = dv.getUint32(4, true);
     const huvud = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hlen)));
     if (huvud.format !== 'mesa-varld' || huvud.formatV !== 1) throw new Error('okänt världsformat ' + huvud.format + ' v' + huvud.formatV);
-    // Världens vektorer är bara jämförbara med frågor från samma modell och recept (Embed.MODELL)
+    // Världens vektorer är bara jämförbara med frågor från samma modell och recept. Embed.MODELL säger
+    // receptets version men inte modellfilen (helTagg i embed.js): kör Embed en annan .onnx ska den som
+    // anropar skicka o.modell. I en worker utan Embed och utan o.modell hoppas kontrollen över (MES-377).
     const modell = o.modell || (global.Embed && global.Embed.MODELL);
     if (modell && huvud.modell !== modell) throw new Error('världsfilen är byggd för ' + huvud.modell + ', inte ' + modell);
     const del = namn => { const x = huvud.delar[namn]; if (!x) return null; const T = TYPER[x.typ]; return new T(buf, x.start, x.bytes / T.BYTES_PER_ELEMENT); };

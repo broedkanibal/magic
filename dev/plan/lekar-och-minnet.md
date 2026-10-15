@@ -631,7 +631,7 @@ slutsats som ovan följer: ett filter som sparar 40–60 % av sökningen räddar
 |---|---|
 | Ryms världen i 50 MB utan att telefonen blir sämre? | **Ja.** Variant E3 är 31 MB över nätet (41 MB uppackad) och klarar lika många nya kort som G1: **24 av 37 (65 %), 0 säkra fel**. |
 | Vad kostar ~25 MB? | **Ett kort av 37.** E1 är 22 MB över nätet och klarar 23 av 37 (62 %), 0 säkra fel. Skillnaden är en beskärning, inom bruset för 37 fall. |
-| Räknar telefonen samma vektorer som bänken? | **Ja.** Samma fil ger samma topp-5 i JS och Python för alla 61 beskärningar. Bildmodellen i webbläsaren (embed.js) och i Python ger cos 0,999 i median, och 0 av 100 världsbilder under 0,98. |
+| Räknar telefonen samma vektorer som bänken? | **Ja.** Samma fil ger samma topp-5 i JS och Python för alla 61 beskärningar. Bildmodellen i webbläsaren (embed.js) och i Python ger cos 0,998 (frågorna) och 0,999 (världsbilderna) i median, och 0 av 100 världsbilder under 0,98. |
 | Var ligger filen? | Inte uppladdad än. Skriptet är klart. Uppladdningen till Supabase-bucketen `modeller` stoppades av behörighetsspärren för produktion, och görs av Jesper (kommandot nedan). |
 
 ### Varianterna
