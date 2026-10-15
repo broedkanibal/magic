@@ -139,6 +139,8 @@ button.val.vald { font-weight: 600; box-shadow: 0 0 0 2px currentColor; }
 @media (max-width: 640px) { .pkort { grid-template-columns: 100px minmax(0, 1fr); } }
 .facit { display: inline-flex; align-items: center; gap: 4px; cursor: help; }
 .facit[hidden] { display: none; }
+.blint { font-size: 12px; color: var(--svag); margin: -6px 0 10px; max-width: 900px; }
+.blint b { color: var(--text); }
 .facit::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--linje); }
 .facit.gron::before { background: var(--tran); }
 .facit.gul::before { background: var(--varn); }
@@ -150,6 +152,7 @@ code { font-size: 12px; background: var(--yta2); padding: 1px 4px; border-radius
 <header>
   <h1>Granska rättelser</h1>
   <p class="under">Rättelserna spelarna gjort med <i>Share pictures of cards I correct</i> på. Kontrollera att beskärningen och det rätta namnet stämmer, och välj <b>Träning</b> (bildmodellen lär sig av kortet), <b>Prov</b> (bänken mäter modellen mot det) eller <b>Släng</b>. Sidan föreslår ett val och säger varför; Prov kräver en sorts fel. Valet går inte att ändra efteråt, och ett parti hamnar aldrig både i träning och prov. Fliken <b>Handlingar</b> har rättelserna av tap, flyttar till graveyard/exile/hand, Undo och Follow camera: de blir <b>Mat test</b>-fall eller slängs, aldrig träning.</p>
+  <div class="blint" id="blintlage"></div>
   <nav id="flikar"></nav>
 </header>
 <main>
@@ -344,8 +347,25 @@ async function matBild(kod) {
   }
   return { kort: Math.round(Math.min(W, H) / 1.16), skymt: rutor ? maskade / rutor : 0, ljus: n ? Math.round(sL / n) : 0, blank: n ? vitt / n : 0, skarpa: nLap ? Math.round(sLap / nLap) : 0 };
 }
+/* ── blint läge (Jespers beslut 2026-10-15) ──
+   Tills beslutsloggen har 100 Prov med sort valda blint (/api/blint, samma räkning som granska-matt.cjs) visar sidan
+   inte bildens gissning av sorts fel, eller måtten, förrän du valt en sort: annars mäter steg 2 hur ofta du följer
+   knappen, inte hur ofta gissningen träffar. Gissningen räknas och loggas ändå (signalerMatt). Ett Prov där
+   gissningen syntes före valet räknas inte bland de 100. Efter 100: knappen som förut, utan att något ändras här. */
+let blint = { antal: 0, mal: 100, pa: true };   // blint tills räkningen kommit: hellre dölja än visa i onödan
+const sett = new Set();                          // kod → gissningen har visats (då är ett nytt sortval inte blint)
+const valdBlint = new Map();                     // kod → sorten valdes innan gissningen syntes
+async function laddaBlint() {
+  try { const s = await hamta('/api/blint'); blint = { antal: s.antal, mal: s.mal, pa: s.antal < s.mal }; } catch (e) { return; }
+  $('#blintlage').innerHTML = blint.pa
+    ? `<b>Blint läge: ${blint.antal} av ${blint.mal} Prov.</b> Bildens gissning av sorts fel och siffrorna visas först när du valt sort, så att träffen kan mätas rent (granska-matt.cjs). Efter ${blint.mal} blir gissningen en knapp igen.`
+    : `Blint läge klart (${blint.antal} av ${blint.mal} Prov): bildens gissning av sorts fel visas som en knapp.`;
+}
+const doljGissning = r => blint.pa && !sortFor(r);
+/* Det sidan visar och förslagets text läser: tomt så länge gissningen är dold. */
+const signaler = r => doljGissning(r) ? [] : signalerMatt(r);
 /* Sorterna bilden tyder på, i den ordning de oftast förklarar ett fel: övermålat och litet är säkrast. */
-function signaler(r) {
+function signalerMatt(r) {
   const m = matt.get(r.kod), ut = [];
   if (m && !m.fel) {
     if (m.skymt >= SIGNAL.skymt) ut.push({ id: 'skymt', skal: `${procent(m.skymt)} av kortet övermålat (ett kort ovanpå)` });
@@ -362,9 +382,13 @@ function signalHtml(r) {
   const m = matt.get(r.kod);
   if (!m) return 'Mäter bilden …';
   if (m.fel) return 'Bilden gick inte att mäta.';
+  if (doljGissning(r)) return `Blint läge (${blint.antal} av ${blint.mal}): välj sort efter ögat — bildens gissning och siffror visas sedan.`;
+  if (blint.pa) sett.add(r.kod);
   const ss = signaler(r), vald = sortFor(r), namn = id => (bank.sorter.find(s => s.id === id) || {}).namn || id;
   const siffror = `<span class="siffror">Bilden: kortet ${m.kort} px · ljus ${m.ljus} · blänk ${procent(m.blank)} · skärpa ${m.skarpa}${m.skymt ? ` · övermålat ${procent(m.skymt)}` : ''}</span>`;
   if (!ss.length) return `Inget i bilden slår till — en hand över kortet, vinkel och utgåva ser bara ögat. ${siffror}`;
+  /* blint läge, sorten vald: gissningen som text (ingen knapp att byta till efteråt) */
+  if (blint.pa) return ss.map(s => `<span class="sig">Bildens gissning: ${s.id === vald ? '✓ ' : ''}${esc(namn(s.id))} — ${esc(s.skal)}</span>`).join('') + siffror;
   return ss.map(s => `<span class="sig">${s.id === vald ? `✓ ${esc(namn(s.id))}:`
     : `<button data-valjsort="${esc(r.kod)}" data-sid="${esc(s.id)}">${esc(namn(s.id))}?</button>`} ${esc(s.skal)}</span>`).join('') + siffror;
 }
@@ -629,7 +653,8 @@ async function sortera(kod, val, svep) {
      bildens mått och tiden på kortet. */
   const fo = r && !r.anvandning ? rekommendera(r) : null, m = matt.get(kod);
   const logg = { forslag: fo && { val: fo.val, varfor: fo.varfor, utanSort: !!fo.utanSort }, forslagForst: forstaForslag.get(kod) || null,
-    forslagSort: r && r.harBild && m && !m.fel ? signaler(r).map(x => x.id) : null, matt: m && !m.fel ? m : null, tid: tiderFor(kod), svep: !!svep };
+    forslagSort: r && r.harBild && m && !m.fel ? signalerMatt(r).map(x => x.id) : null, matt: m && !m.fel ? m : null, tid: tiderFor(kod), svep: !!svep,
+    blint: val === 'test' ? valdBlint.get(kod) === true : blint.pa };
   upptagen++; ritaLista();
   const knapp = document.querySelector(`.rad[data-kod="${CSS.escape(kod)}"] button[data-val="${val}"]`);
   if (knapp) knapp.textContent = '…';
@@ -640,7 +665,7 @@ async function sortera(kod, val, svep) {
     else noter.set(kod, { typ: s.sparr ? 'varn' : 'fel', text: (s.sparr ? 'Spärren sa nej — ingenting är skrivet.\n' : '') + s.text + (s.loggFel ? '\n' + s.loggFel : '') });
   } catch (e) { noter.set(kod, { typ: 'fel', text: e.message }); }
   upptagen--;
-  await laddaBank(); await laddaLista(); laddaTraning();
+  await laddaBank(); await laddaBlint(); await laddaLista(); laddaTraning();
 }
 /* Efter ett lyckat val syns det på märket; verktygets text visas bara när den varnar. */
 const varnRader = t => String(t || '').split('\n').filter(l => /VARNING/.test(l)).join('\n');
@@ -728,7 +753,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.godk) { if (!upptagen) godkann(t.closest('.hrad').dataset.kod, t.dataset.pid, t.dataset.godk); return; }
   if (t.dataset.zoomsrc) { $('#zoom').innerHTML = `<img src="${esc(t.dataset.zoomsrc)}" alt="Utsnittet runt kortet">`; $('#zoom').classList.add('pa'); return; }
   if (t.dataset.hval) { if (!upptagen) sorteraHandling(t.closest('.hrad').dataset.kod, t.dataset.hval); return; }
-  if (t.dataset.valjsort) { valdSort.set(t.dataset.valjsort, t.dataset.sid); ritaLista(); return; }
+  if (t.dataset.valjsort) { valdSort.set(t.dataset.valjsort, t.dataset.sid); valdBlint.set(t.dataset.valjsort, false); ritaLista(); return; }
   if (t.dataset.val) { if (!upptagen) sortera(t.closest('.rad').dataset.kod, t.dataset.val); return; }
   if (t.dataset.alla) { if (!upptagen) allaTillTraning(t.dataset.alla); return; }
   if (t.id === 'bygg') { byggDataset(t); return; }
@@ -741,10 +766,10 @@ document.addEventListener('click', async e => {
   if (t.closest('#zoom')) $('#zoom').classList.remove('pa');
 });
 document.addEventListener('input', e => { rora(e.target); if (e.target.dataset.namn) skrivet.set(e.target.dataset.namn, e.target.value); });
-document.addEventListener('change', e => { rora(e.target); if (e.target.dataset.sort) { const k = e.target.dataset.sort; if (e.target.value) valdSort.set(k, e.target.value); else valdSort.delete(k); ritaLista(); } });
+document.addEventListener('change', e => { rora(e.target); if (e.target.dataset.sort) { const k = e.target.dataset.sort; if (e.target.value) { valdSort.set(k, e.target.value); valdBlint.set(k, blint.pa && !sett.has(k)); } else valdSort.delete(k); ritaLista(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#zoom').classList.remove('pa'); });
 
-laddaBank().then(() => { laddaHandlingar(); return laddaLista(); }).then(laddaTraning);   // handlingarna räknas på servern: träningen väntar inte på dem
+laddaBank().then(laddaBlint).then(() => { laddaHandlingar(); return laddaLista(); }).then(laddaTraning);   // handlingarna räknas på servern: träningen väntar inte på dem
 </script>
 </body>
 </html>

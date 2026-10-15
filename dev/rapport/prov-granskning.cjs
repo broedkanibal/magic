@@ -17,7 +17,7 @@ const fs = require('fs'), path = require('path'), os = require('os'), http = req
 const { spawn } = require('child_process');
 const ROT = path.join(__dirname, '..', '..');
 const { bedom, skapaUnderlag } = require('./fortroende.cjs');
-const { rakna } = require('./granska-matt.cjs');
+const { rakna, blindaProv } = require('./granska-matt.cjs');
 
 let fel = 0;
 const ok = (v, text, det) => { console.log(`${v ? 'OK ' : 'FEL'} ${text}${!v && det ? '  (' + det + ')' : ''}`); if (!v) fel++; };
@@ -80,8 +80,8 @@ const t0 = Date.parse('2026-10-15T10:00:00Z'), iso = s => new Date(t0 + s * 1000
     const rad = (kod, x) => Object.assign({ v: 1, t: iso(0), kod, typ: 'namn', ok: true, val: 'traning', forslagForst: 'traning', forslag: { val: 'traning' }, tid: { ms: 5000 }, namn: { spelarens: 'A', valt: 'A', andrat: false } }, x);
     const L = [
       rad('R-1', { tid: { ms: 4000 }, fortroende: { niva: 'gron' } }),
-      rad('R-2', { val: 'test', sort: 'skymt', forslagSort: ['skymt', 'litet'], forslagForst: 'traning', forslag: { val: 'test' }, tid: { ms: 8000 }, fortroende: { niva: 'gul' }, namn: { spelarens: 'A', valt: 'B', andrat: true } }),
-      rad('R-3', { val: 'test', sort: 'blank', forslagSort: ['skymt', 'blank'], forslagForst: 'test', forslag: { val: 'test' }, tid: { ms: 6000 }, fortroende: { niva: 'gron' }, kandidater: { antal: 3, spelarensBland: true, valtBland: true } }),
+      rad('R-2', { val: 'test', sort: 'skymt', blint: true, forslagSort: ['skymt', 'litet'], forslagForst: 'traning', forslag: { val: 'test' }, tid: { ms: 8000 }, fortroende: { niva: 'gul' }, namn: { spelarens: 'A', valt: 'B', andrat: true } }),
+      rad('R-3', { val: 'test', sort: 'blank', blint: true, forslagSort: ['skymt', 'blank'], forslagForst: 'test', forslag: { val: 'test' }, tid: { ms: 6000 }, fortroende: { niva: 'gron' }, kandidater: { antal: 3, spelarensBland: true, valtBland: true } }),
       rad('R-4', { ok: false, sparr: true, val: 'test' }),
       rad('R-4', { val: 'slangd', forslagForst: 'test', tid: { ms: 2000 } }),
       rad('R-5', { svep: true, tid: { ms: 10 }, fortroende: { niva: 'rod' }, kandidater: { antal: 2, spelarensBland: false, valtBland: false } })
@@ -90,7 +90,9 @@ const t0 = Date.parse('2026-10-15T10:00:00Z'), iso = s => new Date(t0 + s * 1000
     ok(R.lyckade === 5 && R.nej === 1 && R.svep === 1, `räknar kort, nej och svep (${R.lyckade} kort, ${R.nej} nej, ${R.svep} svep)`);
     ok(R.foljtForst.foljt === 3 && R.foljtForst.av === 5 && R.foljtNu.foljt === 4, `förslaget följt: som när raden visades 3/5, vid trycket 4/5 (${R.foljtForst.foljt}/${R.foljtForst.av}, ${R.foljtNu.foljt}/${R.foljtNu.av})`);
     ok(R.tid.median === 5000 && R.tid.n === 4, `tiden: median utan svepet (${R.tid.median} ms av ${R.tid.n})`);
-    ok(R.sort.tot.fall === 2 && R.sort.tot.forst === 1 && R.sort.tot.bland === 2 && /för få fall/.test(R.sort.grind), `sorten: 1 av 2 först, 2 av 2 bland förslagen; grinden väntar på 100 (${R.sort.grind})`);
+    ok(R.sort.tot.fall === 2 && R.sort.tot.forst === 1 && R.sort.tot.bland === 2 && /blint läge: 2 av 100/.test(R.sort.grind), `sorten: 1 av 2 först, 2 av 2 bland förslagen; grinden väntar på 100 blinda (${R.sort.grind})`);
+    const Rs = rakna(L.concat([rad('R-7', { val: 'test', sort: 'skymt', blint: false, forslagSort: ['skymt'] })]));
+    ok(Rs.sort.tot.fall === 2 && Rs.sort.synliga === 1 && blindaProv(L).length === 2, 'ett Prov där gissningen syntes före valet räknas inte i träffen eller bland de blinda', JSON.stringify(Rs.sort));
     ok(R.kandidater.av === 2 && R.kandidater.rattBland === 1, 'rätt namn bland kandidaterna: 1 av 2');
     ok(R.fortroende.granskade === 4 && R.fortroende.andrade === 1 && R.fortroende.nivaer.gul.andrade === 1 && /för få/.test(R.fortroende.grind), `förtroendet: 4 granskade, ändringen bland de gula, grinden väntar (${R.fortroende.grind})`);
     const R2 = rakna(L.concat([rad('R-6', { fortroende: { niva: 'gron' }, namn: { spelarens: 'X', valt: 'Y', andrat: true } })]));
@@ -168,10 +170,12 @@ const t0 = Date.parse('2026-10-15T10:00:00Z'), iso = s => new Date(t0 + s * 1000
     const post = b => fetch(BAS + '/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: BAS }, body: JSON.stringify(b) }).then(r => r.json());
     const loggRader = () => fs.existsSync(LOGG) ? fs.readFileSync(LOGG, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : [];
     /* Släng */
-    let s = await post({ kod: 'R-9001', val: 'slangd', forslag: { val: 'traning', varfor: 'Ingen sorts fel vald.', utanSort: true }, forslagForst: 'traning', forslagSort: ['skymt'], matt: { kort: 180, ljus: 120, blank: 0, skarpa: 300, skymt: 0.2 }, tid: { ms: 4200, msSedd: 9000, msRord: 3000 } });
+    let bl = await (await fetch(BAS + '/api/blint')).json();
+    ok(bl.antal === 0 && bl.mal === 100, `/api/blint utan logg: 0 av 100 (${JSON.stringify(bl)})`);
+    let s = await post({ kod: 'R-9001', val: 'slangd', blint: true, forslag: { val: 'traning', varfor: 'Ingen sorts fel vald.', utanSort: true }, forslagForst: 'traning', forslagSort: ['skymt'], matt: { kort: 180, ljus: 120, blank: 0, skarpa: 300, skymt: 0.2 }, tid: { ms: 4200, msSedd: 9000, msRord: 3000 } });
     let L = loggRader(), a = L[0] || {};
     ok(s.ok && !s.loggFel && L.length === 1 && a.kod === 'R-9001' && a.val === 'slangd' && a.forslag.val === 'traning' && a.forslagForst === 'traning' && a.forslagSort[0] === 'skymt'
-      && a.matt.skymt === 0.2 && a.tid.ms === 4200 && a.fortroende.niva === 'gron' && a.fortroende.vittnen.C === true && a.namn.andrat === false && a.parti === G && a.spelare === U1 && a.ok === true,
+      && a.matt.skymt === 0.2 && a.tid.ms === 4200 && a.blint === true && a.fortroende.niva === 'gron' && a.fortroende.vittnen.C === true && a.namn.andrat === false && a.parti === G && a.spelare === U1 && a.ok === true,
       'Släng: en rad i loggen (i MESA_FALL_UT) med förslaget, bildens sort och mått, tiden och nivån', JSON.stringify(a));
     ok(db.rapporter.find(r => r.kod === 'R-9001').anvandning === 'slangd', 'valet gick genom satt.cjs till (attrappens) tabell, som förut');
     /* Ett nej före valet är inget beslut: ingen rad. */
@@ -191,6 +195,12 @@ const t0 = Date.parse('2026-10-15T10:00:00Z'), iso = s => new Date(t0 + s * 1000
     s = await post({ kod: 'R-9004', val: 'slangd', tid: { ms: 1000 } });
     fs.rmdirSync(LOGG); fs.renameSync(LOGG + '.spar', LOGG);
     ok(s.ok && /Beslutsloggen gick inte att skriva/.test(s.loggFel || '') && db.rapporter.find(r => r.kod === 'R-9004').anvandning === 'slangd', 'loggen går inte att skriva: valet gjort, svaret säger det', JSON.stringify(s));
+    /* Blint läge: servern räknar de blinda Proven ur loggen, med samma funktion som rapporten. */
+    const syn = (kod, blint) => JSON.stringify({ v: 1, t: iso(500), kod, typ: 'namn', ok: true, val: 'test', sort: 'skymt', blint, forslagSort: ['skymt'] }) + '\n';
+    fs.appendFileSync(LOGG, syn('R-8001', true) + syn('R-8002', false) + syn('R-8003', true));
+    bl = await (await fetch(BAS + '/api/blint')).json();
+    ok(bl.antal === 2, `/api/blint: två blinda Prov, det synliga räknas inte (${JSON.stringify(bl)})`);
+    fs.writeFileSync(LOGG, fs.readFileSync(LOGG, 'utf8').split('\n').filter(l => !/R-800/.test(l)).join('\n'));
     /* Rapporten läser loggen. */
     const { execFileSync } = require('child_process');
     const ut = execFileSync(process.execPath, [path.join(__dirname, 'granska-matt.cjs'), '--fil', LOGG], { encoding: 'utf8' });

@@ -10,7 +10,9 @@
            Träning"), hur ofta rätt namn fanns bland telefonens kandidater.
    Steg 2  sorten bilden föreslog först mot den sort du valde (bara Prov: sorten väljs bara där). Grinden i planen:
            ≥ 80 % totalt och ≥ 70 % i varje sort med minst 10 fall. Planen sätter gränserna på de första 100 och
-           prövar dem på nästa 100 — här räknas bara.
+           prövar dem på nästa 100 — här räknas bara. Bara BLINDA Prov räknas i träffen (Jespers beslut
+           2026-10-15): sorten valdes innan sidan visat sin gissning (blindaProv; sidan kör blint de första 100).
+           Ett Prov där gissningen syntes före valet räknas för sig — där kan valet ha följt knappen.
    Steg 3  facits förtroende mot dina namnändringar (Träning och Prov: där du godkänner eller byter namnet).
            Grinden: 0 av dina namnändringar bland de gröna, på minst 200 granskade.
 
@@ -20,6 +22,13 @@
 const { las, LOGG } = require('./beslutslogg.cjs');
 
 const GRIND = { sortTotal: 0.8, sortPer: 0.7, sortMinFall: 10, gronaMin: 200 };
+const BLINT_MAL = 100;   // blinda Prov med sort innan sidan visar sortgissningen som knapp igen
+
+/* Ett kort som beslutats flera gånger räknas med sitt sista lyckade beslut. */
+function sistaPerKod(rader) { const m = new Map(); for (const r of rader) if (r.ok) m.set(r.kod, r); return [...m.values()]; }
+/* Prov med sort där sorten valdes utan att sidans gissning syntes (blint === true i loggen). Granskningssidan räknar
+   samma lista för "Blint läge: N av 100". */
+const blindaProv = rader => sistaPerKod(rader).filter(r => r.typ === 'namn' && r.val === 'test' && r.sort && r.blint === true);
 const NIVA = { gron: 'grön', gul: 'gul', rod: 'röd', '?': 'okänd' };
 
 const pct = (a, b) => b ? `${Math.round(100 * a / b)} %` : '–';
@@ -30,9 +39,7 @@ const sek = ms => ms == null ? '–' : (ms / 1000).toFixed(1).replace('.', ',') 
 
 function rakna(rader) {
   const lyckade = rader.filter(r => r.ok);
-  const sista = new Map();
-  for (const r of lyckade) sista.set(r.kod, r);
-  const B = [...sista.values()], namn = B.filter(r => r.typ === 'namn');
+  const B = sistaPerKod(rader), namn = B.filter(r => r.typ === 'namn');
   const ut = { beslut: rader.length, lyckade: B.length, nej: rader.length - lyckade.length, namn: namn.length, handlingar: B.length - namn.length,
     svep: B.filter(r => r.svep).length, forsta: rader.length ? rader[0].t : null, sista: rader.length ? rader[rader.length - 1].t : null };
 
@@ -51,7 +58,7 @@ function rakna(rader) {
   ut.kandidater = { av: medKand.length, rattBland: medKand.filter(r => r.namn && r.namn.valt ? r.kandidater.valtBland : r.kandidater.spelarensBland).length, utan: namn.length - medKand.length };
 
   /* Steg 2 */
-  const prov = namn.filter(r => r.val === 'test' && r.sort);
+  const prov = blindaProv(rader);
   const per = {};
   for (const r of prov) {
     const f = Array.isArray(r.forslagSort) ? r.forslagSort : [], p = per[r.sort] || (per[r.sort] = { fall: 0, forst: 0, bland: 0, inget: 0 });
@@ -59,9 +66,10 @@ function rakna(rader) {
   }
   const tot = Object.values(per).reduce((s, p) => ({ fall: s.fall + p.fall, forst: s.forst + p.forst, bland: s.bland + p.bland, inget: s.inget + p.inget }), { fall: 0, forst: 0, bland: 0, inget: 0 });
   const bedomda = Object.entries(per).filter(([, p]) => p.fall >= GRIND.sortMinFall);
-  ut.sort = { per, tot, utanMatt: namn.filter(r => r.val === 'test' && r.sort && r.forslagSort == null).length,
-    grind: !tot.fall ? 'inga Prov med sort än'
-      : tot.fall < 100 ? `för få fall: ${tot.fall} av 100 (planen sätter gränserna på de första 100 och prövar dem på nästa 100)`
+  ut.sort = { per, tot, utanMatt: prov.filter(r => r.forslagSort == null).length,
+    synliga: namn.filter(r => r.val === 'test' && r.sort && r.blint !== true).length,
+    grind: !tot.fall ? 'inga blinda Prov med sort än'
+      : tot.fall < BLINT_MAL ? `blint läge: ${tot.fall} av ${BLINT_MAL} (planen sätter gränserna på de första 100 och prövar dem på nästa 100)`
       : tot.forst / tot.fall >= GRIND.sortTotal && bedomda.every(([, p]) => p.forst / p.fall >= GRIND.sortPer) ? 'klarar grinden (80 % totalt, 70 % per sort med ≥ 10 fall)'
       : `klarar inte grinden: ${pct(tot.forst, tot.fall)} totalt${bedomda.filter(([, p]) => p.forst / p.fall < GRIND.sortPer).map(([s, p]) => `, ${s} ${pct(p.forst, p.fall)}`).join('')}` };
 
@@ -90,14 +98,15 @@ function skriv(R, fil, trasiga) {
   for (const [f, p] of Object.entries(R.perForslag)) L.push(`| Förslag ${f} | följt ${andel(p.foljt, p.av)} · valen: ${Object.entries(p.val).map(([v, n]) => `${v} ${n}`).join(', ')} |`);
   L.push(`| Tid per kort, median | ${sek(R.tid.median)} (90 % under ${sek(R.tid.p90)}, ${R.tid.n} kort; namnrättelser ${sek(R.tidNamn.median)}). Mål: under 10 s i en rad |`);
   L.push(`| Rätt namn bland telefonens kandidater | ${R.kandidater.av ? andel(R.kandidater.rattBland, R.kandidater.av) : '–'}${R.kandidater.utan ? ` (${R.kandidater.utan} utan kandidater: äldre rättelser)` : ''} |`, '');
-  L.push('## Steg 2: sorten sidan föreslog mot din sort (Prov)', '', 'Förslagen kommer ur bildens mått; "Liknande kort" ur att telefonen gissade ett annat namn.', '');
-  if (!R.sort.tot.fall) L.push('Inga Prov med sort än.');
+  L.push('## Steg 2: sorten sidan gissade mot din sort (blinda Prov)', '', 'Gissningen kommer ur bildens mått; "Liknande kort" ur att telefonen gissade ett annat namn. Bara Prov där du valde sort innan gissningen syntes räknas.', '');
+  if (!R.sort.tot.fall) L.push('Inga blinda Prov med sort än.');
   else {
     L.push('| Din sort | Fall | Sidans första förslag = din | Bland sidans förslag | Inget förslag |', '|---|---|---|---|---|');
     for (const [s, p] of Object.entries(R.sort.per).sort((a, b) => b[1].fall - a[1].fall)) L.push(`| ${s} | ${p.fall} | ${pct(p.forst, p.fall)} | ${pct(p.bland, p.fall)} | ${p.inget} |`);
     L.push(`| **totalt** | ${R.sort.tot.fall} | ${pct(R.sort.tot.forst, R.sort.tot.fall)} | ${pct(R.sort.tot.bland, R.sort.tot.fall)} | ${R.sort.tot.inget} |`);
     if (R.sort.utanMatt) L.push('', `${R.sort.utanMatt} Prov valdes innan bilden hunnit mätas (räknas som utan förslag).`);
   }
+  if (R.sort.synliga) L.push('', `${R.sort.synliga} Prov med sort där gissningen syntes före valet räknas inte i träffen.`);
   L.push('', `Grinden: ${R.sort.grind}.`, '');
   L.push('## Steg 3: facits förtroende mot dina namnändringar (Träning och Prov)', '');
   if (!R.fortroende.granskade) L.push('Inga granskade med en nivå än.');
@@ -121,4 +130,4 @@ if (require.main === module) {
   else console.log(skriv(R, fil, trasiga));
 }
 
-module.exports = { rakna, skriv, GRIND };
+module.exports = { rakna, skriv, GRIND, BLINT_MAL, blindaProv };
