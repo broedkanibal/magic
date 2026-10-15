@@ -406,4 +406,25 @@ const server = http.createServer(async (req, res) => {
     svara(res, 500, { fel: String(e && e.message || e) });
   }
 });
+/* Porten upptagen: säg vem som har den och hur den stoppas, i stället för Nodes stackspår. Oftast en äldre
+   granskningssida som fortfarande kör gammal kod (servern läser in koden en gång, när den startar). */
+function vemHarPorten() {
+  const { execFileSync } = require('child_process');
+  const ut = (prog, args) => { try { return execFileSync(prog, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch (e) { return ''; } };
+  const pid = ut('lsof', ['-nP', `-iTCP:${PORT}`, '-sTCP:LISTEN', '-t']).split('\n')[0];
+  if (!pid) return null;
+  const [start, ...kommando] = ut('ps', ['-o', 'lstart=,command=', '-p', pid]).replace(/^(\S+\s+\S+\s+\d+\s+\S+\s+\d+)\s+/, '$1\u0000').split('\u0000');
+  return { pid, start: start ? new Date(start).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : null, kommando: kommando.join(' ') };
+}
+server.on('error', e => {
+  if (e.code !== 'EADDRINUSE') throw e;
+  const v = vemHarPorten();
+  const arGranska = v && /granska\.cjs/.test(v.kommando);
+  console.error([
+    `Port ${PORT} är upptagen${v ? ` av ${arGranska ? 'en granskningssida som redan kör' : `ett annat program (${v.kommando.slice(0, 80)})`} — pid ${v.pid}${v.start ? `, startad ${v.start}` : ''}` : ''}.`,
+    arGranska ? `Den kör koden som fanns när den startades. Vill du ha senaste koden: stoppa den och starta om:\n  kill ${v.pid} && node dev/rapport/granska.cjs${PORT === 8279 ? '' : ' --port ' + PORT}\nAnnars: öppna http://127.0.0.1:${PORT}` : '',
+    `Eller välj en annan port: node dev/rapport/granska.cjs --port ${PORT + 1}`
+  ].filter(Boolean).join('\n'));
+  process.exit(1);
+});
 server.listen(PORT, '127.0.0.1', () => console.log(`Granskningen av rättelserna: http://127.0.0.1:${PORT}`));
