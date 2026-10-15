@@ -61,6 +61,10 @@ button.val.test:hover:not(:disabled) { background: var(--test-bg); }
 button.val.forslag { font-weight: 600; box-shadow: 0 0 0 2px var(--accent); }
 .forslag-rad { font-size: 13px; padding: 7px 10px; border-radius: 6px; background: var(--yta2); border-left: 3px solid var(--accent); }
 .forslag-rad b { margin-right: 4px; }
+.signal { font-size: 12px; color: var(--svag); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.signal button { font: inherit; font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--test); background: var(--yta); color: var(--test); cursor: pointer; }
+.signal button:hover { background: var(--test-bg); }
+.signal .siffror, .signal .sig { flex-basis: 100%; }
 .falt select { font: inherit; padding: 6px 8px; border: 1px solid var(--linje); border-radius: 6px; background: var(--yta); color: var(--text); flex: 1 1 200px; min-width: 0; }
 .sidor { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 112px; }
 @media (max-width: 1000px) { .sidor { position: static; } }
@@ -219,6 +223,7 @@ function ritaLista() {
       ${rr.map(radHtml).join('')}
     </div>`;
   }).join('');
+  matSynliga();
 }
 
 /* ── rekommendationen ──
@@ -228,6 +233,7 @@ function ritaLista() {
    3. Kortet är ett säkert fel namn                   → Prov (löftet: 0 säkra fel namn)
    4. Ett annat osorterat kort i partiet är det       → Prov (hela partiet blir prov; sortera det först)
    5. Ingen sorts fel vald                            → Träning, men välj sorten om kortet visar något bänken behöver
+                                                        (bilden mäts och föreslår sorten under listan, se signaler)
    6. Sorten har färre prov än målet                  → Prov (bänken fylls jämnt, i den ordning korten kommer)
    7. Sorten är full                                  → Träning
    Ögat behövs till två saker: Släng när du inte själv kan läsa kortet, och vilken sorts fel det är. */
@@ -247,7 +253,12 @@ function rekommendera(r) {
   const annan = ovriga.find(x => !x.anvandning && x.harBild && sakertFel(x));
   if (annan) return { val: 'test', varfor: `${annan.kod} i samma parti är ett säkert fel namn och blir prov — då blir hela partiet prov. Sortera ${annan.kod} först.` };
   const id = sortFor(r), S = bank && bank.sorter.find(s => s.id === id);
-  if (!id || !S) return { val: 'traning', varfor: 'Ingen sorts fel vald. Visar kortet en sort som bänken behöver fler av (listan till höger): välj den. Annars träning.', utanSort: true };
+  if (!id || !S) {
+    const ss = signaler(r).map(s => bank.sorter.find(x => x.id === s.id)).filter(Boolean);
+    return { val: 'traning', utanSort: true, varfor: ss.length
+      ? `Ingen sorts fel vald. Bilden tyder på ${ss.map(s => `${s.namn} (${s.antal}/${s.mal})`).join(' eller ')} — tryck på den under listan om du ser samma sak. Annars träning.`
+      : 'Ingen sorts fel vald. Visar kortet en sort som bänken behöver fler av (listan till höger): välj den. Annars träning.' };
+  }
   if (S.antal < S.mal) return { val: 'test', varfor: `${S.namn}: ${S.antal} av ${S.mal} prov — bänken behöver ${S.mal - S.antal} till.` };
   return { val: 'traning', varfor: `${S.namn} är full (${S.antal} av ${S.mal} prov): kortet gör mer nytta i träningen.` };
 }
@@ -256,7 +267,105 @@ function sortValj(r) {
   return `<div class="falt"><label for="s-${esc(r.kod)}">Sorts fel</label><select id="s-${esc(r.kod)}" data-sort="${esc(r.kod)}" ${r.harBild ? '' : 'disabled'}>
     <option value="">— välj (krävs för Prov) —</option>
     ${(bank ? bank.sorter.filter(s => s.mal != null) : []).map(s => `<option value="${esc(s.id)}" ${s.id === val ? 'selected' : ''}>${esc(s.namn)} (${s.antal}/${s.mal})</option>`).join('')}
-  </select></div>`;
+  </select></div>
+  ${r.harBild ? `<div class="signal" data-signal="${esc(r.kod)}">${signalHtml(r)}</div>` : ''}`;
+}
+
+/* ── vad bilden tyder på ──
+   Sidan mäter beskärningen och föreslår en sort med siffran synlig; du väljer. Mätningen görs på
+   beskärningen skalad till kortsidan 200 px, med 7 % marginal bort (beskar() lägger 8 % runt kortet)
+   och det övermålade (maskaTackt: en jämn grå yta) utanför ljus, blänk och skärpa.
+   Gränserna är en bedömning, inte mätta mot märkta fel: de sitter utanför det ~870 telefonbeskärningar
+   ur fyra träningspass gav (2026-10-15, 1080 och 4K; 5:e–95:e percentilen: kortet 128–327 px, ljus 66–172,
+   blänk ≤ 0,35 %, skärpa 78–3900 — svarta mattan med taklampa låg lägst —, övermålat ≤ 2,3 %).
+   Samma mätning i Python för att pröva nya gränser: ytmedel = PIL Image.BOX, i övrigt rad för rad som här
+   (skärpan skiljer ~10 % mellan Chromes och PIL:s JPEG-avkodning; resten lika). */
+const SIGNAL = { litet: 150, morker: 55, blank: 0.01, suddig: 100, skymt: 0.10 };
+const matt = new Map();   // kod → { kort, ljus, blank, skarpa, skymt } | { fel }
+const procent = v => (100 * v).toFixed(1).replace('.', ',') + ' %';
+/* Ytmedelvärde (som PIL:s BOX): webbläsarens egen nedskalning beror på kvalitetsinställningen och gav
+   olika skärpa för samma bild, så gränserna (mätta med BOX) gäller bara med den här. */
+function ytmedel(src, W, H, w, h) {
+  const steg = (n, N) => { const f = N / n, ut = []; for (let i = 0; i < n; i++) { const a = i * f, b = a + f, v = []; for (let j = Math.floor(a); j < Math.min(N, Math.ceil(b)); j++) { const t = Math.min(b, j + 1) - Math.max(a, j); if (t > 0) v.push([j, t / f]); } ut.push(v); } return ut; };
+  const sx = steg(w, W), sy = steg(h, H), tmp = new Float32Array(w * H), ut = new Float32Array(w * h);
+  for (let y = 0; y < H; y++) for (let x = 0; x < w; x++) { let s = 0; for (const [j, t] of sx[x]) s += src[y * W + j] * t; tmp[y * w + x] = s; }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let s = 0; for (const [j, t] of sy[y]) s += tmp[j * w + x] * t; ut[y * w + x] = s; }
+  return ut;
+}
+async function matBild(kod) {
+  const svar = await fetch('/api/bild/' + encodeURIComponent(kod));
+  if (!svar.ok) throw new Error('bilden: ' + svar.status);
+  const img = await createImageBitmap(await svar.blob());   // inte img.decode(): den väntar på en ritning och hänger i en dold flik
+  const W = img.width, H = img.height, sk = Math.min(1, 200 / Math.min(W, H));   // bara nedskalning
+  const w = Math.round(W * sk), h = Math.round(H * sk);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, W, H).data, L0 = new Float32Array(W * H), M0 = new Float32Array(W * H);
+  for (let i = 0, p = 0; i < W * H; i++, p += 4) { L0[i] = 0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2]; M0[i] = Math.max(d[p], d[p + 1], d[p + 2]) - Math.min(d[p], d[p + 1], d[p + 2]); }
+  const L = ytmedel(L0, W, H, w, h), mattnad = ytmedel(M0, W, H, w, h);
+  /* Det övermålade: 8×8-rutor utan variation och utan färg (riktigt papper har brus, std ≥ 0,6 i provet). */
+  const B = 8, bw = Math.floor(w / B), bh = Math.floor(h / B), mask = new Uint8Array(bw * bh);
+  for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) {
+    let s = 0, s2 = 0, m = 0;
+    for (let yy = 0; yy < B; yy++) for (let xx = 0; xx < B; xx++) { const i = (by * B + yy) * w + bx * B + xx; s += L[i]; s2 += L[i] * L[i]; m = Math.max(m, mattnad[i]); }
+    const me = s / 64;
+    mask[by * bw + bx] = Math.sqrt(Math.max(0, s2 / 64 - me * me)) < 0.35 && m < 10 ? 1 : 0;
+  }
+  const naraMask = (bx, by) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const X = bx + dx, Y = by + dy; if (X >= 0 && Y >= 0 && X < bw && Y < bh && mask[Y * bw + X]) return true; } return false; };
+  const m0 = 0.07, bx0 = Math.ceil(bw * m0), bx1 = Math.floor(bw * (1 - m0)), by0 = Math.ceil(bh * m0), by1 = Math.floor(bh * (1 - m0));
+  let rutor = 0, maskade = 0, n = 0, sL = 0, vitt = 0, nLap = 0, sLap = 0;
+  for (let by = by0; by < by1; by++) for (let bx = bx0; bx < bx1; bx++) {
+    rutor++; if (mask[by * bw + bx]) { maskade++; continue; }
+    const kant = naraMask(bx, by);   // kanten mot det grå är skarp men inte kortets: räknas inte i skärpan
+    for (let yy = 0; yy < B; yy++) for (let xx = 0; xx < B; xx++) {
+      const X = bx * B + xx, Y = by * B + yy, i = Y * w + X;
+      n++; sL += L[i]; if (L[i] >= 250) vitt++;
+      if (!kant && X > 0 && Y > 0 && X < w - 1 && Y < h - 1) { const lp = 4 * L[i] - L[i - 1] - L[i + 1] - L[i - w] - L[i + w]; sLap += lp * lp; nLap++; }
+    }
+  }
+  return { kort: Math.round(Math.min(W, H) / 1.16), skymt: rutor ? maskade / rutor : 0, ljus: n ? Math.round(sL / n) : 0, blank: n ? vitt / n : 0, skarpa: nLap ? Math.round(sLap / nLap) : 0 };
+}
+/* Sorterna bilden tyder på, i den ordning de oftast förklarar ett fel: övermålat och litet är säkrast. */
+function signaler(r) {
+  const m = matt.get(r.kod), ut = [];
+  if (m && !m.fel) {
+    if (m.skymt >= SIGNAL.skymt) ut.push({ id: 'skymt', skal: `${procent(m.skymt)} av kortet övermålat (ett kort ovanpå)` });
+    if (m.kort < SIGNAL.litet) ut.push({ id: 'litet', skal: `kortet ${m.kort} px brett (under ${SIGNAL.litet})` });
+    if (m.ljus < SIGNAL.morker) ut.push({ id: 'morker', skal: `ljus ${m.ljus} av 255 (under ${SIGNAL.morker})` });
+    if (m.blank >= SIGNAL.blank) ut.push({ id: 'blank', skal: `${procent(m.blank)} utfrätt vitt (gräns ${procent(SIGNAL.blank)})` });
+    if (m.skarpa < SIGNAL.suddig) ut.push({ id: 'suddig', skal: `skärpa ${m.skarpa} (under ${SIGNAL.suddig})` });
+  }
+  const namn = namnFor(r);
+  if (r.gissning && namn && r.gissning !== namn) ut.push({ id: 'liknande', skal: `telefonen sa ${r.gissning}` });
+  return ut.filter(s => bank && bank.sorter.some(x => x.id === s.id && x.mal != null));
+}
+function signalHtml(r) {
+  const m = matt.get(r.kod);
+  if (!m) return 'Mäter bilden …';
+  if (m.fel) return 'Bilden gick inte att mäta.';
+  const ss = signaler(r), vald = sortFor(r), namn = id => (bank.sorter.find(s => s.id === id) || {}).namn || id;
+  const siffror = `<span class="siffror">Bilden: kortet ${m.kort} px · ljus ${m.ljus} · blänk ${procent(m.blank)} · skärpa ${m.skarpa}${m.skymt ? ` · övermålat ${procent(m.skymt)}` : ''}</span>`;
+  if (!ss.length) return `Inget i bilden slår till — en hand över kortet, vinkel och utgåva ser bara ögat. ${siffror}`;
+  return ss.map(s => `<span class="sig">${s.id === vald ? `✓ ${esc(namn(s.id))}:`
+    : `<button data-valjsort="${esc(r.kod)}" data-sid="${esc(s.id)}">${esc(namn(s.id))}?</button>`} ${esc(s.skal)}</span>`).join('') + siffror;
+}
+/* Mäter de synliga raderna en i taget och ritar bara om deras rad-delar: en omritning av listan tar fokus ur namnfältet. */
+let mater = false;
+async function matSynliga() {
+  if (mater) return; mater = true;
+  try {
+    for (;;) {
+      const el = [...document.querySelectorAll('.signal[data-signal]')].find(e => !matt.has(e.dataset.signal));
+      if (!el) break;
+      const kod = el.dataset.signal;
+      try { matt.set(kod, await matBild(kod)); } catch (e) { matt.set(kod, { fel: true }); }
+      const r = rader.find(x => x.kod === kod), rad = document.querySelector(`.rad[data-kod="${CSS.escape(kod)}"]`);
+      if (!r || !rad) continue;
+      const s = rad.querySelector('.signal'); if (s) s.innerHTML = signalHtml(r);
+      const f = rad.querySelector('.forslag-rad');
+      if (f && !r.anvandning) { const fo = rekommendera(r); f.innerHTML = `<b>Förslag: ${VAL_NAMN[fo.val]}.</b> ${esc(fo.varfor)}`; }
+    }
+  } finally { mater = false; }
 }
 
 function radHtml(r) {
@@ -558,6 +667,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.godk) { if (!upptagen) godkann(t.closest('.hrad').dataset.kod, t.dataset.pid, t.dataset.godk); return; }
   if (t.dataset.zoomsrc) { $('#zoom').innerHTML = `<img src="${esc(t.dataset.zoomsrc)}" alt="Utsnittet runt kortet">`; $('#zoom').classList.add('pa'); return; }
   if (t.dataset.hval) { if (!upptagen) sorteraHandling(t.closest('.hrad').dataset.kod, t.dataset.hval); return; }
+  if (t.dataset.valjsort) { valdSort.set(t.dataset.valjsort, t.dataset.sid); ritaLista(); return; }
   if (t.dataset.val) { if (!upptagen) sortera(t.closest('.rad').dataset.kod, t.dataset.val); return; }
   if (t.dataset.alla) { if (!upptagen) allaTillTraning(t.dataset.alla); return; }
   if (t.id === 'bygg') { byggDataset(t); return; }
