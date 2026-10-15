@@ -41,7 +41,9 @@ Inget. Inga golden-försämringar, så ingen mätning med lådan av behövdes f�
 ## Beslut jag tog i natt (Jesper kan säga emot)
 
 - **Spärren test/träning gäller per parti** (game_id eller spelkod), inte per kod — samma regel som detektorns
-  spärr (MES-288). Strängare än issuens "per rättelse".
+  spärr (MES-288). Strängare än issuens "per rättelse". **Ändrad 2026-10-14 (Jespers beslut, f37f2a3):**
+  per parti gäller bara mellan bildbänken och träning; ett Mat test-fall spärrar bara sin egen rapport
+  (Mat test kör aldrig bildmodellen). Se dev/rapport/LÄS-MIG.md.
 - **Rättelserunda för B parallellt med A** och C startad före B:s rättelse, för att hinna före 07:00. Konflikterna löstes vid sammanslagningen.
 - **Ringen, beskärningarna och rättelserna är grindade bakom `?debug || RAPPORT_FOR_ALLA`** tills go-live (granskningens fynd: de kostade telefonen minne och en `getUser` per rättelse för en funktion ingen kunde använda).
 
@@ -82,3 +84,11 @@ fanns inte bland sessionerna (ListAgents 00:52), så ingen att fråga om B:s rä
 
 Harnessen flaggade B-byggaren för *Modify Shared Resources* (troligen försöket med `setval` mot produktionens
 sekvens, som nekades). Kontrollerat efteråt: inga rader, filer eller kontofält kvar.
+
+## Uppföljning 2026-10-14
+
+Första riktiga rapporterna R-0003–R-0013 (Jesper) kom fram med telefonens bilder. Rättelsen sparar nu
+`ruta`, `maskade` och `kontext.jpg` (utsnitt runt kortet, main 5ee7125); `till-fall --spar` kräver ett spår;
+Mat test-fallen R-0003, r0009-slow och R-0013 fäller på main. Tickets: MES-380 (kort omlott), 381 (kort vid
+överkanten, väntar på Jespers beslut), 382, 383, 384; kommentarer på MES-369, 370, 356, 357, 341, 343, 334.
+Go-live: grenen `mes-367-golive` (5081ddf) väntar på namn, e-post och datum.
