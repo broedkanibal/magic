@@ -52,7 +52,7 @@ async function chrome() {
   let ws = null, err = '';
   p.stderr.on('data', d => { err += d; const m = err.match(/DevTools listening on (ws:\/\/[^\s]+)/); if (m) ws = m[1]; });
   const t0 = Date.now();
-  while (!ws) { if (Date.now() - t0 > 15000) throw new Error('Chrome svarade inte'); await vanta(50); }
+  while (!ws) { if (Date.now() - t0 > 15000) { p.kill(); throw new Error('Chrome svarade inte'); } await vanta(50); }
   const port = new URL(ws).port;
   let sida = null;
   while (!sida) { const l = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json(); sida = l.find(t => t.type === 'page'); if (!sida) await vanta(50); }
