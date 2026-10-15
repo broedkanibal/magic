@@ -11,7 +11,7 @@
       och bilderna under <kod>/bilder/, raden "Sending pictures, N of M" på
       telefonen medan de går upp — med inställningen AV.
    3. De tysta rättelserna på datorn, genom appens egna vägar (applyPick,
-      removeAt, namngePend): av → ingen rad och ingen fil; på → en rad med
+      Change card… i kortets meny (MES-387), removeAt, namngePend): av → ingen rad och ingen fil; på → en rad med
       kalla 'rattelse', beskarning.jpg (telefonens, eller datorns egen kopia
       när telefonen inte har den) och rattelse.json i kontraktets form; av
       igen → slutar direkt.
@@ -269,10 +269,30 @@ const PROV = async () => {
   await vanta(300);
   ok('inställningen AV: namnbytet sparar ingen rad och ingen fil, frågar inte telefonen', rattelser().length === 0 && !Object.keys(A.filer).some(k => /rattelse|beskarning\.jpg/.test(k)) && !A.kanal.some(m => m.typ === 'rapport_rattelse_bild') && Rattelse.stat().av === 1, JSON.stringify(Rattelse.stat()));
 
-  /* PÅ: namnbyte (telefonens beskärning), borttaget (datorns kopia), Name this card. */
+  /* PÅ: namnbyte (telefonens beskärning), borttaget (datorns kopia), Name this card. Namnbytet går mattans väg (MES-387):
+     Change card… i kortets meny, rutan med kamerans andra gissningar (spårets egna) först, och valet. */
   A.bildPa = true;
-  await byt(kort('Serra Angel'), 'Shivan Dragon');
+  const serra = kort('Serra Angel');
+  /* Nätet finns inte här: utan det slår namnbytet upp kortet, och notisen "Cannot reach Scryfall" ersätter toasten. */
+  for (const c of mig.cards.concat([{ name: 'Shivan Dragon' }])) failed.set(keyOf(c), { msg: 'prov', tillfallig: false });
+  openKortMeny(serra.cid, 400, 300);
+  const bytRad = document.querySelector('.matmeny.open [data-ma="byt"]');
+  if (bytRad) bytRad.click();
+  await vanta(50);
+  const bytRuta = document.querySelector('.ofrsok[aria-label="Change card"]');
+  const gissade = bytRuta ? [...bytRuta.querySelectorAll('.sok-lista')][0] : null;
+  const gissNamn = gissade ? [...gissade.querySelectorAll('.sok-t')].map(b => b.textContent) : [];
+  ok('MES-387: Change card… i kortets meny öppnar rutan Change card med kamerans andra gissningar ur spåret först (utan kortets namn)',
+     !!bytRad && !!bytRuta && gissNamn.join('|') === 'Shivan Dragon|Baneslayer Angel', gissNamn.join('|') || 'ingen ruta');
+  const kanal0 = A.kanal.length;
+  const valet = bytRuta && [...bytRuta.querySelectorAll('.sok-t')].find(b => b.textContent === 'Shivan Dragon');
+  if (valet) valet.click();
+  /* Pekaren över toasten håller den öppen (klockan pausar) medan rättelsen sparas — Undo provas nedan. */
+  const bytToast = document.querySelector('#handToast .htkort');
+  if (bytToast) bytToast.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }));
   await vantaRader(1);
+  ok('MES-387: valet byter namnet och telefonen får det (namn, spår 3) — kameran behåller spelarens namn',
+     serra.name === 'Shivan Dragon' && A.kanal.slice(kanal0).some(m => m.typ === 'namn' && m.spar === 3 && m.namn === 'Shivan Dragon'), JSON.stringify(A.kanal.slice(kanal0).filter(m => m.typ === 'namn')));
   const r1 = rattelser()[0];
   let j1 = null; try { j1 = JSON.parse(await A.filer[`u-prov/rapporter/${r1.kod}/rattelse.json`].text()); } catch (e) {}
   const b1 = r1 && A.filer[`u-prov/rapporter/${r1.kod}/beskarning.jpg`];
@@ -284,6 +304,17 @@ const PROV = async () => {
   ok('steg 1 (granskningen i skala): rattelse.json och radens vy bär telefonens topp-5 ur spåret (namn, poäng, marginal till ettan) och appversionen',
      j1 && Array.isArray(j1.kandidater) && j1.kandidater.length === 3 && j1.kandidater[1].namn === 'Shivan Dragon' && j1.kandidater[1].poang === 0.62 && j1.kandidater[1].marginal === -0.192 && j1.kandidater[0].marginal === 0
      && 'build' in j1 && r1.vy && Array.isArray(r1.vy.kandidater) && r1.vy.kandidater.length === 3 && 'build' in r1.vy, JSON.stringify(j1 && { kandidater: j1.kandidater, build: j1.build }));
+  {
+    /* MES-387: Undo i toasten tar tillbaka namnet (också till telefonen), loggar angrad (av 'namn') och raderar rättelsen. */
+    const undo = document.querySelector('#handToast .htkort.on .htangra');
+    const kanal1 = A.kanal.length;
+    if (undo) undo.click();
+    for (let i = 0; i < 100 && !A.raderade.includes(r1 && r1.kod); i++) await vanta(10);
+    const ang = khJournal(0, Date.now() + 1).filter(j => j.typ === 'angrad' && j.rapport && j.rapport.av === 'namn');
+    ok('MES-387: Undo — Serra Angel igen, telefonen får Serra Angel, angrad (av namn) i journalen, rättelsens rad raderad',
+       !!undo && serra.name === 'Serra Angel' && A.kanal.slice(kanal1).some(m => m.typ === 'namn' && m.spar === 3 && m.namn === 'Serra Angel') && ang.length === 1 && A.raderade.includes(r1.kod),
+       JSON.stringify({ namn: serra.name, ang: ang.length, raderade: A.raderade, notis: toastEl.classList.contains('on') ? toastEl.textContent : '' }));
+  }
   const forest = kort('Forest'); removeAt(mig.cards.indexOf(forest));
   await vantaRader(2);
   const r2 = rattelser()[1];

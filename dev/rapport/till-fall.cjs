@@ -203,8 +203,8 @@ const UT = new Set(['graveyard', 'exile', 'hand', 'handen', 'library', 'borta'])
      borttagen (Remove)  { typ: 'borta' }                kortet låg inte (längre) på bordet
      bytt, namngiven     { typ: 'namn', namn }           kortet hette så
    Ingen tidslinje vävs ihop med kamerans händelser, så inget behöver gissas om när något hände eller om kameran
-   och spelaren menar samma händelse. Ett påstående tas tillbaka av Undo i toasten och av ⌘Z (angrad, av 'tap'
-   respektive 'cmdz'). Follow camera och ett tap tillbaka för hand säger bara att mattan följer kameran NU — om
+   och spelaren menar samma händelse. Ett påstående tas tillbaka av Undo i toasten och av ⌘Z (angrad, av 'tap' eller
+   'namn' respektive 'cmdz'). Follow camera och ett tap tillbaka för hand säger bara att mattan följer kameran NU — om
    tapet var ett misstag eller om det riktiga kortet vreds fram och tillbaka går inte att skilja, så påståendet
    märks osaker och räknas inte. En flytt på mattan är inget påstående (spelaren kan ha ordnat mattan), inte heller
    ett tillagt kort (inget spår att känna igen det på). */
@@ -229,6 +229,8 @@ function pastaendenUrJournalen(journal, s0, egnaFran, egnaTill) {
     }
     if (j.typ === 'angrad' && r.av === 'tap' && !r.hur) {   // Undo i tap-toasten: kortets senaste tap var fel
       const f = aktiva(cid).find(x => x.typ === 'tappad'); if (f) f.tillbaka = `Undo ${t} s`;
+    } else if (j.typ === 'angrad' && r.av === 'namn') {   // Undo i toasten efter Change card (MES-387): namnbytet var fel
+      const f = aktiva(cid).find(x => x.typ === 'namn'); if (f) f.tillbaka = `Undo ${t} s`;
     } else if (j.typ === 'angrad' && r.av === 'cmdz' && r.efter) {
       /* ⌘Z: det påstående som läget efter ⌘Z motsäger var fel — ett per sort, det nyaste. Ett påstående som läget
          fortfarande stämmer med rörs inte (⌘Z kan ha lagt tillbaka något kameran ändrat, t.ex. Undo på Match). */

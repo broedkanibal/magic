@@ -1551,6 +1551,95 @@ const PROV = async () => {
     for (let i = 0; i < 100 && matchMedia('(prefers-reduced-motion: reduce)').matches; i++) await vanta(20);
     handToastStang();
   } catch (e) { ok('flyttat för hand: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); window.__mattLugn = false; }
+
+  /* ── Change card (MES-387, designytan "Mesa Change Card": tavlorna A och After) ──
+     Change card… i kortets meny (bara på ett kort kameran följer) öppnar rutan Change card bredvid kortet: ringen runt
+     kortet, kamerans foto, "The camera read ~~Shock~~", kamerans andra gissningar (spårets egna) före leken, ingen Not a
+     card. Valet byter namnet och telefonen får det; pennbrickan och toasten "Renamed by hand · Shock → Lightning Bolt for
+     the rest of this game" med Undo. Ett bord som skickades före bytet (spåret heter fortfarande Shock) knyter inte loss
+     kortet — ingen dubblett — och samma efter Undo. Inget frågar Claude. */
+  {
+    const lek0 = lekKort, tal0 = lekTal, sand0 = Moln.sandKam, sandt = [];
+    try {
+      await vanta(300);
+      spelLage = Object.assign({}, spelLage, { id: 'mattprov-byt387' });
+      oppSatt({ klar: true });
+      mig.cards = []; mig.pending = []; handRad.length = 0; matValda.clear(); kamVand = 0; kamAnsluten = true;
+      if (kamSkala.las) kamSkala.las.clear();
+      lekKort = [{ name: 'Shock', n: 1 }, { name: 'Lightning Bolt', n: 2 }, { name: 'Lava Spike', n: 1 }, { name: 'Opt', n: 2 }]; sattLekTal(lekKort);
+      Moln.sandKam = (typ, d) => { sandt.push(Object.assign({ typ }, d || {})); return true; };
+      /* Nätet är spärrat: utan det här slår namnbytet upp kortet, och notisen "Cannot reach Scryfall" ersätter toasten. */
+      for (const n of ['Shock', 'Lightning Bolt', 'Opt']) failed.set(keyOf({ name: n }), { msg: 'prov', tillfallig: false });
+      renderAll(true);
+      const S = (id, namn, x, y, rest) => Object.assign({ id, tillstand: 'klar', namn, saker: true, x, y, w: 0.08, h: 0.11, tappad: false, vilar: true, varfor: 'modell+orb' }, rest || {});
+      const shock = () => S(91, 'Shock', 0.42, 0.4, { cands: [{ name: 'Shock', score: 0.71 }, { name: 'Lightning Bolt', score: 0.66 }, { name: 'Chain Lightning', score: 0.41 }] });
+      const bord = namn => [S(90, 'Opt', 0.18, 0.62), namn ? S(91, namn, 0.42, 0.4, { varfor: 'hand' }) : shock()];
+      avstamBord(bord(), false);
+      for (const c of mig.cards) delete c.ny;
+      const FOTO = (() => { const c = document.createElement('canvas'); c.width = 60; c.height = 84; const x = c.getContext('2d'); x.fillStyle = '#3a130d'; x.fillRect(0, 0, 60, 84); x.fillStyle = '#ebc6aa'; x.fillRect(4, 4, 52, 8); x.fillStyle = '#c2412a'; x.fillRect(4, 16, 52, 34); x.fillStyle = '#efe6d6'; x.fillRect(4, 56, 52, 24); return c.toDataURL('image/jpeg', 0.8); })();
+      cropCache.set('spar-91@260', FOTO);   // granskningens beskärning: datorn har ett foto av kortet
+      renderAll(true); await vanta(500);
+      const k = mig.cards.find(c => c.spar === 91), elK = c => els().get(c.cid);
+      const ruta0 = elK(k).getBoundingClientRect();
+      /* Kameran av: ingen rad (spec-tavlan I, Camera off: inga rättelser). */
+      kamAnsluten = false; openKortMeny(k.cid, ruta0.right + 10, ruta0.top);
+      const utanKamera = !document.querySelector('.matmeny.open [data-ma="byt"]');
+      closeKortMeny(); kamAnsluten = true;
+      openKortMeny(k.cid, ruta0.right + 10, ruta0.top);
+      const menyn = document.querySelector('.matmeny.open'), bytRad = menyn && menyn.querySelector('[data-ma="byt"]');
+      const raderna = menyn ? [...menyn.querySelectorAll('button')].map(b => b.dataset.ma) : [];
+      ok('C: Change card… i kortets meny, efter Counters… och före en avdelare (tavla A) — och inte med kameran av',
+        utanKamera && !!bytRad && bytRad.textContent.trim() === 'Change card…' && raderna.indexOf('byt') === raderna.indexOf('ctr') + 1 && !!menyn.querySelector('hr + [data-ma="grav"]'),
+        `kamera av ${utanKamera ? 'ingen rad' : 'raden syns'}, rader ${raderna.join(',')}`);
+      await bild('C-menyn-change-card');
+      bytRad.click();
+      await vanta(50);
+      const dlg = document.querySelector('.ofrsok'), grupper = dlg ? [...dlg.querySelectorAll('.sok-grp')].map(g => g.textContent) : [];
+      const listor = dlg ? [...dlg.querySelectorAll('.sok-lista')].map(l => [...l.querySelectorAll('.sok-t')].map(b => b.textContent)) : [];
+      const las = dlg && dlg.querySelector('.sok-las'), ring = document.querySelector('.ofrsok-ring');
+      ok('C: rutan Change card — fotot, "The camera read Shock" överstruket, kamerans andra gissningar först (Lightning Bolt förvald), sedan leken utan Shock, ingen Not a card, ringen runt kortet',
+        !!dlg && dlg.getAttribute('aria-label') === 'Change card' && dlg.querySelector('.sok-l').textContent === 'Change card' && !!dlg.querySelector('.sok-foto img')
+          && !!las && las.textContent === 'The camera read Shock' && getComputedStyle(las.querySelector('b')).textDecorationLine === 'line-through'
+          && grupper.join('|') === 'The camera’s other guesses|From your deck' && listor[0].join('|') === 'Lightning Bolt|Chain Lightning' && listor[1].join('|') === 'Lava Spike|Opt'
+          && dlg.querySelector('.sok-t.on').textContent === 'Lightning Bolt' && !dlg.querySelector('[data-soknej]') && !!ring && !document.querySelector('.matmeny.open'),
+        dlg ? `grupper ${grupper.join('|')}, listor ${JSON.stringify(listor)}, rad ${las ? las.textContent : 'ingen'}` : 'ingen ruta');
+      await bild('C-rutan-change-card');
+      const inp = dlg.querySelector('.sok-in');
+      inp.value = 'lava'; inp.dispatchEvent(new Event('input'));
+      const sokt = [...dlg.querySelectorAll('.sok-t')].map(b => b.textContent).join('|');
+      inp.value = ''; inp.dispatchEvent(new Event('input'));
+      ok('C: en fråga filtrerar — gissningarna som inte innehåller den går, leken söks', sokt === 'Lava Spike', sokt);
+      inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      renderGrid(true); await vanta(50);
+      const tk = $('#handToast').querySelector('.htkort'), pen = elK(k) && elK(k).querySelector('.handmark');
+      const tillTel = sandt.filter(m => m.typ === 'namn');
+      ok('C: Enter tar Lightning Bolt — namnet byts, telefonen får det (namn, spår 91), rutan stängs',
+        k.name === 'Lightning Bolt' && k.namnHand && k.namnHand.fran === 'Shock' && tillTel.length === 1 && tillTel[0].spar === 91 && tillTel[0].namn === 'Lightning Bolt' && !document.querySelector('.ofrsok') && !document.querySelector('.ofrsok-ring'),
+        `${k.name}, telefonen ${JSON.stringify(tillTel)}`);
+      ok('C: pennbrickan "Renamed by hand" på kortets hörn, och toasten "Renamed by hand · Shock → Lightning Bolt for the rest of this game." med Undo (tavla After, H)',
+        !!pen && pen.getAttribute('title') === 'Renamed by hand' && !!pen.querySelector('svg') && !!tk && handToastOppen() && tk.querySelector('b').textContent === 'Renamed by hand'
+          && tk.querySelector('.httxt span').textContent === 'Shock → Lightning Bolt for the rest of this game.' && tk.querySelector('.htangra').textContent === 'Undo',
+        `bricka ${pen ? pen.getAttribute('title') : 'ingen'}, toast ${tk ? tk.textContent.trim() : 'ingen'} (öppen ${handToastOppen()}, notis ${toastEl.classList.contains('on') ? toastEl.textContent : '–'})`);
+      await bild('C-efter-pennan-och-toasten');
+      /* Telefonens bord från före bytet: spåret heter fortfarande Shock. Kortet ligger kvar — ingen dubblett. */
+      avstamBord(bord(), false); avstamBord(bord(), false); renderGrid(true);
+      const efterGammalt = mig.cards.filter(c => paMattan(c)).map(c => c.name).sort().join('|');
+      ok('C: ett bord som säger Shock (skickat före bytet) knyter inte loss kortet — ingen ny Shock bredvid', k.spar === 91 && k.name === 'Lightning Bolt' && efterGammalt === 'Lightning Bolt|Opt', efterGammalt);
+      avstamBord(bord('Lightning Bolt'), false);
+      ok('C: telefonens bord säger Lightning Bolt — väntan släpper', k.kamNamnFore === undefined && k.spar === 91 && k.name === 'Lightning Bolt');
+      $('#handToast').querySelector('.htangra').click();
+      renderGrid(true); await vanta(50);
+      const tillbaka = sandt.filter(m => m.typ === 'namn').pop();
+      avstamBord(bord('Lightning Bolt'), false); renderGrid(true);
+      const efterUndo = mig.cards.filter(c => paMattan(c)).map(c => c.name).sort().join('|');
+      ok('C: Undo — Shock igen, telefonen får Shock, brickan och toasten går, och ett bord som ännu säger Lightning Bolt ger ingen dubblett',
+        k.name === 'Shock' && !k.namnHand && !elK(k).querySelector('.handmark') && !handToastOppen() && tillbaka && tillbaka.namn === 'Shock' && tillbaka.spar === 91 && efterUndo === 'Opt|Shock' && k.spar === 91,
+        `${k.name}, telefonen ${JSON.stringify(tillbaka)}, mattan ${efterUndo}`);
+      avstamBord(bord(), false);
+    } catch (e) { ok('Change card: avsnittet gick att köra', false, String(e && e.message || e).slice(0, 200)); }
+    lekKort = lek0; lekTal = tal0; Moln.sandKam = sand0; handToastStang(); ofrSokStang(); closeKortMeny();
+    for (const n of ['Shock', 'Lightning Bolt', 'Opt']) failed.delete(keyOf({ name: n }));
+  }
   return rad;
 };
 
