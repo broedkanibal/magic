@@ -136,9 +136,9 @@ async function provGranska(paket, rattRad, ok) {
     ok('granska: fliken Handlingar har de fyra paketen (också en trasig rad), namnlistan inget av dem', L.length === 4 && (L.find(x => x.kod === 'R-9004') || {}).handlingar.length === 1 && !!r1 && !!r2 && !!r3 && Array.isArray(namn) && namn.length === 0, logg.slice(-300) || JSON.stringify(L).slice(0, 300));
     const a = r1 && r1.forhand && r1.forhand.antal;
     ok('granska: R1:s rättelser som spelaren gjorde dem (14, tap_hand … angrad, Serra Angel till graveyard)', r1 && r1.handlingar.length === 14 && r1.handlingar.some(h => h.typ === 'grav_hand' && h.kort === 'Serra Angel' && h.zon === 'grav'), r1 && r1.handlingar.map(h => h.typ + ':' + h.kort).join(','));
-    ok('granska: påståendena ur till-fall (forhandMattest) — 8, varav 2 räknas: det senare paketets Undo tar tillbaka Forest', a && a.alla === 8 && a.raknas === 2 && a.tillbaka === 3 && a.osakra === 3 && a.utanSpar === 0 && !r1.forhand.varning
+    ok('granska: påståendena ur till-fall (forhandMattest) — 8, varav 2 att bedöma (räknas först när de godkänts): det senare paketets Undo tar tillbaka Forest', a && a.alla === 8 && a.attBedoma === 2 && a.raknas === 0 && a.tillbaka === 3 && a.osakra === 3 && a.utanSpar === 0 && !r1.forhand.varning
        && r1.forhand.pastaenden.some(p => p.kort === 'Forest' && /^Undo/.test(p.tillbaka || '')), JSON.stringify(a) + ' ' + (r1 && r1.forhand && r1.forhand.varning));
-    ok('granska: ett paket i ett annat parti räknas utan den Undo:n (3 räknas), senare paket kontrollerade', r2 && r2.forhand && r2.forhand.antal.raknas === 3 && !r2.forhand.varning, r2 && JSON.stringify(r2.forhand && r2.forhand.antal));
+    ok('granska: ett paket i ett annat parti räknas utan den Undo:n (3 att bedöma), senare paket kontrollerade', r2 && r2.forhand && r2.forhand.antal.attBedoma === 3 && !r2.forhand.varning, r2 && JSON.stringify(r2.forhand && r2.forhand.antal));
     ok('granska: ett paket utan fil i hinken säger det, och blir inget fall', r3 && !r3.forhand && /gick inte att hämta/.test(r3.fel || ''), r3 && r3.fel);
 
     const m = await sortera(K1, 'mattest');
@@ -149,7 +149,7 @@ async function provGranska(paket, rattRad, ok) {
     ok('granska: Släng kör satt.cjs slangd', s2.ok && tabell.find(r => r.kod === K2).anvandning === 'slangd' && /slangd/.test(s2.text), s2.text);
     const L2 = await H(), e1 = L2.find(x => x.kod === K1);
     ok('granska: efteråt är R1 ett Mat test-fall (slaget ur repot), och sidan visar fallets påståenden utan att räkna om', e1 && e1.anvandning === 'test' && e1.testSlag === 'mattest' && e1.fallFinns
-       && e1.forhand && e1.forhand.urFallet && e1.forhand.antal.raknas === 2, JSON.stringify(e1 && { a: e1.anvandning, s: e1.testSlag, f: e1.fallFinns, n: e1.forhand && e1.forhand.antal }));
+       && e1.forhand && e1.forhand.urFallet && e1.forhand.antal.attBedoma === 2, JSON.stringify(e1 && { a: e1.anvandning, s: e1.testSlag, f: e1.fallFinns, n: e1.forhand && e1.forhand.antal }));
     const igen = await sortera(K1, 'mattest');
     ok('granska: Mat test en gång till skriver inte över fallet', !igen.ok && /finns redan/.test(igen.text), igen.text);
     const utan = await fetch(bas + '/api/sortera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kod: K3, val: 'slangd' }) });
