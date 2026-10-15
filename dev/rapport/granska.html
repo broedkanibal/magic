@@ -237,7 +237,7 @@ function ritaLista() {
     const osort = rr.filter(x => !x.anvandning && namnFor(x) && x.harBild);
     const kod = rr.find(x => x.spelkod);
     const rubrik = kod ? `Parti ${esc(kod.spelkod)}` : p.startsWith('utan:') ? 'Utan parti' : 'Parti';
-    const sida = sidor.size ? ` · partiet är <b>${[...sidor].map(s => STATUS[s]).join(' + ')}</b>` : '';
+    const sida = sidor.size ? ` · partiet är låst till <b>${[...sidor].map(s => STATUS[s]).join(' + ')}</b>` : '';
     return `<div class="parti">
       <div class="huvud"><div><b>${rubrik}</b> <span class="svag">${esc(nar(rr[rr.length - 1].nar))} · ${alla.length} rättelse${alla.length === 1 ? '' : 'r'} · ${esc(rr[0].vem)}${sida}</span></div>
         ${osort.length > 1 && !alla.some(x => x.anvandning === 'test' && x.testSlag !== 'mattest') && !osort.some(x => rekommendera(x).val === 'test') ? `<button class="liten" ${upptagen ? 'disabled' : ''} data-alla="${esc(p)}">Alla ${osort.length} osorterade → Träning</button>` : ''}</div>
@@ -271,11 +271,11 @@ function rekommendera(r) {
   if (!r.harBild) return { val: 'slangd', varfor: 'Beskärningen saknas: inget att mäta eller lära ut.' };
   if (r.handelse === 'borttaget' && !namnFor(r)) return { val: 'slangd', varfor: 'Borttaget kort utan namn: inget rätt namn att mäta eller lära ut. Skriv namnet om det var ett riktigt kort.' };
   const { ovriga, lastTran, lastTest } = lasning(r);
-  if (lastTest) return { val: 'traning', varfor: 'Partiet är redan träning, så Prov går inte.' + (sakertFel(r) ? ' Det säkra felet kan därför inte bli ett bänkprov.' : '') };
+  if (lastTest) return { val: 'traning', varfor: 'Partiet är låst till träning: ett kort härifrån är redan träning, så Prov går inte.' + (sakertFel(r) ? ' Det säkra felet kan därför inte bli ett bänkprov.' : '') };
   const hinder = namnHinder(r), id = sortFor(r), S = bank && bank.sorter.find(s => s.id === id);
   if (lastTran) {
     /* Träning är stängd: kvar är Prov eller Släng. Prov bara när bänken behöver kortet. */
-    const fore = 'Partiet är redan prov, så Träning går inte.';
+    const fore = 'Partiet är låst till prov: ett kort härifrån är redan prov, så Träning går inte.';
     if (hinder) return { val: 'slangd', varfor: `${fore} ${hinder}` };
     if (sakertFel(r)) return { val: 'test', varfor: `${fore} Säkert fel namn: telefonen var säker på ${r.gissning}. Det ska mätas oavsett sortens mål — välj sorts fel.` };
     if (!id || !S) return { val: 'slangd', utanSort: true, varfor: `${fore} Välj sorts fel: Prov om sorten behöver fler, annars Släng.` };
@@ -509,7 +509,7 @@ function radHtml(r) {
         <button class="val test${fs_('test')}" data-val="test" ${kanNamn && !lastTest && !upptagen ? '' : 'disabled'}>Prov</button>
         <button class="val${fs_('slangd')}" data-val="slangd" ${upptagen ? 'disabled' : ''}>Släng</button>
       </div>
-      ${lastTran || lastTest ? `<div class="lika">Partiet är redan ${lastTest ? 'träning, så Prov' : 'prov, så Träning'} går inte — ett prov ur samma parti skulle mäta att modellen minns partiet.</div>` : ''}` : ''}
+      ${lastTran || lastTest ? `<div class="lika">Partiet är låst till ${lastTest ? 'träning, så Prov' : 'prov, så Träning'} går inte. Ett parti är antingen prov eller träning: korten i det delar bord, ljus och telefon, så ett prov ur ett parti modellen tränat på skulle mäta att modellen minns partiet. Partiet kan ha flera prov.</div>` : ''}` : ''}
       ${not ? `<div class="not ${not.typ}">${esc(not.text)}</div>` : ''}
     </div>
   </div>`;
