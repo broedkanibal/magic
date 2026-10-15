@@ -367,7 +367,7 @@ function mattestFall(o) {
   const spelare = harMatta ? matta.filter(e => e.av === 'spelare') : [];
   const alla = kamera.concat(spelare).sort((a, b) => a.s - b.s);
   /* En rättelse av handlingar utan journal (före den) bär ändå spelarens Undo och Follow camera i vy.handlingar. */
-  const angrade = (K.handlingar || []).filter(h => (h.typ === 'angrad' || h.typ === 'folj_kameran') && h.cid && h.t).map(h => ({ id: h.cid, s: (h.t - s0) / 1000 }));
+  const angrade = (K.handlingar || []).filter(h => h && (h.typ === 'angrad' || h.typ === 'folj_kameran') && h.cid && h.t).map(h => ({ id: h.cid, s: (h.t - s0) / 1000 }));
   const F = byggFacit(alla, { dokUpp: K.tagg === 'dok_upp', tryck: K.frys ? (K.frys - s0) / 1000 : null, angrade });
   const orden = o.orden ? lasOrden(o.orden) : [];
   const ordenGjort = tillampaOrden(F.rader, orden);
