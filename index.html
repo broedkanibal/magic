@@ -26168,6 +26168,14 @@ const Kamera = (() => {
        bara maskade och omlott: golden 15:s ensamma Plains med blänk över
        konstverket. 0 = som till pass 3 (golden --tro "remsaAlla:0"). */
     remsaAlla: 1,
+    /* Remsan FÖRST för ett täckt spår (2026-10-15, identifiera/spekulera → remsaForst): hela kortet är övermålat där
+       och blir nästan alltid osäkert, så remsan läses före hela kortet i stället för efter. Säker och genom
+       spärrarna (remsaDomSkal) → klart utan hela kortets läsning; annars hela kortet som förut, med samma
+       remsläsning som vittne. 0 = hela kortet först (golden --tro "remsaForst:0"). */
+    remsaForst: 1,
+    /* Hela kortets läsning väntar inte på titelraden när ORB bär modellens etta på ett otäckt kort som inte är
+       basland (2026-10-15, kamIdentifiera). 0 = väntar alltid (golden --tro "orbUtanTitel:0"). */
+    orbUtanTitel: 1,
     /* Dubblettregeln med remsor (MES-331): två klara spår med samma namn
        vars lådor täcker varandra är två kort när remsornas MITTPUNKTER
        ligger minst så här många remstjocklekar isär (den tunnare av de
@@ -31199,7 +31207,7 @@ const Kamera = (() => {
     kedjaBorja(t, 'remsa');
     let rs;
     try {
-      rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo, tackt: s.tackt, utom: s.utom, vittneBara: !!(o && o.vittneBara), omfodd,
+      rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, geo, tackt: s.tackt, utom: s.utom, vittneBara: !!(o && o.vittneBara), omfodd, forst: !!(o && o.forst),
                                           minnen: minnenLika.length ? minnenLika : null, minneSkal: m.skal || (minnen.length && !minnenLika.length ? 'annan skärning' : null) });
     } finally { kedjaKlar(t, 'remsa'); }
     if (rs && rs.saker && rs.varfor === 'remsa minne') minneStat.sakra++;
@@ -31379,7 +31387,8 @@ const Kamera = (() => {
      0,5× (golden 17, 18). Granskningen av ORB-vittnet fann hålet
      (dev/plan/golden-platan-2026-10-15.md). Utan remslåda läses ingen
      remsa; då är titelraden på beskärningen det enda vittnet. */
-  async function medRemsa(t, svar, maskad) {
+  /* forst: remsläsningen remsaForst redan gjort (null = gjord men gav inget) — samma läsning, bara tidigare. */
+  async function medRemsa(t, svar, maskad, forst) {
     t.remsa = null;
     if (!T.remsa || !svar || svar.skrap || svar.baksida) return svar;
     const landVittne = !!(T.remsaLandVittne && svar.saker && svar.varfor === 'modell land' && arTackt(t, maskad));
@@ -31388,7 +31397,8 @@ const Kamera = (() => {
     if (svar.saker && !landVittne) return svar;
     if (!svar.saker && !(T.remsaAlla || maskad || t.omlott)) return svar;
     let rs = null;
-    if (kanLasa) { try { rs = await lasRemsa(t, maskad, { vittneBara: landVittne }); } catch (e) { rs = null; } }   // vittnesläsningen utan textläsaren: bara marginalen behövs (granskningen fynd 9)
+    if (kanLasa && forst !== undefined) rs = forst;
+    else if (kanLasa) { try { rs = await lasRemsa(t, maskad, { vittneBara: landVittne }); } catch (e) { rs = null; } }   // vittnesläsningen utan textläsaren: bara marginalen behövs (granskningen fynd 9)
     if (rs) t.remsa = rs;
     const skal = rs && rs.saker && rs.namn ? remsaDomSkal(t) : null;
     if (skal) { rs = Object.assign({}, rs, { saker: false, varfor: (rs.varfor || 'remsa') + ' väntar: ' + skal }); t.remsa = rs; }
@@ -31417,6 +31427,20 @@ const Kamera = (() => {
     !!(t.remsa && t.remsa.ocr && t.remsa.ocr.namn === namn && t.remsa.ocr.poang >= 0.5) ||
     !!(t.namnLast && t.namnLast.namn === namn && t.namnLast.poang >= 0.5));
 
+  /* Remsan först (T.remsaForst, 2026-10-15): på ett TÄCKT spår (arTackt) är hela kortet övermålat och blir nästan
+     alltid osäkert — det är remsan som namnger högarna, och hela kortets läsning före den var 0,4–1 s bortkastad.
+     Bara med detektorns egen remslåda (inte den syntetiska: där vet bara hela kortets serUtSomKort att det är ett
+     kort). Säker remsa som klarar spärren mot kort i handen (remsaDomSkal) → svaret, utan hela kortet. Annars
+     undefined/{ rs } och hela kortet läses som förut; rs går till medRemsa så att remsan inte läses två gånger.
+     Läsningen är densamma som medRemsas för ett osäkert täckt spår (inte vittneBara: textläsaren på remsan får
+     vara med), och samma spärrar gäller: remsans trösklar, lekens antal och dubblettregeln i identifiera. */
+  async function remsaForst(t, maskad) {
+    if (!(T.remsa && T.remsaForst && cb.lasRemsa && t.remsaLada && !t.remsaSynt && arTackt(t, maskad))) return undefined;
+    let rs = null; try { rs = await lasRemsa(t, maskad, { forst: true }); } catch (e) { rs = null; }
+    if (rs && rs.saker && rs.namn && !remsaDomSkal(t))
+      return { rs, svar: { namn: rs.namn, sid: rs.sid, saker: true, cands: rs.cands, varfor: rs.varfor || 'remsa', remsa: rs, forst: true } };
+    return { rs };
+  }
   /* Låt igenkänningen avgöra vilket kort det är. Görs en gång per spår.
      Bara ett SÄKERT svar gör spåret klart; ett osäkert går till granskning
      på datorn med förslagen — det är det README lovar för skärmdumpar, och
@@ -31440,8 +31464,12 @@ const Kamera = (() => {
       const tackt = maskaTackt(b, t);
       t.maskad = !!tackt;   // beskärningen som går till Claude är övermålad (MES-330: spärren i svarAI)
       if (window.MESA_DET_LOGG) console.log('[det läs]', t.id, JSON.stringify(t.box), 'tackt', JSON.stringify(t.tackt), 'maskad', tackt, 'geo', b && JSON.stringify(b.geo));
-      if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort, { tackt: !!tackt, detPoang: t.detPoang || 0, remsa: !!(t.remsaLada && !t.remsaSynt) });
-      svar = await medRemsa(t, svar, tackt);
+      const f = b ? await remsaForst(t, tackt) : undefined;
+      if (f && f.svar) { t.remsa = f.rs; svar = f.svar; }
+      else {
+        if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort, { tackt: !!tackt, tacktSpar: arTackt(t, tackt), detPoang: t.detPoang || 0, remsa: !!(t.remsaLada && !t.remsaSynt) });
+        svar = await medRemsa(t, svar, tackt, f && f.rs !== undefined ? f.rs : undefined);
+      }
     } catch (e) { fel = true; }
     finally { lasande--; t.laser = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(nuRiktig() - t0)); }
     lasLogg(t, lasStart, svar, 'las');
@@ -31551,8 +31579,12 @@ const Kamera = (() => {
       const b = video ? beskar(t) : null;
       const tackt = maskaTackt(b, t);
       t.maskad = !!tackt;
-      if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true, tackt, detPoang: t.detPoang || 0, remsa: !!(t.remsaLada && !t.remsaSynt) });
-      svar = await medRemsa(t, svar, tackt);
+      const f = b ? await remsaForst(t, tackt) : undefined;
+      if (f && f.svar) { t.remsa = f.rs; svar = f.svar; }
+      else {
+        if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true, tackt, tacktSpar: arTackt(t, tackt), detPoang: t.detPoang || 0, remsa: !!(t.remsaLada && !t.remsaSynt) });
+        svar = await medRemsa(t, svar, tackt, f && f.rs !== undefined ? f.rs : undefined);
+      }
       lasLogg(t, lasStart, svar, 'spek');
       if (b && b.bild && svar && svar.saker && svar.namn && typeof Stillbilder !== 'undefined') Stillbilder.beskarning(t, b.bild, svar);   // den tidiga läsningens namn kan bli kortets (MES-366)
       if (t.spek !== vantar) return;
@@ -32664,7 +32696,20 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   if (tq) tq.modell = performance.now();
   if (!v) { try { v = await kamKedjaUnder(id, 'orb', () => kamIdentifyAt(canvas, box, 0)); } catch (e) { return null; } }
   if (tq) tq.bild = performance.now();
-  let namn = null; try { namn = await namnP; } catch (e) { namn = null; }
+  /* Väntar inte på titelraden när ORB redan bär modellens etta (T.orbUtanTitel, 2026-10-15): 'modell+orb' är det
+     starkaste beviset kedjan har, och väntan på textläsaren var 315 ms av läsningens 669 ms i telefonprovet 2026-09-20
+     (latensrapporten MES-263). Titelraden läses klart i bakgrunden; säger den säkert ett ANNAT namn än det som blev
+     säkert syns det i golden --konsol ('[titel efter modell+orb]') — det var den domen ('konflikt', 'land mot namn')
+     som inte längre fälls. Bara på ett kort som inte är basland (24 konstverk per typ: Thriving Heath → Swamp, golden
+     01) och inte ligger täckt (o.tacktSpar: ORB-inliers kan komma från kortet ovanpå, golden 05 / MES-329). */
+  const tro = Kamera.trosklar, c0v = v.rec && v.rec.cands && v.rec.cands[0];
+  const utanTitel = !!(tro && tro.orbUtanTitel && v.modell && v.modell.bar && v.accept && c0v && c0v.name !== BAKSIDA_NAMN && !BASICS.has(c0v.name) && !(o && (o.tackt || o.tacktSpar)));
+  let namn = null;
+  if (utanTitel) namnP.then(n => {
+    const nn = n && n.namn, sakert = nn && n.poang >= 0.6 && n.marginal >= 0.2;
+    if (sakert && nn !== c0v.name) console.log('[titel efter modell+orb]', id, c0v.name, '→ titeln', nn, n.poang, n.marginal);
+  }, () => {});
+  else { try { namn = await namnP; } catch (e) { namn = null; } }
   if (tq) tq.namn = performance.now();
   /* Titelraden på ett basland säger typen (MES-228): "Snow-Covered Plains" och "Plains" är samma kort för kameran, med lekens eget namn för typen — annars stod de två vittnena emot varandra om samma land. */
   const typAv = n => { const t = KamEmbed.redo() ? landTyp(n) : null; return t ? landVisning(t).name : n; };
@@ -32693,7 +32738,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      titeln en gång till ur botten, vänd. Bara då: att läsa vänt för varje
      osäker beskärning kostade 800 ms per kort på Macen (sex lägen ×2), och
      golden-fall 03 slog i tidstaket innan sista kortet hann läsas. */
-  if ((!namn || namn.poang < 0.6) && !(namn && namn.hoppad)) {
+  if (!utanTitel && (!namn || namn.poang < 0.6) && !(namn && namn.hoppad)) {
     const rot = ((((v.rec && v.rec.rot) || 0) % 360) + 360) % 360;
     if (Math.abs(rot - 180) < 45) {
       let namn2 = null; try { namn2 = await kamKedjaUnder(id, 'titel', () => Namn.las(canvas, namnUtanBaksida(), true)); } catch (e) { namn2 = null; }
@@ -32816,6 +32861,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   const bild = { accept: !!v.accept, poang: +(v.score || 0).toFixed(2), inliers: (v.rec && v.rec.inliers) || 0, w: canvas.width, h: canvas.height };
   if (M) Object.assign(bild, { modell: M.backend || true, marginal: +(+M.marginal).toFixed(3), ensamt: M.ensamt, stod: M.stod, orbNamn: M.orbNamn, skala: M.skala != null ? +(+M.skala).toFixed(2) : null, ms: Math.round(M.ms) });
   if (v.efterModell) bild.efterModell = true;   // Matcher + ORB som andra åsikt efter en osäker modell
+  if (utanTitel) bild.utanTitel = true;   // titelraden väntades inte in (T.orbUtanTitel)
   return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor, bild, del: !!(v.del && saker), tider };
 }
 /* ── namnet ur remsan (MES-330) ──

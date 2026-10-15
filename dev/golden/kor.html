@@ -754,8 +754,11 @@ function aterkoppling(f, prov) {
     lasRemsa: (c, id, o) => {
       sparaBeskarning(f.id, c, 'remsa' + id);
       const p = w.kamLasRemsa(c, id, o);
+      const s0 = prov.s, w0 = c ? c.width : 0, h0 = c ? c.height : 0;
       if (p && typeof p.then === 'function') p.then(rs => {
         if (!rs) return;
+        /* Remsan först (T.remsaForst): läst före hela kortet, så den får en egen rad i stället för förra läsningens. */
+        if (o && o.forst && prov.lasningar.length < 60) prov.lasningar.push({ s: s0, spar: id, nr: null, w: w0, h: h0, spek: false, dom: 'remsan först', remsa: null });
         const l = prov.lasningar.slice().reverse().find(x => x.spar === id);
         if (l) l.remsa = { namn: rs.namn, saker: !!rs.saker, marginal: rs.marginal, varfor: rs.varfor, rot: rs.rot, ocr: rs.ocr ? { namn: rs.ocr.namn, poang: rs.ocr.poang, marginal: rs.ocr.marginal, hoppad: rs.ocr.hoppad || null } : null,
                            cands: (rs.cands || []).slice(0, 3).map(c => c.name + ' ' + c.score), titel: rs.titel || null, minne: rs.minne || null };   // vem remsan tävlar mot (MES-331: bänken och appen gav olika marginal på samma remsa); minnet (pass 6)
