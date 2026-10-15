@@ -40200,7 +40200,7 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
       const s = sigAv(spar || [], aw);
       const andrat = sig !== null && s !== sig;
       /* En rättelse av en handling (handlingMarkera) väntar på sin egen bild: den tas i det här steget, före tiden och
-         händelserna. Har den väntat längre än HANDLING_DT_MS är en bild nu inte längre ögonblicket — då ingen. */
+         händelserna. Har den väntat längre än BILD_EFTER_MS är en bild nu inte längre ögonblicket — då ingen. */
       const vant = vantarPaBild();
       const orsak = vant.length ? 'markering' : nu - senast >= VAR_MS ? 'tid' : andrat && nu - senastHand >= HAND_MIN_MS ? 'handelse' : null;
       if (!orsak) return;   // sig står kvar: en händelse inom 300 ms tas i nästa steg (punkt 9)
@@ -40346,24 +40346,26 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
      noterar sin egen tid — ingen klocka behöver räknas om — och tar en egen bild i nästa analyssteg (steg, orsak
      'markering'). När paketet skickas (rapport_handling_bilder) skär telefonen ut kortet ur den bilden, med samma
      utsnittsregel som kontext.jpg, och laddar upp handling-<id>.jpg. Saknas den (kön full, kameran stod still) gäller
-     ringens bild närmast ögonblicket, men bara inom HANDLING_DT_MS (Jespers beslut 2026-10-15: bilden ska visa
-     ögonblicket, inte en bild en sekund före, när spelaren kan ha vridit kortet samtidigt). Rutan är spårets låda i
+     ringens bild närmast ögonblicket, men bara från BILD_FORE_MS före till BILD_EFTER_MS efter (Jespers beslut
+     2026-10-15: bilden ska visa ögonblicket). Osymmetriskt: en bild före klicket kan visa läget innan spelaren vred
+     kortet — hen gör det ofta samtidigt som hen klickar — medan läget efter klicket står kvar. Markeringen når
+     telefonen ~100 ms efter klicket (kanalen), så −100 ms här är ungefär klicket självt. Rutan är spårets låda i
      just den bilden; finns spåret inte där blir det ingen bild — ingen låda ur en annan tid. dt (bildens tid minus
      markeringens) står i bilden och i handling-bilder.json, som granskningssidan visar. Bilden är till för Jesper:
      han ser den bredvid påståendet och godkänner eller kastar det. Inget här frågar Claude. */
-  const MARK_MAX = 300, HANDLING_DT_MS = 500, markeringar = new Map();   // id → { spar, t, tagen } (telefonens klocka)
+  const MARK_MAX = 300, BILD_FORE_MS = 100, BILD_EFTER_MS = 500, markeringar = new Map();   // id → { spar, t, tagen } (telefonens klocka)
   function handlingMarkera(m) {
     if (av() || !m || m.id == null) return;
     kollaAgare();
     markeringar.set(String(m.id), { spar: m.spar, t: Date.now(), tagen: false });
     while (markeringar.size > MARK_MAX) markeringar.delete(markeringar.keys().next().value);
   }
-  /* Markeringarna som väntar på sin bild, inom HANDLING_DT_MS; äldre ger aldrig upp någon bild (tagen = for sent). */
+  /* Markeringarna som väntar på sin bild, inom BILD_EFTER_MS; äldre ger aldrig upp någon bild (tagen = for sent). */
   function vantarPaBild() {
     const nu = Date.now(), ut = [];
     for (const [id, mk] of markeringar) {
       if (mk.tagen) continue;
-      if (nu - mk.t > HANDLING_DT_MS) { mk.tagen = 'for_sent'; continue; }
+      if (nu - mk.t > BILD_EFTER_MS) { mk.tagen = 'for_sent'; continue; }
       ut.push(id);
     }
     return ut;
@@ -40371,10 +40373,16 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
   async function handlingBild(id, mk) {
     let bast = null;
     for (const b of ring) if (b.blob && b.mark && b.mark.includes(id)) { bast = b; break; }   // bilden tagen för just den här rättelsen
-    if (!bast) for (const b of ring) if (b.blob && (!bast || Math.abs(b.t - mk.t) < Math.abs(bast.t - mk.t))) bast = b;
-    if (!bast) return { skal: 'ringen är tom' };
+    const inom = b => b.t - mk.t >= -BILD_FORE_MS && b.t - mk.t <= BILD_EFTER_MS;
+    if (!bast) for (const b of ring) if (b.blob && inom(b) && (!bast || Math.abs(b.t - mk.t) < Math.abs(bast.t - mk.t))) bast = b;
+    if (!bast) {
+      let nara = null;
+      for (const b of ring) if (b.blob && (!nara || Math.abs(b.t - mk.t) < Math.abs(nara.t - mk.t))) nara = b;
+      if (!nara) return { skal: 'ringen är tom' };
+      const d = nara.t - mk.t;
+      return { dt: d, skal: `ingen bild från −${BILD_FORE_MS} till +${BILD_EFTER_MS} ms kring rättelsen (närmaste ${d > 0 ? '+' : ''}${d} ms)` };
+    }
     const dt = bast.t - mk.t;
-    if (Math.abs(dt) > HANDLING_DT_MS) return { dt, skal: `ingen bild inom ±${HANDLING_DT_MS} ms från rättelsen (närmaste ${dt > 0 ? '+' : ''}${dt} ms)` };
     const egen = bast.spar && bast.spar.find(q => q.id === mk.spar);
     if (!egen) return { dt, skal: `spår ${mk.spar} syns inte i bilden vid rättelsen` };
     if (typeof createImageBitmap !== 'function') return { dt, skal: 'createImageBitmap saknas' };
@@ -40411,7 +40419,7 @@ var Stillbilder = (() => {   // var: se Rapport (ett fel när blocket startar f�
         }
         /* Avståndet i tid per bild, och skälet där bilden saknas: granskningssidan visar det bredvid påståendet. */
         if (Object.keys(info).length) {
-          try { await Moln.rapportFil(mapp, 'handling-bilder.json', new Blob([JSON.stringify({ v: 1, gransMs: HANDLING_DT_MS, poster: info })], { type: 'application/json' }), 'application/json'); }
+          try { await Moln.rapportFil(mapp, 'handling-bilder.json', new Blob([JSON.stringify({ v: 1, gransMs: { fore: BILD_FORE_MS, efter: BILD_EFTER_MS }, poster: info })], { type: 'application/json' }), 'application/json'); }
           catch (e) { Lada.skriv('fel', { kalla: 'rattelse', med: 'handling-bilder.json: ' + Lada.kap(e && e.message, 200) }); }
         }
       } else nej = 1;

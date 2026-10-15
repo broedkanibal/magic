@@ -202,10 +202,12 @@ telefonen (`rapport_handling_markera { id, spar }`), som noterar sin egen tid oc
 analyssteg** (orsak `markering` i ringen). När paketet sparats ber datorn om bilderna (`rapport_handling_bilder { kod,
 sokvag, poster }`): telefonen skär ut kortet ur den bilden, med samma utsnittsregel som `kontext.jpg`, och laddar upp
 `handling-<id>.jpg` (kontots inställning läses först, på telefonen). Saknas markeringens bild (kön full, kameran stod
-still) gäller ringens närmaste bild, men **bara inom ±0,5 s** (Jespers beslut 2026-10-15: bilden ska visa ögonblicket —
-en bild en sekund före kan visa kortet otappat när spelaren vred det samtidigt som hen klickade). Rutan är spårets låda
+still) gäller ringens närmaste bild, men **bara från 0,1 s före till 0,5 s efter** markeringen (Jespers beslut
+2026-10-15: bilden ska visa ögonblicket). Osymmetriskt: en bild före klicket kan visa kortet otappat när spelaren vred
+det samtidigt som hen klickade, medan läget efter klicket står kvar; markeringen når telefonen ~100 ms efter klicket,
+så −0,1 s är ungefär klicket självt. Rutan är spårets låda
 i just den bilden; finns spåret inte där blir det ingen bild, aldrig en låda ur en annan tid. Bilden bär `spår N · +dt ms`,
-och telefonen laddar upp `handling-bilder.json` (`{ v, gransMs, poster: { <id>: { dt, orsak } | { dt, skal } } }`):
+och telefonen laddar upp `handling-bilder.json` (`{ v, gransMs: { fore, efter }, poster: { <id>: { dt, orsak } | { dt, skal } } }`):
 `dt` = bildens tid minus markeringens, på telefonens klocka. `till-fall.cjs` lägger den i påståendet som `bildDt` (och
 `bildSkal` där bilden saknas), och granskningssidan visar den under bilden. Paket från före ändringen saknar filen: där
 är avståndet okänt och kan vara upp till 2 s. Markeringen når telefonen ~100 ms efter klicket (kanalen), och dt räknas
