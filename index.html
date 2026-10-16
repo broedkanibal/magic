@@ -6822,6 +6822,15 @@ const Moln = (() => {
     return data && data.lek_id ? { id: data.lek_id, info: data.lek_info || null } : null;
   }
 
+  /* Den lek jag senast spelade med (MES-376: starten för den aktiva leken när inget valts i spelet): lek_id på min
+     senaste game_players-rad som har en. null utan. */
+  async function senastSpeladLek() {
+    const s = await klient(); if (!s || !inloggad()) return null;
+    const { data, error } = await s.from('game_players').select('lek_id, gick_med').eq('user_id', minId())
+      .not('lek_id', 'is', null).order('gick_med', { ascending: false }).limit(1).maybeSingle();
+    if (error) return null;
+    return data && data.lek_id ? data.lek_id : null;
+  }
   /* LEGACY: en lek per konto (lekar). Läses tills dialogen (D5-2) och
      telefonen (D5-4) gått över till decks; migreringen i lekar.sql har
      redan flyttat innehållet till "My deck". Skrivs inte mer efter D5-2. */
@@ -7462,7 +7471,7 @@ const Moln = (() => {
            VILLKOR_VERSION, RAPPORT_FOR_ALLA, villkorGodkand, godkannVillkor,
            skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
            avslutaSpel, spelSlut, lyssna, lamnaKanal, sandKam, rapportRad, rapportFil, rapportUppdatera, rapportRadera, rapporterIdag, bildInstallning, sattBildInstallning, bildInstallningSedan, bildInstallningKonto, rapportAntal, raderaMinaRapporter, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
-           hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, sparaLekSlv, minLekIGame,
+           hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, sparaLekSlv, minLekIGame, senastSpeladLek,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans, hamtaVektorer, hamtaRefs, sparaRefs, raderaRefs,
@@ -23519,7 +23528,7 @@ async function byggNamnPool(spec, code, onProg, o) {
     const p = cache.get(landNyckel(t)); if (!farsk(p)) continue;
     let k = 0; for (const c of p.kort) { if (k >= landTak) break; if (seen.has(c.id)) continue; laggTill(c); k++; }
   }
-  if (!cards.length) throw new Error('The deck has no cards with images.');
+  if (!cards.length && !o.tomOk) throw new Error('The deck has no cards with images.');
   /* Kortbaksidan som ett eget uppslag (MES-42): ett nedvänt kort på bordet
      — biblioteket, ett kort som vänts — matchar den och blir skräp med
      domskälet 'baksida' (kamIdentifiera), i stället för en granskningspost
@@ -33014,6 +33023,7 @@ async function oppnaKamera(gameId) {
       lasRemsa: (canvas, id, o) => kamLasRemsa(canvas, id, o),   // namnet ur remsan (MES-330)
       remsVektor: canvas => kamRemsVektor(canvas),   // minnet av remsor (MES-331 pass 6)
       lekTak: kamLekTak,
+      sakert: (namn, id, varfor) => kamSakert(namn, id, varfor),   // ett säkert namn: den aktiva leken räknar det (MES-376)
       fragaAI: (canvas, id) => kamFragaAI(canvas, id),
       lart: (id, namn, sid, kalla) => kamLart(id, namn, sid, kalla),
       /* Om frågorna faktiskt går till Claude (samma villkor som kamFragaAI):
@@ -33106,6 +33116,8 @@ function kamHalsa() {
     modell: !KamEmbed.pa() ? 'av' : KamEmbed.redo() ? ((window.Embed && window.Embed.backend) || 'klar')
           : KamEmbed.bygger ? 'laddar' : KamEmbed.fel ? 'fel' : 'vantar',
     modellFel: KamEmbed.fel || null,
+    minne: KamMinne.status(),   // MES-376: minnets pool (steg 2) — 'klar N', 'laddar', 'fel', 'inget', 'av'
+    aktivLek: kamMinneData ? AktivLek.lage() : null,   // den aktiva leken: vilken, träffar per lek, bytena
     det: Kamera.detHist,       // MES-329: detektorns tid per bild som histogram; datorn tar skillnaden över passet
     detektor: KamDet.status(), // 'yolox-fp32-webgpu', 'laddar', 'fel', 'av' …
     detektorFel: KamDet.fel || null,
@@ -33226,25 +33238,38 @@ function sattKamLekAntal(kort) {
   kamLekAntal = new Map();
   for (const k of kort) { const key = norm(k.name); kamLekAntal.set(key, (kamLekAntal.get(key) || 0) + (Number(k.n) || 1)); }
 }
-async function kamValdLek() {
-  let vald = null;
-  try { vald = await Moln.minLekIGame(kamLage.id); } catch (e) { vald = null; }
-  if (vald && vald.id) {
-    const rad = await Moln.hamtaLekRad(vald.id).catch(() => null);
-    if (rad && rad.kort && rad.kort.length) return rad;
+/* ── minnet och den aktiva leken på telefonen (MES-376, etapp 1b) ──
+   Telefonen är inloggad som samma konto som datorn, så RLS på spelarens_kort
+   (sk_las: user_id = auth.uid()) släpper igenom minnet utan ny policy.
+   kamLasMinne läser minnet (Moln.minnet) och lekarna (hamtaLekar medKort):
+     lekar    [{ id, namn, ts, kort: lekens egna tryckningar, alla: lekens namn + det den setts med }]
+     poster   Map namn → { sid, small }  varje namn i minnet med den tryckning som syntes
+     grupper  Map grupp → Set namn      partier och lekar — AktivLeks grannar
+   null när inget gick att läsa (utloggad, tabellen saknas): då finns ingen
+   igenkänning, som förut utan lek. Den gamla enleks-raden (lekar) läses inte
+   längre: lekar.sql flyttade den till "My deck" (MES-305). */
+let kamMinneData = null;
+let kamAktivVald;        // lekvalet (game_players.lek_id) AktivLek startades med; ett byte på datorn startar om
+let kamAktivT = null;    // väntande ombygge efter ett säkert kort (kamSakert)
+async function kamLasMinne() {
+  let rader = null, lekar = [];
+  try { rader = await Moln.minnet(); } catch (e) { rader = null; }
+  try { lekar = await Moln.hamtaLekar({ medKort: true }); } catch (e) { lekar = []; }
+  if (rader === null && !lekar.length) return null;
+  const poster = new Map(), grupper = new Map();
+  const notera = (namn, sid, small) => { if (!namn) return; const p = poster.get(namn) || { sid: null, small: null }; if (!p.sid && sid) { p.sid = sid; p.small = small || null; } poster.set(namn, p); };
+  for (const r of rader || []) { notera(r.namn, r.sid, null); const g = r.deck_id || r.game_id; if (g) { const m = grupper.get(g) || new Set(); m.add(r.namn); grupper.set(g, m); } }
+  const ut = [];
+  for (const l of lekar) {
+    const kort = lekSpelbara(Array.isArray(l.kort) ? l.kort : []).filter(k => k && k.name);
+    const m = grupper.get(l.id) || new Set(); for (const k of kort) { m.add(k.name); notera(k.name, k.sid, k.small); }
+    if (m.size) { grupper.set(l.id, m); ut.push({ id: l.id, namn: l.namn || 'My deck', ts: l.ts || 0, kort, alla: [...m] }); }
   }
-  let lista = [];
-  try { lista = await Moln.hamtaLekar(); } catch (e) { lista = []; }
-  for (const l of lista) {
-    const rad = await Moln.hamtaLekRad(l.id).catch(() => null);
-    if (rad && rad.kort && rad.kort.length) return rad;
-  }
-  /* Legacy: en lek per konto (lekar). Leken som kolumn på spelet läses inte
-     längre — kolumnen töms (MES-305). */
-  let lek = null;
-  try { lek = await Moln.hamtaMinLek(); } catch (e) { lek = null; }
-  return lek && lek.kort && lek.kort.length ? Object.assign({ namn: 'My deck' }, lek) : null;
+  return { lekar: ut, poster, grupper };
 }
+/* Lekvalet i spelet (game_players.lek_id) är starten när det finns (etapp 4 behåller lekvalet i uppstarten); annars den
+   senast spelade leken, annars den senast ändrade. AktivLek startas om bara när lekvalet byts — varje spelare-händelse
+   på kanalen når hit, och ett byte mitt i partiet får inte nollställa de sedda korten. */
 async function byggKamPool() {
   if (!kamLage) return;
   if (kamPoolBygger) { kamPoolOm = true; return; }
@@ -33253,51 +33278,111 @@ async function byggKamPool() {
      som förut (Namn.las svarar null). */
   Namn.ladda().catch(() => {});
   try {
-    const lek = await kamValdLek();
-    sattKamLekAntal(lek && lek.kort);
-    if (!lek) {
-      kamPoolNyckel = null;
-      satKamFin('pool', 'No deck yet. Open the Mesa menu (top left) → My decks on the computer and add your cards. Until then I see the cards but cannot tell which they are.');
-      return;
+    let vald = null; try { vald = await Moln.minLekIGame(kamLage.id); } catch (e) { vald = null; }
+    const valdId = (vald && vald.id) || null;
+    if (!kamMinneData || kamAktivVald !== valdId) {
+      const minne = await kamLasMinne();
+      if (!minne || (!minne.lekar.length && !minne.poster.size)) {
+        kamMinneData = null; kamAktivVald = valdId; kamPoolNyckel = null; sattKamLekAntal(null);
+        satKamFin('pool', 'No deck yet. Open the Mesa menu (top left) → My decks on the computer and add your cards. Until then I see the cards but cannot tell which they are.');
+        return;
+      }
+      let senast = null; try { senast = await Moln.senastSpeladLek(); } catch (e) { senast = null; }
+      if (!(senast && minne.lekar.some(l => l.id === senast))) senast = minne.lekar.length ? minne.lekar[0].id : null;   // hamtaLekar: senast ändrad först
+      AktivLek.start({ lekar: minne.lekar.map(l => ({ id: l.id, namn: l.namn, kort: l.alla })), vald: valdId, senast, grupper: minne.grupper });
+      kamMinneData = minne; kamAktivVald = valdId;
     }
-    const nyckel = (lek.id || 'konto') + ':' + (lek.ts || 0);
-    if (nyckel === kamPoolNyckel && Pool.idx) return;      // samma lek, samma version: inget att bygga
-    let sist = 0;
-    await byggLekPool(lek, lek.id || Moln.minId(), p => {
-      const nu = Date.now(); if (nu - sist < 400) return; sist = nu;
-      /* Procent, inte "40 av 110": total är poolens bilder, inte lekens kort,
-         och ett tal större än leken väcker samma fråga som slutraden gjorde. */
-      satKamFin('pool', p.phase === 'img' ? `Learning ${lek.namn || 'the deck'}… ${Math.round(100 * p.done / Math.max(1, p.total))} %` : 'Fetching the deck…');
-    });
-    kamPoolNyckel = nyckel;
-    /* Lekens antal, inte poolens. Poolen bär upp till tolv konstverk per namn
-       och tjugofyra per basic land (byggLekPool), så Pool.idx.names räknar
-       bilder: 110 för Jespers lek på 36 kort, och siffran såg ut som någon
-       annans lek. */
-    satKamFin('pool', `Recognising ${lek.namn || 'your deck'}: ${lekKortAntal(lek)} cards.${Ref.antal(Pool.idx) ? ` ${Ref.antal(Pool.idx)} learned photo${Ref.antal(Pool.idx) === 1 ? '' : 's'}.` : ''}${kamAiNamnKapade() ? ` Claude sees the ${KAM_AI_NAMN_TAK} most likely names of ${KAM_AI_NAMN_TAK + kamAiNamnKapade()}.` : ''}`);
-    /* Kort som väntade på en pool får en ny chans. */
-    for (const t of Kamera.spar) if (!t.namn) Kamera.glomKort(t.id);
-    /* Bildmodellen (MES-225) bäddar in lekens bilder i bakgrunden: en halv
-       till två minuter första gången, sedan ur IndexedDB. Kameran går på
-       Matcher + ORB tills den är klar; raden säger hur långt den kommit. */
-    if (KamEmbed.pa()) {
-      let sistM = 0; const poolen = Pool.idx;
-      satKamFin('modell', 'Getting the image model…');
-      KamEmbed.bygg(poolen, p => {
-        const nu = Date.now(); if (nu - sistM < 400) return; sistM = nu;
-        satKamFin('modell', `Learning the artwork… ${Math.round(100 * p.done / Math.max(1, p.total))} %`);
-      }).then(idx => {
-        if (Pool.idx === poolen) satKamFin('modell', idx ? '' : (KamEmbed.fel ? 'Image model unavailable. Recognising the slower way.' : ''));
-        /* Remsleken (MES-330) efter kortleken, tyst i bakgrunden: ~4 körningar per bild första gången, sedan ur IndexedDB. */
-        if (idx && Pool.idx === poolen) KamEmbed.byggRemsor(poolen).catch(() => {});
-      });
-    }
+    await kamByggAktiv();
   } catch (e) {
     satKamFin('pool', 'Could not build the recognition: ' + (e.message || ''));
   } finally {
     kamPoolBygger = false;
     if (kamPoolOm) { kamPoolOm = false; byggKamPool(); }
   }
+}
+/* Den aktiva lekens pool ur AktivLek.namn() — lekens egna tryckningar och alla konstverk per namn som förut
+   (byggNamnPool), grannarna ur minnet bara med den tryckning som syntes — och minnets pool (KamMinne, steg 2) ur
+   resten av minnet. Nyckeln bär namnmängden: samma mängd byggs inte om, och ett byte av aktiv lek är en hopsättning
+   ur cachen per kort. Utan aktiv lek och utan grannar är den aktiva poolen tom (bara baksidan), så att steg 2 får
+   köra på allt i minnet. Poolens kod är lekens ('lek:<id>') när mängden är lekens egen, så att de lärda referenserna
+   (Ref, RefMoln) följer leken som förut. */
+async function kamByggAktiv() {
+  const M = kamMinneData; if (!M) return;
+  const namn = AktivLek.namn(), lek = AktivLek.aktiv ? M.lekar.find(l => l.id === AktivLek.aktiv) || null : null;
+  sattKamLekAntal(lek && lek.kort);
+  const lekNamn = new Set(lek ? lek.alla : []), extra = [...namn].filter(n => !lekNamn.has(n));
+  const spec = lek ? lekNamnMangd({ kort: lek.kort }) : { kort: [], namn: [], land: [] };
+  /* Lekens namn som setts i partier men inte står i kortlistan (en lärd lek), och grannarna: den tryckning som syntes. */
+  for (const n of [...lekNamn].filter(n => !spec.kort.some(k => k.name === n)).concat(extra)) {
+    const p = M.poster.get(n);
+    if (p && p.sid && p.small) spec.kort.push({ id: p.sid, name: n, small: p.small });
+    else if (p && p.sid) (spec.sid || (spec.sid = [])).push({ id: p.sid });
+    else if (!landTyp(n) && !n.includes(' // ') && !spec.namn.includes(n)) spec.namn.push(n);
+  }
+  let code, ts;
+  if (!namn.size) { code = 'tom'; ts = 0; }
+  else if (lek && !extra.length) { code = 'lek:' + lek.id; ts = lek.ts || 0; }
+  else { const text = [...namn].sort().join('\n'); let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } code = 'aktiv:' + h.toString(16) + '-' + namn.size; ts = 0; }
+  const nyckel = code + ':' + ts;
+  if (nyckel !== kamPoolNyckel || !Pool.idx || Pool.idx.code !== code) {
+    let sist = 0;
+    const vad = lek ? (lek.namn || 'the deck') : 'your cards';
+    const prog = p => { const nu = Date.now(); if (nu - sist < 400) return; sist = nu;
+      /* Procent, inte "40 av 110": total är poolens bilder, inte lekens kort. */
+      satKamFin('pool', p.phase === 'img' ? `Learning ${vad}… ${Math.round(100 * p.done / Math.max(1, p.total))} %` : 'Fetching the deck…'); };
+    let rec = (Pool.idx && Pool.idx.code === code && (Pool.idx.ts || 0) >= ts) ? Pool.idx : null;
+    if (!rec) { const cached = await Pool.load(code); if (cached && cached.ts >= ts) rec = cached; }
+    if (!rec) rec = await byggNamnPool(spec, code, prog, { setName: lek ? lek.namn : 'My cards', tomOk: true });
+    Pool.idx = rec;
+    if (Ref.kod !== rec.code) await Ref.ladda(rec.code);
+    await RefMoln.hamta(rec.code);   // referenser lärda på andra enheter (MES-231) — bara för 'lek:<id>'
+    await Ref.tillampa(rec);
+    kamPoolNyckel = nyckel;
+    /* Lekens antal, inte poolens: poolen bär upp till tolv konstverk per namn och tjugofyra per basic land. */
+    satKamFin('pool', lek
+      ? `Recognising ${lek.namn || 'your deck'}: ${lekKortAntal(lek)} cards${extra.length ? ` + ${extra.length} from memory` : ''}.${Ref.antal(Pool.idx) ? ` ${Ref.antal(Pool.idx)} learned photo${Ref.antal(Pool.idx) === 1 ? '' : 's'}.` : ''}${kamAiNamnKapade() ? ` Claude sees the ${KAM_AI_NAMN_TAK} most likely names of ${KAM_AI_NAMN_TAK + kamAiNamnKapade()}.` : ''}`
+      : namn.size ? `Recognising ${namn.size} cards from memory.` : `No deck matches yet — recognising from memory (${M.poster.size} cards).`);
+    /* Kort som väntade på en pool får en ny chans. */
+    for (const t of Kamera.spar) if (!t.namn) Kamera.glomKort(t.id);
+  }
+  /* Bildmodellen (MES-225) bäddar in poolens bilder i bakgrunden: en halv till två minuter första gången, sedan ur
+     IndexedDB. Kameran går på Matcher + ORB tills den är klar; raden säger hur långt den kommit. Minnets pool
+     (steg 2) byggs efter den aktiva lekens inbäddning, tyst: den ska aldrig fördröja steg 1. */
+  if (KamEmbed.pa()) {
+    let sistM = 0; const poolen = Pool.idx;
+    const minnesPoster = []; for (const [n, p] of M.poster) if (!namn.has(n)) minnesPoster.push({ namn: n, sid: p.sid, small: p.small });
+    if (!KamEmbed.redo() || KamEmbed.kod !== poolen.code) satKamFin('modell', 'Getting the image model…');
+    KamEmbed.bygg(poolen, p => {
+      const nu = Date.now(); if (nu - sistM < 400) return; sistM = nu;
+      satKamFin('modell', `Learning the artwork… ${Math.round(100 * p.done / Math.max(1, p.total))} %`);
+    }).then(idx => {
+      if (Pool.idx === poolen) satKamFin('modell', idx ? '' : (KamEmbed.fel ? 'Image model unavailable. Recognising the slower way.' : ''));
+      /* Remsleken (MES-330) efter kortleken, tyst i bakgrunden: ~4 körningar per bild första gången, sedan ur IndexedDB. */
+      if (idx && Pool.idx === poolen) KamEmbed.byggRemsor(poolen).catch(() => {});
+      if (idx && Pool.idx === poolen && KamMinne.pa()) KamMinne.bygg(minnesPoster).catch(() => {});
+    });
+  }
+}
+/* Ett säkert namn på bordet (Kamera cb.sakert): den aktiva leken räknar det, och byter den lek eller drar in grannar
+   byggs poolerna om — med en liten väntan, så att en hand full av kort ger ett ombygge och inte fem. Det gamla
+   gäller tills det nya är klart (Pool.idx byts först när hopsättningen är färdig). Kommer ett byte medan poolen
+   byggs tas det efteråt (kamPoolOm → byggKamPool → kamByggAktiv). */
+function kamSakert(namn, id, varfor) {
+  if (!kamMinneData || !namn) return;
+  let r; try { r = AktivLek.sett(namn); } catch (e) { return; }
+  if (!r || (!r.bytt && !r.nya)) return;
+  if (r.bytt) {
+    const l = r.aktiv ? kamMinneData.lekar.find(x => x.id === r.aktiv) : null;
+    satKamFin('pool', r.aktiv ? `The cards look like ${l ? l.namn : 'another deck'} — switching…` : 'No deck matches the cards on the table — recognising from memory…');
+  }
+  clearTimeout(kamAktivT);
+  kamAktivT = setTimeout(() => {
+    kamAktivT = null;
+    if (kamPoolBygger) { kamPoolOm = true; return; }
+    kamPoolBygger = true;
+    kamByggAktiv().catch(e => satKamFin('pool', 'Could not build the recognition: ' + (e.message || '')))
+      .finally(() => { kamPoolBygger = false; if (kamPoolOm) { kamPoolOm = false; byggKamPool(); } });
+  }, 1500);
 }
 
 /* Senaste beskärningen per spår, liten (K7): det som lärs när Claude eller
