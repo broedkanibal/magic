@@ -1163,7 +1163,7 @@ function laddaSpel(src, namn = 'index.html') {
     skar('/* Typgrupperna i leklådan.', '/* ── fotot in'),
     skar('function lekKortAntal(lek) {', '/* ═══'),
     skar('async function byggLekPoolRa(', '/* Datorns avläsningar'),
-    skar('let kamLekAntal = null;', 'async function kamValdLek()'),
+    skar('let kamLekAntal = null;', '/* ── minnet och den aktiva leken på telefonen'),   // MES-376: kamValdLek blev kamLasMinne/byggKamPool; bara antalspriorn behövs här
     skar('function oppLekVyHtml(l) {', '/* Pennan (G1Edit)'),
     skar('function lekOmslag(kort) {', 'async function hemHamtaLekar()'),
   ].join('\n');

@@ -23436,7 +23436,7 @@ async function byggLekPoolRa(lek, userId, onProg) {
    baslandstyperna. Platshållarna ur ett lekfoto (MES-289) har inget namn att söka på. */
 function lekNamnMangd(lek) {
   const kort = (lek.kort || []).filter(k => k && k.sid && k.small).map(k => ({ id: k.sid, name: k.name, small: k.small }));
-  const namn = [...new Set((lek.kort || []).filter(k => k && !k.okand).map(k => k.name).filter(n => n && !BASICS.has(n) && !n.includes(' // ')))];
+  const namn = [...new Set((lek.kort || []).filter(k => !k.okand).map(k => k.name).filter(n => n && !BASICS.has(n) && !n.includes(' // ')))];
   const land = [...new Set((lek.kort || []).map(k => k && k.name).filter(n => BASICS.has(n)))];
   return { kort, namn, land };
 }
