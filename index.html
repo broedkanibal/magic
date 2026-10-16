@@ -6040,6 +6040,13 @@ const IDB = (() => {
     del: id => tx('shots', 'readwrite', s => s.delete(id)),
     all: () => tx('shots', 'readonly', s => s.getAll()),
     poolGet: code => tx('pool', 'readonly', s => s.get(code)),
+    /* Många poster i EN transaktion (MES-376: poolens cache per kort och per namn — tre hundra poster
+       var sin transaktion hade kostat sekunder). Svar: Map code → post, bara de som finns. */
+    poolGetAlla: codes => db().then(d => new Promise((res, rej) => {
+      const ut = new Map(), t = d.transaction('pool', 'readonly'), s = t.objectStore('pool');
+      for (const c of codes) { const rq = s.get(c); rq.onsuccess = () => { if (rq.result) ut.set(c, rq.result); }; }
+      t.oncomplete = () => res(ut); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+    })),
     poolPut: rec => tx('pool', 'readwrite', s => s.put(rec)),
     poolDel: code => tx('pool', 'readwrite', s => s.delete(code)),
     poolAll: () => tx('pool', 'readonly', s => s.getAll())
@@ -22951,8 +22958,11 @@ const Pool = {
       /* v 6: lekens pool bär alla konstverk per namn (byggLekPool); en
          sparad pool från förut har fel tryckningar och byggs om.
          v 7: poolen bär kortbaksidan (BAKSIDA_NAMN), så att ett nedvänt
-         kort känns igen som just det och inte blir en granskningspost. */
-      if (rec && rec.names && rec.names.length && rec.descs && rec.v >= 7) { this.idx = rec; return rec; }
+         kort känns igen som just det och inte blir en granskningspost.
+         v 8: byggd ur en namnmängd med cache per kort och per namn
+         (byggNamnPool, MES-376) — samma innehåll, men en sparad v 7-pool
+         byggs om en gång så att cacherna fylls. */
+      if (rec && rec.names && rec.names.length && rec.descs && rec.v >= 8) { this.idx = rec; return rec; }
     } catch (e) {}
     return null;
   },
@@ -23254,14 +23264,32 @@ async function fetchQuery(q, onProg, seen, cards, label, order) {
 /* Bygger igenkänningspoolen ur en färdig kortlista — spelarens lek
    (byggLekPool): ett hundratal kandidater, de kort som faktiskt kan ligga
    på bordet. */
+/* Cachen PER KORT (MES-376, etapp 1b): varje bilds beskrivning (Matcher), rutnät (grid8) och ORB-särdrag sparas
+   under 'kort:<id>' i samma objektlager som poolen, så att en pool ur en annan namnmängd — den aktiva leken byts,
+   minnet växer — bara laddar och räknar de bilder som inte setts förut. Versionen bär Matchers och ORB:s mått:
+   ändras de räknas allt om. Bildmodellens vektorer cachas redan per kort (dev/embed/embed.js). */
+const KORT_V = () => 'k1|' + Matcher.DESC + '|' + ORB.NB + '|' + ORB.REF_W + '|' + ORB.REF_BLUR;
+const kortNyckel = id => 'kort:' + id;
 async function byggPoolAv(cards, code, setName, onProg, lands) {
-  const D = Matcher.DESC;
+  const D = Matcher.DESC, V = KORT_V();
   const descs = new Int8Array(cards.length * D);
   const tmpl = new Float32Array(88);          // "genomsnittskortet" för detektorn
   const feats = new Array(cards.length);      // lokala särdrag per kort
   const EMPTY = { kps: [], desc: new Uint8Array(0) };
   let tmplN = 0;
-  let done = 0, fail = 0, next = 0;
+  let done = 0, fail = 0, next = 0, urCache = 0;
+  let sparade = new Map();
+  try { sparade = await IDB.poolGetAlla(cards.map(c => kortNyckel(c.id))); } catch (e) { sparade = new Map(); }
+  const urPost = p => {
+    const n = p.kps.length / 2, kps = new Array(n);
+    for (let j = 0; j < n; j++) kps[j] = { x: p.kps[j * 2], y: p.kps[j * 2 + 1] };
+    return { kps, desc: p.od };
+  };
+  const tillPost = (c, d, g, f) => {
+    const kps = new Int16Array(f.kps.length * 2);
+    for (let j = 0; j < f.kps.length; j++) { kps[j * 2] = f.kps[j].x; kps[j * 2 + 1] = f.kps[j].y; }
+    return { code: kortNyckel(c.id), v: V, ts: Date.now(), desc: d, g8: g, kps, od: f.desc };
+  };
   /* Flera arbetare är säkert trots att ORB och Matcher delar canvas: allt
      mellan två await är synkront, så två arbetare kan aldrig interfoliera
      sitt canvas-arbete. */
@@ -23271,27 +23299,38 @@ async function byggPoolAv(cards, code, setName, onProg, lands) {
       if (i >= cards.length) return;
       kollaAvbrott();
       feats[i] = EMPTY;
+      const p = sparade.get(kortNyckel(cards[i].id));
+      if (p && p.v === V && p.desc && p.desc.length === D && p.kps && p.od) {
+        descs.set(p.desc, i * D);
+        if (cards[i].name !== BAKSIDA_NAMN && p.g8) { for (let k = 0; k < 88; k++) tmpl[k] += p.g8[k]; tmplN++; }
+        feats[i] = urPost(p); urCache++;
+        onProg({ phase: 'img', done: ++done, total: cards.length, fail, cache: urCache });
+        continue;
+      }
       try {
         const im = await loadImage(cards[i].small);
-        descs.set(Matcher.describeImage(im), i * D);
+        const d = Matcher.describeImage(im);
+        descs.set(d, i * D);
         /* Baksidan är med i poolen för att kännas igen (BAKSIDA_NAMN), men
            den är inget kort och ska inte forma "genomsnittskortet" som
            detektorn letar efter. */
+        let g = null;
         if (cards[i].name !== BAKSIDA_NAMN) {
-          const g = Matcher.grid8(im);
+          g = Matcher.grid8(im);
           for (let k = 0; k < 88; k++) tmpl[k] += g[k];
           tmplN++;
         }
         feats[i] = ORB.refFeatures(im, 200);
+        try { await IDB.poolPut(tillPost(cards[i], Int8Array.from(d), g ? Float32Array.from(g) : null, feats[i])); } catch (e) { /* cachen är en genväg, inte ett krav */ }
       } catch (e) { fail++; }
-      onProg({ phase: 'img', done: ++done, total: cards.length, fail });
+      onProg({ phase: 'img', done: ++done, total: cards.length, fail, cache: urCache });
     }
   }
   await Promise.all(Array.from({ length: 8 }, worker));
   const rec = {
     code, setName, ts: Date.now(),
     names: cards.map(c => c.name), ids: cards.map(c => c.id), smalls: cards.map(c => c.small),
-    descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 7, lands: !!lands
+    descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 8, lands: !!lands, urCache
   };
   await IDB.poolPut(rec);
   Pool.idx = rec;
@@ -23322,52 +23361,103 @@ async function byggLekPoolRa(lek, userId, onProg) {
   if (Pool.idx && Pool.idx.code === code && (Pool.idx.ts || 0) >= (lek.ts || 0)) return Pool.idx;
   const cached = await Pool.load(code);
   if (cached && cached.ts >= (lek.ts || 0)) return cached;
+  return byggNamnPool(lekNamnMangd(lek), code, onProg);
+}
+/* Lekens namnmängd (MES-376): lekens egna tryckningar först (sid + bild), namnen att söka konstverk för och
+   baslandstyperna. Platshållarna ur ett lekfoto (MES-289) har inget namn att söka på. */
+function lekNamnMangd(lek) {
+  const kort = (lek.kort || []).filter(k => k && k.sid && k.small).map(k => ({ id: k.sid, name: k.name, small: k.small }));
+  const namn = [...new Set((lek.kort || []).filter(k => k && !k.okand).map(k => k.name).filter(n => n && !BASICS.has(n) && !n.includes(' // ')))];
+  const land = [...new Set((lek.kort || []).map(k => k && k.name).filter(n => BASICS.has(n)))];
+  return { kort, namn, land };
+}
+/* ═══ POOLEN UR EN NAMNMÄNGD (MES-376, etapp 1b) ═══
+   Poolen byggs ur en mängd NAMN — inte ett lek-id: den aktiva leken (som
+   korten väljer, AktivLek) och spelarens minne (KamMinne) är båda namnmängder,
+   och ett byte av aktiv lek ska kosta en hopsättning, inte ett ombygge.
+   Två cacher i IndexedDB (objektlagret 'pool') gör det billigt:
+     • per namn ('konst:<namn>'): Scryfalls konstverk för namnet, nyaste
+       först, högst KONST_TAK — och per baslandstyp ('konst:land:<typ>').
+       Ett namn som setts förut frågar aldrig Scryfall igen (i KONST_GILTIG).
+     • per kort ('kort:<id>', byggPoolAv): bildens beskrivning och särdrag.
+   spec: { kort: [{id, name, small}]   egna tryckningar, först i poolen (landVisning tar poolens första)
+           sid:  [{id, name?}]         tryckningar att slå upp bilden för (minnets sedda tryckning), 'sid:<id>'
+           namn: [namn]                namn att hämta konstverk för (utan basland och ' // ')
+           land: [typ]                 baslandstyper
+           konstTak, landTak           per namn (förval KONST_TAK och LAND_TAK) }
+   Alla konstverk för varje namn — inte bara den tryckning Scryfalls
+   namnuppslag råkar ge. Uppmätt (golden, 2026-09-10): fuzzy-uppslaget gav
+   en annan tryckning än korten på bordet för 7 av 28 namn, och två av dem
+   var två av tre fel i golden 06. Leken vet inte vilken tryckning som ligger
+   på bordet, så alla får vara med, nyaste först; poolen växer från 78 till
+   omkring 110 för den leken. Tjugo namn per fråga. Baslanden får LAND_TAK
+   konstverk per typ (year>=2021): ett Mountain är ett Mountain. */
+const KONST_TAK = 12, LAND_TAK = 24, KONST_GILTIG = 30 * 86400000;
+const konstNyckel = n => 'konst:' + n, landNyckel = t => 'konst:land:' + t, sidNyckel = id => 'sid:' + id;
+async function byggNamnPool(spec, code, onProg, o) {
+  onProg = onProg || (() => {}); o = o || {};
+  const konstTak = spec.konstTak != null ? spec.konstTak : KONST_TAK, landTak = spec.landTak != null ? spec.landTak : LAND_TAK;
   const cards = [], seen = new Set();
-  for (const k of (lek.kort || [])) {
-    if (!k.sid || !k.small || seen.has(k.sid)) continue;
-    seen.add(k.sid); cards.push({ id: k.sid, name: k.name, small: k.small });
-  }
-  /* Alla konstverk för varje namn i leken — inte bara den tryckning som
-     Scryfalls namnuppslag råkar ge. Uppmätt (golden, 2026-09-10): fuzzy-
-     uppslaget gav en annan tryckning än korten på bordet (Foundations
-     Jumpstart) för 7 av 28 namn — Serpent Assassin blev Portal 1997,
-     Pacifism ett konstverk från 2026 — och de två var två av tre kort som
-     igenkänningen gissade fel på i golden-fall 06: bästa möjliga passform
-     0,27 och 0,45 mot 0,78–0,95 för kort med rätt konstverk i poolen.
-     Leken vet inte vilken tryckning som ligger på bordet, så alla får vara
-     med, högst KONST_TAK per namn och nyaste först (Pacifism har 9,
-     Night's Whisper 12). Poolen växer från 78 till omkring 110 för den
-     leken; Matcher rankar alla på samma varv. Tjugo namn per fråga: en
-     fråga med alla namn i leken blir annars lång. */
-  const KONST_TAK = 12;
-  /* Frågor efter fler konstverk som inte svarade (429, nät): poolen fungerar
-     ändå, men saknar konstverk utan att det syns — golden kontrollerar
-     rec.konstFel och sparar inte en sådan pool (dev/golden/kor.html). */
+  const laggTill = c => { if (!c || !c.id || !c.small || seen.has(c.id)) return; seen.add(c.id); cards.push({ id: c.id, name: c.name, small: c.small }); };
+  for (const k of (spec.kort || [])) laggTill(k);
+  /* Frågor som inte svarade (429, nät): poolen fungerar ändå, men saknar
+     konstverk utan att det syns — golden kontrollerar rec.konstFel och sparar
+     inte en sådan pool (dev/golden/kor.html). */
   let konstFel = 0;
-  /* Platshållarna ur ett lekfoto (MES-289) har inget namn att söka på. */
-  const namnen = [...new Set((lek.kort || []).filter(k => !k.okand).map(k => k.name).filter(n => n && !BASICS.has(n) && !n.includes(' // ')))];
-  for (let i = 0; i < namnen.length; i += 20) {
+  const nu = Date.now(), farsk = p => p && p.kort && nu - (p.ts || 0) < KONST_GILTIG;
+  let cache = new Map();
+  const nycklar = [].concat((spec.sid || []).map(s => sidNyckel(s.id)), (spec.namn || []).map(konstNyckel), (spec.land || []).map(landNyckel));
+  try { cache = await IDB.poolGetAlla(nycklar); } catch (e) { cache = new Map(); }
+  const spara = p => IDB.poolPut(p).catch(() => {});
+  /* Tryckningar att slå upp (minnets sedda sid, utan bild): SF.collection tar 75 åt gången, per id i cachen. */
+  const sids = (spec.sid || []).filter(s => s && s.id && !seen.has(s.id));
+  const sidSaknas = sids.filter(s => !farsk(cache.get(sidNyckel(s.id))));
+  for (let i = 0; i < sidSaknas.length; i += 75) {
     try {
-      const extra = [];
-      await fetchQuery(`(${namnen.slice(i, i + 20).map(n => '!"' + n.replace(/"/g, '') + '"').join(' or ')}) -is:digital -is:funny`,
-                       onProg || (() => {}), seen, extra, 'konstverk', 'released');
-      const per = new Map();
-      for (const c of extra) { if (c.name.includes(' // ')) continue; const k = per.get(c.name) || 0; if (k >= KONST_TAK) continue; per.set(c.name, k + 1); cards.push(c); }
-    } catch (e) { konstFel++; /* utan fler konstverk fungerar lekens egna */ }
+      const d = await SF.collection(sidSaknas.slice(i, i + 75).map(s => ({ id: s.id })));
+      for (const c of (d && d.data) || []) {
+        const iu = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris); if (!iu || !iu.small) continue;
+        const p = { code: sidNyckel(c.id), ts: nu, kort: [{ id: c.id, name: c.name, small: iu.small }] };
+        cache.set(p.code, p); spara(p);
+      }
+      kollaAvbrott();
+    } catch (e) { if (e && e.message === 'avbrutet') throw e; konstFel++; }
   }
-  const basland = [...new Set((lek.kort || []).map(k => k.name).filter(n => BASICS.has(n)))];
-  if (basland.length) {
+  for (const s of sids) { const p = cache.get(sidNyckel(s.id)); if (farsk(p)) for (const c of p.kort) laggTill(c); }
+  /* Konstverk per namn: cachen först, resten i frågor om tjugo namn. */
+  const saknas = (spec.namn || []).filter(n => !farsk(cache.get(konstNyckel(n))));
+  for (let i = 0; i < saknas.length; i += 20) {
+    const del = saknas.slice(i, i + 20);
     try {
-      const extra = [];
-      await fetchQuery(`(${basland.map(n => '!"' + n + '"').join(' or ')}) -is:digital -is:funny year>=2021`,
-                       onProg || (() => {}), seen, extra, 'basic lands');
+      const extra = [], egna = new Set();
+      await fetchQuery(`(${del.map(n => '!"' + n.replace(/"/g, '') + '"').join(' or ')}) -is:digital -is:funny`, onProg, egna, extra, 'konstverk', 'released');
       const per = new Map();
-      /* De dubbelsidiga ("Plains // Plains") heter något annat än Plains och
-         står därför utanför BASICS: landregeln i confident() räknar dem
-         inte, och de tog en plats bland de sex bästa utan att räknas
-         (uppmätt i golden 06: "Swamp // Swamp" överst för en klunga land). */
-      for (const c of extra) { if (c.name.includes(' // ')) continue; const k = per.get(c.name) || 0; if (k >= 24) continue; per.set(c.name, k + 1); cards.push(c); }
-    } catch (e) { konstFel++; /* utan extra landskap fungerar lekens egna */ }
+      /* KONST_TAK + 1 i cachen: är lekens egen tryckning bland de nyaste ska poolen ändå få KONST_TAK andra, som förut. */
+      for (const c of extra) { if (c.name.includes(' // ')) continue; const l = per.get(c.name) || []; if (l.length > KONST_TAK) continue; l.push(c); per.set(c.name, l); }
+      for (const n of del) { const p = { code: konstNyckel(n), ts: nu, kort: per.get(n) || [] }; cache.set(p.code, p); spara(p); }
+    } catch (e) { if (e && e.message === 'avbrutet') throw e; konstFel++; /* utan fler konstverk fungerar de egna tryckningarna */ }
+  }
+  for (const n of (spec.namn || [])) {
+    const p = cache.get(konstNyckel(n)); if (!farsk(p)) continue;
+    let k = 0; for (const c of p.kort) { if (k >= konstTak) break; if (seen.has(c.id)) continue; laggTill(c); k++; }
+  }
+  /* Baslanden per typ. De dubbelsidiga ("Plains // Plains") heter något
+     annat än Plains och står därför utanför BASICS: landregeln i confident()
+     räknar dem inte, och de tog en plats bland de sex bästa utan att räknas
+     (uppmätt i golden 06: "Swamp // Swamp" överst för en klunga land). */
+  const landSaknas = (spec.land || []).filter(t => !farsk(cache.get(landNyckel(t))));
+  if (landSaknas.length) {
+    try {
+      const extra = [], egna = new Set();
+      await fetchQuery(`(${landSaknas.map(n => '!"' + n + '"').join(' or ')}) -is:digital -is:funny year>=2021`, onProg, egna, extra, 'basic lands');
+      const per = new Map();
+      for (const c of extra) { if (c.name.includes(' // ')) continue; const l = per.get(c.name) || []; if (l.length > LAND_TAK) continue; l.push(c); per.set(c.name, l); }
+      for (const t of landSaknas) { const p = { code: landNyckel(t), ts: nu, kort: per.get(t) || [] }; cache.set(p.code, p); spara(p); }
+    } catch (e) { if (e && e.message === 'avbrutet') throw e; konstFel++; /* utan extra landskap fungerar lekens egna */ }
+  }
+  for (const t of (spec.land || [])) {
+    const p = cache.get(landNyckel(t)); if (!farsk(p)) continue;
+    let k = 0; for (const c of p.kort) { if (k >= landTak) break; if (seen.has(c.id)) continue; laggTill(c); k++; }
   }
   if (!cards.length) throw new Error('The deck has no cards with images.');
   /* Kortbaksidan som ett eget uppslag (MES-42): ett nedvänt kort på bordet
@@ -23375,8 +23465,8 @@ async function byggLekPoolRa(lek, userId, onProg) {
      domskälet 'baksida' (kamIdentifiera), i stället för en granskningspost
      med baksidan som miniatyr. Namnet BAKSIDA_NAMN filtreras bort ur
      namnläsarens lista och ur namnen till Claude. Poolversion 7. */
-  cards.push({ id: 'baksida', name: BAKSIDA_NAMN, small: BAKSIDA });
-  const rec = await byggPoolAv(cards, code, 'My deck', onProg || (() => {}), true);
+  if (!o.utanBaksida) cards.push({ id: 'baksida', name: BAKSIDA_NAMN, small: BAKSIDA });
+  const rec = await byggPoolAv(cards, code, o.setName || 'My deck', onProg, true);
   rec.konstFel = konstFel;
   return rec;
 }
