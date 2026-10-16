@@ -189,9 +189,18 @@ golden-körningar i kö.
   bakgrundskommando, inte en väntan på den förra.
 - **Varje väntan har ett tak som säger till.** Ett bakgrundsjobb som
   hänger ger ingen notis, och orkestreraren väntar då på något som aldrig
-  kommer. `dev/kolla.sh` har ett tak per steg (`KOLLA_TAK`, 600 s): ett
-  steg som hänger stoppas med sin huvudlösa Chrome och körs om en gång
-  (natten 2026-10-12 hängde hogarna.cjs i 72 min och gick sedan på 33 s).
+  kommer. `dev/kolla.sh` vaktar varje steg på CPU-tid: ett steg vars
+  processträd inte fått en sekund CPU på `KOLLA_STILLA` s (120) räknas
+  som hängt, stoppas med sin huvudlösa Chrome och körs om en gång (natten
+  2026-10-12 hängde hogarna.cjs i 72 min och gick sedan på 33 s);
+  väggtaket `KOLLA_TAK` (1800 s) är bara en sista spärr, så ett steg som
+  arbetar fälls inte av last (förut slog kamerabank i väggtaket 600 s).
+  Sedan 2026-10-16 kör bara en kolla.sh i taget på datorn (kön
+  `~/.cache/mesa/kolla.las`; den som väntar skriver vem som kör, ger upp
+  efter 20 min), och den kör bara de steg vars filer ändrats mot
+  origin/main — `KOLLA_ALLA=1` kör allt. Starta den inte från flera agenter
+  för att vinna tid: de står ändå i kö. Kamerabänken går i flera processer
+  (`dev/kamerabank.cjs`, ~1–3 min i stället för ~8), så kön rör sig fortare.
   Allt annat långt som startas i bakgrunden får en vakt
   (`kör & p=$!; (sleep N; kill $p) &`).
 

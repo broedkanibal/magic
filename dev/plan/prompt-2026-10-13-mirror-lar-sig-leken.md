@@ -4,7 +4,7 @@ Du är orkestreraren för MES-371, "Mirror lär sig leken medan man spelar", och
 
 1. `CLAUDE.md`, särskilt: Claude är aldrig ett villkor, systemprompten rörs inte, worktrees städas efter push, Linear-reglerna och Kostnad.
 2. `dev/plan/lekar-och-minnet-bygget.md`: planen, stegen, ordningen, Jespers beslut J1–J6 och issue-tabellen.
-3. `dev/plan/lekar-och-minnet.md`: besluten B1–B10, mätningarna G1–G3 och teknik- och designgapen. Läs avsnitten när ett steg behöver dem, inte allt på en gång.
+3. `dev/plan/lekar-och-minnet.md`: besluten B1–B10, mätningarna G1–G4 och teknik- och designgapen. Läs avsnitten när ett steg behöver dem, inte allt på en gång.
 4. `dev/plan/orkestrering.md`: regelboken för kodområden, vad som inte får köras parallellt, golden och hur en gren slås ihop.
 5. `dev/golden/SNABBGUIDE.md`: hur golden körs (via `dev/golden/ko.sh`, aldrig två samtidigt).
 
@@ -14,14 +14,16 @@ Kolla sedan läget i Linear (`node dev/nasta.cjs`, och MES-371 med barn) och `gi
 
 Bara issues i **Todo** får plockas. Jesper flyttar dem dit från Triage, du gör det aldrig själv. Står en issue du behöver kvar i Triage, säg vilken och gå vidare med något annat.
 
+**Läget 2026-10-16:** fas A är klar utom MES-372 och MES-373. MES-266, MES-374 och MES-375 är Done (fast lista i `dev/golden/utan-leken.txt`; G4 gav regeln för den aktiva leken, se *1b*; världsfilen E3 är uppladdad, se MES-377). MES-373 och MES-235 startas som egna sessioner 2026-10-16; kolla Linear innan du tar dem. Orkestreraren behövs från fas C, när MES-373:s migration är körd.
+
 | Fas | Issue | Vad | Agent | Får börja när |
 |---|---|---|---|---|
-| A | MES-266 | fast lista för `--utan-leken` som förval i `kor.cjs`, en rad per namn om varför, SNABBGUIDE | `mesa-bygg` | nu |
+| A | MES-266 | fast lista för `--utan-leken` som förval i `kor.cjs`, en rad per namn om varför, SNABBGUIDE | `mesa-bygg` | **Done 2026-10-15** |
 | A | MES-372 | designytan D1 + D3 (Mirror utan lekval, efter partiet, learned/complete) som Artifact, 2–3 varianter per fråga. Slutar i **Behöver dig** | Opus 5.5, medium–high | nu |
 | A | MES-373 | 1a: minnet i datan, `decks.lage`, inläst lek skriven på en gång, engångsfyllning ur `boards` och `decks` | `mesa-bygg` | nu |
-| A | MES-374 | G4: aktiva lekens bänk, ingen appkod | `mesa-matning` | nu |
-| A | MES-375 | 2a: världens fingeravtryck ≤ 50 MB (helst ~25), mätt med `varlden.py`. Remsdelen väntar på lekfotots session 3 | `mesa-bygg` | nu |
-| B | MES-235 | alla **6 säkra fel namn** i `--utan-leken` (fall 01, 03 ×2, 08, 14, 15), inte bara Thriving-tvillingarna. Varje fel spåras till sin väg | `mesa-bygg-tung` | MES-266 på main |
+| A | MES-374 | G4: aktiva lekens bänk, ingen appkod | `mesa-matning` | **Done 2026-10-15** |
+| A | MES-375 | 2a: världens fingeravtryck ≤ 50 MB (helst ~25), mätt med `varlden.py` | `mesa-bygg` | **Done 2026-10-15** (E3, 31 MB) |
+| B | MES-235 | alla **5 säkra fel namn** i `--utan-leken` med den fasta listan (fall 03 ×2, 08, 14, 15; mätt 2026-10-16 på main 967b64c, domskälen i issuen), inte bara Thriving-tvillingarna. Varje fel spåras till sin väg | `mesa-bygg-tung` | nu (MES-266 är på main) |
 | C | MES-376 | 1b: den aktiva leken och trappans steg 2 | `mesa-bygg-tung` | MES-235, MES-266, MES-373 (med migrationen körd) och MES-374 klara |
 | D | MES-377 | 2b: världssteget i kamerakedjan, golden mot världen som acceptans | `mesa-bygg-tung` | MES-376 och MES-375 på main |
 | E | MES-378 | 3: Claude som lärare, kontrollen mot Scryfall-bilden, stoppade namn som förslag i Name this card | `mesa-bygg-tung` | MES-377 på main |

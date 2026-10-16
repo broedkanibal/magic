@@ -42,7 +42,7 @@ redan är klar.
 | B10 | krymp världen byggs inte | beslutat | – |
 | G1, G2 | världen, nya kort per parti | **mätt** (MES-361) | underlag för 2a/2b. G1 steg 2 (golden mot världen) = acceptansprov i 2b |
 | G3 | Claude som lärare | **mätt** (MES-364) | underlag för 3 |
-| G4 | hur snabbt den aktiva leken hittar rätt | **inte mätt** | bänken före 1b |
+| G4 | hur snabbt den aktiva leken hittar rätt | **mätt** (MES-374): 2 säkra kort räcker när leken är känd, regel m = 2 + släpp efter 4 kort utan träff | 1b |
 | T1 | världens fingeravtryck på telefonen | **byggt** (MES-375): E3, 31 MB, 24/37, 0 fel | 2b |
 | T2 | ORB mot Scryfall-bilder vid behov | gap | 2b |
 | T3 | minnet i datan | gap | 1a |
@@ -109,23 +109,23 @@ Rör läsningen (`Pool`, `kamValdLek`, `kamIdentifiera`). Krockar med 2b och 3.
 
 | Del | Innehåll |
 |---|---|
-| Fel namn utanför leken (MES-235) **först** | en inlärd lek saknar alltid kort. `--utan-leken` ger i dag **6 säkra fel namn** på main (fall 01, 03 ×2, 08, 14, 15; mätt 2026-10-05), bland dem Thriving Heath → Moor. Föreslagen spärr för tvillingarna: ett läst namn som skiljer sig från listans namn i ett **helt ord** är inte samma kort. De andra felen måste spåras till sin väg |
-| `--utan-leken` med en fast lista (MES-266) | grinden för en ofullständig lek måste mäta samma sak varje gång. MES-266 säger att den inte gör det i dag. Bestäm listan en gång och skriv den i `dev/golden/` |
+| Fel namn utanför leken (MES-235) **först** | en inlärd lek saknar alltid kort. `--utan-leken` med den fasta listan ger **5 säkra fel namn** på main 967b64c (fall 03 ×2, 08, 14, 15; mätt 2026-10-16, domskälen i MES-235), bland dem Thriving Heath → Moor. Föreslagen spärr för tvillingarna: ett läst namn som skiljer sig från listans namn i ett **helt ord** är inte samma kort. De andra felen måste spåras till sin väg |
+| `--utan-leken` med en fast lista (MES-266) | **klar 2026-10-15:** förvalet är tvillinglistan i `dev/golden/utan-leken.txt`, och rapporten skriver vilken lista som kördes |
 | Poolen ur en namnmängd | `byggLekPool` tar en lista med namn och tryckningar i stället för ett lek-id. Cachen i IndexedDB per kort, inte per lek, så att ett byte av aktiv lek inte bygger om allt |
 | Starten | den lek spelaren spelade senast (learned eller complete). Telefonen gör redan nästan så när ingen lek valts (`kamValdLek`) |
-| Bytet | efter 2–3 säkra kort: byt till korten ur de partier där just de korten fanns (samförekomst). Ett kort som syns och inte finns i den aktiva leken drar in sina grannar ur minnet |
+| Bytet | **regeln ur G4:** byt till en annan lek i minnet när den har minst 2 av de säkra korten och fler än den aktiva; vid lika behålls den aktiva, sedan den senast spelade; basland räknas inte. Släpp leken (ingen aktiv) när 4 säkra kort gett 0 träffar. Ingen viktning efter hur ovanligt ett kort är. Ett kort som syns och inte finns i den aktiva leken drar in sina grannar ur minnet |
 | Steg 2 i trappan | resten av spelarens minne, med **ORB som villkor** (G1: bildmodellen ensam gav upp till 16 säkra fel utanför leken). Bildmodellen får aldrig vara ensam vittne utanför den aktiva leken |
 | Claude | oförändrat i 1b: `kamera`-läget med den aktiva lekens namn |
 
-**Mätningen G4 först** (bänk, ingen appkod): simulera den aktiva leken med
-de 6 lekarna i `decks` och golden-leken. Hur många säkra kort behövs innan
-rätt lek väljs, och hur ofta väljs fel? Ett skript i `dev/`, Sonnet 5.5
-medium (`mesa-matning`).
+**Mätningen G4 är gjord** (MES-374, 2026-10-15, `dev/aktiv-lek.cjs`): rätt
+lek efter 2 säkra kort när leken är känd (0 % fel efter 3), median 3 / p90 5
+när bara 60 % är inlärd, 97 % rätt på 37 riktiga bord. En fel aktiv lek ger
+inga fel namn (steg 2 kräver ORB), bara fart. Underlaget är 6 lekar hos 3
+spelare; kör om när betan har fler. *Resultat G4* i `lekar-och-minnet.md`.
 
-**Klart när:** G4 visar att rätt lek väljs efter ≤ 3 säkra kort i de flesta
-dragningar. Golden en gång (alla fall): **0 fel namn**, rätt namn inte färre
-än baslinjen. `--utan-leken` med den fasta listan: 0 fel namn. Golden utan
-`--ai` håller (Claude är aldrig ett villkor).
+**Klart när:** golden en gång (alla fall): **0 fel namn**, rätt namn inte
+färre än baslinjen. `--utan-leken` med den fasta listan: 0 fel namn. Golden
+utan `--ai` håller (Claude är aldrig ett villkor).
 
 **Modell:** Fable 5.1, high (`mesa-bygg-tung`): spärren mot fel namn.
 
@@ -153,10 +153,14 @@ bänken.
 
 #### 2b · Världssteget i kamerakedjan (T2, T5)
 
-Rör läsningen. Efter 1b.
+Rör läsningen. Efter 1b. Världsfilen finns sedan 2026-10-15 (MES-375);
+byggbeskrivningen med länk, läsare och kraven för nedladdningen står i
+MES-377 (omskriven 2026-10-15).
 
 | Del | Innehåll |
 |---|---|
+| Världsfilen | E3: PCA 384 + int8, **31 MB över nätet, 41 MB uppackad**, ~33 200 namn, i bucketen `modeller` (hashen i filnamnet, en ny fil får nytt namn). Läsaren `dev/embed/varld.js` (`Varld.ladda`, `Varld.sok`), fristående, går i en worker. Bänk: 24 av 37 nya kort, 0 säkra fel. E1 (22 MB) är reserven om 41 MB är för tungt på telefonen |
+| Nedladdningen | **osynlig, i bakgrunden, en gång** (Jesper 2026-10-15): startas när Mirror startas, blockerar aldrig kameran, sparas i Cache Storage som bildmodellen (`hamtaModell`), be om `navigator.storage.persist()`. Inte klar när ett okänt kort dyker upp → världssteget hoppas över, ingen fråga. Spelaren ser ingenting; läget bara i `?debug` (`halsa.varld`: laddar / klar / fel / av). Den delen beror inte på 1b och kan byggas före |
 | Ordningen | steg 1 (aktiva leken) → steg 2 (minnet) → steg 3 (världen). Steg 3 körs bara för ett **nytt, helt kort som ligger still** (punkt 6 i riktningen). Remsor och delvis täckta kort söks inte i världen förrän remsdelen från 2a finns |
 | Sökningen | i en worker, så att spårningen inte hackar. Uppskattat 0,2–0,5 s på telefonen |
 | ORB vid behov | Scryfall-bilden (small) för de tre bästa namnen hämtas och ORB körs med appens egen kod. Cache per bild. G1: 50–86 ms på Macen, ~0,2–0,4 s på telefonen |
@@ -212,6 +216,7 @@ först.
 | I spelet | chippet "Pick a deck" och lekens knapp ändras enligt D1. Library i Mirror är den fysiska högen |
 | Telefonen | utan lekval: aktiva leken ur minnet (etapp 1). Tomt minne: världen och Claude direkt (etapp 2–3) |
 | Datorn | antalsreglerna (`lekAntal`) med en learned lek: mjukt stöd, inget tak |
+| Antalsfrågan "Another X?" | **tas bort i Mirror** (Jesper 2026-10-15). I dag frågar appen "Your deck has only N × X — one more?" när ett säkert namn skulle ge fler exemplar än leken har (`overTak` i `avstamBord`, knappen "Another X?" i `ofrMarkHtml`). Utan lekval finns inget tak, så frågan, dess post i granskningen (`overTak`, `tak`) och knappens text tas bort i Mirror, inte bara slutar slå till. Digital behåller den om den behövs där. Samma sak för `urGraven` (graveyard → bordet bara vid fullt antal): se MES-388 |
 | Efter partiet | "Mesa learned 34 cards — save as deck?" enligt D3. Leken sparas som `learned` |
 | Digital | kräver fortfarande en complete lek. Vägen dit: lekfotot, import eller inklistring (D4) |
 
