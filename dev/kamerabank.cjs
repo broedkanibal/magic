@@ -46,9 +46,24 @@ const ctx = {
 };
 ctx.isFinite = isFinite;
 vm.createContext(ctx);
-if (kvKod) vm.runInContext(kvKod + '\n;this.KortVinkel = KortVinkel;', ctx);
-vm.runInContext(kod + '\n;this.Kamera = Kamera;', ctx);
-const Kamera = ctx.Kamera;
+/* Globala namn (Math, Float32Array, KamDet …) slås upp genom vm-kontextens
+   globala objekt, och det uppslaget är ~10 gånger långsammare än en lokal
+   variabel (mätt 2026-10-16: Math.max/min/floor i en slinga 9,6 s mot 0,9 s).
+   mattmodell och detektera gör det per pixel, så banken gick mest åt till
+   uppslag. Modulen körs därför i en funktion som får varje globalt namn den
+   nämner som parameter, utvärderat i kontexten: samma objekt som förut, bara
+   bundet lokalt. Bänken byter aldrig ut ett sådant objekt, bara egenskaper
+   på det (performance.now, window.Detektor), och de syns som förut. __rit
+   byts ut (ctx.__rit = []) och binds därför aldrig; eval binds aldrig, så
+   att ett direkt eval vore detsamma. */
+function iKontext(modul, namn) {
+  const ord = new Set(modul.match(/[A-Za-z_$][\w$]*/g));
+  const glob = vm.runInContext('Object.getOwnPropertyNames(globalThis)', ctx)
+    .filter(n => ord.has(n) && /^[A-Za-z_$][\w$]*$/.test(n) && !['eval', 'arguments', 'undefined', '__rit'].includes(n));
+  return vm.runInContext(`(function (${glob.join(', ')}) {\n${modul}\n;return ${namn};\n}).call(this${glob.map(n => ', ' + n).join('')})`, ctx);
+}
+if (kvKod) ctx.KortVinkel = iKontext(kvKod, 'KortVinkel');
+const Kamera = ctx.Kamera = iKontext(kod, 'Kamera');
 // ── syntetiska bildrutor ─────────────────────────────────────────────
 function matta(W, H, niv, brus, slump) {
   const g = new Float32Array(W * H);
@@ -276,19 +291,34 @@ function foraldern() {
 }
 let s, r;   // scenernas senaste spår och summa — delas av delarna
 // Träets hjälpare (W) används också av R1–R4, N och skräp-delen, så de ligger före delarna.
+/* Träet utan brus beror bara på läget och ljuset, och de flesta rutor är
+   samma trä — så det räknas en gång per läge och sparas (talen exakt de
+   samma, i en Float64Array). Bruset dras som förut, ett slumptal per pixel
+   i samma ordning. Sinus och exp per pixel var 13 % av bankens tid. */
+const traUtanBrus = new Map();
 function tra(slump, o = {}) {
   const { dx = 0, dy = 0, gamma = 1, blank = true, bx = 150, by = 62, brus = 6 } = o;
+  const nyckel = `${dx},${dy},${gamma},${blank ? 1 : 0},${bx},${by}`;
+  let bas = traUtanBrus.get(nyckel);
+  if (!bas) {
+    bas = new Float64Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const X = x + dx, Y = y + dy;
+      const fas = Y + 3.5 * Math.sin(0.03 * X) + 1.5 * Math.sin(0.11 * X);
+      const adra = Math.pow(Math.max(0, Math.cos(fas * 2 * Math.PI / 7)), 8);
+      let v = 128 - 55 * adra + 8 * Math.sin(0.25 * X + 0.4 * Y) + 6 * Math.sin(1.3 * X);
+      for (const [kx, ky] of [[40, 110], [200, 30]]) { const d2 = ((X - kx) ** 2 + (Y - ky) ** 2) / (2 * 9 ** 2); v -= 45 * Math.exp(-d2) * (0.6 + 0.4 * Math.cos(0.9 * Math.hypot(X - kx, Y - ky))); }
+      if (blank) { const d2 = (X - bx) ** 2 / (2 * 22 ** 2) + (Y - by) ** 2 / (2 * 15 ** 2); v += 125 * Math.exp(-d2); }
+      bas[y * W + x] = 255 * Math.pow(Math.max(0, Math.min(255, v)) / 255, gamma);
+    }
+    if (traUtanBrus.size >= 64) traUtanBrus.clear();     // drift ger ett nytt läge per ruta
+    traUtanBrus.set(nyckel, bas);
+  }
   const g = new Float32Array(W * H);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const X = x + dx, Y = y + dy;
-    const fas = Y + 3.5 * Math.sin(0.03 * X) + 1.5 * Math.sin(0.11 * X);
-    const adra = Math.pow(Math.max(0, Math.cos(fas * 2 * Math.PI / 7)), 8);
-    let v = 128 - 55 * adra + 8 * Math.sin(0.25 * X + 0.4 * Y) + 6 * Math.sin(1.3 * X);
-    for (const [kx, ky] of [[40, 110], [200, 30]]) { const d2 = ((X - kx) ** 2 + (Y - ky) ** 2) / (2 * 9 ** 2); v -= 45 * Math.exp(-d2) * (0.6 + 0.4 * Math.cos(0.9 * Math.hypot(X - kx, Y - ky))); }
-    if (blank) { const d2 = (X - bx) ** 2 / (2 * 22 ** 2) + (Y - by) ** 2 / (2 * 15 ** 2); v += 125 * Math.exp(-d2); }
-    v = 255 * Math.pow(Math.max(0, Math.min(255, v)) / 255, gamma);
+  for (let i = 0; i < g.length; i++) {
+    let v = bas[i];
     v += (slump() * 2 - 1) * brus;
-    g[y * W + x] = Math.max(0, Math.min(255, v));
+    g[i] = Math.max(0, Math.min(255, v));
   }
   return g;
 }
