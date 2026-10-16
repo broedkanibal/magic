@@ -214,6 +214,21 @@ const PARTI = (gid, mig) => `
     const kh = (await db.query(`select typ, namn from public.kort_handelser where game_id = $1 and user_id = $2 order by id`, [G, A])).rows;
     ok('korthändelserna skrevs som förut, i samma ögonblick (namn, namnlos, namngiven, bytt)', ['namn', 'namnlos', 'namngiven', 'bytt'].every(t => kh.some(h => h.typ === t)), kh.map(h => h.typ + ':' + h.namn).join(', '));
 
+    /* Change card på mattan (MES-387, kortBytNamn → namnOvergang): korthändelsens bytt bär kamerans läsning som fran, men
+       minnet ska ersätta kortets FÖRRA namn. Serra Angel → Baneslayer Angel → Serra Avenger, och sedan tillbaka till
+       kamerans Serra Angel (som Undo: angrad, ingen bytt). */
+    const sa = await ev(`const k = () => minSpelare().cards.find(c => c.spar === 4), cid = k().cid;
+      kortBytNamn(cid, 'Baneslayer Angel', 'sid-bane'); kortBytNamn(cid, 'Serra Avenger', 'sid-av');
+      khSkicka(); await new Promise(r => setTimeout(r, 1500)); return k().name;`);
+    const m2 = await minne(A, `where game_id = '${G}'`), r2 = n => m2.find(x => x.namn === n);
+    ok('Change card två gånger: bara det sista namnet står kvar (Serra Avenger), Baneslayer Angel och Serra Angel borta',
+       sa === 'Serra Avenger' && r2('Serra Avenger') && r2('Serra Avenger').bekraftad && !r2('Baneslayer Angel') && !r2('Serra Angel'), sa + ' ' + m2.map(x => x.namn).join(','));
+    const sb = await ev(`const k = () => minSpelare().cards.find(c => c.spar === 4);
+      kortBytNamn(k().cid, 'Serra Angel', 'sid-serra'); khSkicka(); await new Promise(r => setTimeout(r, 1500)); return k().name;`);
+    const m3 = await minne(A, `where game_id = '${G}'`), r3 = n => m3.find(x => x.namn === n);
+    ok('Change card tillbaka till kamerans namn: Serra Angel tillbaka (spelarens, bekräftad), Serra Avenger borta',
+       sb === 'Serra Angel' && r3('Serra Angel') && r3('Serra Angel').bekraftad && !r3('Serra Avenger') && m3.length === 7, sb + ' ' + m3.map(x => x.namn).join(','));
+
     /* ══ 2. Create deck ══ */
     const cd = await ev(`$('#vyLeksida').hidden = false;
       leksida.fran = 'app'; leksida.valj = true;

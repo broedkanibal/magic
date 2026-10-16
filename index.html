@@ -15209,6 +15209,7 @@ function bytTillbaka(c) {
    inget loggas. logga false: ⌘Z, som loggar sitt eget angrad (cmdz) — bytt loggas ändå, så att journalen har
    påståendet om namnet kortet fick tillbaka. */
 function namnOvergang(c, fran, till, logga) {
+  if (fran !== till) minnetBytt(c.cid, till, fran);   // minnet (MES-373): kortets förra namn ersätts — inte kamerans läsning, som bytt bär
   const kl = c.kamLas;
   if (!kl || kl.namn == null || fran === till) return;
   bytTillbaka(c);
@@ -25448,7 +25449,7 @@ function applyPick(name, sid, cands) {
   if (t && t.kind === 'card' && cardById(t.id)) {
     const c = cardById(t.id);
     if (c.spar != null && c.name && c.name !== name) khLogga('bytt', c.cid, { namn: name, fran: c.name });   // spelupplevelsen: kamerans namn var fel
-    else if (c.name && c.name !== name) minnetBytt(c.cid, name, c.name);   // ett kort utan spår (lagt för hand): bara minnet, inte kort_handelser (MES-373)
+    if (c.name && c.name !== name) minnetBytt(c.cid, name, c.name);   // minnet (MES-373): kortets förra namn ersätts, också för ett kort utan spår
     if (c.spar != null && c.name && c.name !== name && typeof Rattelse !== 'undefined') Rattelse.fran('namnbyte', c, name);   // den tysta rättelsen (MES-366), före namnet byts
     Object.assign(c, { name, sid: sid || undefined, cands: list });
   } else if (t && t.kind === 'pend' && pendById(t.id)) {
@@ -34885,7 +34886,7 @@ function khJournalfor(typ, kort, f) {
 /* Journalens rader mellan fran och till (ms, datorns klocka), som kopior. */
 function khJournal(fran, till) { return ((KH.spel && KH.journal) || []).filter(r => r.t >= fran && r.t <= till).map(r => JSON.parse(JSON.stringify(r))); }
 const KH = { spel: null, ko: [], spar: new Map(), sedda: new Set(), timer: 0, journal: [], minne: [] };
-const MINNE_TYP = new Set(['namn', 'sent_namn', 'namngiven', 'tillagd', 'bytt']);   // korthändelserna som blir en rad i minnet (minnetNotera)
+const MINNE_TYP = new Set(['namn', 'sent_namn', 'namngiven', 'tillagd']);   // korthändelserna som blir en rad i minnet (minnetNotera); ett namnbyte går via minnetBytt
 function khSakra() {
   const id = spelLage ? spelLage.id : null;
   if (KH.spel === id) return !!id;
@@ -34934,8 +34935,9 @@ function minnetNotera(typ, kort, f) {
   if (typ === 'bytt' && f.fran && !(mig && mig.cards.some(k => k.cid !== cid && k.name === f.fran && !k.tok))) KH.minne.push({ glom: f.fran });
   KH.minne.push({ namn: f.namn, cid, kalla: spelaren ? 'spelaren' : f.kalla === 'claude' ? 'claude' : 'telefon', bekraftad: spelaren, t: Date.now() });
 }
-/* Change card på ett kort utan spår (lagt för hand): kort_handelser loggar bara rättelser av kamerans namn, men
-   minnet ska ändå bytas — samma vakter som khLoggaNu (ett spel, Mirror, inloggad). */
+/* Ett namnbyte på mitt kort (Change card i applyPick och namnOvergang: bytet, Undo, ⌘Z): fran är kortets förra namn,
+   till det nya. Inte via korthändelsens bytt, som bär kamerans läsning som fran och inte loggas alls för ett kort utan
+   spår eller ett kort spelaren själv namngav. Samma vakter som khLoggaNu (ett spel, Mirror, inloggad). */
 function minnetBytt(cid, namn, fran) {
   try { if (khSakra() && mittLage() === 'bord' && Moln.inloggad()) { minnetNotera('bytt', cid, { namn, fran }); if (!KH.timer) KH.timer = setTimeout(khSkicka, 5000); } }
   catch (e) { console.warn('Minnet', e); }
