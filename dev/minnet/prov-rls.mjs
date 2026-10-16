@@ -15,7 +15,7 @@
    Slutkod 0 = allt OK, 1 = något FEL, 2 = gick inte att köra. */
 import { byggDb, som, migrationSql } from './db.mjs';
 
-const A = '00000000-0000-4000-8000-00000000000a', B = '00000000-0000-4000-8000-00000000000b';
+const A = '00000000-0000-4000-8000-00000000000a', B = '00000000-0000-4000-8000-00000000000b', C = '00000000-0000-4000-8000-00000000000c';   // C lämnade partiet
 const G1 = '00000000-0000-4000-8000-0000000000a1';   // A (Mirror) och B (Digital)
 const G2 = '00000000-0000-4000-8000-0000000000b2';   // bara B
 const DA = '00000000-0000-4000-8000-0000000000da', DB = '00000000-0000-4000-8000-0000000000db';
@@ -25,7 +25,7 @@ const forsok = async fn => { try { return { ok: true, v: await fn() }; } catch (
 
 /* Gamla data, som de ligger i produktionen före migrationen. */
 async function gamla(db) {
-  await db.query(`insert into auth.users (id) values ($1), ($2)`, [A, B]);
+  await db.query(`insert into auth.users (id) values ($1), ($2), ($3)`, [A, B, C]);
   await db.query(`insert into public.games (id, kod, vard) values ($1, 'PROVA1', $3), ($2, 'PROVB2', $4)`, [G1, G2, A, B]);
   await db.query(`insert into public.game_players (game_id, user_id, namn, farg, plats, lage) values
     ($1, $2, 'A', '#f00', 1, 'bord'), ($1, $3, 'B', '#00f', 2, 'utan'), ($4, $3, 'B', '#00f', 1, 'bord')`, [G1, A, B, G2]);
@@ -39,6 +39,8 @@ async function gamla(db) {
   ];
   await db.query(`insert into public.boards (game_id, user_id, kort) values ($1, $2, $3), ($1, $4, $5), ($6, $4, $7)`,
     [G1, A, JSON.stringify(kortA), B, JSON.stringify([{ cid: 'b1', name: 'Counterspell' }, { cid: 'b2', name: 'Island' }]), G2, JSON.stringify([{ cid: 'b9', name: 'Brainstorm' }])]);
+  /* C lämnade partiet (gp_lamna tar bort game_players-raden), bordet står kvar. */
+  await db.query(`insert into public.boards (game_id, user_id, kort) values ($1, $2, $3)`, [G1, C, JSON.stringify([{ cid: 'c1', name: 'Dark Ritual' }])]);
   await db.query(`insert into public.hidden_cards (game_id, user_id, kort) values ($1, $2, $3)`, [G1, A, JSON.stringify({ a7: { name: 'Morphling', sid: 'sid-morph' } })]);
   await db.query(`insert into public.kort_handelser (game_id, user_id, kort, typ, namn) values ($1, $2, 'a6', 'namngiven', 'Serra Angel'), ($1, $2, 'a1', 'namn', 'Llanowar Elves')`, [G1, A]);
   await db.query(`insert into public.decks (id, user_id, namn, kort) values ($1, $2, 'Elves', $3), ($4, $5, 'Blue', $6)`,
@@ -63,6 +65,8 @@ ok('bakåt: det nedvända kortet får sitt namn ur hidden_cards, token räknas i
 ok('bakåt: A:s parti har exakt fem namn (Elves, Forest, Morphling, Serra Angel, Shock)', fA.filter(r => r.game_id === G1).length === 5, fA.filter(r => r.game_id === G1).map(r => r.namn).join(','));
 const cs = hitta(fB, G1, 'Counterspell');
 ok('bakåt: B spelade Digital table i partiet — allt lagt för hand är spelarens och bekräftat', cs && cs.kalla === 'spelaren' && cs.bekraftad && hitta(fB, G1, 'Island').antal === null, JSON.stringify(fB));
+const fC = await allaAv(db, C), dr = hitta(fC, G1, 'Dark Ritual');
+ok('bakåt: en spelare som lämnat partiet (ingen game_players-rad) fylls också — telefon, obekräftad', dr && dr.kalla === 'telefon' && dr.bekraftad === false, JSON.stringify(fC));
 ok('bakåt: B:s andra parti (Mirror) står för sig', hitta(fB, G2, 'Brainstorm') && hitta(fB, G2, 'Brainstorm').kalla === 'telefon');
 const dl = fA.filter(r => r.deck_id === DA);
 ok('bakåt: A:s lek som inläst och bekräftad — antalet ur n, sideboarden med, platshållarna inte', dl.length === 4 && dl.every(r => r.kalla === 'inlast' && r.bekraftad && r.game_id === null)

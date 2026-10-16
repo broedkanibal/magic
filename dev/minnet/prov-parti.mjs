@@ -193,6 +193,15 @@ const PARTI = (gid, mig) => `
       SW.target = null;
       return minSpelare().cards.map(c => c.name).sort().join(',');`);
     ok('parti: Change card byter Shock och en Llanowar Elves', byt === 'Elvish Mystic,Forest,Giant Growth,Lightning Bolt,Llanowar Elves,Serra Angel', byt);
+    /* Ett kort lagt för hand ("Fogg", tillagd) som spelaren byter till Fog: utan spår loggas ingen bytt i kort_handelser,
+       men minnet ska bytas ändå. */
+    const hand = await ev(`const mig = minSpelare();
+      mig.cards.push({ cid: 'hand-prov-1', name: 'Fogg', flipped: 0, tapped: 0 });
+      khLogga('tillagd', 'hand-prov-1', { namn: 'Fogg' });
+      khSkicka(); await new Promise(r => setTimeout(r, 600));
+      SW.target = { kind: 'card', id: 'hand-prov-1' }; applyPick('Fog', 'sid-fog'); SW.target = null;
+      return mig.cards.filter(c => c.name === 'Fog').length;`);
+    ok('parti: ett kort lagt för hand byter namn (Fogg → Fog)', hand === 1, String(hand));
     await ev(`khSkicka(); await new Promise(r => setTimeout(r, 1500)); return true;`);
     const m = await minne(A, `where game_id = '${G}'`), r = n => m.find(x => x.namn === n);
     ok('minnet: Llanowar Elves från telefonen, säkert men obekräftat, antal 2 (två låg samtidigt), finns kvar efter bytet av den ena', r('Llanowar Elves') && r('Llanowar Elves').kalla === 'telefon' && !r('Llanowar Elves').bekraftad && r('Llanowar Elves').antal === 2, JSON.stringify(r('Llanowar Elves')));
@@ -200,7 +209,8 @@ const PARTI = (gid, mig) => `
     ok('minnet: Serra Angel från telefonen', r('Serra Angel') && r('Serra Angel').kalla === 'telefon' && r('Serra Angel').antal === 1, JSON.stringify(r('Serra Angel')));
     ok('minnet: Name this card → Giant Growth, spelarens, bekräftat, med tryckningen', r('Giant Growth') && r('Giant Growth').kalla === 'spelaren' && r('Giant Growth').bekraftad && r('Giant Growth').sid === 'sid-gg', JSON.stringify(r('Giant Growth')));
     ok('minnet: Change card → Lightning Bolt och Elvish Mystic, spelarens, bekräftade', r('Lightning Bolt') && r('Lightning Bolt').bekraftad && r('Lightning Bolt').sid === 'sid-bolt' && r('Elvish Mystic') && r('Elvish Mystic').kalla === 'spelaren', JSON.stringify([r('Lightning Bolt'), r('Elvish Mystic')]));
-    ok('minnet: rättelsen ersatte Shock (borta), och partiet har exakt sex namn — inget osäkert eller namnlöst', !r('Shock') && m.length === 6, m.map(x => x.namn).join(','));
+    ok('minnet: rättelsen ersatte Shock (borta) — inget osäkert eller namnlöst', !r('Shock') && m.length === 7, m.map(x => x.namn).join(','));
+    ok('minnet: ett handlagt kort som byter namn ersätter sin rad (Fog bekräftad, Fogg borta)', r('Fog') && r('Fog').bekraftad && r('Fog').sid === 'sid-fog' && !r('Fogg'), m.map(x => x.namn).join(','));
     const kh = (await db.query(`select typ, namn from public.kort_handelser where game_id = $1 and user_id = $2 order by id`, [G, A])).rows;
     ok('korthändelserna skrevs som förut, i samma ögonblick (namn, namnlos, namngiven, bytt)', ['namn', 'namnlos', 'namngiven', 'bytt'].every(t => kh.some(h => h.typ === t)), kh.map(h => h.typ + ':' + h.namn).join(', '));
 
@@ -221,10 +231,14 @@ const PARTI = (gid, mig) => `
     /* ══ 3. Spelare B läser minnet genom appen ══ */
     await ladda(B);
     const lb = await ev(`return await Moln.minnet();`);
-    ok('RLS i appen: B (samma parti) läser bara sin egen rad, inget av A:s', Array.isArray(lb) && lb.length === 1 && lb[0].namn === 'Counterspell', JSON.stringify(lb));
+    ok('appen: B (samma parti) läser sitt minne genom Moln.minnet', Array.isArray(lb) && lb.length === 1 && lb[0].namn === 'Counterspell', JSON.stringify(lb));
+    /* Moln.minnet filtrerar själv på user_id. Utan filter, som B:s klient kan fråga från konsolen: bara RLS står emellan. */
+    const ofilt = await ev(`const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+      const { data, error } = await createClient().from('spelarens_kort').select('user_id, namn'); return error ? { fel: error.message } : data;`);
+    ok('RLS: B frågar utan filter och får bara sin egen rad — inget av A:s', Array.isArray(ofilt) && ofilt.length === 1 && ofilt[0].user_id === B, JSON.stringify(ofilt));
     await ladda(A);
     const la = await ev(`return await Moln.minnet();`);
-    ok('RLS i appen: A läser hela sitt minne (sex namn i partiet, tre ur leken)', Array.isArray(la) && la.length === 9 && !la.some(x => x.namn === 'Counterspell'), JSON.stringify(la && la.map(x => x.namn)));
+    ok('appen: A läser hela sitt minne (sju namn i partiet, tre ur leken)', Array.isArray(la) && la.length === 10 && !la.some(x => x.namn === 'Counterspell'), JSON.stringify(la && la.map(x => x.namn)));
 
     /* ══ 4. Utan migrationen ══ */
     await db.close(); db = await nyDb(true);

@@ -159,7 +159,7 @@ with bordets as (
 insert into public.spelarens_kort (user_id, namn, sid, game_id, kalla, bekraftad, antal, sedd)
 select p.user_id, p.namn, p.sid, p.game_id,
        case when gp.lage = 'utan' or sp.namn is not null then 'spelaren' else 'telefon' end,
-       gp.lage = 'utan' or sp.namn is not null,
+       coalesce(gp.lage = 'utan', false) or sp.namn is not null,   -- ingen game_players-rad: spelaren lämnade partiet (gp_lamna), bordet står kvar
        least(p.antal, 32767), p.sedd
   from per_namn p
   left join public.game_players gp on gp.game_id = p.game_id and gp.user_id = p.user_id

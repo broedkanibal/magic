@@ -25448,6 +25448,7 @@ function applyPick(name, sid, cands) {
   if (t && t.kind === 'card' && cardById(t.id)) {
     const c = cardById(t.id);
     if (c.spar != null && c.name && c.name !== name) khLogga('bytt', c.cid, { namn: name, fran: c.name });   // spelupplevelsen: kamerans namn var fel
+    else if (c.name && c.name !== name) minnetBytt(c.cid, name, c.name);   // ett kort utan spår (lagt för hand): bara minnet, inte kort_handelser (MES-373)
     if (c.spar != null && c.name && c.name !== name && typeof Rattelse !== 'undefined') Rattelse.fran('namnbyte', c, name);   // den tysta rättelsen (MES-366), före namnet byts
     Object.assign(c, { name, sid: sid || undefined, cands: list });
   } else if (t && t.kind === 'pend' && pendById(t.id)) {
@@ -34903,8 +34904,8 @@ function khLoggaNu(typ, kort, f) {
     KH.sedda.add(sig);
     LS.set(K_KH + KH.spel, [...KH.sedda].slice(-3000));
   }
-  if (MINNE_TYP.has(typ)) minnetNotera(typ, kort, f || {});
   KH.ko.push(Object.assign({ game_id: KH.spel, kort: k, typ, lage: mittLage(), tid: new Date().toISOString() }, f || {}));
+  if (MINNE_TYP.has(typ)) { try { minnetNotera(typ, kort, f || {}); } catch (e) { console.warn('Minnet', e); } }   // efter push: ett fel här tappar aldrig korthändelsen
   const g = f || {};
   Mix.track(KH_MIX[typ], { card: k, card_name: g.namn, previous_name: g.fran, source: g.kalla === 'claude' ? 'claude' : g.kalla ? 'phone' : null, ms: g.ms, mode: 'mirror' });
   if (!KH.timer) KH.timer = setTimeout(khSkicka, 5000);
@@ -34933,6 +34934,12 @@ function minnetNotera(typ, kort, f) {
   if (typ === 'bytt' && f.fran && !(mig && mig.cards.some(k => k.cid !== cid && k.name === f.fran && !k.tok))) KH.minne.push({ glom: f.fran });
   KH.minne.push({ namn: f.namn, cid, kalla: spelaren ? 'spelaren' : f.kalla === 'claude' ? 'claude' : 'telefon', bekraftad: spelaren, t: Date.now() });
 }
+/* Change card på ett kort utan spår (lagt för hand): kort_handelser loggar bara rättelser av kamerans namn, men
+   minnet ska ändå bytas — samma vakter som khLoggaNu (ett spel, Mirror, inloggad). */
+function minnetBytt(cid, namn, fran) {
+  try { if (khSakra() && mittLage() === 'bord' && Moln.inloggad()) { minnetNotera('bytt', cid, { namn, fran }); if (!KH.timer) KH.timer = setTimeout(khSkicka, 5000); } }
+  catch (e) { console.warn('Minnet', e); }
+}
 function minnetSkicka() {
   const poster = KH.minne.splice(0), spel = KH.spel;
   if (!poster.length || !spel) return;
@@ -34946,10 +34953,11 @@ function minnetSkicka() {
     const g = rader.get(p.namn);   // samma namn två gånger i kön: en rad (en upsert får inte röra samma rad två gånger)
     rader.set(p.namn, !g ? r : Object.assign(r, { antal: Math.max(g.antal, r.antal), sid: r.sid || g.sid, bekraftad: g.bekraftad || r.bekraftad, kalla: g.bekraftad && !r.bekraftad ? g.kalla : r.kalla }));
   }
-  (async () => {
+  /* En kö i taget: en borttagning (bytt) får aldrig gå före förra köns skrivning av samma namn. */
+  KH.minneSkickas = (KH.minneSkickas || Promise.resolve()).then(async () => {
     for (const n of glom) await Moln.minnetGlom(spel, n);
     await Moln.minnetSett([...rader.values()]);
-  })().catch(() => {});
+  }).catch(() => {});
 }
 /* En inläst lek (Create deck på datorn): hela leken blir bekräftade rader i minnet på en gång (kalla inlast),
    sideboarden också. Lekfotots platshållare (okand) är inga kort. */
