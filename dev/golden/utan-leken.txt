@@ -1,0 +1,23 @@
+# Tvillinglistan: förvalet för `kor.cjs --utan-leken` (MES-266, 2026-10-15).
+# Namnen tas bort ur golden-leken medan korten ligger kvar på borden. Modellen
+# svarar alltid med något av lekens namn, så varje säkert namn på ett sådant kort
+# är ett fel namn — det är ORB-kontrollen som ska stoppa dem.
+# Tvillingprincipen: varje borttaget kort har sin tvilling KVAR i leken, så att
+# provet sätter kontrollen på prov. Listan med tolv namn härleddes av MES-259-
+# agenten (kommentaren i MES-266, 2026-09-20). Namn som inte liknar något annat
+# i leken skulle ge "0 fel" utan att pröva något.
+# Listan ska växa: hittas ett nytt fel namn i något prov läggs paret hit.
+# Skälen utom de två med mätt historik är MES-259-agentens likhetsbedömning (typ, ram, palett), inte själva mätta.
+# Format: Borttaget | Tvilling som står kvar | Varför den är med
+Faithful Pikemaster | Fencing Ace | Gav säkert fel namn tidigare (19 inliers, marginal 0,006): paret som gjort provet meningsfullt
+Maul of the Skyclaves | Ancestral Blade | Gav säkert fel namn tidigare; båda är utrustningar
+Thriving Heath | Thriving Moor | Samma kort i en annan färg: samma layout och regeltext, bara landet skiljer
+Valkyrie's Sword | Gorgon Flail | Båda är utrustningar
+Mirran Bardiche | Ancestral Blade | Båda är utrustningar; samma tvilling som Maul, så två borttagna delar en
+Killing Glare | Coat with Venom | Båda är svarta instants; delar tvilling med Vraska's Finisher
+Serpent Assassin | Venomous Hierophant | Båda är ormkort
+Vraska's Finisher | Coat with Venom | Delar tvilling med Killing Glare (svart, Vraska-motiv)
+Scourge of the Undercity | Aphelia, Viper Whisperer | Svarta kreatur; tvillingen är en legendarisk orm
+Resistance Reunited | Danitha Capashen, Paragon | Vita kort med liknande ram och ljus palett
+Trusty Retriever | Flutterfox | Små vita kreatur
+Pharika's Chosen | Ukud Cobra | Båda är ormar

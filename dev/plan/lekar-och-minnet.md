@@ -685,3 +685,68 @@ node dev/remsa/varldsfil-ladda-upp.cjs dev/material/arbete/2026-10-15-mes-375-va
 
 Filen hamnar på
 `https://rtoejcafnssypnysjmey.supabase.co/storage/v1/object/public/modeller/varld-mobileclip-s0-v1-E3-792fefcb.bin.gz`.
+
+## Resultat G4 (MES-374, 2026-10-15)
+
+Hur snabbt hittar den aktiva leken rätt lek? Skript: `dev/aktiv-lek.cjs` (läser
+kortnamn ur Supabase `decks` och `boards`, som hämtats separat och ligger utanför
+git; seed fast, kör om med `--data <mapp>`). Inget i appen är ändrat.
+
+### Svaret först
+
+| Fråga | Svar |
+|---|---|
+| Räcker 2–3 säkra kort? | **Ja, om Mesa känner leken.** Med regeln nedan väljs rätt lek efter **2 kort** (p90 2) när alla kort i leken är kända, och efter **0 kort** när spelaren startar i rätt lek. Är bara 60 % av leken inlärd: median 3, p90 5 kort. |
+| Hur ofta fel lek efter 3 kort? | **0 %** med full lek, **33 %** med 60 % inlärd lek (fel betyder oftast "ingen lek vald än", inte en fel lek). På 37 riktiga bord ur `boards`: **97 % rätt, 3 % fel** efter 3 kort. |
+| Helt ny lek? | Regeln låser inte fast: en fel startlek släpps efter 4–5 kort utan träff (14 % kvar låsta efter 5, mot 100 % utan släpp). Undantag: en ny lek som delar kort med en gammal (fyra gemensamma kort i spelarens två Lorehold/Prismari-lekar) hamnar hos den gamla i 63 % av partierna. Det är rimligt, inte ett fel. |
+| Förslag till MES-376 | **Starta i senaste leken. Byt när en annan lek har minst 2 av de säkra korten och fler än den aktiva. Släpp den aktiva leken (ingen vald) om 4 säkra kort ger 0 träffar.** Ingen viktning efter hur ovanligt ett kort är. |
+
+### Underlag
+
+| Del | Innehåll |
+|---|---|
+| Lekar | 6 sparade lekar hos 3 spelare (ca 20–30 olika kort utan basland). Spelare med flera lekar: 3 (7edf) och 2 (e188) |
+| Bord | 37 av 120 `boards`-rader har minst 2 icke-basland. Fyra är en lek som inte är sparad (t.ex. Dark Bargain, Moan of the Unhallowed), två har två lekar lika bra |
+| Dragning | kort ur leken ett i taget, slumpad ordning, basland räknas inte, 400 dragningar per lek och variant |
+| Minne | 100 % (hela leken inlärd) och 60 % (en inlärd lek saknar kort, det som MES-371 ska klara) |
+| Start | rätt lek senast, fel lek senast (annan lek hos samma spelare), ingen |
+
+### Regeln och varianterna
+
+Poängen för en lek är hur många av de sedda korten som finns i just den leken.
+Bytet kräver minst `m` träffar och fler än den aktiva leken. Vid lika behålls den
+aktiva leken, sedan den senast spelade.
+
+| Regel | Median / p90 kort till rätt (full lek, start fel) | Fel efter 3 kort (60 % lek, start fel) | Riktiga bord: fel efter 3 / ingen val |
+|---|---|---|---|
+| m = 1 | 1 / 1 | 7 % | 7 % / 0 % |
+| **m = 2** | **2 / 2** | **33 %** | **3 % / 0 %** |
+| m = 3 | 3 / 3 | 80 % | 3 % / 14 % |
+| m = 2, viktat efter hur få lekar kortet finns i | 2 / 3 | 37 % | 0 % / 10 % |
+
+| Observation | Slutsats |
+|---|---|
+| m = 1 är snabbast men fastnar på delade kort: Shock, Ancestral Blade, Practical Research, Prismari Pledgemage och Relic Sloth finns i 2–3 lekar. 7 % fel på riktiga bord | ett kort räcker inte |
+| m = 3 är för långsamt: med 60 % inlärd lek är 80 % fel efter 3 kort och 14 % av riktiga bord får ingen lek | tre kort är för mycket |
+| Viktningen hjälper inte: den tar bort felen på riktiga bord men lägger 10 % på "ingen lek vald", och på 60 % lek blir det inte bättre | låt bli, det är mer kod utan vinst |
+| Släpp-regeln (0 träffar efter 4 kort) kostar nästan inget för rätt lek: 0 % fel efter 3, 2 % efter 5 vid 60 % lek | håll den |
+| Släpp efter 6 kort räcker inte: en fel lek ligger kvar 100 % efter 5 kort | 4 kort |
+
+### Vad fel lek kostar
+
+En fel aktiv lek ger inga fel namn: korten utanför listan går till nästa steg i
+trappan, där ORB är villkor (G1, 1b). Det kostar fart (ett kort som är i den
+rätta leken läses som "okänt" tills leken bytts), inte rätt. Därför är det
+billigare att byta för tidigt än för sent, men m = 1 byter för ofta på delade kort.
+
+### Gränser
+
+| Gräns | Vad det betyder |
+|---|---|
+| Sex lekar hos tre spelare är lite | tvillingar som Thriving Heath/Moor och basland delas av många lekar; med 20 lekar per spelare blir delade kort fler. Kör om med fler lekar när betan har dem |
+| Lekarna är kompletta i datan | "60 %" slumpar bort kort; riktigt inlärda lekar saknar de kort som aldrig syntes, inte slumpmässiga |
+| Korten kommer slumpat | i ett riktigt parti kommer korten i den ordning de spelas, inte slumpat (billiga kort och land först) |
+| Bord är sista läget, inte ordningen kort lades | rätt@3 på bord använder slumpad ordning av bordets kort |
+| Kortnamnen är läst säkra | kameran läser ibland fel; ett fel namn utanför alla lekar räknas som ett kort utan träff |
+
+Rådata (lekar, bord) ligger utanför git; i filen här finns bara aggregat.

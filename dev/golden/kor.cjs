@@ -59,7 +59,11 @@ const LJUS = arg('--ljus', '');
    serveras de av attrappen; annars hämtas de en gång och ligger kvar i
    profilens cache. */
 const UTAN_MODELL = process.argv.includes('--utan-modell'), WASM = process.argv.includes('--wasm');
-const UTAN_LEKEN = arg('--utan-leken', '');
+/* --utan-leken utan namn kör tvillinglistan (MES-266): dev/golden/utan-leken.txt, en rad per namn med tvillingen som står kvar och varför. Egna listor ("Namn1,Namn2") är för utforskning; gränsen (0 fel namn) mäts mot förvalet. */
+const TVILLINGLISTA_FIL = path.join(__dirname, 'utan-leken.txt');
+const tvillingNamn = () => fs.readFileSync(TVILLINGLISTA_FIL, 'utf8').split('\n').filter(l => l.trim() && !l.startsWith('#')).map(l => l.split('|')[0].trim());
+const UTAN_LEKEN = (() => { const i = process.argv.indexOf('--utan-leken'); if (i < 0) return ''; const v = process.argv[i + 1]; return v && !v.startsWith('--') ? v : tvillingNamn().join(','); })();
+const UTAN_LEKEN_LISTA = !UTAN_LEKEN ? '' : (UTAN_LEKEN === tvillingNamn().join(',') ? `tvillinglistan (förval, dev/golden/utan-leken.txt, ${tvillingNamn().length} namn)` : `egen lista (${UTAN_LEKEN.split(',').length} namn, inte förvalet — bara utforskning)`);
 /* --lek-som-den-ar: baslandens antal i golden-leken ur lek.txt som de står, utan lyftet kor.html gör till förval (max(lek.txt, det största antalet av baslandet i något enskilt fall)). Bara för prov: baslinjen mäts alltid med lyftet, och raden "Leken:" under "Poolen:" säger vilka antal kameran fick. */
 const LEK_SOM_DEN_AR = process.argv.includes('--lek-som-den-ar');
 if (LEK_SOM_DEN_AR && SPARA) { console.error('--lek-som-den-ar med --spara vägras: baslinjen mäter fallen med baslanden lyfta till det största ett fall visar.'); process.exit(2); }
@@ -335,7 +339,10 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     delar.push(s);
   }
   await kor(`delete window.__kor_ut; 'ok'`);
-  const json = '[\n' + delar.join(',\n') + '\n]\n';
+  let json = '[\n' + delar.join(',\n') + '\n]\n';
+  /* MES-266: vilken lista som kördes följer med varje rad (--ut, senaste.json), så att en rad aldrig kan läsas som en annan lista. */
+  if (UTAN_LEKEN) json = '[\n' + JSON.parse(json).map(r => JSON.stringify({ ...r, utanLeken: { lista: UTAN_LEKEN_LISTA, namn: UTAN_LEKEN.split(',').map(x => x.trim()) } })).join(',\n') + '\n]\n';
+  if (UTAN_LEKEN) console.log(`  --utan-leken: ${UTAN_LEKEN_LISTA}: ${UTAN_LEKEN.split(',').map(x => x.trim()).join(', ')}`);
   console.log('');
   skrivTabell(JSON.parse(json), gamla);
   /* K7: referenserna — hur många poolen bar per fall (--ref) och hur många varje fall lärde (--lar-ref). */
@@ -535,6 +542,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   if (ljus) { sammanstallning.push({ ljus, rs, samre: samre.slice(), battre: battre.slice() }); if (varianter.length > 1 || SPARA) { if (SPARA) console.log('\n(--spara gäller inte med --ljus: baslinjen mäter fotona som de är)'); continue; } }
   if (aiFel.n) console.log(`\nVARNING: ${aiFel.n} anrop till Claude misslyckades — resultatet ovan är i praktiken den lokala kedjan. Första felet: ${aiFel.forsta}`);
   if (SPARA && aiFel.n) { console.log(`\n--spara vägrat: ${BASFIL} skrivs inte när anrop till Claude misslyckats.`); process.exitCode = 1; }
+  else if (SPARA && UTAN_LEKEN) console.log(`\n--spara vägrat: --utan-leken tar bort namn ur leken, och ${BASFIL} mäter fallen med hela leken. Skriv resultatet med --ut <fil>.`);
   else if (SPARA && FACIT_ERS) console.log(`\n--spara vägrat: --facit dömer mot ett annat facit, och ${BASFIL} mäter fallens egna.`);
   else if (SPARA && !REFFLAG) {
     let rader = JSON.parse(json); for (const r of rader) delete r.rutLogg;

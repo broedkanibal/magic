@@ -11359,9 +11359,11 @@ let gravSkapasNar = 0;       // Yes: när graveyard skapades — högen tonas fr
 function gravFragaNu(p) {
   /* Frågan står kvar tills man svarar, också medan kameran är tappad (bordet står fruset) — förut försvann
      den med anslutningen (granskningen av sida 5, 2026-10-05). Nya frågor ställs bara med kameran (gravFlodeAktivt). */
+  /* Med en graveyard-ruta är det frågan om en flyttad hög (MES-388, gravFlyttFraga), annars graveyard ur spelet. */
   const mig = minSpelare();
-  if (!p || !arMitt(p) || !mig || !speglatBord(mig) || kamGravRad || oppOppen) return null;
-  const q = gravLageNu().fraga; if (!q) return null;
+  if (!p || !arMitt(p) || !mig || !speglatBord(mig) || oppOppen) return null;
+  const q = kamGravRad ? (gravFlyttFraga && { id: gravFlyttFraga.id, cids: [gravFlyttFraga.cid], kam: gravFlyttFraga.kam, flytt: true }) : gravLageNu().fraga;
+  if (!q) return null;
   const kort = q.cids.map(cid => p.cards.find(c => c.cid === cid)).filter(c => c && paMattan(c) && c.x != null && c.y != null);
   return kort.length ? { q, kort } : null;
 }
@@ -11416,6 +11418,9 @@ function gravRutaUrKam(k, asp) {
 }
 function gravSvar(svar) {
   const mig = minSpelare(), L = gravLageNu(), q = L.fraga;
+  /* Med en graveyard-ruta är det frågan om en flyttad hög (MES-388): No är direkt "spelat ur högen" — kortet ligger
+     kvar, ingen meny. Graveyard ur spelets fråga ritas inte då (gravFragaNu), så ett klick går aldrig dit. */
+  if (kamGravRad) { if (mig && gravFlyttFraga && redigerbar() && gravFlyttSvar(mig, svar === 'ja' ? 'ja' : 'nej', Date.now())) { save(); renderAll(true); } else renderGrid(true); return; }
   if (!mig || !q || !redigerbar()) return;
   if (svar === 'nej') { gravMenyOppen = true; renderGrid(true); return; }
   const kort = q.cids.map(cid => mig.cards.find(c => c.cid === cid)).filter(c => c && paMattan(c));
@@ -33667,51 +33672,72 @@ function handRadTillbaka(mig, h, val, nu) {
   h.val = val; h.nar = nu;
   return true;
 }
-/* Graveyard följer med (Jesper 2026-10-06, principen "högarna är saker"): spelaren lyfter graveyard-högen och
-   lägger den någon annanstans. Telefonen säger att rutan blivit tom (grav.tom); ett nytt spår som lägger sig
-   inom GRAV_FOLJ_MS med namnet på något av högens två översta kort är högen. Rutan flyttas dit (sparaGravZon:
-   telefonens kal.grav, och gravPlacera på mattan, där högen glider), och spåret blir inget kort i spel — inte
-   heller i de meddelanden som kommer innan telefonen fått den nya rutan (gravFoljdaSpar). Läggs högen tillbaka
-   på samma plats är rutan inte tom längre, och inget händer. Utanför appen (dev/avstamning.cjs): av. */
-const GRAV_FOLJ_MS = 60000;   // så länge efter lyftet en hög som läggs ner kan vara den — spelaren kan leta i graveyard en stund
+/* Fönstret medan graveyard-högen är lyft (MES-388, Jesper 2026-10-15): från telefonens "tom" (grav.tom, gravTomNar)
+   tills högen syns igen i sin ruta tas varje nytt kort på bordet ur appens graveyard om namnet finns där (urGraven i
+   avstamBord), också basland, med och utan lek. Ingen klocka öppnar eller stänger det.
+   Appen gissar inte om högen flyttats (Jespers beslut 2026-10-15; förut flyttade gravFoljer graveyard till varje nytt
+   kort med det översta kortets namn, så att spela det översta kortet ur en lyft hög flyttade hela högen). Hamnar det
+   översta kortet på bordet frågar appen i stället "Is this your graveyard?" ovanför det (gravFlyttFraga, ritad av
+   gravPoster). Yes: kortet går tillbaka överst i högen som det låg (gravFonsterTagna), rutan flyttas dit
+   (sparaGravZon: telefonens kal.grav, och gravPlacera på mattan, där högen glider), och fönstret stängs. No, eller
+   inget svar: kortet ligger kvar på bordet — det spelades ur högen. Ingen regel kräver Claude, ingen telefonkod.
+   Efter Yes blir högens spår inget kort i spel i de meddelanden som kommer innan telefonen fått den nya rutan
+   (gravFoljdaSpar), och telefonens "tom" (den gamla rutan) öppnar inget nytt fönster förrän högen setts i en ruta
+   (gravTomSparr). */
 const GRAV_LYFT_MARG = 1500;  // telefonen säger "tom" först efter en sekunds tomhet (GRAV_TOM_MS): lyftet var så mycket tidigare
 let gravTomNar = 0, gravTomSparr = false, gravFoljdaSpar = new Map();   // gravTomSparr: högen har flyttats; "tom" räknas först när telefonen sagt "inte tom" igen (den nya rutan)   // spår-id → senast sett: högens spår, tills telefonen slutat rapportera det (10 s osett)
-function gravFoljer(spar, nu, mig) {
-  if (gravFoljdaSpar.size) {
-    for (const t of spar) if (gravFoljdaSpar.has(t.id)) gravFoljdaSpar.set(t.id, nu);
-    for (const [id, sett] of gravFoljdaSpar) if (nu - sett > 10000) gravFoljdaSpar.delete(id);
-    spar = spar.filter(t => !gravFoljdaSpar.has(t.id));
+let gravFonsterTagna = [];   // korten fönstret tagit ur högen medan den är lyft: { cid, fore (kortet som det låg i högen), topp (överst, i en hög med minst två) }
+let gravFlyttFraga = null, gravFlyttNej = new Set();   // frågan om en flyttad hög: { id, cid, kam } | null; kort som fått No i det här fönstret
+function gravFonsterStang() { gravFonsterTagna = []; gravFlyttFraga = null; gravFlyttNej = new Set(); }
+/* Spåren utan högen som följts (Yes), tills telefonen slutat rapportera dem. */
+function gravFoljer(spar, nu) {
+  if (!gravFoljdaSpar.size) return spar;
+  for (const t of spar) if (gravFoljdaSpar.has(t.id)) gravFoljdaSpar.set(t.id, nu);
+  for (const [id, sett] of gravFoljdaSpar) if (nu - sett > 10000) gravFoljdaSpar.delete(id);
+  return spar.filter(t => !gravFoljdaSpar.has(t.id));
+}
+/* Ett steg per bord, sist i avstamBord: frågan om en flyttad hög ställs, byts eller tas bort. true = ändrat.
+   Frågan gäller det senaste kortet fönstret tog från toppen av en hög med minst två kort (att ta kortet ur en
+   graveyard med ett kort — unearth, återupplivning, MES-248 — är aldrig en flyttad hög), som ligger på mattan på ett
+   spår som läst klart och ligger still. Bara med en graveyard-ruta: utan den finns ingen hög att flytta. fore är
+   frågan före meddelandet (gravTaEmot kan ha stängt fönstret och tagit bort den). */
+function gravFlyttSteg(spar, mig, fore) {
+  const pa = c => !!c && paBordetZon(c) && c.spar != null;
+  if (gravFlyttFraga && !pa(mig.cards.find(c => c.cid === gravFlyttFraga.cid))) gravFlyttFraga = null;   // kortet lyftes eller flyttades för hand
+  if (gravTomNar && typeof kamGravRad !== 'undefined' && kamGravRad) {
+    for (let i = gravFonsterTagna.length - 1; i >= 0; i--) {
+      const r = gravFonsterTagna[i], c = mig.cards.find(x => x.cid === r.cid);
+      if (!r.topp || !pa(c) || gravFlyttNej.has(r.cid)) continue;
+      const t = spar.find(q => q.id === c.spar);
+      if (!t || t.tillstand !== 'klar' || t.w == null || t.vilar === false || franHelbild(t)) continue;
+      if (!gravFlyttFraga || gravFlyttFraga.cid !== r.cid) gravFlyttFraga = { id: r.cid + ':' + t.id, cid: r.cid, kam: { x: t.x + t.w / 2, y: t.y + t.h / 2, w: t.w, h: t.h } };
+      else gravFlyttFraga.kam = { x: t.x + t.w / 2, y: t.y + t.h / 2, w: t.w, h: t.h };
+      break;
+    }
   }
-  if (typeof kamGravRad === 'undefined' || !kamGravRad || typeof sparaGravZon !== 'function' || !gravTomNar || nu - gravTomNar > GRAV_FOLJ_MS) return spar;
-  if (!kamSpeglar(mig)) return spar;   // bara när kameran speglar mitt bord
-  /* Spåret är högen bara om (granskningen av besluten, fynd 1):
-     - graveyard har minst två kort — att ta kortet ur en graveyard med ett kort (unearth, återupplivning,
-       MES-248) går inte att skilja från att flytta högen;
-     - det bär det översta kortets namn, är inget helbildsspår och föddes efter lyftet;
-     - inget kort i spel med samma namn ligger där (ett andra spår på ett kort i spel, när armen som lyfter
-       högen sveper över det). */
-  const grav = mig.cards.filter(c => zonAv(c) === ZON_GRAV);
-  if (grav.length < 2 || !grav[0].name) return spar;
-  const namn = grav[0].name;
-  const syskon = q => mig.cards.some(c => c.spar !== q.id && c.name === namn && paMattan(c) && c.kam
-    && Math.hypot(c.kam.x - (q.x + q.w / 2), c.kam.y - (q.y + q.h / 2)) <= 0.5 * Math.min(c.kam.w, c.kam.h));
-  const t = spar.find(q => q.tillstand === 'klar' && q.namn === namn && q.w != null && q.vilar !== false && !franHelbild(q)
-    && (!sparSedd.has(q.id) || sparSedd.get(q.id) >= gravTomNar - GRAV_LYFT_MARG)
-    && !mig.cards.some(c => c.spar === q.id && !(c.ny && c.ny >= gravTomNar - GRAV_LYFT_MARG))   // inte ett kort som låg i spel före lyftet
-    && !syskon(q));
-  if (!t) return spar;
-  /* Hann spåret bli ett kort (namnet kom före rapporten om den tomma rutan) tas kortet bort igen. */
-  const i = mig.cards.findIndex(c => c.spar === t.id);
-  if (i >= 0) mig.cards.splice(i, 1);
-  sparaGravZon(gravRutaUrKam({ x: t.x + t.w / 2, y: t.y + t.h / 2, w: t.w, h: t.h }, kamBildAsp()));
-  gravFoljdaSpar.set(t.id, nu); gravTomNar = 0; gravTomSparr = true;
-  return spar.filter(q => q !== t);
+  return gravFlyttFraga !== fore && (!gravFlyttFraga || !fore || gravFlyttFraga.id !== fore.id);
+}
+/* Svaret på frågan om en flyttad hög ('ja' | 'nej'). true = något ändrades. */
+function gravFlyttSvar(mig, svar, nu) {
+  const q = gravFlyttFraga; if (!q) return false;
+  const c = mig.cards.find(x => x.cid === q.cid), r = gravFonsterTagna.find(x => x.cid === q.cid);
+  if (svar === 'nej') { gravFlyttNej.add(q.cid); gravFlyttFraga = null; return true; }   // spelat ur högen: kortet ligger kvar
+  if (svar !== 'ja' || !c || !r) return false;
+  const spar = c.spar, kam = c.kam && c.kam.w > 0 ? c.kam : q.kam;
+  /* Kortet går tillbaka i högen som det låg där: zon, sida, countrar och plats i listan (överst). */
+  for (const n of Object.keys(c)) delete c[n];
+  Object.assign(c, r.fore);
+  for (const a of mig.cards) if (a.attachedTo === c.cid) delete a.attachedTo;   // det som fästs vid kortet på bordet ligger kvar, löst
+  sparaGravZon(gravRutaUrKam(kam, kamBildAsp()));
+  if (spar != null) gravFoljdaSpar.set(spar, nu);
+  gravTomNar = 0; gravTomSparr = true; gravFonsterStang();
+  return true;
 }
 function gravTaEmot(grav, nu) {
   if (grav === undefined) return;                       // telefon utan vakten, nådtimern, lägesbytet
-  if (!grav || typeof grav.n !== 'number') { gravHandelser = []; gravSistaN = null; gravTomNar = 0; gravTomSparr = false; gravRorNu = false; return; }   // ingen ruta
+  if (!grav || typeof grav.n !== 'number') { gravHandelser = []; gravSistaN = null; gravTomNar = 0; gravTomSparr = false; gravRorNu = false; gravFonsterStang(); return; }   // ingen ruta
   gravRorNu = !!grav.ror;
-  if (grav.tom) { if (!gravTomNar && !gravTomSparr) gravTomNar = nu; } else { gravTomNar = 0; gravTomSparr = false; }   // högen lyft (gravFoljer)
+  if (grav.tom) { if (!gravTomNar && !gravTomSparr) gravTomNar = nu; } else { gravTomNar = 0; gravTomSparr = false; gravFonsterStang(); }   // högen lyft: fönstret (gravFoljer) — öppet så länge gravTomNar är satt
   /* Ett lägre tal är en telefon som startat om: nytt utgångsläge, ingen
      händelse. Det första talet efter en omladdning likaså. */
   if (gravSistaN != null && grav.n > gravSistaN) for (let i = gravSistaN; i < grav.n; i++) gravHandelser.push({ nar: nu - (grav.sen || 0), tagen: false });
@@ -35143,6 +35169,7 @@ function matchaBordet() {
 
 function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const mig = minSpelare(); if (!mig || !spelLage) return;
+  const flytt0 = gravFlyttFraga;   // frågan om en flyttad hög före meddelandet (MES-388): stängs fönstret i gravTaEmot ritas mattan om
   senasteRa = spar;   // telefonens bord som det kom — det nåd-timern spelar upp
   if (fas) { gravFasByte(fas); kamFas = fas; }   // en omtagning glömmer Ignore-platserna (kontrollgranskningen N6)
   if (yta) kamYta = yta;
@@ -35170,7 +35197,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const kantIds = new Set(kantRader.map(t => t.id));
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
-  if (nollstall) { gravGlomPlatser(); glomSpar(); ofrGlom(); losKort = new Map(); gravHandelser = []; gravSistaN = null; gravTomNar = 0; gravTomSparr = false; gravFoljdaSpar = new Map(); gravTid = new Map(); sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); flyttVantan = new Map(); platsMinne = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; lugnGlom(); renderMode(); uppdateraPbStatus(); return; }
+  if (nollstall) { gravGlomPlatser(); glomSpar(); ofrGlom(); losKort = new Map(); gravHandelser = []; gravSistaN = null; gravTomNar = 0; gravTomSparr = true; gravFoljdaSpar = new Map(); gravFonsterStang(); gravTid = new Map(); sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); flyttVantan = new Map(); platsMinne = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; lugnGlom(); if (flytt0) renderGrid(); renderMode(); uppdateraPbStatus(); return; }
   /* Medan telefonen lär sig ljuset spårar den redan, men bordet tas emot
      först när fasen bytt: det som kommer under sekunden är preliminärt, och
      telefonen skickar hela bordet igen så fort referensen är klar. */
@@ -35179,7 +35206,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   gravTaEmot(grav, nu);
   if (kamFas === 'kant') { if (!kantSedan) kantSedan = nu; } else kantSedan = 0;   // när kanten började (kantHaller)
   handRadStada(nu);   // raden vid nederkanten (MES-343): valet som gått ut står fast — handen
-  { const n0 = mig.cards.length; spar = gravFoljer(spar, nu, mig); if (mig.cards.length !== n0) { save(); renderGrid(true); } }   // graveyard följer med när högen flyttas
+  spar = gravFoljer(spar, nu);   // högen som följts efter Yes på frågan om en flyttad hög (gravFlyttSvar) blir inget kort
   /* Ett bord utan pass startar ett (eller tar upp det sparade efter en
      omladdning): sammanfattningen ska finnas när auto stängs av, även om
      inget kort hann bindas. */
@@ -35191,12 +35218,13 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     gravHandelser = []; losaSpar = new Set(); losKort = new Map(); clearTimeout(lyftT);
     for (const t of spar) if (!sparSedd.has(t.id)) sparSedd.set(t.id, nu);
     for (const id of [...sparSedd.keys()]) if (!spar.some(t => t.id === id) && !kantIds.has(id)) sparSedd.delete(id);
-    senasteSpar = spar; renderMode(); uppdateraPbStatus(); return;
+    senasteSpar = spar; if (flytt0 && !gravFlyttFraga) renderGrid(); renderMode(); uppdateraPbStatus(); return;   // frågan om en flyttad hög kan ha stängts (gravTaEmot)
   }
   /* Lugnt läge (MES-357): för mycket rör sig, och mattan står still tills bordet lagt sig. Spåren som föds medan
      den står räknas från när de syntes, som utan frysning. */
   if (lugnSteg(spar, nu, matchar, lugnPaMattan(mig), kantIds)) {
     for (const t of spar) if (!sparSedd.has(t.id)) sparSedd.set(t.id, nu);
+    if (flytt0 && !gravFlyttFraga) renderGrid();   // frågan om en flyttad hög kan ha stängts (gravTaEmot)
     uppdateraPbStatus(); return;
   }
   /* Ett spår som kommer tillbaka på en ny plats bär inte längre sitt kort (tvivelSteg). */
@@ -35594,10 +35622,18 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
        har: annars är ett Forest till på mattan ett nytt land ur handen, inte
        det som ligger i högen. Utan lek (tak Infinity) gäller regeln aldrig —
        då beter sig avstämningen exakt som förut. Bara Table leads: i Screen
-       leads rör kameran inga zoner, den lägger bara till. */
+       leads rör kameran inga zoner, den lägger bara till.
+       Fönstret (MES-388, se gravFlyttSteg): medan graveyard-högen är lyft kommer kortet ur högen om namnet
+       finns där, också basland, med och utan lek. Kortet som det låg i högen sparas, så att det kan gå tillbaka
+       om spelaren svarar Yes på frågan om en flyttad hög (gravFlyttSvar). */
     const tak = lekAntal(g.namn);
-    const ur = isFinite(tak) && paBord + iHog(g.namn) >= tak ? urGraven(g.namn) : null;
+    const fonster = gravTomNar > 0 && (!sparSedd.has(t.id) || sparSedd.get(t.id) >= gravTomNar - GRAV_LYFT_MARG);   // ett kort som låg där före lyftet (läst först nu) kommer inte ur högen
+    const ur = fonster || (isFinite(tak) && paBord + iHog(g.namn) >= tak) ? urGraven(g.namn) : null;
     if (ur) {
+      if (fonster) {
+        const hog = mig.cards.filter(c => zonAv(c) === ZON_GRAV);
+        gravFonsterTagna.push({ cid: ur.cid, fore: Object.assign({}, ur, ur.cts ? { cts: ur.cts.map(x => Object.assign({}, x)) } : {}), topp: hog.length >= 2 && hog[0] === ur });   // countrarna kopieras: på bordet kan kortet få nya i samma array (aldrigDar)
+      }
       const aldrigDar = ur.gravAuto != null && nu - ur.gravAuto < GRAV_ATER_MS;   // högvakten tog fel (GRAV_ATER_MS)
       delete ur.zon; delete ur.gravAuto; delete ur.spellAuto; delete ur.attachedTo;
       if (!aldrigDar) { ur.cts = []; ur.flipped = 0; }   // ett nytt objekt: counters och sida blev kvar på bordet (som nyttPaBordet)
@@ -36045,6 +36081,8 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   if (pendKvar.length !== mig.pending.length) { mig.pending = pendKvar; andrat = true; }
   /* Graveyard ur spelet (MES-334 steg 4): sidoregeln och kort ovanpå kort ger frågan "Is this your graveyard?". */
   if (gravFragaSteg(mig, nu, synliga)) andrat = true;
+  /* Fönstret medan graveyard-högen är lyft (MES-388): frågan om en flyttad hög. */
+  if (gravFlyttSteg(spar, mig, flytt0)) andrat = true;
   if (andrat) { save(); renderAll(true); resolveAll(); }
   /* Nåden och väntan ska löpa ut även om telefonen är tyst — och när de gör
      det, inte vid nästa bord: timern ställs på det kort vars tid tar slut
@@ -37598,6 +37636,9 @@ function frasktBord() {
   mig.pending = [];
   handRad = [];
   ofrGlom();
+  /* Fönstret medan graveyard-högen är lyft (MES-388) stängs: korten som skapas igen nu låg på bordet, de kommer inte
+     ur högen. "tom" öppnar det igen först när högen setts i sin ruta. */
+  gravTomNar = 0; gravTomSparr = true; gravFonsterStang();
   kamHejVantar = true;   // fotona glömdes med mattan: telefonen skickar dem igen när den sagt hej
   if (player() === mig) state.sel = clamp(state.sel, 0, Math.max(0, hand().length - 1));
   save(); renderAll(true);
