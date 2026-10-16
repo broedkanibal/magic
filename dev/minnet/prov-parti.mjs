@@ -229,6 +229,14 @@ const PARTI = (gid, mig) => `
     ok('Change card tillbaka till kamerans namn: Serra Angel tillbaka (spelarens, bekräftad), Serra Avenger borta',
        sb === 'Serra Angel' && r3('Serra Angel') && r3('Serra Angel').bekraftad && !r3('Serra Avenger') && m3.length === 7, sb + ' ' + m3.map(x => x.namn).join(','));
 
+    /* Undo i toastens (kortBytAngra): Serra Angel → Serra Avenger, och Undo tillbaka. */
+    const su = await ev(`const k = () => minSpelare().cards.find(c => c.spar === 4), c = k();
+      const fore = { name: c.name, sid: c.sid, cands: c.cands, namnHand: c.namnHand }, bild = JSON.stringify(minSpelare().cards);
+      kortBytNamn(c.cid, 'Serra Avenger', 'sid-av'); khSkicka(); await new Promise(r => setTimeout(r, 1200));
+      kortBytAngra(c.cid, fore, 'Serra Avenger', bild); khSkicka(); await new Promise(r => setTimeout(r, 1500)); return k().name;`);
+    const m4 = await minne(A, `where game_id = '${G}'`), r4 = n => m4.find(x => x.namn === n);
+    ok('Undo i toasten: Serra Angel tillbaka, Serra Avenger borta', su === 'Serra Angel' && r4('Serra Angel') && !r4('Serra Avenger') && m4.length === 7, su + ' ' + m4.map(x => x.namn).join(','));
+
     /* ══ 2. Create deck ══ */
     const cd = await ev(`$('#vyLeksida').hidden = false;
       leksida.fran = 'app'; leksida.valj = true;
