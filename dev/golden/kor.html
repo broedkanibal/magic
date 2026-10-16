@@ -196,6 +196,12 @@ const EMBED_V = PARAMS.get('embedv') ? '?v=' + PARAMS.get('embedv') : '';   // d
 const LEK_SOM_DEN_AR = PARAMS.get('lekasis') === '1';   // --lek-som-den-ar: baslandens antal ur lek.txt, utan lyftet till det största ett fall visar (prov, aldrig baslinje)
 let lekLyft = [];   // [{ namn, fran, till, fall }] — vilka basland som lyftes och varför (byggPool)
 const UTAN_LEKEN = new Set((PARAMS.get('utanleken') || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean));
+/* ?minne=1 (kor.cjs --minne, MES-376): namnen i ?utanleken tas bort ur leken som förut, men läggs i spelarens MINNE
+   (KamMinne) med sina tryckningar ur lek.txt — den tryckning spelaren setts med. Så mäts steg 2 i trappan: korten
+   utanför den aktiva leken ska hittas i minnet med ORB som villkor ('minne+orb'), och ett annat säkert namn på dem
+   är ett fel namn som förut. Utan ?minne=1 finns inget minne i golden (KamMinne.redo() är falskt). */
+const MINNE = PARAMS.get('minne') === '1';
+let minneInfo = null;   // { kort, ms, fel } när minnet är byggt
 let embedInfo = null;   // { backend, modell, vektorer, ms } när leken är inbäddad
 let detInfo = null, detFel = null;   // den tränade detektorn (MES-329): { backend, modell, variant, ms, remsa } när den är laddad; felet annars
 /* ?rutlogg=1 (kor.cjs --rutlogg <fil>): varje videoruta med spåren som de står — tillstånd, mått, formN, skymd, r = fick en region i den här rutan (regionNar mot modulens klocka, w.performance.now — videotiden i ett videofall; rutloggen skrivs bara i videofall; till 2026-10-02 jämfördes mot ett fält som inte fanns och r var alltid 1), tm = tomMs, om = omlott, fy = maskandelen under spåret i senaste rutan utan region (kn = antalet kända kortlådor som räknats bort ur den, MES-331 pass 3) — för utredningar ruta för ruta (MES-227: hur länge syns kortet oskymt innan det ligger still?). Stort, därför aldrig i baslinjen. */
@@ -371,7 +377,8 @@ async function byggPool() {
       if (t) s = s.slice(0, t.index).trim();
       return { namn: s, n: m ? +m[1] : 1, set: t ? t[1].toLowerCase() : null, nr: t && t[2] ? t[2] : null };
     });
-  if (UTAN_LEKEN.size) for (let i = rader.length - 1; i >= 0; i--) if (UTAN_LEKEN.has(rader[i].namn.toLowerCase())) rader.splice(i, 1);
+  const minnesRader = [];   // --minne: de borttagna raderna blir minnet (steg 2)
+  if (UTAN_LEKEN.size) for (let i = rader.length - 1; i >= 0; i--) if (UTAN_LEKEN.has(rader[i].namn.toLowerCase())) minnesRader.unshift(...rader.splice(i, 1));
   const namn = rader.map(x => x.namn);
   if (!namn.length) throw new Error('lek.txt är tom');
   /* Nyckeln bär tryckningen: byts den, byggs poolen om. En rad utan tryckning
@@ -448,6 +455,22 @@ async function byggPool() {
       else embedInfo.remsFel = KE.remsFel || 'okänt fel';
     }
   }
+  /* Minnet (MES-376, --minne): de borttagna namnen slås upp som leken och byggs till minnets pool och inbäddning
+     (KamMinne), och väntas in så att alla fall mäts med det. */
+  minneInfo = null;
+  w.MESA_MINNE = MINNE;
+  if (MINNE) {
+    const KM = w.eval('KamMinne'), t0 = performance.now(), poster = [], saknade = [];
+    for (let i = 0; i < minnesRader.length; i++) {
+      const x = minnesRader[i];
+      status(`Slår upp minnet: ${i + 1} av ${minnesRader.length} — ${x.namn}`);
+      try { const c = x.set ? await slaUppTryck(x) : await w.lookup(x.namn); poster.push({ namn: c.name, sid: c.id, small: w.imgOf(c, 0, 'small') }); }
+      catch (e) { saknade.push(x.namn); }
+      await sleep(80);
+    }
+    const mrec = await KM.bygg(poster, p => status(p.phase === 'img' ? `Lär mig minnet… ${p.done} av ${p.total}` : p.phase === 'list' ? `Hämtar minnet… ${p.done || ''}` : `Bäddar in minnet… ${p.done} av ${p.total}`));
+    minneInfo = { kort: mrec ? mrec.names.filter(n => n !== w.eval('BAKSIDA_NAMN')).length : 0, namn: poster.length, ms: Math.round(performance.now() - t0), fel: !KM.redo() ? (KM.fel || 'minnet gick inte att bygga') : null, saknade };
+  } else { try { w.eval('KamMinne').glom(); } catch (e) {} }
   /* Den tränade detektorn (MES-329): laddas här, så att alla fall mäts med
      den — annars hade första fallet gått på dagens detektor medan modellen
      hämtades. --tro "detektor:0" mäter dagens detektor, "detRemsa:0" bara
@@ -525,6 +548,7 @@ async function byggPool() {
   const utanLand = kortaLand.length > 0;
   const tillfalliga = saknas.filter(x => x.tillfallig), varaktiga = saknas.filter(x => !x.tillfallig);
   poolFel = [];
+  if (minneInfo && minneInfo.fel) poolFel.push('Minnet (--minne) gick inte att bygga: ' + minneInfo.fel + '.');
   if (varaktiga.length) poolFel.push(`Finns inte på Scryfall — rätta lek.txt: ${varaktiga.map(x => x.namn).join(', ')}.`);
   if (tillfalliga.length) poolFel.push(`Nådde inte Scryfall för: ${tillfalliga.map(x => x.namn).join(', ')}.`);
   if (utanLand) poolFel.push(`Baslandens extra konstverk kom inte med (${kortaLand.map(t => t + ' ' + (perTyp.get(t) || 0) + '/' + BAS_TAK).join(', ')}).`);
@@ -552,9 +576,11 @@ async function byggPool() {
     + (embedInfo ? `<br>Bildmodellen: ${esc(embedInfo.backend)} (${esc(embedInfo.modell || '')}${embedInfo.tradar ? ', ' + embedInfo.tradar + ' trådar' : ''}), ${embedInfo.vektorer} vektorer, klar på ${(embedInfo.ms / 1000).toFixed(1)} s${embedInfo.remsor ? `; remsleken ${embedInfo.remsor} vektorer på ${(embedInfo.remsMs / 1000).toFixed(1)} s` : embedInfo.remsFel ? `; <span class="fel">remsleken gick inte att bygga: ${esc(embedInfo.remsFel)}</span>` : ''}.`
        : EMBED_PA ? `<br><span class="fel">Bildmodellen gick inte att ladda: ${esc(embedFel || '')} — körningen mäter reserven (Matcher + ORB).</span>` : '<br>Bildmodellen avstängd (--utan-modell): reserven Matcher + ORB mäts.')
     + `<br>Leken: ${LEK_SOM_DEN_AR ? 'basland ur lek.txt som de är (--lek-som-den-ar)' : lekLyft.length ? lekLyft.map(x => `${esc(x.namn)} ${x.fran} → ${x.till} (fall ${x.fall})`).join(', ') : 'basland ur lek.txt räcker'}`
-    + (UTAN_LEKEN.size ? `<br>Utanför leken: ${esc([...UTAN_LEKEN].join(', '))} — ett säkert namn på de korten är ett fel namn.` : '');
+    + (UTAN_LEKEN.size ? `<br>Utanför leken: ${esc([...UTAN_LEKEN].join(', '))} — ${MINNE ? 'i spelarens MINNE (steg 2, --minne): rätt namn bara med ORB som villkor, ett annat' : 'ett'} säkert namn på de korten är ett fel namn.` : '')
+    + (minneInfo ? `<br>Minnet: ${minneInfo.kort} kort för ${minneInfo.namn} namn, klart på ${(minneInfo.ms / 1000).toFixed(1)} s${minneInfo.saknade.length ? `; <span class="fel">kunde inte slås upp: ${esc(minneInfo.saknade.join(', '))}</span>` : ''}${minneInfo.fel ? `; <span class="fel">${esc(minneInfo.fel)}</span>` : ''}.` : '');
   $('#metod').textContent = 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, '
     + (embedInfo ? 'bildmodellen (MobileCLIP-S0, ' + embedInfo.backend + ') rangordnar lekens namn och ORB kontrollerar de tre bästa; Matcher + ORB som andra åsikt' : 'Matcher + ORB mot leken')
+    + (minneInfo && !minneInfo.fel ? ' + minnet som steg 2 (ORB som villkor)' : '')
     + (namnFel ? '. Ingen namnläsare' : ', och kortnamnet läst ur titelraden (tesseract.js)') + '. Ingen fråga till Claude utan ?ai=1.';
   poolKlar = true;
 }

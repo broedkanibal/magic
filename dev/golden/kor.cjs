@@ -62,7 +62,12 @@ const UTAN_MODELL = process.argv.includes('--utan-modell'), WASM = process.argv.
 /* --utan-leken utan namn kör tvillinglistan (MES-266): dev/golden/utan-leken.txt, en rad per namn med tvillingen som står kvar och varför. Egna listor ("Namn1,Namn2") är för utforskning; gränsen (0 fel namn) mäts mot förvalet. */
 const TVILLINGLISTA_FIL = path.join(__dirname, 'utan-leken.txt');
 const tvillingNamn = () => fs.readFileSync(TVILLINGLISTA_FIL, 'utf8').split('\n').filter(l => l.trim() && !l.startsWith('#')).map(l => l.split('|')[0].trim());
-const UTAN_LEKEN = (() => { const i = process.argv.indexOf('--utan-leken'); if (i < 0) return ''; const v = process.argv[i + 1]; return v && !v.startsWith('--') ? v : tvillingNamn().join(','); })();
+/* --minne (MES-376, steg 2 i trappan): namnen i --utan-leken tas bort ur leken som förut men läggs i spelarens MINNE
+   med sina tryckningar ur lek.txt (KamMinne i appen). Korten utanför den aktiva leken ska då hittas med ORB som villkor
+   ('minne+orb' i --detalj); ett annat säkert namn på dem är ett fel namn som förut. Utan --utan-leken tas förvalet
+   (tvillinglistan). Jämförs mot baslinjen; sparas aldrig. */
+const MINNE = process.argv.includes('--minne');
+const UTAN_LEKEN = (() => { const i = process.argv.indexOf('--utan-leken'); if (i < 0) return MINNE ? tvillingNamn().join(',') : ''; const v = process.argv[i + 1]; return v && !v.startsWith('--') ? v : tvillingNamn().join(','); })();
 const UTAN_LEKEN_LISTA = !UTAN_LEKEN ? '' : (UTAN_LEKEN === tvillingNamn().join(',') ? `tvillinglistan (förval, dev/golden/utan-leken.txt, ${tvillingNamn().length} namn)` : `egen lista (${UTAN_LEKEN.split(',').length} namn, inte förvalet — bara utforskning)`);
 /* --lek-som-den-ar: baslandens antal i golden-leken ur lek.txt som de står, utan lyftet kor.html gör till förval (max(lek.txt, det största antalet av baslandet i något enskilt fall)). Bara för prov: baslinjen mäts alltid med lyftet, och raden "Leken:" under "Poolen:" säger vilka antal kameran fick. */
 const LEK_SOM_DEN_AR = process.argv.includes('--lek-som-den-ar');
@@ -297,7 +302,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   for (const ljus of varianter) {
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
   const param = [(AIFLAG || STUB_KAMERA) && 'ai=1', REFFLAG && (REFANVAND ? 'refanvand=1' : 'ref=1'), LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
-                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', process.argv.includes('--konsol') && 'konsol=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')), LEK_SOM_DEN_AR && 'lekasis=1',
+                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', process.argv.includes('--konsol') && 'konsol=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')), MINNE && 'minne=1', LEK_SOM_DEN_AR && 'lekasis=1',
                  (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER, UTAN_STILLBILDER && 'stillbilder=0',
                  FACIT_ERS && 'facit=' + encodeURIComponent(FACIT_ERS.split(',').map(x => x.trim().replace('=', ':')).join('|')),
                  VIDEO_URL && 'video=' + encodeURIComponent(VIDEO_URL), EMBED_LOKALT && !UTAN_MODELL && 'embedv=' + Math.round(fs.statSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')).mtimeMs), REMS_URL && 'remsmodell=' + encodeURIComponent(REMS_URL), MODELL_URL && 'modellfil=' + encodeURIComponent(MODELL_URL), NY_EMBED && 'nyembed=1'].filter(Boolean).join('&');
@@ -341,8 +346,8 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   await kor(`delete window.__kor_ut; 'ok'`);
   let json = '[\n' + delar.join(',\n') + '\n]\n';
   /* MES-266: vilken lista som kördes följer med varje rad (--ut, senaste.json), så att en rad aldrig kan läsas som en annan lista. */
-  if (UTAN_LEKEN) json = '[\n' + JSON.parse(json).map(r => JSON.stringify({ ...r, utanLeken: { lista: UTAN_LEKEN_LISTA, namn: UTAN_LEKEN.split(',').map(x => x.trim()) } })).join(',\n') + '\n]\n';
-  if (UTAN_LEKEN) console.log(`  --utan-leken: ${UTAN_LEKEN_LISTA}: ${UTAN_LEKEN.split(',').map(x => x.trim()).join(', ')}`);
+  if (UTAN_LEKEN) json = '[\n' + JSON.parse(json).map(r => JSON.stringify({ ...r, utanLeken: { lista: UTAN_LEKEN_LISTA, namn: UTAN_LEKEN.split(',').map(x => x.trim()), minne: MINNE } })).join(',\n') + '\n]\n';
+  if (UTAN_LEKEN) console.log(`  --utan-leken: ${UTAN_LEKEN_LISTA}: ${UTAN_LEKEN.split(',').map(x => x.trim()).join(', ')}${MINNE ? ' — i spelarens MINNE (--minne, steg 2): rätt namn bara med ORB som villkor' : ''}`);
   console.log('');
   skrivTabell(JSON.parse(json), gamla);
   /* K7: referenserna — hur många poolen bar per fall (--ref) och hur många varje fall lärde (--lar-ref). */
@@ -465,7 +470,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     for (const b of r.fodslar || []) console.log(`    född ${b.s} s @${b.cx},${b.cy} lång ${b.lang} (gräns ${b.grans}): ledigt ${b.narm ? `#${b.narm.id} ${b.narm.d} px, area ×${b.narm.area}, ${b.narm.sen} ms utan region, ${b.narm.st}${b.narm.namn ? ' ' + b.narm.namn : ''}, täckning ${b.narm.tackning}` : '–'}; upptaget ${b.upptaget ? `#${b.upptaget.id} ${b.upptaget.d} px` : '–'}`);
     /* MES-94: varje lokal läsning — beskärningens storlek, bildens dom med poäng och ORB-inliers, namnläsarens svar — så att en säker bilddom går att spåra till sina tal. */
     for (const l of r.lasningar || []) console.log(`    läst ${l.s} s${l.spek ? ' (tidigt)' : ''} spår ${l.nr != null ? '#' + l.nr : 'id ' + l.spar} ${l.w}×${l.h}: ${l.dom}${l.varfor ? ' [' + l.varfor + ']' : ''}${l.namn ? ' ' + l.namn : ''}`
-      + (l.bild ? ` — ${l.bild.modell ? `modell ${l.bild.poang}, marginal ${l.bild.marginal}${l.bild.ensamt ? '' : ', inte ensamt'}, ${l.bild.ms} ms; ORB ${l.bild.inliers} inliers${l.bild.orbNamn ? ' på ' + l.bild.orbNamn : ''} (ettan ${l.bild.stod}${l.bild.skala != null ? ', skala ' + l.bild.skala : ''})` : `bild ${l.bild.poang}, ${l.bild.inliers} inliers${l.bild.efterModell ? ' (andra åsikten efter modellen)' : ''}`}${l.bild.accept ? ', accept' : ''}${l.bild.utanTitel ? ', titeln inte inväntad' : ''}` : '')
+      + (l.bild ? ` — ${l.bild.modell ? `modell ${l.bild.poang}, marginal ${l.bild.marginal}${l.bild.ensamt ? '' : ', inte ensamt'}, ${l.bild.ms} ms; ORB ${l.bild.inliers} inliers${l.bild.orbNamn ? ' på ' + l.bild.orbNamn : ''} (ettan ${l.bild.stod}${l.bild.skala != null ? ', skala ' + l.bild.skala : ''})` : `bild ${l.bild.poang}, ${l.bild.inliers} inliers${l.bild.efterModell ? ' (andra åsikten efter modellen)' : ''}`}${l.bild.accept ? ', accept' : ''}${l.bild.utanTitel ? ', titeln inte inväntad' : ''}${l.bild.minne ? ', ur MINNET (steg 2)' : ''}${l.bild.minne2 ? `; minnet såg ${l.bild.minne2.namn} (marginal ${l.bild.minne2.marginal}, ORB ${l.bild.minne2.inliers} på ${l.bild.minne2.orbNamn || '–'}, konst ${l.bild.minne2.konst}) utan att bära` : ''}` : '')
       + ((l.cands || []).length ? ' (' + l.cands.map(c => c.name + (c.score != null ? ' ' + c.score : '')).join(', ') + ')' : '')
       + (l.ocr ? (l.ocr.hoppad ? ` [ocr hoppad: ${l.ocr.hoppad}]` : ` [ocr "${l.ocr.text || ''}" → ${l.ocr.namn || '–'} ${l.ocr.poang}/${l.ocr.marginal}${l.ocr.vand ? ' vänd' : ''}]`) : '')
       + (l.remsa ? ` [remsa → ${l.remsa.namn || '–'} ${l.remsa.marginal}${l.remsa.saker ? ' SÄKER' : ''} ${l.remsa.varfor || ''}${l.remsa.synt ? ' synt' : l.remsa.geo ? ' geo' : ' låda'}${l.remsa.rot ? ' rot ' + l.remsa.rot : ''}${l.remsa.ocr ? (l.remsa.ocr.hoppad ? ', ocr hoppad: ' + l.remsa.ocr.hoppad : ', ocr → ' + (l.remsa.ocr.namn || '–') + ' ' + l.remsa.ocr.poang + '/' + l.remsa.ocr.marginal) : ''}${l.remsa.cands && l.remsa.cands.length ? ' (' + l.remsa.cands.join(', ') + ')' : ''}${l.remsa.titel ? ', titel → ' + l.remsa.titel.namn + ' ' + l.remsa.titel.marginal : ''}${minneText(l.remsa.minne)}]` : ''));
