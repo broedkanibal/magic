@@ -19,7 +19,10 @@ select * from public.upplevelse_spelare_spel order by forsta_kort desc;
 -- 4. Per parti: klart, betyg, kom de tillbaka.
 select * from public.upplevelse_partier order by startad desc;
 
--- 5. Vilka namn kameran sätter fel (spelaren bytte från → till).
-select fran, namn as till, count(*) as ganger
-  from public.kort_handelser where typ = 'bytt'
- group by fran, namn order by ganger desc;
+-- 5. Vilka namn kameran sätter fel (spelaren bytte från → till). Ett kort
+--    räknas en gång, med sitt sista namn: ett byte spelaren tog tillbaka
+--    (Undo, ⌘Z, tillbaka till kamerans namn) räknas inte
+--    (20261016130000_kh_sista_namnet.sql).
+select bytt_fran as fran, bytt_till as till, count(*) as ganger
+  from public.upplevelse_kort where bytt
+ group by bytt_fran, bytt_till order by ganger desc;

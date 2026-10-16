@@ -162,6 +162,11 @@ på en felsida efter Google-rutan.
    complete) på `decks`, och fyller minnet en gång ur gamla partier och
    lekar. Utan den skrivs inget minne; allt annat fungerar som förut. Provet
    mot filen: `sh dev/minnet/prov.sh`.
+10. Fel namn på kortets sista namn (MES-387):
+    `migrations/20261016130000_kh_sista_namnet.sql` gör om vyerna
+    `upplevelse_kort` och `upplevelse_handlingar` så att ett namnbyte spelaren
+    tog tillbaka (Undo, ⌘Z, tillbaka till kamerans namn) inte räknas som fel
+    namn. Ändrar inga rader. Provet: `node dev/spelupplevelse-prov.cjs`.
 
 Filerna går att köra om utan att något går sönder, så om du behöver ändra
 något senare kör du bara hela filen igen.
