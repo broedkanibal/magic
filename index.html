@@ -5287,14 +5287,28 @@ function orbModul(global) {
     return { inliers: best, model: bestM, n };
   }
 
-  /* Verifiera ETT kandidatkort mot en fråga. Returnerar antal inliers. */
+  /* Konstverkets ruta på referenskortet, som andelar av bredden och höjden
+     (MES-235). Uppmätt på Scryfalls normal-bilder (488×680) av tre kort i
+     M15-ramen: konstverket ligger 0,106–0,557 av höjden, titelraden över och
+     typraden under. Rutan är dragen 3–4 % innanför kanterna, så att hörnen
+     och kanterna på konstverkets ram — identiska på alla kort i samma ram —
+     inte räknas som konst. */
+  const KONST = { x0: 0.10, x1: 0.90, y0: 0.14, y1: 0.52 };
+  /* Verifiera ETT kandidatkort mot en fråga. Returnerar antal inliers, och
+     konst: hur många av dem vars punkt på REFERENSEN ligger i konstverket
+     (KONST). Ramen, typraden och texten delas av kort ur samma utgåva och
+     korttyp (Mirran Bardiche och Ancestral Blade: samma ram, samma typrad
+     "Artifact — Equipment"), så inliers där bevisar inte VILKET kort det är;
+     konstverket är det enda som skiljer dem (MES-235). */
   function verify(qf, rf, opts) {
     const o = opts || {};
-    if (!qf.kps.length || !rf.kps.length) return { inliers: 0, model: null };
+    if (!qf.kps.length || !rf.kps.length) return { inliers: 0, konst: 0, model: null };
     const m = match(qf.desc, qf.kps.length, rf.desc, rf.kps.length, o.ratio);
-    if (m.length < 4) return { inliers: m.length, model: null, matches: m.length };
+    if (m.length < 4) return { inliers: m.length, konst: 0, model: null, matches: m.length };
     const r = ransac(qf.kps, rf.kps, m, o.tol, o.iters, Math.max(rf.w, rf.h));
-    return { inliers: r.inliers.length, model: r.model, matches: m.length };
+    let konst = 0;
+    for (const p of r.inliers) { const k = rf.kps[p.r]; if (k.x >= KONST.x0 * rf.w && k.x <= KONST.x1 * rf.w && k.y >= KONST.y0 * rf.h && k.y <= KONST.y1 * rf.h) konst++; }
+    return { inliers: r.inliers.length, konst, model: r.model, matches: m.length };
   }
 
   /* ── referensbild → särdrag i den konfiguration som mätte bäst ──
@@ -23461,7 +23475,7 @@ function skannaOchOrb(img, box, hint, P, stopp) {
   const b = results[0];
   const rot0 = b && b.fit ? b.fit.rot : hint;
   const o = orbIdentify(img, box, rot0, results.slice(0, 15), P, stopp);
-  return { results, confidence: r.confidence, rot0, orb: o ? { inliers: o.inliers, rot: o.rot, cand: o.cand ? { i: o.cand.i, name: o.cand.name, id: o.cand.id, score: o.cand.score } : null } : null };
+  return { results, confidence: r.confidence, rot0, orb: o ? { inliers: o.inliers, konst: o.konst || 0, rot: o.rot, cand: o.cand ? { i: o.cand.i, name: o.cand.name, id: o.cand.id, score: o.cand.score } : null } : null };
 }
 function identifyAt(img, box, hint) {
   return domIdentifyAt(skannaOchOrb(img, box, hint, Pool.idx, ORB_ACCEPT + 4), box);
@@ -23507,11 +23521,13 @@ function domIdentifyAt(s, box) {
   /* Helhetslikheten som stöder ORB:s kort är DET kortets — ettans poäng
      hör till ett annat kort när de inte är överens (MES-94). */
   const orbScore = orb && orb.cand ? (orbSamma ? Math.max(gScore, orb.cand.score || 0) : (orb.cand.score || 0)) : 0;
-  const orbOK = orb && orb.inliers >= ORB_ACCEPT && (orbScore >= 0.70 || orb.inliers >= 25);
+  /* …och på ett kort som inte är basland bara med inliers i konstverket (KONST_MIN, MES-235): ramen och typraden delas av kort ur samma utgåva. */
+  const konstOk = !!(orb && orb.cand && (landTyp(orb.cand.name) || orb.cand.name === BAKSIDA_NAMN || (orb.konst || 0) >= KONST_MIN));
+  const orbOK = orb && orb.inliers >= ORB_ACCEPT && (orbScore >= 0.70 || orb.inliers >= 25) && konstOk;
   const accept = orbOK
     || (!Pool.idx.orb && konf)
-    || (Pool.idx.orb && konf && orbSamma && orb.inliers >= 6);
-  return { accept, score: gScore, rec: { box, rot: orb ? orb.rot : rot0, cands, inliers: orb ? orb.inliers : 0 } };
+    || (Pool.idx.orb && konf && orbSamma && orb.inliers >= 6 && konstOk);
+  return { accept, score: gScore, rec: { box, rot: orb ? orb.rot : rot0, cands, inliers: orb ? orb.inliers : 0, konst: orb ? orb.konst || 0 : 0 } };
 }
 
 /* Modellen i Matchers ställe (MES-225). e är Embed.identifiera:s svar:
@@ -23549,6 +23565,13 @@ function domIdentifyAt(s, box) {
    fick en falsk högändring), och modellen måste själv hålla med med en
    marginal över DEL_MARGINAL. */
 const ORB_EMOT = 6, MODELL_NAMN = 3, ORB_SKALA = [0.8, 1.6], ORB_HEL = 1.08;
+/* Minsta antal ORB-inliers i KONSTVERKET för att ORB ska bära eller stödja ett
+   kort som inte är basland eller baksidan (MES-235; ORB.verify räknar dem,
+   KONST är rutan). Felen med kort utanför leken hade 0; de rätta 'modell+orb'
+   2–63, och två rätta 'modell' 0 (se identifyMedModell). Gäller också
+   Matcher + ORB (domIdentifyAt) — reserven, andra åsikten och skärmdumpsvägen
+   (identifyAt) — som annars kunde ta tillbaka samma ramträff. */
+const KONST_MIN = 2;
 /* Marginalspärren för en `del`-träff (MES-259, ur MES-246 del 1).
    Uppmätt i dev/las-fore-slapp/matning på 1 045 beskärningar ur en hand som
    lägger ner kort: kedjans egen bilddom gav 3 säkra FEL namn, alla
@@ -23598,7 +23621,7 @@ function orbSvep(img, box, rots, vilka, stopp, skala, P) {
       const ov = ORB.verify(qf, ORB.unpack(P.orb, i), {});
       const sc = ov.model ? ov.model.scale : null;
       const n = sc != null && sc >= skala[0] && sc <= skala[1] ? ov.inliers : 0;
-      ut.push({ r, i, namn: P.names[i], inliers: ov.inliers, skala: sc });
+      ut.push({ r, i, namn: P.names[i], inliers: ov.inliers, konst: ov.konst || 0, skala: sc });   // konst: inliers i konstverket (MES-235)
       if (n > bast) bast = n;
     }
     if (bast >= stopp) break;
@@ -23613,7 +23636,7 @@ async function identifyMedModell(img, box, e, ensamt) {
   const etta = rang[0] ? rang[0].name : e.namn, marginal = rang[0] ? rang[0].score - (rang[1] ? rang[1].score : 0) : e.marginal;
   e = Object.assign({}, e, { marginal, saker: marginal > Embed.TROSKEL, cands: rang });
   const namn3 = new Set(rang.slice(0, MODELL_NAMN).map(c => c.name));
-  const per = new Map(), perSkala = new Map(); let bast = { inliers: 0, namn: null, rot: e.rot || 0 };
+  const per = new Map(), perSkala = new Map(), perKonst = new Map(); let bast = { inliers: 0, konst: 0, namn: null, rot: e.rot || 0 };
   if (P.orb) {
     const vilka = []; for (let i = 0; i < P.names.length; i++) if (namn3.has(typNamn(P.names[i]))) vilka.push(i);
     const r0 = ((e.rot || 0) % 360 + 360) % 360;
@@ -23623,8 +23646,8 @@ async function identifyMedModell(img, box, e, ensamt) {
     for (const h of traffar) {
       const n = h.skala != null && h.skala >= ORB_SKALA[0] && h.skala <= ORB_SKALA[1] ? h.inliers : 0;
       const pn = typNamn(P.names[h.i]);
-      if (n > (per.get(pn) || 0)) { per.set(pn, n); perSkala.set(pn, h.skala); }
-      if (n > bast.inliers) bast = { inliers: n, namn: pn, rot: h.r, skala: h.skala };
+      if (n > (per.get(pn) || 0)) { per.set(pn, n); perSkala.set(pn, h.skala); perKonst.set(pn, h.konst || 0); }
+      if (n > bast.inliers) bast = { inliers: n, konst: h.konst || 0, namn: pn, rot: h.r, skala: h.skala };
     }
   }
   /* Stödet för ettan räknas bara när träffens skala säger att beskärningen ramar in ett HELT kort (ORB_HEL): en bit av ett kort ger också träffar, men då är det inte kortet som ligger i rutan. */
@@ -23642,16 +23665,37 @@ async function identifyMedModell(img, box, e, ensamt) {
      Alla tre trapporna gäller en HEL ruta. Ramar träffen bara in en BIT av
      ett kort (skalan under ORB_HEL) krävs dessutom DEL_MARGINAL — se där. */
   const helRuta = !(bast.skala < ORB_HEL);
-  const bar = bast.namn === etta && (helRuta || e.marginal >= DEL_MARGINAL)
-    && (bast.inliers >= 25 || (bast.inliers >= 14 && e.marginal >= 0.06) || (bast.inliers >= ORB_ACCEPT && !!e.saker));
   const land = !!landTyp(etta);
+  /* …och inliers i KONSTVERKET (MES-235, ORB.verify: konst). Kort ur samma ram
+     och korttyp delar titelradens ram, typraden ("Artifact — Equipment") och
+     texten "Equip", och ORB hittar dem lika väl på fel kort: med Mirran
+     Bardiche borttaget ur leken (kor.cjs --utan-leken, 2026-10-16) bar ORB
+     Ancestral Blade med 10 inliers (modellen säker, 0,13) i golden 03 och 16
+     inliers (marginal 0,079) i 15, och gav ettan stödet 7 i 14 ('modell') —
+     tre säkra FEL namn, alla med 0 inliers i konstverket. Baslinjens 56
+     säkra rätta läsningar på vanliga kort: 'modell+orb' hade 2–63 i
+     konstverket (lägst Thriving Heath på 150 cm), och två 'modell' hade 0 —
+     Thriving Heath i 08 och Pharika's Chosen i 15 — alltså burna av samma
+     slags ramträffar som felen; de blir nu osäkra på hela kortet och
+     namngavs i golden i stället av remsan (remsa+titel, remsa).
+     Därför: ORB bär ettan, och ger den stöd, bara med minst KONST_MIN
+     inliers i konstverket. Basland undantas: ett basland på bordet är sällan
+     ett av poolens 24 konstverk (tryck och konstverk spelar ingen roll), så
+     där bär ORB typen på ram och titel — 0 i konstverket på alla säkra land
+     i baslinjen — och landregeln (LAND_MARGINAL) och 'modell land' har sina
+     egna krav. Baksidan undantas också: den delar ingen ram med något kort,
+     och rutan KONST är ritad för framsidans ram. */
+  const konstOk = land || etta === BAKSIDA_NAMN || bast.konst >= KONST_MIN;
+  const bar = bast.namn === etta && konstOk && (helRuta || e.marginal >= DEL_MARGINAL)
+    && (bast.inliers >= 25 || (bast.inliers >= 14 && e.marginal >= 0.06) || (bast.inliers >= ORB_ACCEPT && !!e.saker));
+  const stodOk = land || etta === BAKSIDA_NAMN || (perKonst.get(etta) || 0) >= KONST_MIN;
   const emot = bast.namn !== etta && bast.inliers >= (land && landTyp(bast.namn) ? ORB_ACCEPT : ORB_EMOT);
   /* Provat och backat: ett land säkert också utan att spåret är ensamt, när ORB ger typen ett svagt stöd inom skalan. Golden 07 fick sitt Swamp (det ligger ensamt, men inspelningens egna streckade spårrutor gör regionen för stor, MES-223) — och golden 11 fick Swamp-halvan i plastfickan namngiven en gång till: dubbletter 0 → 1 och en falsk tap-flipp. En bit av ett kort får inte bli ett kort till. */
   /* Landregeln — säkert utan ORB:s stöd — gäller bara ett spår som är MÄTT mot kortreferensen ('matt'). Före bordets första säkra kort finns bara formen, och då krävs ORB:s stöd som för vilket kort som helst: uppmätt i golden 04 i mörkare ljus (kor.cjs --ljus alla) växte Plains-högen ihop med Swamp bredvid till en region med ett korts kvot (288×394 mot kortens 190×251), och modellen sa Swamp med marginal 0,21 — ett säkert fel namn. */
-  const ensam = !!(ensamt && !emot && ((land && ensamt === 'matt' && e.marginal >= LAND_MARGINAL) || (e.saker && (!P.orb || stod >= ORB_EMOT))));
+  const ensam = !!(ensamt && !emot && ((land && ensamt === 'matt' && e.marginal >= LAND_MARGINAL) || (e.saker && (!P.orb || (stod >= ORB_EMOT && stodOk)))));
   const cands = (e.cands || []).map(c => ({ name: c.name, sid: refSid(c.sid), score: c.score }));
   return { accept: bar || ensam, del: bar && !helRuta, score: e.poang, rec: { box, rot: bast.rot, cands, inliers: bast.inliers },
-           modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, land, orbNamn: bast.namn, skala: bast.skala, ms: e.ms, backend: e.backend } };
+           modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, land, orbNamn: bast.namn, skala: bast.skala, konst: bast.konst, stodKonst: perKonst.get(etta) || 0, ms: e.ms, backend: e.backend } };   // konst/stodKonst: ORB-inliers i konstverket, för den bästa träffen och för ettan (MES-235)
 }
 
 /* ═══ LÄSNINGENS RÄKNETRÅD (MES-221) ═══
@@ -23774,7 +23818,7 @@ const LasWorker = (() => {
       try { const s = await fraga('orb', img, P, { box, rots, vilka, stopp, skala }); if (s) { svar = s.traffar; klar(s); } } catch (e) { svar = null; }
       if (svar && !svar.every(h => P.names[h.i] === h.namn)) { stat.gammal++; svar = null; }
     }
-    if (svar && lage() === 'kontroll') jamfor('orbSvep', svar.map(h => [h.r, h.i, h.inliers, r3(h.skala)]), orbSvep(img, box, rots, vilka, stopp, skala, P).map(h => [h.r, h.i, h.inliers, r3(h.skala)]));
+    if (svar && lage() === 'kontroll') jamfor('orbSvep', svar.map(h => [h.r, h.i, h.inliers, h.konst, r3(h.skala)]), orbSvep(img, box, rots, vilka, stopp, skala, P).map(h => [h.r, h.i, h.inliers, h.konst, r3(h.skala)]));
     if (!svar) { stat.huvud++; return orbSvep(img, box, rots, vilka, stopp, skala, P); }
     stat.trad++; return svar;
   }
@@ -23787,7 +23831,7 @@ const LasWorker = (() => {
       if (svar && !(svar.results.every(x => P.names[x.i] === x.name && (P.ids || [])[x.i] === x.id) && (!svar.orb || !svar.orb.cand || (P.names[svar.orb.cand.i] === svar.orb.cand.name)))) { stat.gammal++; svar = null; }
     }
     if (svar && lage() === 'kontroll') {
-      const proj = s => ({ r: s.results.map(x => [x.i, r3(x.score)]), k: r3(s.confidence), rot0: r3(s.rot0), orb: s.orb ? [s.orb.inliers, s.orb.rot, s.orb.cand ? s.orb.cand.i : null] : null });
+      const proj = s => ({ r: s.results.map(x => [x.i, r3(x.score)]), k: r3(s.confidence), rot0: r3(s.rot0), orb: s.orb ? [s.orb.inliers, s.orb.konst, s.orb.rot, s.orb.cand ? s.orb.cand.i : null] : null });
       jamfor('skannaOchOrb', proj(svar), proj(skannaOchOrb(img, box, hint, P, stopp)));
     }
     if (!svar) { stat.huvud++; return skannaOchOrb(img, box, hint, P, stopp); }
@@ -24129,9 +24173,78 @@ const Namn = (() => {
     x.drawImage(canvas, 0, y0, canvas.width, h, 0, 0, t.width, t.height);
     return t;
   }
+  /* ── Helt ord (MES-235) ──
+     Teckenlikheten ser inte att "Thriving Heath" och "Thriving Moor" är två
+     kort: raden "| Thriving Heath ~7 8" får 0,67 mot Thriving Moor med
+     marginal 0,38 när Heath inte finns i leken — över gränsen för ett säkert
+     namn — och Heath blev ett SÄKERT Moor i golden 03 och 08 (kor.cjs
+     --utan-leken). Regeln: ett läst namn som skiljer sig från lekens namn i
+     ett HELT ORD är inte samma kort, hur hög teckenlikheten än är.
+     Så räknas det: radens och namnets ord (minst ORD_MIN bokstäver — "of"
+     och OCR-skräp på ett par tecken räknas inte) läggs i ordning mot
+     varandra, och ordpar som liknar varandra (ordlikhet ≥ ORD_ANKARE, samma
+     Dice som likhet()) blir ankare. Mellan två ankare, före det första och
+     efter det sista: har BÅDE raden och namnet ord kvar där, och inget av
+     radens ord delar ett enda bokstavspar med något av namnets, är det ett
+     helt ord som bytts ut — Heath mot Moor, "eas" (resten av Heath) mot Moor.
+     Ett ord som OCR:n brutit av ur ett ankare räknas inte som främmande:
+     "Know hedge" för Knowledge delar tre av fyra par med ankarordet
+     (ORD_DEL). Korta ord har bara ett par två: ett fel tecken i mitten av
+     "the" ("tue") tar bort båda, så ett radord som delar minst hälften av
+     sina BOKSTÄVER med namnordet (ORD_BOKSTAV) räknas inte heller som
+     främmande — granskningen 2026-10-16 mätte falska null-namn med 5 %
+     teckenbrus: 53 → 11 av 11 083 rader, och Heath/Moor ("eas"/Moor) slår
+     ändå till (inga gemensamma bokstäver). Ett namn med ett enda ord (Plains,
+     Pacifism) kan aldrig slå till: där finns inget ord kvar att skilja på.
+     Ett delat kort (Virtue of Knowledge // Vantress Visions) prövas mot den
+     sida som liknar raden mest: bara framsidans namn syns på kortet. Provat
+     på baslinjens 193 OCR-rader (2026-10-16): regeln slår inte till på någon
+     rad som gav ett namn ≥ 0,5 — "Mand of the Sh ye lave" (Maul of the
+     Skyclaves) och "course of the UNOS" (Scourge of the Undercity) går fria
+     eftersom de felavlästa orden delar par med sina ("ma", "un").
+     Slår regeln till blir raden INGET namn (namn: null) och bär i stället
+     utanfor: namnet den liknade och orden som skilde — läsaren har sett en
+     titel som inte är lekens, och det är ett vittne EMOT bildens dom på det
+     namnet (kamIdentifiera: 'titel skiljer ord'). */
+  const ORD_MIN = 3, ORD_ANKARE = 0.4, ORD_DEL = 0.5, ORD_BOKSTAV = 0.5;
+  const ord = t => tvatta(t).split(' ').filter(w => w.length >= ORD_MIN);
+  const gemensamma = (a, b) => { const A = par(a), B = par(b); let k = 0; for (const x of A) if (B.has(x)) k++; return { k, a: A.size, b: B.size }; };
+  const bokstavsAndel = (a, b) => { const A = new Set(a), B = new Set(b); let k = 0; for (const x of A) if (B.has(x)) k++; return A.size ? k / A.size : 0; };   // andel av a:s bokstäver som finns i b
+  const ordLikhet = (a, b) => { const g = gemensamma(a, b); return g.a && g.b ? 2 * g.k / (g.a + g.b) : 0; };
+  function ordSkiljer(rad, namn) {
+    const R = ord(rad), N = ord(namn);
+    if (!R.length || N.length < 2) return null;
+    /* Ankarna: ordpar i ordning som tillsammans liknar varandra mest (dynamisk programmering över två korta listor). */
+    const dp = [], val = [];
+    for (let i = 0; i <= R.length; i++) { dp.push(new Array(N.length + 1).fill(0)); val.push(new Array(N.length + 1).fill(0)); }
+    for (let i = 1; i <= R.length; i++) for (let j = 1; j <= N.length; j++) {
+      const s = ordLikhet(R[i - 1], N[j - 1]);
+      let b = dp[i - 1][j], v = 1; if (dp[i][j - 1] > b) { b = dp[i][j - 1]; v = 2; }
+      if (s >= ORD_ANKARE && dp[i - 1][j - 1] + s > b) { b = dp[i - 1][j - 1] + s; v = 3; }
+      dp[i][j] = b; val[i][j] = v;
+    }
+    const ankare = [];   // [i, j] i radens och namnets ord
+    for (let i = R.length, j = N.length; i > 0 && j > 0;) { const v = val[i][j]; if (v === 3) { ankare.unshift([i - 1, j - 1]); i--; j--; } else if (v === 1) i--; else j--; }
+    if (!ankare.length) return null;
+    /* Luckorna mellan ankarna (och i kanterna): radord och namnord kvar på samma ställe utan ett gemensamt par. */
+    const kanter = [[-1, -1], ...ankare, [R.length, N.length]];
+    for (let k = 0; k + 1 < kanter.length; k++) {
+      const W = R.slice(kanter[k][0] + 1, kanter[k + 1][0]), M = N.slice(kanter[k][1] + 1, kanter[k + 1][1]);
+      if (!W.length || !M.length) continue;
+      /* Bokstavsregeln bara för korta ord (≤ 3 bokstäver): i ett ord på fyra eller fler lämnar ett enda fel tecken alltid
+         ett par kvar, och på längre ord släppte den igenom riktiga ordbyten (Pharika's Cure → Chosen delar c och e;
+         granskningen runda 2, 2026-10-16: sju tvillingar utanför golden-leken gick fria). */
+      if (W.some(w => M.some(m => gemensamma(w, m).k > 0 || (Math.min(w.length, m.length) <= 3 && bokstavsAndel(w, m) >= ORD_BOKSTAV)))) continue;
+      const grannar = [kanter[k][1], kanter[k + 1][1]].filter(j => j >= 0 && j < N.length).map(j => N[j]);
+      const frammande = W.filter(w => !grannar.some(n => { const g = gemensamma(w, n); return g.a && g.k / g.a >= ORD_DEL; }));
+      if (frammande.length) return { ord: frammande, saknas: M };
+    }
+    return null;
+  }
   /* Bästa namnet för en OCR-rad, med marginalen till näst bästa: ett namn
      som bara knappt slår nästa (Thriving Heath mot Thriving Moor) ska inte
-     räknas som säkert. */
+     räknas som säkert. Skiljer sig raden från det bästa namnet i ett helt
+     ord (ordSkiljer) är det inget namn: namn null, och utanfor säger vilket. */
   function basta(rad, namn) {
     let b1 = { namn: null, poang: 0 }, b2 = { namn: null, poang: 0 };
     for (const n of namn) {
@@ -24139,7 +24252,11 @@ const Namn = (() => {
       if (p > b1.poang) { b2 = b1; b1 = { namn: n, poang: p }; }
       else if (p > b2.poang && n !== b1.namn) b2 = { namn: n, poang: p };
     }
-    return { namn: b1.namn, poang: +b1.poang.toFixed(2), marginal: +(b1.poang - b2.poang).toFixed(2), nast: b2.namn };
+    const ut = { namn: b1.namn, poang: +b1.poang.toFixed(2), marginal: +(b1.poang - b2.poang).toFixed(2), nast: b2.namn };
+    const sidor = b1.namn ? String(b1.namn).split(' // ') : [];   // delat kort: den sida som liknar raden mest
+    const skiljer = b1.namn ? ordSkiljer(rad, sidor.length > 1 ? sidor.reduce((a, b) => likhet(rad, b) > likhet(rad, a) ? b : a) : b1.namn) : null;
+    if (skiljer) { ut.utanfor = { namn: b1.namn, ord: skiljer.ord, saknas: skiljer.saknas }; ut.namn = null; }
+    return ut;
   }
   /* null = läsaren finns inte (inte laddad, eller misslyckades): som förut.
      hoppad = 'liten' när titelraden är för låg för att läsas. */
@@ -25212,12 +25329,12 @@ function orbIdentify(img, box, rot, cands, P, stopp) {
     const cv = cropCanvas(img, box, r, ORB.REF_W, ORB.REF_H);
     return cv ? ORB.queryFeatures(cv, 300) : null;
   };
-  let best = { inliers: 0, cand: null, rot };
+  let best = { inliers: 0, konst: 0, cand: null, rot };
   const sweep = (qf, r) => {
     if (!qf) return;
     for (const c of cands) {
       const v = ORB.verify(qf, ORB.unpack(P.orb, c.i), {});
-      if (v.inliers > best.inliers) best = { inliers: v.inliers, cand: c, rot: r };
+      if (v.inliers > best.inliers) best = { inliers: v.inliers, konst: v.konst || 0, cand: c, rot: r };   // konst: inliers i konstverket (MES-235)
     }
   };
   sweep(mk(rot), rot);
@@ -26690,7 +26807,7 @@ const Kamera = (() => {
              dom: B ? { accept: !!B.accept, poang: B.poang, inliers: B.inliers, marginal: B.marginal != null ? B.marginal : null,
                         skala: B.skala != null ? B.skala : null, ensamt: B.ensamt != null ? !!B.ensamt : null, stod: B.stod != null ? B.stod : null,
                         orbNamn: B.orbNamn || null, del: !!B.del, efterModell: !!B.efterModell, w: B.w || null, h: B.h || null } : null,
-             titel: N ? { namn: N.namn || null, poang: N.poang, marginal: N.marginal, hoppad: N.hoppad || null, vand: !!N.vand } : null,
+             titel: N ? { namn: N.namn || null, poang: N.poang, marginal: N.marginal, hoppad: N.hoppad || null, vand: !!N.vand, utanfor: N.utanfor || null } : null,   // utanfor: titeln skilde sig i ett helt ord (MES-235)
              remsa: svar && svar.remsa ? { namn: svar.remsa.namn, saker: !!svar.remsa.saker, marginal: svar.remsa.marginal, varfor: svar.remsa.varfor, minne: svar.remsa.minne || null } : null });
     if (l.length > 6) l.shift();
   };
@@ -31645,6 +31762,15 @@ const Kamera = (() => {
     let rs = null;
     if (kanLasa) { try { rs = await lasRemsa(t, maskad, { vittneBara: landVittne }); } catch (e) { rs = null; } }   // vittnesläsningen utan textläsaren: bara marginalen behövs (granskningen fynd 9)
     if (rs) t.remsa = rs;
+    /* Helt ord (MES-235, Namn.ordSkiljer): hela kortets titelrad läste en titel som skiljer sig från remsans namn i ett
+       helt ord — "Thriving Heath" när bara Thriving Moor finns i leken. Remsans modell svarar alltid med något av
+       lekens namn, och tvillingens remsa delar typsnitt, ram och halva titeln: golden 03 (--utan-leken, 2026-10-16)
+       gav Thriving Moor 0,292 på Heaths remsa, strax över remsgränsen 0,28, sedan bilden och titelraden sagt nej.
+       Titelraden är då ett vittne EMOT remsan, som mot bilden ('titel skiljer ord'): osäkert, till spelaren eller
+       Claude. Bara när titelraden är en läsning att lita på (poäng ≥ 0,5 mot namnet den liknade), och mot remsans
+       säkra dom vilket namn den än säger: titeln säger "inte lekens" (granskningen 2026-10-16). */
+    const titelEmot = !!(svar.namnLast && svar.namnLast.utanfor && svar.namnLast.poang >= 0.5);
+    if (rs && rs.saker && rs.namn && titelEmot) { rs = Object.assign({}, rs, { saker: false, varfor: (rs.varfor || 'remsa') + ' mot titel' }); t.remsa = rs; }
     const skal = rs && rs.saker && rs.namn ? remsaDomSkal(t) : null;
     if (skal) { rs = Object.assign({}, rs, { saker: false, varfor: (rs.varfor || 'remsa') + ' väntar: ' + skal }); t.remsa = rs; }
     if (landVittne) {
@@ -32970,6 +33096,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
     }
     const lt = n && n.namn && KamEmbed.redo() ? landTyp(n.namn) : null, nn = lt ? landVisning(lt).name : n && n.namn, sakert = nn && n.poang >= 0.6 && n.marginal >= 0.2;
     if (sakert && nn !== c0v.name && Pool.idx && Pool.idx.names.indexOf(nn) >= 0) console.log('[titel efter modell+orb]', id, c0v.name, '→ titeln', nn, n.poang, n.marginal, n.vand ? 'vänd' : '');
+    if (n && n.utanfor && n.poang >= 0.5 && n.utanfor.namn === c0v.name) console.log('[titel efter modell+orb]', id, c0v.name, '→ titeln skiljer ord', JSON.stringify(n.utanfor.ord), n.poang);   // helt ord (MES-235): hade varit 'titel skiljer ord'
   }).catch(() => {});
   else { try { namn = await namnP; } catch (e) { namn = null; } }
   if (tq) tq.namn = performance.now();
@@ -32987,7 +33114,8 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      dom, som förut. */
   if (v.modell && !v.accept) {
     const etta = v.rec.cands[0], hallerMed = namn && namn.namn && etta && namn.namn === etta.name && namn.poang >= 0.5 && namn.marginal >= 0.15;
-    if (!hallerMed) {
+    /* …och inte när titelraden läst en titel som inte är lekens (utanfor ≥ 0,5, MES-235): domen fälls ändå av 'titel skiljer ord' nedan, så andra åsikten vore 0,3–0,5 s i onödan. */
+    if (!hallerMed && !(namn && namn.utanfor && namn.poang >= 0.5)) {
       let v2 = null; try { v2 = await kamKedjaUnder(id, 'orb', () => kamIdentifyAt(canvas, box, 0)); } catch (e) { v2 = null; }
       const c2 = v2 && v2.rec.cands[0];
       if (v2 && v2.accept && c2 && v.rec.cands.slice(0, MODELL_NAMN).some(c => c.name === c2.name)) v = Object.assign(v2, { efterModell: v.modell });
@@ -33044,7 +33172,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      med mattans nivå med flit, och en slät grå yta är precis den form regeln
      tar för en ficka — golden 04: det kantvisande Plains i högen dömdes
      'baksida ficka' och blev skräp fast detektorn gett en kortlåda (0,70). */
-  if (!v.accept && !(M && (M.bar || M.saker)) && !(namn && namn.namn && namn.poang >= 0.5) && !(o && (o.tackt || o.detPoang >= bakDetGrans()))) {
+  if (!v.accept && !(M && (M.bar || M.saker)) && !(namn && namn.poang >= 0.5 && (namn.namn || namn.utanfor)) && !(o && (o.tackt || o.detPoang >= bakDetGrans()))) {   // namn.utanfor: en titel lästes (≥ 0,5), bara inte lekens (MES-235) — ingen ficka
     const form = framsideForm(canvas, kort);
     if (form != null && form < BAK_FORM * (Kamera.utseendeSkala || 1))
       return { baksida: true, varfor: 'baksida ficka', form: +form.toFixed(1), poang: b0 ? b0.score : 0, accept: false, tider };
@@ -33101,6 +33229,18 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      krävde namnet även då. */
   const c0 = cands[0];
   if (saker && c0 && BASICS.has(c0.name) && sakertNamn && namn.namn !== c0.name) { saker = false; varfor = 'land mot namn'; }
+  /* Helt ord (MES-235, Namn.ordSkiljer): titelraden läste en titel som skiljer sig från bildens namn i ett helt ord
+     ("Thriving Heath" när bara Thriving Moor finns i leken). Namnet blev då inget vittne FÖR (namn.namn är null), och
+     här är det ett vittne EMOT: kortet är inte det bilden tror, hur många inliers ramen än gav — osäkert, till
+     spelaren eller Claude. Bara när raden är en läsning att lita på (poäng ≥ 0,5 mot namnet den liknade, samma golv
+     som det svaga namnet). Ett 'modell+orb' som inte väntade på titelraden (utanTitel) når aldrig hit; där räknas
+     fallen i golden --konsol ('[titel efter modell+orb]'). */
+  /* …och EMOT varje säker bilddom, inte bara den på namnet titeln liknade (granskningen 2026-10-16): förut var
+     samma rad ett säkert namn (0,67/0,38) som fällde bildens dom på ett annat kort med 'konflikt' eller 'land mot
+     namn' (golden 01: Thriving Heath läst, bilden "säker" på Swamp). Titeln säger "inte lekens", och det motsäger
+     varje namn i leken. */
+  const utanfor = namn && namn.utanfor && namn.poang >= 0.5 ? namn.utanfor : null;
+  if (saker && c0 && utanfor) { saker = false; varfor = 'titel skiljer ord'; }
   /* Antalspriorn (K6): lekens exemplar av namnet är redan säkra spår på
      bordet — det här är antingen ett kort utanför leken som liknar det,
      eller en klon/ett extra land: granskningen får avgöra. */
@@ -33109,7 +33249,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
     const upptagna = Kamera.upptagnaLek(c0.name, id);   // utan spår som bevisat är på väg bort: kortet som just flyttats är inte ett exemplar till (MES-214); ett basland med egen skild remsa räknar inte de andra (upptagnaLek)
     if (!lekPrior(true, tak == null ? Infinity : tak, upptagna)) { saker = false; varfor = 'fler än leken'; }
   }
-  const namnLast = namn ? { text: namn.text, namn: namn.namn, poang: namn.poang, marginal: namn.marginal, ms: namn.ms, hoppad: namn.hoppad || null, start: namn.start, vand: !!namn.vand } : null;
+  const namnLast = namn ? { text: namn.text, namn: namn.namn, poang: namn.poang, marginal: namn.marginal, ms: namn.ms, hoppad: namn.hoppad || null, start: namn.start, vand: !!namn.vand, utanfor: namn.utanfor || null } : null;   // utanfor: titeln skilde sig i ett helt ord från lekens närmaste namn (MES-235)
   if (!saker && !(o && o.spek)) {
     /* Beskärningen följer med så att datorn kan visa den i granskningen. */
     const s = Math.min(1, 300 / canvas.width);
@@ -33120,8 +33260,8 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   /* bild: vad bildmatchningen själv mätte — för golden-provets läsningslogg
      (--detalj), så att en säker bilddom går att spåra till sina tal. */
   /* w/h: beskärningens storlek i bildpunkter — kortets storlek i bilden, som avståndsprovet mäter i (MES-244). */
-  const bild = { accept: !!v.accept, poang: +(v.score || 0).toFixed(2), inliers: (v.rec && v.rec.inliers) || 0, w: canvas.width, h: canvas.height };
-  if (M) Object.assign(bild, { modell: M.backend || true, marginal: +(+M.marginal).toFixed(3), ensamt: M.ensamt, stod: M.stod, orbNamn: M.orbNamn, skala: M.skala != null ? +(+M.skala).toFixed(2) : null, ms: Math.round(M.ms) });
+  const bild = { accept: !!v.accept, poang: +(v.score || 0).toFixed(2), inliers: (v.rec && v.rec.inliers) || 0, konst: (v.rec && v.rec.konst) || 0, w: canvas.width, h: canvas.height };   // konst: ORB-inliers i konstverket (MES-235)
+  if (M) Object.assign(bild, { modell: M.backend || true, marginal: +(+M.marginal).toFixed(3), ensamt: M.ensamt, stod: M.stod, orbNamn: M.orbNamn, skala: M.skala != null ? +(+M.skala).toFixed(2) : null, konst: M.konst, stodKonst: M.stodKonst, ms: Math.round(M.ms) });
   if (v.efterModell) bild.efterModell = true;   // Matcher + ORB som andra åsikt efter en osäker modell
   if (utanTitel) bild.utanTitel = true;   // titelraden väntades inte in (T.orbUtanTitel)
   return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor, bild, del: !!(v.del && saker), tider };
@@ -33275,7 +33415,7 @@ async function kamLasRemsa(canvas, id, o) {
     if (!lekPrior(true, tak == null ? Infinity : tak, Kamera.upptagnaLek(cands[0].name, id))) { saker = false; varfor = 'fler än leken'; }
   }
   return { namn: cands[0].name, sid: cands[0].sid, saker, varfor, marginal, poang: cands[0].score, cands, titel, minne,
-           ocr: ocr ? { text: ocr.text || '', namn: ocrNamn, poang: ocr.poang, marginal: ocr.marginal, hoppad: ocr.hoppad || null } : null,
+           ocr: ocr ? { text: ocr.text || '', namn: ocrNamn, poang: ocr.poang, marginal: ocr.marginal, hoppad: ocr.hoppad || null, utanfor: ocr.utanfor || null } : null,   // utanfor: bandet skilde sig i ett helt ord (MES-235)
            rot: o && o.rot != null ? o.rot : null, px: o && o.px ? o.px : null, synt: !!(o && o.synt), geo: !!(o && o.geo), tackt: (o && o.tackt) || 0, utom: (o && o.utom) || 0,   // syntetisk remsa ur lådans kant, remsan ur kortets geometri (MES-340), hur många lådor ovanpå som målats över (MES-331 pass 2) och hur många grannremsor (pass 4)
            ms: Math.round(performance.now() - t0), modellMs: Math.round(e.ms || 0) };
 }

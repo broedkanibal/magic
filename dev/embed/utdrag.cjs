@@ -39,6 +39,7 @@ const delar = [
   funktion('nyCanvas'), funktion('ritKontext'), modul('matcherModul'), modul('orbModul'),
   'const Pool = { idx: null };',
   rad('const CONF = {'), rad('const BASICS = new Set('), rad('const ORB_ACCEPT ='), rad('const refSid ='),
+  rad('const KONST_MIN ='), rad('const BAKSIDA_NAMN ='), funktion('landTyp'),   // konstkravet i domIdentifyAt (MES-235)
   funktion('confident'), funktion('cropCanvas'), funktion('orbIdentify'), funktion('skannaOchOrb'), funktion('domIdentifyAt'), funktion('identifyAt'), funktion('serUtSomKort'),
   /* Läsningens räknetråd (MES-221) med sin räkning, för dev/lasworker-prov.html. */
   funktion('orbSvep'), block('const LasWorker = (() => {', '})();'), funktion('lasWorkerKropp'),

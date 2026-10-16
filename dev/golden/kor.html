@@ -837,7 +837,7 @@ function loggaLasning(prov, s, id, w0, h0, svar, spek) {
     l.bild = svar.bild || null;
     l.cands = (svar.cands || []).slice(0, 3).map(c => ({ name: c.name, score: c.score != null ? +(+c.score).toFixed(2) : null }));
     const n = svar.namnLast;
-    l.ocr = n ? (n.hoppad ? { hoppad: n.hoppad } : { text: n.text, namn: n.namn, poang: n.poang, marginal: n.marginal, vand: !!n.vand }) : null;
+    l.ocr = n ? (n.hoppad ? { hoppad: n.hoppad } : { text: n.text, namn: n.namn, poang: n.poang, marginal: n.marginal, vand: !!n.vand, utanfor: n.utanfor || null }) : null;   // utanfor: titeln skilde sig i ett helt ord (MES-235)
     l.remsa = null;   // namnet ur remsan (MES-330) hängs på av lasRemsa-återkopplingen när det kommer
   }
   prov.lasningar.push(l);
@@ -1148,7 +1148,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     id: i + 1, namn: t.namn || null, saker: !!t.saker, tillstand: t.tillstand, tappad: !!t.tappad, skymd: !!t.skymd, fragad: !!t.fragad, varfor: t.varfor || null,
     ai: t.ai ? { modell: t.ai.modell || null, kort: t.ai.kort, antal: t.ai.antal, usage: t.ai.usage || null, helbild: !!t.ai.helbild, svar: t.ai.svar || null } : null,
     cands: (t.cands || []).slice(0, 3).map(c => c.name),
-    ocr: t.namnLast ? { text: t.namnLast.text, namn: t.namnLast.namn, poang: t.namnLast.poang, marginal: t.namnLast.marginal, ms: t.namnLast.ms, hoppad: t.namnLast.hoppad || null, start: t.namnLast.start, vand: !!t.namnLast.vand } : null,
+    ocr: t.namnLast ? { text: t.namnLast.text, namn: t.namnLast.namn, poang: t.namnLast.poang, marginal: t.namnLast.marginal, ms: t.namnLast.ms, hoppad: t.namnLast.hoppad || null, start: t.namnLast.start, vand: !!t.namnLast.vand, utanfor: t.namnLast.utanfor || null } : null,
     /* Namnet ur remsan (MES-330) och om beskärningen var övermålad. */
     remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, px: t.remsa.px || null, synt: !!t.remsa.synt, geo: !!t.remsa.geo, tackt: t.remsa.tackt || 0, utom: t.remsa.utom || 0, ms: t.remsa.ms, titel: t.remsa.titel || null, minne: t.remsa.minne || null, ocr: t.remsa.ocr ? { namn: t.remsa.ocr.namn, poang: t.remsa.ocr.poang, marginal: t.remsa.ocr.marginal, hoppad: t.remsa.ocr.hoppad || null } : null } : null,
     maskad: !!t.maskad, det: t.detPoang != null ? +(+t.detPoang).toFixed(2) : null,
