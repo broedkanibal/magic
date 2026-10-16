@@ -34889,7 +34889,7 @@ const MINNE_TYP = new Set(['namn', 'sent_namn', 'namngiven', 'tillagd', 'bytt'])
 function khSakra() {
   const id = spelLage ? spelLage.id : null;
   if (KH.spel === id) return !!id;
-  KH.spel = id; KH.ko = []; KH.spar = new Map(); KH.sedda = new Set(id ? LS.get(K_KH + id, []) : []); KH.journal = []; KH.minne = [];
+  KH.spel = id; KH.ko = []; KH.spar = new Map(); KH.sedda = new Set(id ? LS.get(K_KH + id, []) : []); KH.journal = []; KH.minne = []; KH.minneSkickas = null;   // ett nytt parti väntar aldrig på förra partiets minneskö
   return !!id;
 }
 function khNyckel(id) { return id == null ? null : KH.spar.get(String(id)) || String(id); }
