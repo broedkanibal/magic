@@ -412,6 +412,7 @@ steg rapport dev/rapport/ -- node dev/rapport/prov.cjs > /dev/null   # MES-365: 
 steg rapport-c dev/rapport/ -- node dev/rapport/prov-c.cjs > /dev/null   # MES-367: kontot, Settings, Delete, knappen och telefonens ark; flaggan av = inga ytor (attrapp av supabase-js)
 steg handlingar dev/rapport/ dev/mattest/ dev/eventtest/facit.cjs dev/golden/lek.txt -- node dev/rapport/prov-handlingar.cjs > /dev/null   # MES-385: rättelser av handlingar i kort_handelser, den tysta rättelsen och vägen till ett Mat test-fall
 steg rapport-radera dev/rapport/ dev/embed/riktiga/ dev/golden/lek.txt -- node dev/rapport/prov-radera.cjs > /dev/null   # granskningen i skala, steg 5: kopieindexet, radera.cjs (0 träffar på koden efteråt) och gallra.cjs, attrapp för Supabase
+steg minnet dev/minnet/ supabase/migrations/ -- sh dev/minnet/prov.sh   # MES-373: minnet i datan — RLS med två konton, bakåtfyllningen och ett parti som fyller minnet, mot migrationen i PGlite
 steg mattest dev/mattest/ dev/eventtest/facit.cjs dev/golden/fall/ dev/golden/lek.txt -- node dev/mattest/kor.cjs --fall g07,g09,g10,g11,g12,p0921,parti-kedjan > /dev/null
 KLAR=1
 exit 0

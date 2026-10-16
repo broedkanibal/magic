@@ -156,6 +156,12 @@ på en felsida efter Google-rutan.
    `migrations/20261009090000_funktioners_rattigheter.sql` låser sökvägen i
    `bump_board_version` och tar bort rätten för utloggade att köra
    `i_spelet` och Supabases egen `rls_auto_enable`. Påverkar inte appen.
+9. Minnet (MES-373): `migrations/20261016120000_spelarens_kort.sql` skapar
+   `spelarens_kort` (korten spelaren setts med, en rad per spelare, parti
+   och namn — bara ägaren läser och skriver), lägger `lage` (learned eller
+   complete) på `decks`, och fyller minnet en gång ur gamla partier och
+   lekar. Utan den skrivs inget minne; allt annat fungerar som förut. Provet
+   mot filen: `sh dev/minnet/prov.sh`.
 
 Filerna går att köra om utan att något går sönder, så om du behöver ändra
 något senare kör du bara hela filen igen.

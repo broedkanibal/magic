@@ -32,6 +32,11 @@ alter table public.decks
 -- parti börjar i dem (migrations/20261009130000_decks_slv_farg.sql)
 alter table public.decks
   add column if not exists slv_farg jsonb;
+-- learned (Mirror lärde sig leken) eller complete (inläst, inklistrad,
+-- importerad); Digital table kräver complete
+-- (migrations/20261016120000_spelarens_kort.sql, MES-373)
+alter table public.decks
+  add column if not exists lage text not null default 'complete';
 create index if not exists decks_user_uppdaterad on public.decks(user_id, uppdaterad desc);
 alter table public.decks enable row level security;
 

@@ -7343,6 +7343,48 @@ const Moln = (() => {
     if (error) { if (saknasFel(error)) saknas.kh = true; else console.warn('Korthändelserna kunde inte sparas', error.message); return false; }
     return true;
   }
+  /* ── Minnet (MES-373, supabase/migrations/20261016120000_spelarens_kort.sql) ──
+     Korten spelaren setts med: en rad per spelare, parti och namn (eller lek och namn för en inläst lek).
+     Databasen slår ihop två skrivningar av samma namn (triggern minnet_sla_ihop): högsta antalet, en
+     bekräftelse står kvar. Saknas tabellen (migrationen inte körd) slutar skrivningen tyst efter en rad
+     i konsolen. Inget här frågar Claude. */
+  const minnetFel = error => { if (saknasFel(error)) { if (!saknas.minne) console.warn('Minnet: tabellen spelarens_kort saknas — migrationen 20261016120000 är inte körd'); saknas.minne = true; } else console.warn('Minnet kunde inte sparas', error.message); };
+  /* rader: [{game_id, namn, sid, kalla, bekraftad, antal, sedd}], högst en per parti och namn. */
+  async function minnetSett(rader) {
+    const s = await klient(); if (!s || !inloggad() || saknas.minne || !rader.length) return false;
+    const { error } = await s.from('spelarens_kort')
+      .upsert(rader.map(r => Object.assign({ user_id: minId() }, r)), { onConflict: 'user_id,grupp,namn' });
+    if (error) { minnetFel(error); return false; }
+    return true;
+  }
+  /* En rättelse (bytt): namnet som var fel tas bort ur partiets minne. */
+  async function minnetGlom(gameId, namn) {
+    const s = await klient(); if (!s || !inloggad() || saknas.minne || !gameId || !namn) return false;
+    const { error } = await s.from('spelarens_kort').delete().eq('user_id', minId()).eq('game_id', gameId).eq('namn', namn);
+    if (error) { minnetFel(error); return false; }
+    return true;
+  }
+  /* En inläst lek: hela leken på en gång, bekräftad (kalla inlast). Lekens gamla rader ersätts, så att ett kort
+     som tagits ur leken inte står kvar. rader: [{namn, sid, antal}]. */
+  async function minnetLek(deckId, rader) {
+    const s = await klient(); if (!s || !inloggad() || saknas.minne || !deckId) return false;
+    const { error: e1 } = await s.from('spelarens_kort').delete().eq('user_id', minId()).eq('deck_id', deckId);
+    if (e1) { minnetFel(e1); return false; }
+    if (!rader.length) return true;
+    const nu = new Date().toISOString();
+    const { error } = await s.from('spelarens_kort').insert(rader.map(r => ({ user_id: minId(), deck_id: deckId, namn: r.namn, sid: r.sid || null,
+      kalla: 'inlast', bekraftad: true, antal: r.antal || 1, sedd: nu })));
+    if (error) { minnetFel(error); return false; }
+    return true;
+  }
+  /* Spelarens hela minne (den aktiva leken i etapp 1b läser det). null = gick inte att läsa. */
+  async function minnet() {
+    const s = await klient(); if (!s || !inloggad() || saknas.minne) return null;
+    const { data, error } = await s.from('spelarens_kort').select('namn, sid, game_id, deck_id, kalla, bekraftad, antal, sedd')
+      .eq('user_id', minId()).order('sedd', { ascending: false });
+    if (error) { if (saknasFel(error)) saknas.minne = true; return null; }
+    return data || [];
+  }
   /* Senaste partiet att fråga "How did the camera do?" om: avslutat de senaste 14 dagarna,
      startat, spelat med kameran (lage 'bord') och inte besvarat — null annars. */
   async function betygAttFraga() {
@@ -7376,7 +7418,7 @@ const Moln = (() => {
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans, hamtaVektorer, hamtaRefs, sparaRefs, raderaRefs,
-           loggaKortHandelser, betygAttFraga, sparaBetyg };
+           loggaKortHandelser, minnetSett, minnetGlom, minnetLek, minnet, betygAttFraga, sparaBetyg };
 })();
 /* Flaggan (MES-367) som global, så att Rapport.rapportPa och C:s ytor läser samma värde. Ändras i Moln, bredvid VILLKOR_VERSION. */
 const RAPPORT_FOR_ALLA = Moln.RAPPORT_FOR_ALLA;
@@ -16196,6 +16238,8 @@ async function valjLekTill(id) {
   let rad = null;
   try { rad = await lekHamtaRad(id); } catch (e) { rad = null; }
   if (!rad) { toast('The deck could not be fetched', 'err'); return; }
+  /* Digital table kräver en complete lek (decks.lage, MES-373): en lek Mirror lärt sig saknar kort. */
+  if (spelLage && mittLage() === 'utan' && rad.lage === 'learned') { toast('This deck was learned in Mirror my table. Digital table needs the complete deck.', 'err'); return; }
   const info = lekInfo(rad);
   lekSattAktiv(rad);
   if (!spelLage) { renderTabs(); return; }
@@ -22194,7 +22238,7 @@ async function stangLeksida(o = {}) {
     if (id) oppLekVal = id;
     /* Create deck (N8, MES-323): leken används i spelet, som Use this deck
        gjorde, och uppstarten går vidare till nästa steg. */
-    if (o.anvand && id && spelLage) { oppVisat = null; oppSatt({ lekOk: true }); await valjLekTill(id); }
+    if (o.anvand && id && spelLage) { oppVisat = null; oppSatt({ lekOk: true }); await valjLekTill(id); minnetLasIn(id); }   // minnetLasIn: hela leken in i minnet (MES-373)
     if (spelLage) renderMode();
   }
 }
@@ -34839,11 +34883,12 @@ function khJournalfor(typ, kort, f) {
 }
 /* Journalens rader mellan fran och till (ms, datorns klocka), som kopior. */
 function khJournal(fran, till) { return ((KH.spel && KH.journal) || []).filter(r => r.t >= fran && r.t <= till).map(r => JSON.parse(JSON.stringify(r))); }
-const KH = { spel: null, ko: [], spar: new Map(), sedda: new Set(), timer: 0, journal: [] };
+const KH = { spel: null, ko: [], spar: new Map(), sedda: new Set(), timer: 0, journal: [], minne: [] };
+const MINNE_TYP = new Set(['namn', 'sent_namn', 'namngiven', 'tillagd', 'bytt']);   // korthändelserna som blir en rad i minnet (minnetNotera)
 function khSakra() {
   const id = spelLage ? spelLage.id : null;
   if (KH.spel === id) return !!id;
-  KH.spel = id; KH.ko = []; KH.spar = new Map(); KH.sedda = new Set(id ? LS.get(K_KH + id, []) : []); KH.journal = [];
+  KH.spel = id; KH.ko = []; KH.spar = new Map(); KH.sedda = new Set(id ? LS.get(K_KH + id, []) : []); KH.journal = []; KH.minne = [];
   return !!id;
 }
 function khNyckel(id) { return id == null ? null : KH.spar.get(String(id)) || String(id); }
@@ -34858,6 +34903,7 @@ function khLoggaNu(typ, kort, f) {
     KH.sedda.add(sig);
     LS.set(K_KH + KH.spel, [...KH.sedda].slice(-3000));
   }
+  if (MINNE_TYP.has(typ)) minnetNotera(typ, kort, f || {});
   KH.ko.push(Object.assign({ game_id: KH.spel, kort: k, typ, lage: mittLage(), tid: new Date().toISOString() }, f || {}));
   const g = f || {};
   Mix.track(KH_MIX[typ], { card: k, card_name: g.namn, previous_name: g.fran, source: g.kalla === 'claude' ? 'claude' : g.kalla ? 'phone' : null, ms: g.ms, mode: 'mirror' });
@@ -34869,6 +34915,57 @@ function khSkicka() {
   const handl = rader.filter(r => KH_HANDLING.has(r.typ)), ovriga = rader.filter(r => !KH_HANDLING.has(r.typ));
   if (ovriga.length) Moln.loggaKortHandelser(ovriga).catch(() => {});
   if (handl.length) Moln.loggaKortHandelser(handl).catch(() => {});   // egen skrivning (KH_HANDLING)
+  minnetSkicka();
+}
+/* Minnet (MES-373, etapp 1a i dev/plan/lekar-och-minnet-bygget.md): ett namn som blir säkert på mitt bord i Mirror
+   blir en rad i spelarens minne (spelarens_kort), i samma ögonblick som korthändelsen. Kameran (telefonen, Claude)
+   ger ett säkert men obekräftat namn; spelaren (Name this card, Change card, ett kort lagt för hand) ett bekräftat.
+   Ett osäkert namn skrivs aldrig: namnlos har inget namn, och Name this card skrivs först när spelaren svarat.
+   En rättelse (bytt) ersätter raden — namnet som var fel tas bort, om inget annat av mina kort i partiet
+   fortfarande heter så. Tokens är inga kort. Raderna går med korthändelsernas kö (khSkicka); antalet (högsta
+   antalet som legat samtidigt, B3) och tryckningen läses när kön skickas, när kortet säkert ligger på bordet.
+   Ett nytt flöde till Claude finns inte här: källan 'claude' är bara det namn kameran redan fått. */
+function minnetNotera(typ, kort, f) {
+  if (!f.namn) return;
+  const mig = minSpelare(), cid = String(kort), c = mig && mig.cards.find(k => k.cid === cid);
+  if (c && c.tok) return;
+  const spelaren = typ !== 'namn' && typ !== 'sent_namn';
+  if (typ === 'bytt' && f.fran && !(mig && mig.cards.some(k => k.cid !== cid && k.name === f.fran && !k.tok))) KH.minne.push({ glom: f.fran });
+  KH.minne.push({ namn: f.namn, cid, kalla: spelaren ? 'spelaren' : f.kalla === 'claude' ? 'claude' : 'telefon', bekraftad: spelaren, t: Date.now() });
+}
+function minnetSkicka() {
+  const poster = KH.minne.splice(0), spel = KH.spel;
+  if (!poster.length || !spel) return;
+  const mig = minSpelare(), rader = new Map(), glom = new Set();
+  for (const p of poster) {
+    if (p.glom) { rader.delete(p.glom); glom.add(p.glom); continue; }
+    glom.delete(p.namn);
+    const mina = mig ? mig.cards.filter(k => k.name === p.namn && !k.tok) : [], c = mina.find(k => k.cid === p.cid);
+    const r = { game_id: spel, namn: p.namn, sid: (c && c.sid) || (mina.find(k => k.sid) || {}).sid || null, kalla: p.kalla, bekraftad: p.bekraftad,
+                antal: Math.max(1, mina.length), sedd: new Date(p.t).toISOString() };
+    const g = rader.get(p.namn);   // samma namn två gånger i kön: en rad (en upsert får inte röra samma rad två gånger)
+    rader.set(p.namn, !g ? r : Object.assign(r, { antal: Math.max(g.antal, r.antal), sid: r.sid || g.sid, bekraftad: g.bekraftad || r.bekraftad, kalla: g.bekraftad && !r.bekraftad ? g.kalla : r.kalla }));
+  }
+  (async () => {
+    for (const n of glom) await Moln.minnetGlom(spel, n);
+    await Moln.minnetSett([...rader.values()]);
+  })().catch(() => {});
+}
+/* En inläst lek (Create deck på datorn): hela leken blir bekräftade rader i minnet på en gång (kalla inlast),
+   sideboarden också. Lekfotots platshållare (okand) är inga kort. */
+async function minnetLasIn(id) {
+  try {
+    if (!Moln.inloggad() || !id || String(id).startsWith('lokal:')) return false;
+    const rad = await lekHamtaRad(id); if (!rad) return false;
+    const per = new Map();
+    for (const k of Array.isArray(rad.kort) ? rad.kort : []) {
+      if (!k || k.okand || !k.name) continue;
+      const g = per.get(k.name) || { namn: k.name, sid: null, antal: 0 };
+      g.sid = g.sid || k.sid || null; g.antal += Math.max(1, +k.n || 1);
+      per.set(k.name, g);
+    }
+    return await Moln.minnetLek(id, [...per.values()]);
+  } catch (e) { console.warn('Minnet', e); return false; }
 }
 /* En rättelse av en handling (KH_HANDLING): raden i kort_handelser, och med kontots inställning bordsloggen runt den
    (Rattelse.handling). f: det som skiljer, sparat i radens rapport-kolumn. */
