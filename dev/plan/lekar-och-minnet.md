@@ -117,7 +117,7 @@ spelaren, bli träningsmaterial för bildmodellen och remsan, och ORB kan minnas
 | **G1** | Hur bra är telefonen ensam mot hela världen? Säkra rätt och säkra fel på nya, hela kort. | Golden mot alla ~30 000 kort i stället för leken, med bildmodellen och ORB. Kräver ett nytt läge i `dev/golden/kor.cjs`, bredvid `--utan-leken`. |
 | G2 | Hur många nya kort har ett första parti, alltså hur många Claude-frågor? | Ur sparade partier (`kort_handelser` i Supabase) eller golden-lekarna. Jämför med taket 30 per parti. |
 | G3 | Hur ofta har Claude rätt på en enskild beskärning, hur lång tid tar det, och hur ofta stoppar kontrollen mot Scryfall-bilden ett rätt svar? | `--ai` på golden-beskärningarna. |
-| G4 | Hur snabbt hittar den aktiva leken rätt lek? | Simulera med golden-lekarna; historik saknas än. |
+| G4 | Hur snabbt hittar den aktiva leken rätt lek? | **Mätt** (MES-374, 2026-10-15): 2 säkra kort räcker när leken är känd. Se *Resultat G4*. |
 
 ## Teknik
 
@@ -337,7 +337,7 @@ Det som kan få satsningen att byta sida: att 0 säkra fel inte håller på en a
 | # | Vad | Varför |
 |---|---|---|
 | G3 | `--ai` på golden-beskärningarna. **Kräver Jespers ja.** | hur ofta Claude har rätt på de kort telefonen missar (här Faithful Pikemaster, Pharika's Chosen), hur lång tid det tar, och hur ofta Scryfall-kontrollen stoppar ett rätt svar |
-| G4 | simulera den aktiva leken med golden-lekarna | oförändrat |
+| G4 | simulera den aktiva leken med golden-lekarna | **gjord** 2026-10-15 (MES-374), se *Resultat G4* |
 | – | världen på mer material: en annan lek, beskärningarna ur MES-246, och golden mot världen i etapp 2 | 20 kort är för lite för att lita på 0 säkra fel |
 | – | fingeravtryckens storlek: int8, färre referenser, filtret på färg och format | 100 MB i float16 |
 | – | testet i Private beta (grupp A fotar, grupp B spelar direkt) | oförändrat |

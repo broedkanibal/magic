@@ -153,10 +153,14 @@ bänken.
 
 #### 2b · Världssteget i kamerakedjan (T2, T5)
 
-Rör läsningen. Efter 1b.
+Rör läsningen. Efter 1b. Världsfilen finns sedan 2026-10-15 (MES-375);
+byggbeskrivningen med länk, läsare och kraven för nedladdningen står i
+MES-377 (omskriven 2026-10-15).
 
 | Del | Innehåll |
 |---|---|
+| Världsfilen | E3: PCA 384 + int8, **31 MB över nätet, 41 MB uppackad**, ~33 200 namn, i bucketen `modeller` (hashen i filnamnet, en ny fil får nytt namn). Läsaren `dev/embed/varld.js` (`Varld.ladda`, `Varld.sok`), fristående, går i en worker. Bänk: 24 av 37 nya kort, 0 säkra fel. E1 (22 MB) är reserven om 41 MB är för tungt på telefonen |
+| Nedladdningen | **osynlig, i bakgrunden, en gång** (Jesper 2026-10-15): startas när Mirror startas, blockerar aldrig kameran, sparas i Cache Storage som bildmodellen (`hamtaModell`), be om `navigator.storage.persist()`. Inte klar när ett okänt kort dyker upp → världssteget hoppas över, ingen fråga. Spelaren ser ingenting; läget bara i `?debug` (`halsa.varld`: laddar / klar / fel / av). Den delen beror inte på 1b och kan byggas före |
 | Ordningen | steg 1 (aktiva leken) → steg 2 (minnet) → steg 3 (världen). Steg 3 körs bara för ett **nytt, helt kort som ligger still** (punkt 6 i riktningen). Remsor och delvis täckta kort söks inte i världen förrän remsdelen från 2a finns |
 | Sökningen | i en worker, så att spårningen inte hackar. Uppskattat 0,2–0,5 s på telefonen |
 | ORB vid behov | Scryfall-bilden (small) för de tre bästa namnen hämtas och ORB körs med appens egen kod. Cache per bild. G1: 50–86 ms på Macen, ~0,2–0,4 s på telefonen |
@@ -212,6 +216,7 @@ först.
 | I spelet | chippet "Pick a deck" och lekens knapp ändras enligt D1. Library i Mirror är den fysiska högen |
 | Telefonen | utan lekval: aktiva leken ur minnet (etapp 1). Tomt minne: världen och Claude direkt (etapp 2–3) |
 | Datorn | antalsreglerna (`lekAntal`) med en learned lek: mjukt stöd, inget tak |
+| Antalsfrågan "Another X?" | **tas bort i Mirror** (Jesper 2026-10-15). I dag frågar appen "Your deck has only N × X — one more?" när ett säkert namn skulle ge fler exemplar än leken har (`overTak` i `avstamBord`, knappen "Another X?" i `ofrMarkHtml`). Utan lekval finns inget tak, så frågan, dess post i granskningen (`overTak`, `tak`) och knappens text tas bort i Mirror, inte bara slutar slå till. Digital behåller den om den behövs där. Samma sak för `urGraven` (graveyard → bordet bara vid fullt antal): se MES-388 |
 | Efter partiet | "Mesa learned 34 cards — save as deck?" enligt D3. Leken sparas som `learned` |
 | Digital | kräver fortfarande en complete lek. Vägen dit: lekfotot, import eller inklistring (D4) |
 
