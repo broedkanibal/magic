@@ -33062,6 +33062,72 @@ function sandBord(spar, nollstall, extra) {
     : { spar, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null, grund: grundGrader() }, bordExtra(extra)));
 }
 
+/* ═══ DEN AKTIVA LEKEN (MES-376, etapp 1b; regeln ur G4, MES-374) ═══
+   Korten på bordet väljer vilken av spelarens lekar som spelas. Ren modul
+   utan nät och utan DOM — provas i dev/aktivlek.cjs, som klipper ut
+   blocket ur index.html (samma sätt som dev/kamerabank.cjs).
+     start(o)  o.lekar: [{ id, namn, kort: [namn] }] spelarens lekar i minnet
+               o.vald: leken vald i uppstarten (etapp 4 — starten när den finns)
+               o.senast: den senast spelade (starten annars)
+               o.grupper: Map grupp → Set namn, minnets grupper (partier och lekar)
+     sett(namn) ett SÄKERT namn på bordet (telefonens, Claudes eller spelarens —
+               Claude är aldrig ett villkor, bara ett namn bland de andra).
+               Svar: { aktiv, bytt, slappt, nya, traffar }
+     namn()    namnmängden steg 1 känner igen mot: den aktiva lekens namn och
+               de grannar som dragits in ur minnet
+   Regeln (mätt i dev/aktiv-lek.cjs, resultatet under *Resultat G4* i
+   dev/plan/lekar-och-minnet.md; m = 2, släpp efter 4):
+     1. Starta i den valda leken, annars den senast spelade.
+     2. Byt till en annan lek när den har minst MIN_BYTE av de säkra korten
+        och fler än den aktiva. Vid lika behålls den aktiva, sedan den senast
+        spelade. Basland räknas inte (de finns i alla lekar), och ett namn
+        räknas en gång.
+     3. Släpp leken (ingen aktiv) när SLAPP_EFTER säkra kort gett 0 träffar i
+        den aktiva. Släppt är inte låst: en lek som sedan når MIN_BYTE blir
+        aktiv.
+     4. Ingen viktning efter hur ovanligt ett kort är (gav ingen vinst).
+   Ett kort som syns och inte finns i den aktiva leken drar in sina GRANNAR
+   ur minnet: namnen i de grupper (partier, lekar) det setts i. De hör till
+   namn() tills partiet är slut — en fel aktiv lek kostar bara fart, inte
+   rätt (steg 2 kräver ORB), och grannarna gör den farten kortare. */
+const AktivLek = (() => {
+  const MIN_BYTE = 2, SLAPP_EFTER = 4;
+  const basland = n => /^(?:Snow-Covered )?(?:Plains|Island|Swamp|Mountain|Forest|Wastes)$/.test(String(n || ''));
+  let lekar = [], aktiv = null, senast = null, sedda = [], extra = new Set(), grupper = new Map(), bytten = [];
+  function start(o) {
+    o = o || {};
+    lekar = (o.lekar || []).filter(l => l && l.id).map(l => ({ id: l.id, namn: l.namn || '', alla: new Set(l.kort || []), kort: new Set((l.kort || []).filter(n => n && !basland(n))) }));
+    senast = o.senast && lekar.some(l => l.id === o.senast) ? o.senast : null;
+    aktiv = o.vald && lekar.some(l => l.id === o.vald) ? o.vald : senast;
+    sedda = []; extra = new Set(); grupper = o.grupper instanceof Map ? o.grupper : new Map(); bytten = [];
+  }
+  const lek = id => lekar.find(l => l.id === id) || null;
+  const traffar = l => { let k = 0; for (const n of sedda) if (l.kort.has(n)) k++; return k; };
+  const pref = l => (l.id === aktiv ? 2 : l.id === senast ? 1 : 0);
+  function sett(namn) {
+    const fore = aktiv, foreExtra = extra.size;
+    if (!namn || basland(namn) || sedda.includes(namn)) return { aktiv, bytt: false, slappt: false, nya: false, traffar: aktiv ? traffar(lek(aktiv)) : 0 };
+    sedda.push(namn);
+    /* Grannarna: inte i den aktiva leken → namnen ur minnets grupper med kortet. */
+    const akt = lek(aktiv);
+    if (!(akt && akt.alla.has(namn)) && !extra.has(namn)) {
+      extra.add(namn);
+      for (const m of grupper.values()) if (m && m.has(namn)) for (const n of m) extra.add(n);
+    }
+    let bast = null, bastT = -1;
+    for (const l of lekar) { const t = traffar(l); if (t > bastT || (t === bastT && bast && pref(l) > pref(bast))) { bast = l; bastT = t; } }
+    const aktT = akt ? traffar(akt) : -1;
+    if (bast && bastT >= MIN_BYTE && bast.id !== aktiv && bastT > aktT) aktiv = bast.id;
+    const nuA = lek(aktiv);
+    if (nuA && sedda.length >= SLAPP_EFTER && traffar(nuA) === 0) aktiv = null;
+    if (aktiv !== fore) bytten.push({ fran: fore, till: aktiv, efter: sedda.length, namn });
+    return { aktiv, bytt: aktiv !== fore, slappt: !!fore && !aktiv, nya: extra.size !== foreExtra, traffar: aktiv ? traffar(lek(aktiv)) : 0 };
+  }
+  function namn() { const ut = new Set(extra); const a = lek(aktiv); if (a) for (const n of a.alla) ut.add(n); return ut; }
+  const lage = () => ({ aktiv, namn: aktiv && lek(aktiv) ? lek(aktiv).namn : null, senast, sedda: sedda.length, extra: extra.size, lekar: lekar.map(l => ({ id: l.id, namn: l.namn, traffar: traffar(l) })), bytten: bytten.slice() });
+  return { start, sett, namn, lage, MIN_BYTE, SLAPP_EFTER, get aktiv() { return aktiv; } };
+})();
+
 /* Vilken lek telefonen känner igen kort mot (dev/plan/lagen.md, D5-4): den
    jag VALT i det här spelet (game_players.lek_id → decks), annars kontots
    senast sparade lek, annars den gamla enleks-raden (lekar) tills den
