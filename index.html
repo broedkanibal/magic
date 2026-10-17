@@ -33736,18 +33736,25 @@ function varldSoks(o, ensamt) {
 }
 /* ORB-särdragen för ett av världens konstverk: Scryfalls small-bild (samma storlek som poolens bilder, byggPoolAv)
    hämtad vid behov och räknad med appens egen ORB.refFeatures. Cache per bild-id: ett kort som dyker upp igen
-   hämtas inte om. null när bilden inte gick att hämta (utan nät: steget faller tyst). */
+   hämtas inte om. null när bilden inte gick att hämta (utan nät: steget faller tyst) — eller inte kom på
+   KAM_VARLD_BILD_TAK_MS (rättelsen 2026-10-17 fynd 2: ett nät som står still gav ett löfte som aldrig löstes,
+   kamVarldSok väntade på alla tre, spåret släppte aldrig 'lasande', och löftet låg kvar i kamVarldBilder så att
+   nästa kort med samma namn väntade på det igen). Ett misslyckat eller för sent svar cachas inte; de bilder som
+   kom fram används (kamVarldSok tar de som finns). Ren funktion, provad i dev/kamerabank.cjs (VD7). */
 const kamVarldBilder = new Map();   // id → Promise<särdrag | null>
 const KAM_VARLD_BILDER_TAK = 400;
+const KAM_VARLD_BILD_TAK_MS = 3000;   // per bild; längre än så är nätet borta för den här läsningen — kortet går till Claude eller spelaren
 function kamVarldOrb(id, sida) {
   const nyckel = id + (sida ? '/b' : '');
   let p = kamVarldBilder.get(nyckel);
   if (p) return p;
   const url = 'https://cards.scryfall.io/small/' + (sida ? 'back' : 'front') + '/' + id[0] + '/' + id[1] + '/' + id + '.jpg';
-  p = loadImage(url, true).then(im => ORB.refFeatures(im, 200)).catch(() => null);
+  let tak = null;
+  p = Promise.race([loadImage(url, true), new Promise((_, rej) => { tak = setTimeout(() => rej(new Error('bild tak')), KAM_VARLD_BILD_TAK_MS); })])
+    .then(im => ORB.refFeatures(im, 200)).catch(() => null).finally(() => clearTimeout(tak));
   kamVarldBilder.set(nyckel, p);
   while (kamVarldBilder.size > KAM_VARLD_BILDER_TAK) kamVarldBilder.delete(kamVarldBilder.keys().next().value);
-  p.then(f => { if (!f) kamVarldBilder.delete(nyckel); });   // ett misslyckande cachas inte: nätet kan komma tillbaka
+  p.then(f => { if (!f && kamVarldBilder.get(nyckel) === p) kamVarldBilder.delete(nyckel); });   // ett misslyckande cachas inte: nätet kan komma tillbaka
   return p;
 }
 /* Världens sökning för en beskärning: bildmodellens vektor i fyra vridningar (filen har bara upprätta referenser,

@@ -3332,6 +3332,37 @@ if (foralder) foraldern(); else (async () => {
     check(`VD6 egen fil (golden): tråden får en absolut adress ${w6.sant[0].url}`, w6.sant[0].url === 'http://localhost/dev/material/x/varld.bin.gz');
     KV.stopp();
   }
+  /* VD7 (MES-377 rättelsen, fynd 2): Scryfall-bilderna för världens tre kandidater har ett tidstak. kamVarldOrb och
+     kamVarldSok klipps ut med en loadImage-attrapp där en bild kommer, en aldrig svarar (nätet står still) och en
+     faller. Förut väntade Promise.all på alla tre för evigt: spåret släppte aldrig 'lasande', och löftet låg kvar i
+     kamVarldBilder så att nästa kort med samma namn väntade på det igen. Nu: svaret kommer inom taket med de bilder
+     som fanns, och bara de cachas. Taket sätts här till 150 ms (appens är KAM_VARLD_BILD_TAK_MS, 3 s). */
+  if (await del('VD7')) {
+    const vmB = require('vm');
+    const klippB = (startRad, slutRad) => { const a = src.findIndex(l => l.startsWith(startRad)); if (a < 0) throw new Error('hittar inte ' + startRad); let b = -1; for (let i = a + 1; i < src.length; i++) if (src[i].startsWith(slutRad)) { b = i; break; } if (b < 0) throw new Error('hittar inte slutet på ' + startRad); return src.slice(a, b + 1).join('\n'); };
+    const radB = startRad => { const l = src.find(x => x.startsWith(startRad)); if (!l) throw new Error('hittar inte ' + startRad); return l; };
+    const bilder = { a: 'svar', b: 'tyst', c: 'fel' };   // id → hur Scryfall svarar
+    const laddade = [];
+    const topp = [{ namn: 'Alfa', poang: 0.7, id: 'aaaa', sida: 0 }, { namn: 'Beta', poang: 0.5, id: 'bbbb', sida: 0 }, { namn: 'Gamma', poang: 0.4, id: 'cccc', sida: 0 }, { namn: 'Delta', poang: 0.3, id: 'dddd', sida: 0 }];
+    const c = { console, BAKSIDA_NAMN: '(baksida)', MODELL_NAMN: 3, KAM_VARLD_BILD_TAK_MS: 150, KAM_VARLD_BILDER_TAK: 400, Map, Promise, Error, Array, Object, Float32Array, setTimeout, clearTimeout,
+                performance: { now: () => Date.now() }, Embed: { TROSKEL: 0.11, backend: 'attrapp', vektor: async () => new Float32Array(512) },
+                KamVarld: { sok: async () => ({ rot: 0, ms: 7, topp }) }, ORB: { refFeatures: im => ({ kps: [1, 2, 3], id: im.id }), pack: l => ({ n: l.length }) },
+                loadImage: url => { const id = /\/([a-z]+)\.jpg$/.exec(url)[1][0]; laddade.push(id); return new Promise((res, rej) => { if (bilder[id] === 'svar') res({ id }); else if (bilder[id] === 'fel') rej(new Error('bild')); }); } };
+    vmB.createContext(c);
+    vmB.runInContext([radB('const kamVarldBilder = '), klippB('function kamVarldOrb(', '}'), klippB('async function kamVarldSok(', '}')].join('\n'), c);
+    const kamVarldSok = vmB.runInContext('kamVarldSok', c), kamVarldBilder = vmB.runInContext('kamVarldBilder', c);
+    let t0 = Date.now(), s = await Promise.race([kamVarldSok({}), new Promise(r => setTimeout(() => r('hänger'), 2000))]), dt = Date.now() - t0;
+    check(`VD7 en bild kommer, en svarar aldrig, en faller: svaret kommer på ${dt} ms (taket 150) med de bilder som fanns — ${s === 'hänger' ? 'HÄNGER' : s && s.pool ? s.pool.names.join(',') + ', ' + s.bilder + ' bild(er)' : JSON.stringify(s)}`,
+          s !== 'hänger' && dt < 1000 && s && s.pool && s.pool.names.join(',') === 'Alfa' && s.bilder === 1 && s.e && s.e.namn === 'Alfa' && s.e.cands.length === 4);
+    await new Promise(r => setTimeout(r, 20));
+    check(`VD7 bara bilden som kom cachas: ${[...kamVarldBilder.keys()].join(',') || '–'} (den tysta och den fallna ligger inte kvar)`, [...kamVarldBilder.keys()].join(',') === 'aaaa');
+    const forra = laddade.length;
+    s = await Promise.race([kamVarldSok({}), new Promise(r => setTimeout(() => r('hänger'), 2000))]);
+    check(`VD7 samma kort igen: Alfa ur cachen, den tysta och den fallna hämtas om (${laddade.length - forra} nya hämtningar: ${laddade.slice(forra).join(',')})`, s !== 'hänger' && laddade.length - forra === 2 && !laddade.slice(forra).includes('a'));
+    bilder.a = 'tyst'; kamVarldBilder.clear();
+    t0 = Date.now(); s = await Promise.race([kamVarldSok({}), new Promise(r => setTimeout(() => r('hänger'), 2000))]); dt = Date.now() - t0;
+    check(`VD7 nätet står still för alla tre: svar på ${dt} ms, pool ${s && s.pool}, skäl '${s && s.skal}' — steget faller tyst, kameran hänger inte`, s !== 'hänger' && dt < 1000 && s && s.pool === null && s.skal === 'inga bilder' && kamVarldBilder.size === 0);
+  }
 
   if (barn) { skickaKlar(); process.send({ slut: true }, () => process.exit(0)); return; }
   console.log([...ok, ...fel].join('\n'));
