@@ -34027,6 +34027,11 @@ function kamSkickaFoto(id, canvas, marg) {
 }
 function kamFragaAI(canvas, id) {
   if (AI.mode !== 'server' || !prefs.aiAuto || !Pool.idx || !canvas || aiPausad()) return false;
+  /* Ingen fråga utan namn: den tomma aktiva poolen ('tom', minne utan aktiv lek — MES-376) har bara baksidan, och en
+     fråga med tom namnlista får 400 av servern. Det är ingen ny väg till Claude, bara en som inte ska finnas
+     (granskningen 2026-10-17, fynd 7). Minnets namn skickas inte: Claude frågas med den aktiva lekens, som förut. */
+  const namnen = kamAiNamnen(id);
+  if (!namnen.length) return false;
   const nu = Date.now();
   while (kamAiTider.length && nu - kamAiTider[0] > 60000) kamAiTider.shift();
   if (kamAiTider.length >= KAM_AI_TAK_PER_MIN) return false;
@@ -34036,7 +34041,7 @@ function kamFragaAI(canvas, id) {
     const t0 = performance.now();
     try {
       const url = canvas.toDataURL('image/jpeg', 0.85);
-      const resp = await aiFraga({ mode: 'kamera', image: url.slice(url.indexOf(',') + 1), names: kamAiNamnen(id) });
+      const resp = await aiFraga({ mode: 'kamera', image: url.slice(url.indexOf(',') + 1), names: namnen });
       if (!resp.ok) { info = { fel: resp.status }; kamAiBokfor(null, null, true); }
       else {
         const j = await resp.json();
