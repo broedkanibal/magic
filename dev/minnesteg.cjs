@@ -82,6 +82,42 @@ const check = (vad, ok) => { n++; if (!ok) { fel++; console.log('  FEL: ' + vad)
   check('steg 1 utan bärande (null): som förut, minne+orb', d && d.saker && d.varfor === 'minne+orb');
 }
 
+/* ── rättelse 3: titeln ensam gjorde steg 1 säkert på lekens X, 'fler än leken' fällde det ── */
+{
+  const ctx = { console, BAKSIDA_NAMN };
+  vm.createContext(ctx);
+  const domMinne = vm.runInContext(klipp('function domMinne(', '}') + '\n;domMinne', ctx);
+  /* Före rättelsen fanns ingen steg1Vittne: kamIdentifiera skickade bara ORB:s namn (v.accept ? b0 : null). Saknas
+     funktionen provas det gamla uttrycket, så att provet visar felet på en äldre index.html. */
+  let steg1Vittne;
+  try { steg1Vittne = vm.runInContext(klipp('function steg1Vittne(', '}') + '\n;steg1Vittne', ctx); }
+  catch (e) { steg1Vittne = (v, b0) => (v.accept && b0 && b0.name !== BAKSIDA_NAMN ? b0.name : null); }
+  const v2 = (...namn) => ({ accept: true, rec: { cands: namn.map((x, i) => ({ name: x, sid: 's' + i, score: 0.5 - i * 0.1 })) } });
+  console.log("steg1Vittne + domMinne: titeln säker på lekens X i steg 1, sedan 'fler än leken' (rättelse 3)");
+  /* Steg 1: bilden osäker (v.accept false), titeln 0,8 / 0,3 på lekens X → 'namn ensamt', säkert; 'fler än leken'
+     fäller. Steg 2: ORB bär minnets Z (likt X). Titeln döms om mot lekens + minnets namn: Z liknar X, marginalen
+     sjunker till 0,1 — inte längre säker, så domMinne såg ingen titel emot och gav 'minne+orb' på Z. */
+  const titel1 = { namn: 'X', poang: 0.8, marginal: 0.3 };
+  const tOm = { namn: 'X', poang: 0.8, marginal: 0.1 };
+  let w = steg1Vittne({ accept: false }, { name: 'W' }, true, true, titel1, { name: 'X' });
+  let d = domMinne(v2('Z', 'Y'), tOm, w);
+  check("titeln ensam säker på X, minnets Z ORB-buret, titeln omdömd utan marginal: konflikt, inte säkert Z", d && !d.saker && d.varfor === 'konflikt');
+  w = steg1Vittne({ accept: false }, { name: 'X' }, true, true, titel1, { name: 'X' });
+  d = domMinne(v2('Z', 'Y'), null, w);
+  check("B+'namn' (bildens etta X, titeln säker på X), ingen omdömd titel: konflikt", d && !d.saker && d.varfor === 'konflikt');
+  w = steg1Vittne({ accept: false }, { name: 'X' }, false, true, titel1, { name: 'X' });
+  check('steg 1 inte säkert (titeln fällde inget säkert): inget vittne', w === null);
+  w = steg1Vittne({ accept: false }, { name: 'X' }, true, false, { namn: 'X', poang: 0.55, marginal: 0.17 }, { name: 'X' });
+  check("svagt namn (inte säker titel): inget titelvittne", w === null);
+  w = steg1Vittne({ accept: true }, { name: 'X' }, true, false, null, { name: 'X' });
+  check('ORB bar X (v.accept): vittnet är bildens X som förut', w === 'X');
+  w = steg1Vittne({ accept: true }, { name: BAKSIDA_NAMN }, true, false, null, { name: 'X' });
+  check('baksidan överst i bilden: inget ORB-vittne', w === null);
+  w = steg1Vittne({ accept: false }, { name: 'X' }, true, true, titel1, { name: 'Z' });
+  d = domMinne(v2('Z', 'Y'), null, w);
+  check('titelns namn är inte steg 1:s etta (c0 Z): inget vittne, minne+orb', w === null && d && d.saker);
+}
+
 /* ── rättelse 2, fynd 4: kandidaterna åt granskningen när steg 2 inte blev säkert ── */
 {
   const ctx = { console };

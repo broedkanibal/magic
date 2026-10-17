@@ -33554,6 +33554,17 @@ function domMinne(v2, t, steg1) {
   }
   return { saker: true, varfor: sakerT ? 'minne+orb+namn' : 'minne+orb', cands };
 }
+/* Steg 1:s vittne åt domMinne (rättelse 2, fynd 1; rättelse 3): namnet steg 1 var säker på innan domen föll på något
+   annat ('fler än leken'). Antingen ORB:s bärande på lekens X (v.accept), eller titeln ensam — en säker titel
+   (≥ 0,6 / 0,2) som själv gjorde steg 1 säkert på X ('namn', 'namn ensamt', B+'namn', 'namn slår land'). Förut följde
+   bara ORB-namnet med: titeln döms om mot lekens OCH minnets namn i steg 2, och ett likt namn i minnet drar då ner
+   marginalen under 0,2 — minnets Z blev 'minne+orb' på ORB ensam fast titeln nyss var säker på X. Anropas FÖRE
+   'fler än leken', med steg 1:s saker. Ren funktion, provad i dev/minnesteg.cjs. */
+function steg1Vittne(v, b0, saker, sakertNamn, namn, c0) {
+  if (v && v.accept && b0 && b0.name !== BAKSIDA_NAMN) return b0.name;
+  if (saker && sakertNamn && namn && namn.namn && c0 && c0.name === namn.namn) return namn.namn;
+  return null;
+}
 /* Kandidaterna åt granskningen när steg 2 INTE blev säkert ('konflikt', 'titel skiljer ord'): lekens par från steg 1
    står kvar först, minnets kommer efter (samma namn en gång), och en säker titel (≥ 0,6 / 0,2) på något av dem lyfts
    överst som i steg 1 (rättelse 2, fynd 4 — förut ersatte minnets kandidater lekens, och spelaren fick välja bland
@@ -33780,6 +33791,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
     const upptagna = Kamera.upptagnaLek(c.name, id);   // utan spår som bevisat är på väg bort: kortet som just flyttats är inte ett exemplar till (MES-214); ett basland med egen skild remsa räknar inte de andra (upptagnaLek)
     return !lekPrior(true, tak == null ? Infinity : tak, upptagna);
   };
+  const vittne1 = steg1Vittne(v, b0, saker, sakertNamn, namn, c0);   // före 'fler än leken': namnet steg 1 var säker på (rättelse 3)
   if (saker && flerAnLeken(c0)) { saker = false; varfor = 'fler än leken'; }
   /* Steg 2 i trappan (MES-376): FÖRST när steg 1 sagt osäkert med alla sina vittnen hörda — titelraden, 'namn
      ensamt', andra åsikten, 'konflikt' — letas kortet i spelarens minne utanför den aktiva leken (KamMinne).
@@ -33792,7 +33804,8 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      föll först därefter — 'fler än leken', 'land mot namn', 'konflikt' (rättelse 2, fynd 1). Bildvittnet på X står
      kvar, och ett ORB-bärande på minnets Z vore två bildvittnen emot varandra; värst med utanTitel, där titeln inte
      väntats in och Z hade blivit 'minne+orb' på ingenting annat än ett likt konstverk. Steg 1:s namn följer med
-     till domMinne som vittne emot ifall vägen hit ändras. */
+     till domMinne som vittne emot ifall vägen hit ändras — och likaså titelns namn när titeln ensam gjorde steg 1
+     säkert på X och 'fler än leken' fällde det (rättelse 3, steg1Vittne). */
   if (!saker && !v.accept && KamMinne.redo()) {
     const tM = performance.now();
     let v2 = null;
@@ -33801,7 +33814,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
       const bada = [...new Set(namnUtanBaksida().concat(KamMinne.pool.names))].filter(n => n !== BAKSIDA_NAMN);
       let t = namn && namn.text ? Namn.doma(namn.text, bada) : null;
       if (t && t.namn) t = Object.assign({}, t, { namn: typAv(t.namn) });
-      const d = domMinne(v2, t, v.accept && b0 && b0.name !== BAKSIDA_NAMN ? b0.name : null);
+      const d = domMinne(v2, t, vittne1);
       if (d && d.saker) {
         v = Object.assign(v2, { minne: true }); M = v2.modell; saker = true; varfor = d.varfor; cands = d.cands; c0 = cands[0];
         /* Antalspriorn (K6) prövas om på minnets namn (rättelse 2, fynd 2): ett minnesland ("Snow-Covered Plains")
