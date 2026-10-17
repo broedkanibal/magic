@@ -82,6 +82,56 @@ const check = (vad, ok) => { n++; if (!ok) { fel++; console.log('  FEL: ' + vad)
   check('steg 1 utan bärande (null): som förut, minne+orb', d && d.saker && d.varfor === 'minne+orb');
 }
 
+/* ── rättelse 2, fynd 4: kandidaterna åt granskningen när steg 2 inte blev säkert ── */
+{
+  const ctx = { console };
+  vm.createContext(ctx);
+  let minneKandidater = null;
+  try { minneKandidater = vm.runInContext(klipp('function minneKandidater(', '}') + '\n;minneKandidater', ctx); } catch (e) { minneKandidater = () => []; }
+  const k = (...namn) => namn.map((x, i) => ({ name: x, sid: 's' + x, score: 0.5 - i * 0.1 }));
+  console.log('minneKandidater: lekens par står kvar när steg 2 ger konflikt');
+  let c = minneKandidater(k('X', 'W'), k('Z', 'Y'), null);
+  check('lekens X och W först, minnets Z och Y efter', c.map(x => x.name).join(',') === 'X,W,Z,Y');
+  c = minneKandidater(k('X', 'W'), k('Z', 'Y'), { namn: 'Z', poang: 0.9, marginal: 0.5 });
+  check('titeln säker på minnets Z: Z överst, lekens par därefter', c.map(x => x.name).join(',') === 'Z,X,W,Y');
+  c = minneKandidater(k('X', 'W'), k('Z', 'Y'), { namn: 'Z', poang: 0.55, marginal: 0.5 });
+  check('titeln osäker (0,55): ordningen rörs inte', c.map(x => x.name).join(',') === 'X,W,Z,Y');
+  c = minneKandidater(k('X', 'Plains'), k('Plains', 'Y'), null);
+  check('ett namn i båda (lekens Plains ur minnet) räknas en gång', c.map(x => x.name).join(',') === 'X,Plains,Y');
+  c = minneKandidater(k('X', 'W', 'V', 'U', 'T'), k('Z', 'Y'), null);
+  check('högst fem', c.length === 5 && c[4].name === 'T');
+}
+
+/* ── fynd 2: kamPoolDelning — steg 1 är lekens namn, grannarna hör till steg 2 ── */
+{
+  const ctx = { console, BASICS, landTyp, Map, Set };
+  vm.createContext(ctx);
+  vm.runInContext(klipp('function lekNamnMangd(', '}'), ctx);
+  const kamPoolDelning = vm.runInContext(klipp('function kamPoolDelning(', '}') + '\n;kamPoolDelning', ctx);
+  const post = (sid, small) => ({ sid, small });
+  const M = { poster: new Map([['Fencing Ace', post('sid-fa', 'fa.jpg')], ['Pacifism', post('sid-pa', 'pa.jpg')], ['Shock', post('sid-sh', null)],
+                                ['Goblin Guide', post('sid-gg', 'gg.jpg')], ['Lightning Bolt', post(null, null)], ['Opt', post('sid-opt', 'opt.jpg')],
+                                ['Snow-Covered Plains', post(null, null)], ['Plains', post('sid-pl', 'pl.jpg')]]) };
+  /* Leken A: listan har Fencing Ace och Pacifism; i partier har den setts med Shock (sid utan bild), Lightning Bolt
+     (bara namnet) och Snow-Covered Plains (ett basland utan tryckning). Goblin Guide och Opt är grannar/minne. */
+  const A = { id: 'A', namn: 'Alfa', ts: 1000, kort: [{ name: 'Fencing Ace', sid: 'sid-fa', small: 'fa.jpg' }, { name: 'Pacifism', sid: 'sid-pa', small: 'pa.jpg' }, { name: 'Plains', sid: 'sid-pl', small: 'pl.jpg' }],
+              alla: ['Fencing Ace', 'Pacifism', 'Plains', 'Shock', 'Lightning Bolt', 'Snow-Covered Plains'] };
+  console.log('kamPoolDelning: den aktiva lekens pool och minnets');
+  let d = kamPoolDelning(M, A);
+  const namnI = s => new Set(s.kort.map(k => k.name).concat(s.namn || []).concat(s.land || []));
+  check("koden är lekens ('lek:A') med lekens ts", d.code === 'lek:A' && d.ts === 1000);
+  check('kortlistans tryckningar ligger i spec.kort', d.spec.kort.some(k => k.id === 'sid-fa') && d.spec.kort.some(k => k.id === 'sid-pa'));
+  check('ett lärt namn med sid utan bild slås upp per sid (spec.sid)', (d.spec.sid || []).some(s => s.id === 'sid-sh'));
+  check('ett lärt namn utan tryckning söks per namn (spec.namn)', d.spec.namn.includes('Lightning Bolt'));
+  check('ett lärt basland ger sin typ i spec.land (byggarens kod tappade det)', d.spec.land.includes('Plains') && d.spec.land.length === 1);
+  check('grannen Goblin Guide och minnets Opt finns INTE i steg 1:s spec', !namnI(d.spec).has('Goblin Guide') && !namnI(d.spec).has('Opt') && !(d.spec.sid || []).some(s => s.id === 'sid-gg' || s.id === 'sid-opt'));
+  check('…men i minnets poster (steg 2)', d.minne.some(p => p.namn === 'Goblin Guide' && p.sid === 'sid-gg') && d.minne.some(p => p.namn === 'Opt'));
+  check('lekens namn finns inte i minnets poster', !d.minne.some(p => ['Fencing Ace', 'Pacifism', 'Shock', 'Lightning Bolt', 'Plains', 'Snow-Covered Plains'].includes(p.namn)));
+  check('vill: de egna tryckningarnas namn och de slagna sid:en', d.vill.namn.includes('Fencing Ace') && d.vill.ids.includes('sid-sh') && !d.vill.namn.includes('Goblin Guide'));
+  d = kamPoolDelning(M, null);
+  check("utan aktiv lek: poolen 'tom' utan namn, och hela minnet i steg 2", d.code === 'tom' && !d.spec.kort.length && !d.spec.namn.length && !d.spec.land.length && d.minne.length === M.poster.size);
+}
+
 /* ── fynd 4: identifyMedModell utan rival i poolen ─────────────────────── */
 (async () => {
   let traffar = [];
@@ -100,7 +150,21 @@ const check = (vad, ok) => { n++; if (!ok) { fel++; console.log('  FEL: ' + vad)
   traffar = [{ r: 0, i: 0, inliers: 30, konst: 0, skala: 1.2 }];
   v = await identifyMedModell(null, box, e([BAKSIDA_NAMN, 0.6]), 'matt', tom, false);
   check('bara baksidan i poolen, ORB bär baksidan (30 inliers): accept via bar (ett riktigt nedvänt kort)', v && v.accept && v.modell.bar);
+  /* Rättelse 2, fynd 3: marginalen är 0 utan rival — inte poängen mot ingenting. Förut bar ORB baksidan med 14
+     inliers på "marginal" 0,6 (trappan 14 + marginal ≥ 0,06); nu bär bara 25 ensamma. */
+  traffar = [{ r: 0, i: 0, inliers: 14, konst: 0, skala: 1.2 }];
+  v = await identifyMedModell(null, box, e([BAKSIDA_NAMN, 0.6]), 'matt', tom, false);
+  check('bara baksidan i poolen, 14 inliers: marginalen är 0, inte 0,6 — bär inte, inte accept', v && v.modell.marginal === 0 && !v.accept && !v.modell.bar);
+  traffar = [{ r: 0, i: 0, inliers: 25, konst: 0, skala: 1.2 }];
+  v = await identifyMedModell(null, box, e([BAKSIDA_NAMN, 0.6]), 'matt', tom, false);
+  check('bara baksidan i poolen, 25 inliers: bär ensamma, accept', v && v.accept && v.modell.bar);
   const lek = { names: [BAKSIDA_NAMN, 'Fencing Ace', 'Pacifism'], orb: {} };
+  traffar = [{ r: 0, i: 1, inliers: 14, konst: 5, skala: 1.2 }];
+  v = await identifyMedModell(null, box, e(['Fencing Ace', 0.5], ['Pacifism', 0.2]), 'matt', lek, false);
+  check('vanlig lek (baksidan är alltid rival), 14 inliers och marginal 0,30: bär som förut — rättelsen rör inte en lek', v && v.accept && v.modell.bar && v.modell.marginal > 0.29);
+  traffar = [{ r: 0, i: 0, inliers: 14, konst: 0, skala: 1.2 }];
+  v = await identifyMedModell(null, box, e([BAKSIDA_NAMN, 0.6], ['Pacifism', 0.2]), 'matt', lek, false);
+  check('vanlig lek, baksidan överst med marginal 0,40 och 14 inliers: bär som förut', v && v.accept && v.modell.bar && v.modell.marginal > 0.39);
   traffar = [];
   v = await identifyMedModell(null, box, e(['Fencing Ace', 0.5], ['Pacifism', 0.2]), 'matt', lek, false);
   check('vanlig pool, marginal 0,30: modellen säker som förut (rival finns)', v && v.modell.saker && v.modell.marginal > 0.29);

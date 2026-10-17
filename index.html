@@ -23907,12 +23907,14 @@ async function identifyMedModell(img, box, e, ensamt, P, utanfor) {
   const typNamn = n => { const t = landTyp(n); return t ? landVisning(t).name : n; };
   const rang = [];
   for (const c of e.cands || []) { const name = typNamn(c.name), f = rang.find(x => x.name === name); if (!f) rang.push({ name, sid: (landTyp(c.name) && landVisning(landTyp(c.name)).sid) || c.sid, score: c.score }); }
-  const etta = rang[0] ? rang[0].name : e.namn, marginal = rang[0] ? rang[0].score - (rang[1] ? rang[1].score : 0) : e.marginal;
+  const etta = rang[0] ? rang[0].name : e.namn;
   /* Marginalen är ett mått bara när poolen hade något annat att välja: en pool utan annat namn än ettan (den tomma
      aktiva poolen 'tom' bär bara baksidan, MES-376) ger "marginal" = poängen mot ingenting, och ett uppvänt kort
-     hade dömts till baksida på den (granskningen 2026-10-17, fynd 4). Utan rival är modellen aldrig säker: bara
-     ORB:s bärande ('bar') gäller. */
+     hade dömts till baksida på den (granskningen 2026-10-17, fynd 4). Utan rival är modellen aldrig säker, och
+     marginalen är 0 (rättelse 2, fynd 3) — annars hade ORB:s trappa 14 inliers + marginal ≥ 0,06 burit baksidan på
+     poängen ensam; nu bär bara 25 ensamma. I en lek är baksidan alltid rival, så där ändras inget. */
   const rival = P.names.some(n => typNamn(n) !== etta);
+  const marginal = !rival ? 0 : rang[0] ? rang[0].score - (rang[1] ? rang[1].score : 0) : e.marginal;
   e = Object.assign({}, e, { marginal, saker: rival && marginal > Embed.TROSKEL, cands: rang });
   const namn3 = new Set(rang.slice(0, MODELL_NAMN).map(c => c.name));
   const per = new Map(), perSkala = new Map(), perKonst = new Map(); let bast = { inliers: 0, konst: 0, namn: null, rot: e.rot || 0 };
@@ -33244,6 +33246,10 @@ const AktivLek = (() => {
     if (o.senast !== undefined) senast = o.senast && lekar.some(l => l.id === o.senast) ? o.senast : null;
     if (o.grupper instanceof Map) grupper = o.grupper;
     if (aktiv && !lekar.some(l => l.id === aktiv)) { bytten.push({ fran: aktiv, till: null, efter: sedda.length, namn: null }); aktiv = null; }
+    /* Fanns ingen lek när partiet började (aktiv null) och en skapas innan något kort setts — ett lekfoto, en lek
+       byggd på datorn — gäller den senast spelade direkt, som i start (rättelse 2, fynd 5): förut valdes den först
+       efter två sedda kort. Har kort redan setts får de välja, som förut. */
+    if (!aktiv && !sedda.length && senast) aktiv = senast;
   }
   const lage = () => ({ aktiv, namn: aktiv && lek(aktiv) ? lek(aktiv).namn : null, senast, sedda: sedda.length, extra: extra.size, lekar: lekar.map(l => ({ id: l.id, namn: l.namn, traffar: traffar(l) })), bytten: bytten.slice() });
   return { start, uppdatera, sett, namn, lage, MIN_BYTE, SLAPP_EFTER, get aktiv() { return aktiv; } };
@@ -33548,6 +33554,16 @@ function domMinne(v2, t, steg1) {
   }
   return { saker: true, varfor: sakerT ? 'minne+orb+namn' : 'minne+orb', cands };
 }
+/* Kandidaterna åt granskningen när steg 2 INTE blev säkert ('konflikt', 'titel skiljer ord'): lekens par från steg 1
+   står kvar först, minnets kommer efter (samma namn en gång), och en säker titel (≥ 0,6 / 0,2) på något av dem lyfts
+   överst som i steg 1 (rättelse 2, fynd 4 — förut ersatte minnets kandidater lekens, och spelaren fick välja bland
+   kort som inte var lekens). Högst fem. Ren funktion, provad i dev/minnesteg.cjs. */
+function minneKandidater(lek, minne, t) {
+  const ut = (lek || []).slice();
+  for (const c of minne || []) if (!ut.some(k => k.name === c.name)) ut.push(c);
+  if (t && t.namn && t.poang >= 0.6 && t.marginal >= 0.2) { const j = ut.findIndex(c => c.name === t.namn); if (j > 0) ut.unshift(ut.splice(j, 1)[0]); }
+  return ut.slice(0, 5);
+}
 /* o.spek: en tidig läsning (Kamera, K4) — svaret är inte spårets än, så
    ingen beskärning går till datorns granskning. */
 async function kamIdentifiera(canvas, id, gissning, kort, o) {
@@ -33758,11 +33774,13 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   /* Antalspriorn (K6): lekens exemplar av namnet är redan säkra spår på
      bordet — det här är antingen ett kort utanför leken som liknar det,
      eller en klon/ett extra land: granskningen får avgöra. */
-  if (saker && c0 && kamLekAntal) {
-    const tak = kamLekAntal.get(norm(c0.name));
-    const upptagna = Kamera.upptagnaLek(c0.name, id);   // utan spår som bevisat är på väg bort: kortet som just flyttats är inte ett exemplar till (MES-214); ett basland med egen skild remsa räknar inte de andra (upptagnaLek)
-    if (!lekPrior(true, tak == null ? Infinity : tak, upptagna)) { saker = false; varfor = 'fler än leken'; }
-  }
+  const flerAnLeken = c => {
+    if (!(c && kamLekAntal)) return false;
+    const tak = kamLekAntal.get(norm(c.name));
+    const upptagna = Kamera.upptagnaLek(c.name, id);   // utan spår som bevisat är på väg bort: kortet som just flyttats är inte ett exemplar till (MES-214); ett basland med egen skild remsa räknar inte de andra (upptagnaLek)
+    return !lekPrior(true, tak == null ? Infinity : tak, upptagna);
+  };
+  if (saker && flerAnLeken(c0)) { saker = false; varfor = 'fler än leken'; }
   /* Steg 2 i trappan (MES-376): FÖRST när steg 1 sagt osäkert med alla sina vittnen hörda — titelraden, 'namn
      ensamt', andra åsikten, 'konflikt' — letas kortet i spelarens minne utanför den aktiva leken (KamMinne).
      Bildmodellen rangordnar minnets namn och ORB kontrollerar de tre bästa; bara ORB:s bärande ('bar', med KONST_MIN)
@@ -33784,10 +33802,19 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
       let t = namn && namn.text ? Namn.doma(namn.text, bada) : null;
       if (t && t.namn) t = Object.assign({}, t, { namn: typAv(t.namn) });
       const d = domMinne(v2, t, v.accept && b0 && b0.name !== BAKSIDA_NAMN ? b0.name : null);
-      if (d) {
-        v = Object.assign(v2, { minne: true }); M = v2.modell; saker = d.saker; varfor = d.varfor; cands = d.cands; c0 = cands[0];
-        if (t) namn = Object.assign({}, namn, t, { utanfor: t.utanfor || null });
+      if (d && d.saker) {
+        v = Object.assign(v2, { minne: true }); M = v2.modell; saker = true; varfor = d.varfor; cands = d.cands; c0 = cands[0];
+        /* Antalspriorn (K6) prövas om på minnets namn (rättelse 2, fynd 2): ett minnesland ("Snow-Covered Plains")
+           visas som lekens "Plains" (typAv i identifyMedModell), och lekens alla Plains kan redan ligga på bordet —
+           då är det här en dubblett, inte ett kort till. */
+        if (flerAnLeken(c0)) { saker = false; varfor = 'fler än leken'; }
+      } else if (d) {
+        /* Inte säkert ('konflikt', 'titel skiljer ord'): lekens kandidater står kvar först åt granskningen och
+           minnets efter (rättelse 2, fynd 4); steg 1:s bild och modell är kvar i loggen, minnets i minne2. */
+        varfor = d.varfor; cands = minneKandidater(cands, d.cands, t); c0 = cands[0];
+        v.minne2 = { namn: d.cands[0].name, marginal: +(+v2.modell.marginal).toFixed(3), inliers: v2.rec.inliers, konst: v2.modell.konst, orbNamn: v2.modell.orbNamn, bar: true, dom: d.varfor };
       }
+      if (d && t) namn = Object.assign({}, namn, t, { utanfor: t.utanfor || null });
     } else if (v2 && v2.rec && v2.rec.cands[0]) v.minne2 = { namn: v2.rec.cands[0].name, marginal: +(+v2.modell.marginal).toFixed(3), inliers: v2.rec.inliers, konst: v2.modell.konst, orbNamn: v2.modell.orbNamn };   // för loggen: vad minnet såg utan att bära
     if (tider) { tider.minne = Math.max(0, Math.round(performance.now() - tM)); tider.total += tider.minne; }
   }
