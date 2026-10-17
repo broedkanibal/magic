@@ -23371,15 +23371,27 @@ function varldWorkerKropp() {
           let sparas = null;
           if (c) { try { sparas = c.put(m.url, r.clone()).catch(() => {}); } catch (e) { sparas = null; } }
           /* Varld.ladda packar upp direkt ur svarets ström: det packade (31 MB) ligger aldrig helt i minnet, bara det uppackade (41 MB). */
-          const u = await Varld.ladda(r, { modell: m.modell || null });
+          let u;
+          try { u = await Varld.ladda(r, { modell: m.modell || null }); }
+          catch (e) {
+            /* En nyhämtad fil som inte går att läsa ligger inte kvar i cachen (rättelse 2, 2026-10-17). Ett huvudfel
+               (hel fil, annan modell) behålls: nästa start läser den ur cachen och ger 'fel' utan att hämta igen. */
+            if (sparas) await sparas;
+            if (c && !(e && e.huvud)) { try { await c.delete(m.url); } catch (e2) {} }
+            throw e;
+          }
           if (sparas) await sparas;
           return u;
         };
         if (svar) {
           try { v = await Varld.ladda(svar, { modell: m.modell || null }); }
           catch (e) {
-            /* En cachad post som inte går att läsa (avbruten skrivning, en annan modell, skadad fil) tas bort och filen
-               hämtas om på en gång — förut låg den kvar och gav 'fel' vid varje start (rättelsen 2026-10-17 fynd 8). */
+            /* Ett huvudfel (hel fil, men byggd för en annan modell än bildmodellen) hämtas INTE om: samma URL ger samma
+               fil, och en omhämtning vore 31 MB vid varje kamerastart. Det blir 'fel' i hälsokollen, posten ligger kvar
+               (rättelse 2, 2026-10-17). */
+            if (e && e.huvud) throw e;
+            /* En cachad post som inte går att läsa (avbruten skrivning, skadad fil) tas bort och filen hämtas om en gång
+               — förut låg den kvar och gav 'fel' vid varje start (rättelsen 2026-10-17 fynd 8). */
             try { await c.delete(m.url); } catch (e2) {}
             svar = null; urCache = false;
           }

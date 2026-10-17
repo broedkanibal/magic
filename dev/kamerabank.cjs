@@ -3435,6 +3435,34 @@ if (foralder) foraldern(); else (async () => {
     k = await kor(ladda);
     check(`VD8 en cachad post som inte går att läsa (fynd 8): tas bort (${logg.filter(x => x.startsWith('delete')).length} delete), hämtas om (${logg.filter(x => x.startsWith('fetch')).length} fetch), klar ${k && k.typ}${k && k.fel ? ' (' + k.fel + ')' : ''}, urCache ${k && k.urCache}`,
           k && k.typ === 'klar' && !k.urCache && logg.some(x => x === 'delete ' + URL_V) && logg.filter(x => x.startsWith('fetch')).length === 1 && lager.get(URL_V).byteLength === varld.gz.byteLength);
+    /* Rättelse 2 (granskningen av eabe63a): ett MODELLFEL — filen är hel men byggd för en annan modell än bildmodellen
+       (en deploy där modellen bytts men världsfilen inte byggts om) — hämtas inte om: samma URL ger samma fil, så en
+       omhämtning är 31 MB vid varje kamerastart utan att något blir bättre. Det ska ge 'fel' i hälsokollen och ingen
+       nedladdning, som före fynd 8. Bara en fil som inte går att läsa (trasig, avkortad) hämtas om — en gång. */
+    const annanModell = Object.assign({}, ladda, { modell: 'annan-modell|v9' });
+    const fetchar = () => logg.filter(x => x.startsWith('fetch')).length;
+    k = await kor(annanModell);   // cachen har en hel fil, byggd för mobileclip-s0|v1
+    check(`VD8 modellfel ur cachen: ${k && k.typ} (${k && k.fel}), ${fetchar()} fetch, ${logg.filter(x => x.startsWith('delete')).length} delete — ingen nedladdning, posten ligger kvar`,
+          k && k.typ === 'fel' && /byggd för/.test(k.fel) && fetchar() === 0 && !logg.some(x => x.startsWith('delete')) && lager.has(URL_V));
+    k = await kor(annanModell);
+    check(`VD8 modellfel vid nästa start igen: ${k && k.typ}, ${fetchar()} fetch (inte 31 MB vid varje kamerastart)`, k && k.typ === 'fel' && fetchar() === 0 && lager.has(URL_V));
+    lager.clear();
+    k = await kor(annanModell);   // ingen cache: hämtas en gång, posten behålls så att nästa start inte hämtar igen
+    const forstaFetch = fetchar();
+    k = await kor(annanModell);
+    check(`VD8 modellfel på en nyhämtad fil: ${forstaFetch} fetch första gången, ${fetchar()} nästa (${k && k.typ}) — filen hämtas en gång, inte vid varje start`,
+          k && k.typ === 'fel' && forstaFetch === 1 && fetchar() === 0 && lager.has(URL_V));
+    const fetchOrig = w.fetch, skrap = new Uint8Array(zlib.gzipSync(Buffer.from('inte en världsfil, men gzip')));
+    lager.clear();
+    w.fetch = async url => { logg.push('fetch ' + url); return new Response(skrap); };
+    k = await kor(ladda);
+    check(`VD8 en nyhämtad fil som inte går att läsa: ${k && k.typ} (${k && k.fel}), ${fetchar()} fetch, posten som just skrevs ${lager.has(URL_V) ? 'LIGGER KVAR' : 'borttagen'}`,
+          k && k.typ === 'fel' && fetchar() === 1 && !lager.has(URL_V) && logg.includes('put ' + URL_V));
+    lager.set(URL_V, new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]));   // trasig post i cachen, och nätet ger också en trasig fil
+    k = await kor(ladda);
+    check(`VD8 trasig post i cachen och trasig fil på nätet: ${k && k.typ}, ${fetchar()} fetch (en gång, ingen slinga), kvar i cachen: ${lager.has(URL_V) ? 'JA' : 'inget'}`,
+          k && k.typ === 'fel' && fetchar() === 1 && !lager.has(URL_V));
+    w.fetch = fetchOrig;
     w.fetch = async () => new Response('borta', { status: 404 });
     lager.clear();
     k = await kor(ladda);
