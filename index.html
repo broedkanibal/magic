@@ -6049,6 +6049,7 @@ const IDB = (() => {
     })),
     poolPut: rec => tx('pool', 'readwrite', s => s.put(rec)),
     poolDel: code => tx('pool', 'readwrite', s => s.delete(code)),
+    poolNycklar: () => tx('pool', 'readonly', s => s.getAllKeys()),   // bara nycklarna: gallringen (KamMinne.gallra) ska inte läsa in poolerna
     poolAll: () => tx('pool', 'readonly', s => s.getAll())
   };
 })();
@@ -23303,11 +23304,22 @@ const KamMinne = {
       if (!har || har.size !== vill.size || [...vill].some(x => !har.has(x))) idx = await E.byggLek(kod, kort, { onProg });
       if (KamMinne.nyckel !== kod) return null;
       KamMinne.idx = idx; KamMinne.kod = kod; KamMinne.poster = poster.length;
+      KamMinne.gallra(kod).catch(() => {});
       return rec;
     })().catch(e => { KamMinne.fel = (e && e.message) || String(e); return null; })
         .finally(() => { if (KamMinne.nyckel === kod) KamMinne.bygger = null; });
     KamMinne.bygger = p;
     return p;
+  },
+  /* Varje ny namnmängd är en ny post ('minne:<hash>') på flera MB i poolens lager och i inbäddningens — och minnet
+     växer för varje parti. Bara den senaste behålls; de gamla, och de 'aktiv:<hash>' som fanns till 2026-10-17 (grannarna
+     i steg 1), tas bort. Cacherna per kort och per namn ('kort:', 'konst:', 'sid:') rörs inte: de är det som gör
+     nästa bygge billigt. Tyst: en gallring som misslyckas är ingen nyhet för spelaren (granskningen fynd 5). */
+  async gallra(behall) {
+    const gammal = k => typeof k === 'string' && (k.startsWith('aktiv:') || (k.startsWith('minne:') && k !== behall));
+    let nycklar = []; try { nycklar = await IDB.poolNycklar(); } catch (e) { nycklar = []; }
+    for (const k of nycklar || []) if (gammal(k)) { try { await IDB.poolDel(k); } catch (e) {} }
+    if (window.Embed && Embed.gallra) { await Embed.gallra('minne:', behall); await Embed.gallra('aktiv:', null); }
   },
   glom() { KamMinne.pool = null; KamMinne.idx = null; KamMinne.kod = null; KamMinne.nyckel = null; KamMinne.poster = 0; }
 };
@@ -23401,7 +23413,10 @@ async function byggPoolAv(cards, code, setName, onProg, lands, o) {
     names: cards.map(c => c.name), ids: cards.map(c => c.id), smalls: cards.map(c => c.small),
     descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 8, lands: !!lands, urCache
   };
-  await IDB.poolPut(rec);
+  /* Lagringen full (QuotaExceededError) eller stängd: poolen gäller ändå, i minnet — nästa start bygger om den ur
+     cachen per kort. Ett fel här får aldrig stoppa igenkänningen ("Could not build the recognition", granskningen
+     2026-10-17 fynd 5). */
+  try { await IDB.poolPut(rec); } catch (e) { rec.osparad = (e && e.message) || String(e); }
   if (!(o && o.sattInte)) Pool.idx = rec;   // minnets pool (KamMinne) tar aldrig den aktiva lekens plats
   return rec;
 }
@@ -33400,6 +33415,11 @@ async function kamByggAktiv() {
       if (Pool.idx === poolen) satKamFin('modell', idx ? '' : (KamEmbed.fel ? 'Image model unavailable. Recognising the slower way.' : ''));
       /* Remsleken (MES-330) efter kortleken, tyst i bakgrunden: ~4 körningar per bild första gången, sedan ur IndexedDB. */
       if (idx && Pool.idx === poolen) KamEmbed.byggRemsor(poolen).catch(() => {});
+      /* Inte via KamEmbed.ko (granskningen 2026-10-17 fynd 6): den kön ordnar bara ändringar i den aktiva lekens
+         inbäddning (vavRef, taBort), inte kamerans läsningar. Modellens körningar går redan en i taget i en delad kö
+         (embed.js kor), och byggLek köar en bild åt gången, så en läsning väntar högst på en körning; Scryfall går
+         genom SF:s egen kö, och Matcher + ORB per bild är korta synkrona bitar mellan await. En egen lågprio-kö
+         vore en ny mekanism för en fördröjning som inte mätts — hellre mäta den på telefonen först. */
       if (idx && Pool.idx === poolen && KamMinne.pa()) KamMinne.bygg(minnesPoster).catch(() => {});
     });
   }

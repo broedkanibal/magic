@@ -324,6 +324,12 @@
   async function laddaLek(kod) { const idx = await hamta('lek', helTagg && String(kod).endsWith(helTagg) ? kod : kod + helTagg); return idx && idx.v === V && idx.ra ? centrera(idx) : null; }
   const remsNyckel = (andel, kod) => 'remsa' + remsTagg + '|' + andel + '|' + kod;   // remslekens post (MES-330, nedan); remsTagg = remsornas egna modell
   async function glom(kod) { await stryk('lek', kod + helTagg); await stryk('lek', remsNyckel(0.14, kod)); }
+  /* Gallra lekposter med ett prefix (minnets 'minne:<hash>', MES-376): alla utom behall (med modellens tagg). Bara
+     nycklarna läses — en lekpost är flera MB. Posterna per kort ('kort'-lagret) rörs inte. */
+  async function gallra(prefix, behall) {
+    let nycklar = []; try { nycklar = await idb('lek', 'readonly', s => s.getAllKeys()); } catch (e) { nycklar = []; }
+    for (const k of nycklar || []) if (typeof k === 'string' && k.startsWith(prefix) && (behall == null || k !== behall + helTagg)) await stryk('lek', k);
+  }
 
   /* ── remsleken (MES-330) ──────────────────────────────────────────
      Ett kort i en hög visar bara sin namnremsa. Referenserna här är den
@@ -432,7 +438,7 @@
              cands: lista.slice(0, 5).map(x => ({ name: x.namn, sid: x.id, score: x.poang })), ms: performance.now() - t0, backend, vektor: o && o.vektor ? q : undefined };
   }
 
-  global.Embed = { V, MODELL, franF16, SIDA, DIM, TROSKEL, ROTAR, VARIANTER, ladda, byggLek, laddaLek, glom, laggTill, taBort, identifiera, rangordna, sakerhetAv,
+  global.Embed = { V, MODELL, franF16, SIDA, DIM, TROSKEL, ROTAR, VARIANTER, ladda, byggLek, laddaLek, glom, gallra, laggTill, taBort, identifiera, rangordna, sakerhetAv,
                    byggRemsLek, laddaRemsLek, REMS_ROTAR,
                    get backend() { return backend; }, get redo() { return !!session; }, get remsModell() { return remsNamn; }, get remsFel() { return remsFel; } };
 })(window);
