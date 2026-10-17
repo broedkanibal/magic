@@ -106,5 +106,20 @@ check('släppt lek: namn() är bara grannarna', AktivLek.aktiv === null && !Akti
 AktivLek.start({ lekar, senast: 'A', grupper });
 check('start nollställer grannarna', AktivLek.namn().size === 7);
 
+console.log('AktivLek: lekarna lästa om mitt i partiet (uppdatera — leken ändrad på datorn, MES-376 fynd 3)');
+AktivLek.start({ lekar, senast: 'A', grupper });
+se('Goblin Guide', 'Okänt X');                       // B: 1, grannar inne
+const A2 = { id: 'A', namn: 'Alfa', kort: A.kort.concat(['Nytt kort']) };
+AktivLek.uppdatera({ lekar: [A2, B, C], senast: 'A', grupper });
+check('de sedda korten står kvar (2) och A är aktiv', AktivLek.lage().sedda === 2 && AktivLek.aktiv === 'A');
+check('grannarna står kvar', AktivLek.namn().has('Okänt Y'));
+check('det nya kortet finns i namn() (8 + 3 grannar + Goblin Guide)', AktivLek.namn().has('Nytt kort') && AktivLek.namn().size === 8 + 3 + 1);
+r = AktivLek.sett('Nytt kort');
+check('det nya kortet räknas som en träff i A', r.traffar === 1 && r.aktiv === 'A');
+r = AktivLek.sett('Lightning Bolt');
+check('räkningen fortsätter: B når 2 men inte fler än A:s 1 + … (2 mot 1) — byter', r.aktiv === 'B' && r.bytt);
+AktivLek.uppdatera({ lekar: [A2, C], senast: 'A', grupper });
+check('den aktiva leken borttagen på datorn: släppt, de sedda korten kvar', AktivLek.aktiv === null && AktivLek.lage().sedda === 4 && AktivLek.lage().bytten.slice(-1)[0].till === null);
+
 console.log(`\n${n} kontroller, ${fel} FEL`);
 process.exit(fel ? 1 : 0);

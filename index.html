@@ -33221,8 +33221,17 @@ const AktivLek = (() => {
     return { aktiv, bytt: aktiv !== fore, slappt: !!fore && !aktiv, nya: extra.size !== foreExtra, traffar: aktiv ? traffar(lek(aktiv)) : 0 };
   }
   function namn() { const ut = new Set(extra); const a = lek(aktiv); if (a) for (const n of a.alla) ut.add(n); return ut; }
+  /* Lekarna lästa om mitt i partiet (leken ändrad på datorn, ett andra lekfoto — 'lek' i kamKommando): nya namn och
+     antal, men de sedda korten, grannarna och den aktiva leken står kvar. En aktiv lek som inte finns längre släpps. */
+  function uppdatera(o) {
+    o = o || {};
+    lekar = (o.lekar || []).filter(l => l && l.id).map(l => ({ id: l.id, namn: l.namn || '', alla: new Set(l.kort || []), kort: new Set((l.kort || []).filter(n => n && !basland(n))) }));
+    if (o.senast !== undefined) senast = o.senast && lekar.some(l => l.id === o.senast) ? o.senast : null;
+    if (o.grupper instanceof Map) grupper = o.grupper;
+    if (aktiv && !lekar.some(l => l.id === aktiv)) { bytten.push({ fran: aktiv, till: null, efter: sedda.length, namn: null }); aktiv = null; }
+  }
   const lage = () => ({ aktiv, namn: aktiv && lek(aktiv) ? lek(aktiv).namn : null, senast, sedda: sedda.length, extra: extra.size, lekar: lekar.map(l => ({ id: l.id, namn: l.namn, traffar: traffar(l) })), bytten: bytten.slice() });
-  return { start, sett, namn, lage, MIN_BYTE, SLAPP_EFTER, get aktiv() { return aktiv; } };
+  return { start, uppdatera, sett, namn, lage, MIN_BYTE, SLAPP_EFTER, get aktiv() { return aktiv; } };
 })();
 
 /* Vilken lek telefonen känner igen kort mot (dev/plan/lagen.md, D5-4): den
@@ -33258,6 +33267,7 @@ function sattKamLekAntal(kort) {
    igenkänning, som förut utan lek. Den gamla enleks-raden (lekar) läses inte
    längre: lekar.sql flyttade den till "My deck" (MES-305). */
 let kamMinneData = null;
+let kamMinneOm = false;  // 'lek' från datorn (leken ändrad, ett andra lekfoto): minnet och lekarna läses om, utan att AktivLek startas om
 let kamAktivVald;        // lekvalet (game_players.lek_id) AktivLek startades med; ett byte på datorn startar om
 let kamAktivT = null;    // väntande ombygge efter ett säkert kort (kamSakert)
 async function kamLasMinne() {
@@ -33278,7 +33288,9 @@ async function kamLasMinne() {
 }
 /* Lekvalet i spelet (game_players.lek_id) är starten när det finns (etapp 4 behåller lekvalet i uppstarten); annars den
    senast spelade leken, annars den senast ändrade. AktivLek startas om bara när lekvalet byts — varje spelare-händelse
-   på kanalen når hit, och ett byte mitt i partiet får inte nollställa de sedda korten. */
+   på kanalen når hit, och ett byte mitt i partiet får inte nollställa de sedda korten. Leken ändrad på datorn ('lek',
+   kamMinneOm — ett nytt kort, ett andra lekfoto, ett ändrat antal) läser om minnet och lekarna men behåller de sedda
+   korten (AktivLek.uppdatera); den nya ts:en på leken bygger om poolen (granskningen 2026-10-17, fynd 3). */
 async function byggKamPool() {
   if (!kamLage) return;
   if (kamPoolBygger) { kamPoolOm = true; return; }
@@ -33289,7 +33301,9 @@ async function byggKamPool() {
   try {
     let vald = null; try { vald = await Moln.minLekIGame(kamLage.id); } catch (e) { vald = null; }
     const valdId = (vald && vald.id) || null;
-    if (!kamMinneData || kamAktivVald !== valdId) {
+    const omstart = !kamMinneData || kamAktivVald !== valdId;
+    if (omstart || kamMinneOm) {
+      kamMinneOm = false;
       const minne = await kamLasMinne();
       if (!minne || (!minne.lekar.length && !minne.poster.size)) {
         kamMinneData = null; kamAktivVald = valdId; kamPoolNyckel = null; sattKamLekAntal(null);
@@ -33298,7 +33312,9 @@ async function byggKamPool() {
       }
       let senast = null; try { senast = await Moln.senastSpeladLek(); } catch (e) { senast = null; }
       if (!(senast && minne.lekar.some(l => l.id === senast))) senast = minne.lekar.length ? minne.lekar[0].id : null;   // hamtaLekar: senast ändrad först
-      AktivLek.start({ lekar: minne.lekar.map(l => ({ id: l.id, namn: l.namn, kort: l.alla })), vald: valdId, senast, grupper: minne.grupper });
+      const lekar = minne.lekar.map(l => ({ id: l.id, namn: l.namn, kort: l.alla }));
+      if (omstart) AktivLek.start({ lekar, vald: valdId, senast, grupper: minne.grupper });
+      else AktivLek.uppdatera({ lekar, senast, grupper: minne.grupper });
       kamMinneData = minne; kamAktivVald = valdId;
     }
     await kamByggAktiv();
@@ -34165,7 +34181,7 @@ function kamKommando(m) {
   if (m.typ === 'diagnos') { sandDiagnos(); return; }
   if (typeof Rapport !== 'undefined' && Rapport.telefonKommando(m)) return;   // problemrapporten (MES-365): frys lådan, ladda upp bilderna, svaret till arket
   if (m.typ === 'insp') { if (DEBUG) InspProv.kommando(m); return; }   // inspelningsprovet (MES-190)
-  if (m.typ === 'lek') { byggKamPool(); return; }            // leken ändrades på datorn
+  if (m.typ === 'lek') { kamMinneOm = true; byggKamPool(); return; }   // leken ändrades på datorn: minnet och lekarna läses om (MES-376)
   if (m.typ === 'nyref') { Kamera.nyReferens(); return; }    // ta om bilden av tom matta
   if (m.typ === 'helbild') { Kamera.helbild(); return; }     // provbordet bad Claude titta på hela bordet
   if (m.typ === 'glom') { Kamera.glomKort(m.spar); return; } // datorn rättade — läs om
