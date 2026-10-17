@@ -33680,12 +33680,19 @@ async function kamKedjaUnder(id, s, f) {
    !v.accept); vittnet här är bältet till hängslena. Ren funktion:
    dev/minnesteg.cjs klipper ut den och provar fallen.
    B: domskälets förled — 'minne' (steg 2, förvalet) eller 'varld' (steg 3, MES-377: samma dom mot världens tre
-   bästa namn, med titeln dömd om mot lekens, minnets och världens namn). */
-function domMinne(v2, t, steg1, B) {
+   bästa namn, med titeln dömd om mot lekens, minnets och världens namn).
+   steg2 (bara steg 3; rättelsen 2026-10-17 fynd 1): { namn, varfor } — namnet steg 2:s ORB bar ur minnet och domen
+   som fällde det ('konflikt', 'titel skiljer ord'). Världen får aldrig göra det säkert ändå: bär dess ORB SAMMA namn
+   står steg 2:s dom kvar (titeln döms om mot fler namn i steg 3, och ett 'utanfor' eller en marginal som fällde Z
+   i steg 2 kan då ha smält bort — Z var ändå inte titelns kort); bär den ett ANNAT namn är det två bildvittnen emot
+   varandra, 'konflikt'. Steg 3 körs inte alls efter ett sådant steg 2 (kamIdentifiera kräver !v2.accept); vittnet
+   här är bältet till hängslena, som steg1. */
+function domMinne(v2, t, steg1, B, steg2) {
   B = B || 'minne';
   if (!v2 || !v2.accept || !v2.rec) return null;
   const cands = (v2.rec.cands || []).filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
   const c0 = cands[0]; if (!c0) return null;
+  if (steg2 && steg2.namn) return { saker: false, varfor: steg2.namn === c0.name ? (steg2.varfor || 'konflikt') : 'konflikt', cands };
   if (t && t.utanfor && t.poang >= 0.5) return { saker: false, varfor: 'titel skiljer ord', cands };
   if (steg1 && steg1 !== c0.name) return { saker: false, varfor: 'konflikt', cands };
   const sakerT = !!(t && t.namn && t.poang >= 0.6 && t.marginal >= 0.2);
@@ -33996,9 +34003,9 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      väntats in och Z hade blivit 'minne+orb' på ingenting annat än ett likt konstverk. Steg 1:s namn följer med
      till domMinne som vittne emot ifall vägen hit ändras — och likaså titelns namn när titeln ensam gjorde steg 1
      säkert på X och 'fler än leken' fällde det (rättelse 3, steg1Vittne). */
+  let v2 = null, vittne2 = null;   // steg 2:s svar, och dess fällda namn som vittne emot i steg 3 (rättelsen 2026-10-17 fynd 1)
   if (!saker && !v.accept && KamMinne.redo()) {
     const tM = performance.now();
-    let v2 = null;
     try { const e2 = await kamKedjaUnder(id, 'minne', () => Embed.identifiera(canvas, KamMinne.idx)); if (e2 && e2.namn) v2 = await kamKedjaUnder(id, 'orb', () => identifyMedModell(canvas, box, e2, kamSparEnsamt(id), KamMinne.pool, true)); } catch (e) { v2 = null; }
     if (v2 && v2.accept && KamMinne.pool) {
       const bada = [...new Set(namnUtanBaksida().concat(KamMinne.pool.names))].filter(n => n !== BAKSIDA_NAMN);
@@ -34016,6 +34023,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
            minnets efter (rättelse 2, fynd 4); steg 1:s bild och modell är kvar i loggen, minnets i minne2. */
         varfor = d.varfor; cands = minneKandidater(cands, d.cands, t); c0 = cands[0];
         v.minne2 = { namn: d.cands[0].name, marginal: +(+v2.modell.marginal).toFixed(3), inliers: v2.rec.inliers, konst: v2.modell.konst, orbNamn: v2.modell.orbNamn, bar: true, dom: d.varfor };
+        vittne2 = { namn: d.cands[0].name, varfor: d.varfor };
       }
       if (d && t) namn = Object.assign({}, namn, t, { utanfor: t.utanfor || null });
     } else if (v2 && v2.rec && v2.rec.cands[0]) v.minne2 = { namn: v2.rec.cands[0].name, marginal: +(+v2.modell.marginal).toFixed(3), inliers: v2.rec.inliers, konst: v2.modell.konst, orbNamn: v2.modell.orbNamn };   // för loggen: vad minnet såg utan att bära
@@ -34027,9 +34035,13 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      hel ruta — en 'del'-träff räknas inte; basland som typ på landregeln, LAND_MARGINAL). Titeln döms om mot lekens,
      minnets och världens namn och är ett vittne emot, aldrig ett krav (domMinne): en säker titel på ett annat namn
      ger 'konflikt', ett helt annat ord 'titel skiljer ord'. Samma spärrar som steg 2: aldrig efter ett steg 1 med
-     ORB-bärande (v.accept), steg 1:s vittne följer med. Är världen inte klar (laddar, fel, utan nät) hoppas steget
+     ORB-bärande (v.accept), steg 1:s vittne följer med — och aldrig efter ett steg 2 med ORB-bärande (v2.accept)
+     som domen sedan fällde (rättelsen 2026-10-17 fynd 1): minnets Z bars av ORB och föll på titeln; i världen hade
+     ORB burit Z en gång till, och titeln, dömd om mot ~33 000 namn till, hade tappat sitt 'utanfor' och sin
+     marginal — Z hade blivit ett säkert 'varld+orb' på samma bild som nyss fälldes. Steg 2:s fällda namn följer
+     också med till domMinne som vittne emot (vittne2). Är världen inte klar (laddar, fel, utan nät) hoppas steget
      över på en gång: kortet går till Claude eller spelaren som förut. */
-  if (!saker && !v.accept && KamVarld.redo() && KamEmbed.redo() && varldSoks(o, kamSparEnsamt(id))) {
+  if (!saker && !v.accept && !(v2 && v2.accept) && KamVarld.redo() && KamEmbed.redo() && varldSoks(o, kamSparEnsamt(id))) {
     const tV = performance.now();
     let s3 = null, v3 = null;
     try { s3 = await kamKedjaUnder(id, 'varld', () => kamVarldSok(canvas)); } catch (e) { s3 = null; }
@@ -34039,7 +34051,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
       const namnen = [...new Set(namnUtanBaksida().concat(KamMinne.pool ? KamMinne.pool.names : [], s3.pool.names))].filter(n => n !== BAKSIDA_NAMN);
       let t = namn && namn.text ? Namn.doma(namn.text, namnen) : null;
       if (t && t.namn) t = Object.assign({}, t, { namn: typAv(t.namn) });
-      const d = domMinne(v3, t, vittne1, 'varld');
+      const d = domMinne(v3, t, vittne1, 'varld', vittne2);
       if (d && d.saker) {
         v = Object.assign(v3, { varld: true }); M = v3.modell; saker = true; varfor = M.bar ? d.varfor : 'varld land'; cands = d.cands; c0 = cands[0];
         if (flerAnLeken(c0)) { saker = false; varfor = 'fler än leken'; }   // antalspriorn (K6) på världens namn: ett basland som typ kan vara lekens

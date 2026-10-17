@@ -118,6 +118,33 @@ const check = (vad, ok) => { n++; if (!ok) { fel++; console.log('  FEL: ' + vad)
   check('titelns namn är inte steg 1:s etta (c0 Z): inget vittne, minne+orb', w === null && d && d.saker);
 }
 
+/* ── MES-377 rättelsen, fynd 1: steg 2:s fällda namn som vittne emot i världens dom (steg 3) ── */
+{
+  const ctx = { console, BAKSIDA_NAMN };
+  vm.createContext(ctx);
+  const domMinne = vm.runInContext(klipp('function domMinne(', '}') + '\n;domMinne', ctx);
+  const v3 = (...namn) => ({ accept: true, rec: { cands: namn.map((x, i) => ({ name: x, sid: 's' + i, score: 0.5 - i * 0.1 })) } });
+  const titel = (namn, poang, marginal, utanfor) => ({ namn, poang, marginal, utanfor: utanfor || null });
+  console.log("domMinne 'varld': steg 2 bar Z ur minnet och föll — världen får inte göra Z säkert (MES-377 rättelsen, fynd 1)");
+  /* Scenariot: steg 2 fällde minnets Z på 'titel skiljer ord' (titeln "Moor Heath" skilde sig i ett helt ord från
+     lekens och minnets närmaste namn). I steg 3 bär ORB Z en gång till; titeln döms om mot lekens, minnets OCH
+     världens namn, det rätta "Moor Heath"-kortet W finns där — utanfor försvinner, läsningen av W är 0,55 med
+     marginal 0,15 (inte säker). Utan vittnet: 'varld+orb' på Z, ett säkert fel namn. */
+  const tOm = titel('W', 0.55, 0.15);
+  let d = domMinne(v3('Z', 'Y'), tOm, null, 'varld', { namn: 'Z', varfor: 'titel skiljer ord' });
+  check("steg 2 fällde Z ('titel skiljer ord'), världens ORB bär Z igen, titeln omdömd utan utanfor: INTE säkert, steg 2:s dom står kvar", d && !d.saker && d.varfor === 'titel skiljer ord');
+  d = domMinne(v3('Z', 'Y'), null, null, 'varld', { namn: 'Z', varfor: 'konflikt' });
+  check("steg 2 fällde Z ('konflikt' mot titeln), världen bär Z, ingen titel i steg 3: inte säkert, 'konflikt'", d && !d.saker && d.varfor === 'konflikt');
+  d = domMinne(v3('W', 'Z'), titel('W', 0.9, 0.5), null, 'varld', { namn: 'Z', varfor: 'konflikt' });
+  check('steg 2 bar Z, världens ORB bär ett ANNAT namn W (titeln med): två bildvittnen emot varandra, konflikt', d && !d.saker && d.varfor === 'konflikt' && d.cands[0].name === 'W');
+  d = domMinne(v3('W', 'Z'), titel('W', 0.9, 0.5), null, 'varld', null);
+  check("utan steg 2-vittne (steg 2 bar inget): världens W med titeln säker på W är 'varld+orb+namn' som förut", d && d.saker && d.varfor === 'varld+orb+namn');
+  d = domMinne(v3('W', 'Z'), null, null, 'varld');
+  check("utan femte argument alls (steg 2:s anrop): 'varld+orb' som förut", d && d.saker && d.varfor === 'varld+orb');
+  d = domMinne(v3('Z', 'Y'), null, 'X', 'varld', { namn: 'Z', varfor: 'konflikt' });
+  check('steg 1:s vittne X och steg 2:s Z båda med: inte säkert', d && !d.saker);
+}
+
 /* ── rättelse 2, fynd 4: kandidaterna åt granskningen när steg 2 inte blev säkert ── */
 {
   const ctx = { console };
