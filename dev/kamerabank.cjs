@@ -3217,6 +3217,122 @@ if (foralder) foraldern(); else (async () => {
     nystart(); namnSvar = forraSvar;
   }
 
+  // ── VD: världsfilen, steg 3 i trappan (MES-377) ───────────────────
+  /* KamVarld (index.html) och varldSoks klipps ut och körs i en egen kontext med en Worker-attrapp: tråden svarar
+     det provet säger (filen saknas = 404, nätet saknas = fetch kastar, laddar = inget svar än). Det som provas:
+     1. fil saknas (404): läget 'fel', redo() falskt, och sok() svarar null PÅ EN GÅNG — steget hoppas över.
+     2. nät saknas (fetch kastar): detsamma. Kameran blockeras aldrig: starta() återvänder direkt.
+     3. filen laddar medan ett okänt kort dyker upp: sok() svarar null utan att vänta in läsningen; när tråden
+        sedan säger klar är redo() sant och sok() får sitt svar.
+     4. remsor och täckta kort söks inte i världen: varldSoks säger nej för den tidiga läsningen (spek), en maskad
+        eller täckt beskärning (tackt, tacktSpar) och ett spår som inte ligger för sig självt (kamSparEnsamt '');
+        en remsläsning går aldrig genom kamIdentifiera (cb.lasRemsa, inte cb.identifiera) — provat på en täckt
+        remsa i Kamera: lasRemsa anropas, identifiera får tackt.
+     5. stopp(): tråden släpps, läget 'vantar', och en ny start läser om. Ett fel i tråden (onerror) blir 'fel'. */
+  if (await del('VD1')) {
+    const vmV = require('vm');
+    const klippV = (startRad, slutRad) => { const a = src.findIndex(l => l.startsWith(startRad)); if (a < 0) throw new Error('hittar inte ' + startRad); let b = -1; for (let i = a + 1; i < src.length; i++) if (src[i].startsWith(slutRad)) { b = i; break; } if (b < 0) throw new Error('hittar inte slutet på ' + startRad); return src.slice(a, b + 1).join('\n'); };
+    const tradar = [];
+    class WorkerAttrapp { constructor() { this.sant = []; this.onmessage = null; this.onerror = null; tradar.push(this); } postMessage(m) { this.sant.push(m); } terminate() { this.dod = true; } svara(m) { if (this.onmessage) this.onmessage({ data: m }); } }
+    const c = { console, window: { location: { href: 'http://localhost/' } }, navigator: { storage: { persist: () => Promise.resolve(true) } }, performance: { now: () => Date.now() }, setTimeout, clearTimeout, Promise, Map, Array, Object, Float32Array, JSON, String, Worker: WorkerAttrapp, Blob: class { constructor() {} }, URL: Object.assign(class { constructor(u, bas) { this.href = /^[a-z]+:/.test(u) ? u : String(bas).replace(/\/[^/]*$/, '/') + u; } }, { createObjectURL: () => 'blob:attrapp', revokeObjectURL() {} }) };
+    vmV.createContext(c);
+    const radV = startRad => { const l = src.find(x => x.startsWith(startRad)); if (!l) throw new Error('hittar inte ' + startRad); return l; };
+    vmV.runInContext([radV('const VARLD_URL = '), radV('const VARLD_CACHE = '), radV('const VARLD_SOK_TAK_MS = '),
+                      'function varldWorkerKropp() {}', klippV('const KamVarld = {', '};'), klippV('function varldSoks(', '}')].join('\n'), c);
+    const KV = vmV.runInContext('KamVarld', c), varldSoks = vmV.runInContext('varldSoks', c), VARLD_URL_APP = vmV.runInContext('VARLD_URL', c);   // const-bindningar syns inte på kontextens globala objekt, men i nästa skript i samma kontext
+    const tick = () => new Promise(r => setImmediate(r));
+    const fragor = [new Float32Array(512), new Float32Array(512), new Float32Array(512), new Float32Array(512)];
+    // VD1: filen saknas (404) → fel, inte redo, sok svarar null på en gång
+    KV.starta();
+    const w1 = tradar[tradar.length - 1];
+    check(`VD1 starta() återvänder direkt med läget '${KV.lage}' och tråden får ladda (${w1 && w1.sant[0] && w1.sant[0].typ}, ${w1 && w1.sant[0] && w1.sant[0].url})`, KV.lage === 'laddar' && w1 && w1.sant[0] && w1.sant[0].typ === 'ladda' && w1.sant[0].url === VARLD_URL_APP && !KV.redo());
+    w1.svara({ typ: 'fel', fel: 'världsfilen svarade 404' });
+    let t0 = Date.now(), s = await KV.sok(fragor, 5), dt = Date.now() - t0;
+    check(`VD1 filen saknas: läget '${KV.lage}' (${KV.fel}), redo ${KV.redo()}, sok → ${s} på ${dt} ms, status '${KV.status()}'`, KV.lage === 'fel' && !KV.redo() && s === null && dt < 50 && KV.status() === 'fel' && w1.sant.length === 1);
+    // VD2: nätet saknas — tråden rapporterar fetch-felet; samma utfall. Och stopp() släpper tråden.
+    KV.stopp();
+    check(`VD2 stopp() efter fel: tråden avslutad ${!!w1.dod}, läget '${KV.lage}'`, w1.dod && KV.lage === 'fel');
+    KV.lage = 'vantar';
+    KV.starta();
+    const w2 = tradar[tradar.length - 1];
+    w2.svara({ typ: 'fel', fel: 'Failed to fetch' });
+    s = await KV.sok(fragor, 5);
+    check(`VD2 nätet saknas: läget '${KV.lage}' (${KV.fel}), sok → ${s}, kameran har inte väntat`, KV.lage === 'fel' && s === null && KV.fel === 'Failed to fetch');
+    // VD3: filen laddar medan ett okänt kort dyker upp: sok svarar null utan att vänta; sedan klar → svar
+    KV.stopp(); KV.lage = 'vantar';
+    KV.starta();
+    const w3 = tradar[tradar.length - 1];
+    t0 = Date.now(); s = await KV.sok(fragor, 5); dt = Date.now() - t0;
+    check(`VD3 laddar: sok → ${s} på ${dt} ms utan att vänta, status '${KV.status()}', inga frågor till tråden (${w3.sant.length} sända)`, KV.lage === 'laddar' && s === null && dt < 50 && KV.status() === 'laddar' && w3.sant.length === 1);
+    w3.svara({ typ: 'klar', antal: 99092, namn: 33223, mb: 29.7, urCache: true, laddMs: 500, modell: 'mobileclip-s0|v1', variant: 'E3' });
+    check(`VD3 klar: redo ${KV.redo()}, status '${KV.status()}', hälsan ${JSON.stringify(KV.halsa().varldInfo && { mb: KV.halsa().varldInfo.mb, namn: KV.halsa().varldInfo.namn })}`, KV.redo() && KV.status() === 'klar' && KV.halsa().varld === 'klar' && KV.halsa().varldInfo.namn === 33223);
+    const p = KV.sok(fragor, 3); await tick();
+    const fr = w3.sant[w3.sant.length - 1];
+    check(`VD3 sok går till tråden: typ ${fr.typ}, ${fr.fragor && fr.fragor.length} vridningar, n ${fr.n}`, fr.typ === 'sok' && fr.fragor.length === 4 && fr.n === 3);
+    w3.svara({ typ: 'svar', id: fr.id, svar: { rot: 0, namn: 'Maul of the Skyclaves', poang: 0.66, marginal: 0.27, topp: [{ namn: 'Maul of the Skyclaves', poang: 0.66, id: 'abc', sida: 0 }] }, ms: 230 });
+    s = await p;
+    check(`VD3 svaret paras på id: ${s && s.namn}, ${s && s.ms} ms, ${KV.stat.sok} sökningar`, s && s.namn === 'Maul of the Skyclaves' && s.ms === 230 && KV.stat.sok === 1);
+    // VD3b: världen byggd för en annan modell än bildmodellen → inte redo (frågorna vore inte jämförbara)
+    c.window.Embed = { MODELL: 'mobileclip-s0|v2' };
+    check(`VD3b annan modell än bildmodellen: redo ${KV.redo()}, status '${KV.status()}' (${KV.halsa().varldFel})`, !KV.redo() && KV.status() === 'fel' && /built for/.test(KV.halsa().varldFel));
+    c.window.Embed = { MODELL: 'mobileclip-s0|v1' };
+    check(`VD3b samma modell: redo ${KV.redo()}`, KV.redo());
+    // VD3c: tråden faller (onerror) → fel, och en väntande sökning släpps med null
+    const p2 = KV.sok(fragor, 5); await tick();
+    w3.onerror({ message: 'tråden föll' });
+    s = await p2;
+    check(`VD3c tråden faller: läget '${KV.lage}', väntande sökning → ${s}`, KV.lage === 'fel' && s === null);
+    // VD4: vad som får letas i världen
+    check('VD4 ett nytt helt kort som ligger still och för sig självt söks (ensamt "matt")', varldSoks({ tackt: false, tacktSpar: false, detPoang: 0.9, remsa: true }, 'matt') === true);
+    check('VD4 bordets första kort, bara formen känd (ensamt "form"), söks', varldSoks({}, 'form') === true);
+    check('VD4 den tidiga läsningen (spek) söks inte', varldSoks({ spek: true }, 'matt') === false);
+    check('VD4 en maskad beskärning (tackt) söks inte', varldSoks({ tackt: true }, 'matt') === false);
+    check('VD4 ett täckt spår (tacktSpar) söks inte', varldSoks({ tacktSpar: true }, 'matt') === false);
+    check('VD4 ett spår som inte ligger för sig självt (ensamt "") söks inte', varldSoks({}, '') === false);
+    // VD4b: en remsa går aldrig genom kamIdentifiera: ett täckt kort i Kamera läses via lasRemsa (medRemsa) och identifiera får tackt
+    {
+      const forraDetV = ctx.window.Detektor;
+      ctx.window.Detektor = { para: (kort, remsor) => kort.map(b => { const r = remsor.find(s => { const cx = (s.x0 + s.x1) / 2, cy = (s.y0 + s.y1) / 2; return cx >= b.x0 && cx <= b.x1 && cy >= b.y0 && cy <= b.y1; }); return Object.assign({}, b, { remsa: r || null, ur: 'lada', klass: b.klass || 'kort' }); }) };
+      const V = 8;
+      const lada = (x, y, w, h) => ({ x0: x * V, y0: y * V, x1: (x + w) * V, y1: (y + h) * V, poang: 0.9, klass: 'kort' });
+      const remsa = (x, y, w, h) => ({ x0: x * V, y0: y * V, x1: (x + w) * V, y1: (y + h) * V, poang: 0.9 });
+      const det = (kort, remsor) => ({ lador: { kort, remsor }, ruta: { x: 0, y: 0, w: W * V, h: H * V } });
+      const A = { x: 60, y: 50, w: 30, h: 42 }, B = { x: 60, y: 60, w: 30, h: 42 };
+      const bygg3 = g => { kort(g, W, A.x, A.y, A.w, A.h, 180); kort(g, W, B.x, B.y, B.w, B.h, 140); };
+      const det3 = det([lada(A.x, A.y, A.w, A.h), lada(B.x, B.y, B.w, B.h)], [remsa(A.x, A.y, A.w, 6), remsa(B.x, B.y, B.w, 6)]);
+      const ident = [], remsor = [];
+      const fakeVideo = { videoWidth: W * V, videoHeight: H * V, paused: false, play: () => Promise.resolve(), srcObject: null };
+      await Kamera.start({ video: fakeVideo, overlay: { getContext: () => ({}) } }, {
+        status: () => {}, bord: () => {},
+        identifiera: (c2, id, g, k, o) => { ident.push({ id, o: o || {} }); return Promise.resolve({ namn: 'Pacifism', sid: 's2', saker: false, cands: [] }); },
+        lasRemsa: (c2, id, o) => { remsor.push({ id, o: o || {} }); return Promise.resolve({ namn: 'Pacifism', sid: 's2', saker: false, varfor: 'remsa osäker', marginal: 0.02, cands: [] }); }
+      }).catch(() => {});
+      nystart(); Kamera.satTrosklar({});
+      for (let i = 0; i < 20; i++) { nu += TAKT; Kamera.steg(matta(W, H, 100, 3, lcg(1000 + nu)), nu, H, undefined, V, det([], [])); await tick(); await tick(); }
+      for (let i = 0; i < 25; i++) { nu += TAKT; const g = matta(W, H, 100, 3, lcg(1000 + nu)); bygg3(g); Kamera.steg(g, nu, H, undefined, V, det3); await tick(); await tick(); }
+      const tackta = ident.filter(x => x.o.tackt || x.o.tacktSpar), hela = ident.filter(x => !x.o.tackt && !x.o.tacktSpar && !x.o.spek);
+      check(`VD4b två kort omlott: ${ident.length} läsningar av hela kortet (${tackta.length} täckta — världen söks inte där, ${hela.length} hela), ${remsor.length} remsläsningar via lasRemsa (aldrig via identifiera)`,
+            ident.length >= 1 && tackta.length >= 1 && tackta.every(x => varldSoks(x.o, 'matt') === false) && remsor.length >= 1);
+      ctx.window.Detektor = forraDetV;
+      nystart(); namnSvar = NAMN_STANDARD;
+      Kamera.installera({ status: () => {}, bord: (spar, nollstall, extra) => { bord = spar; bordExtra = extra || null; bordRapporter++; if (nollstall) nollst++; }, identifiera: (c2, id, gissning) => { identifieringar++; return Promise.resolve(namnSvar(id, gissning)); } });
+    }
+    // VD5: stopp och omstart läser om (ur cachen på telefonen)
+    KV.stopp();
+    check(`VD5 stopp(): läget '${KV.lage}', tråden avslutad ${!!w3.dod}, redo ${KV.redo()}`, KV.lage === 'fel' && w3.dod && !KV.redo());
+    KV.lage = 'vantar'; KV.starta();
+    check(`VD5 ny start efter stopp: läget '${KV.lage}', ${tradar.length} trådar skapade totalt`, KV.lage === 'laddar' && tradar.length === 4);
+    KV.stopp();
+    // VD6: avstängd (window.MESA_VARLD = false): aldrig redo, status 'av', starta gör inget
+    c.window.MESA_VARLD = false; KV.lage = 'vantar';
+    KV.starta();
+    check(`VD6 avstängd: status '${KV.status()}', redo ${KV.redo()}, läget '${KV.lage}', ${tradar.length} trådar`, KV.status() === 'av' && !KV.redo() && KV.lage === 'vantar' && tradar.length === 4);
+    c.window.MESA_VARLD = { url: 'dev/material/x/varld.bin.gz' }; KV.starta();
+    const w6 = tradar[tradar.length - 1];
+    check(`VD6 egen fil (golden): tråden får en absolut adress ${w6.sant[0].url}`, w6.sant[0].url === 'http://localhost/dev/material/x/varld.bin.gz');
+    KV.stopp();
+  }
+
   if (barn) { skickaKlar(); process.send({ slut: true }, () => process.exit(0)); return; }
   console.log([...ok, ...fel].join('\n'));
   console.log(`\n${ok.length} OK, ${fel.length} FEL`);
