@@ -121,5 +121,20 @@ check('räkningen fortsätter: B når 2 men inte fler än A:s 1 + … (2 mot 1) 
 AktivLek.uppdatera({ lekar: [A2, C], senast: 'A', grupper });
 check('den aktiva leken borttagen på datorn: släppt, de sedda korten kvar', AktivLek.aktiv === null && AktivLek.lage().sedda === 4 && AktivLek.lage().bytten.slice(-1)[0].till === null);
 
+console.log('AktivLek: ingen lek vid start, en lek skapas före första kortet (rättelse 2, fynd 5)');
+AktivLek.start({ lekar: [] });
+check('inga lekar: ingen aktiv', AktivLek.aktiv === null);
+AktivLek.uppdatera({ lekar, senast: 'A', grupper });
+check('lekarna lästa om innan något kort setts: den senast spelade (A) blir aktiv direkt, inte först efter två kort', AktivLek.aktiv === 'A');
+check('namn() är lekens namn', AktivLek.namn().has('Fencing Ace'));
+AktivLek.start({ lekar: [] });
+AktivLek.sett('Okänt X');
+AktivLek.uppdatera({ lekar, senast: 'A', grupper });
+check('…men inte när kort redan setts: korten får välja', AktivLek.aktiv === null);
+AktivLek.start({ lekar, senast: 'A' });
+se('Fencing Ace', 'Pacifism', 'Goblin Guide', 'Lightning Bolt', 'Monastery Swiftspear', 'Counterspell');
+AktivLek.uppdatera({ lekar: [A, C], senast: 'A', grupper });
+check('den aktiva (B) borttagen mitt i partiet: släppt, inte tillbaka till senast — korten har setts', AktivLek.aktiv === null);
+
 console.log(`\n${n} kontroller, ${fel} FEL`);
 process.exit(fel ? 1 : 0);
