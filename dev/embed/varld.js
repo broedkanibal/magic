@@ -21,10 +21,11 @@
 
    Filen: "MESV", uint32 huvudlängd, JSON-huvud, och delar på 8-bytegränser
    (little-endian; positionerna står i huvudet.delar). Börjar filen med gzip
-   (1f 8b) packas den upp med DecompressionStream — så kan den läggas upp
-   gzippad och det som går över nätet är gzip-storleken.
+   (1f 8b) packas den upp med DecompressionStream direkt ur strömmen — så kan
+   den läggas upp gzippad, det som går över nätet är gzip-storleken, och det
+   packade ligger aldrig helt i minnet.
 
-     const v = await Varld.ladda(url);                 // eller en ArrayBuffer
+     const v = await Varld.ladda(url);                 // eller ett Response, en ReadableStream, en ArrayBuffer
      const s = Varld.sok(v, [q0, q90, q180, q270], 5); // Float32Array(512) var
      // s = { rot, namn, poang, marginal, topp: [{ namn, poang, ref, id, sida }] }
 
@@ -36,11 +37,27 @@
   const VRIDNINGAR = [0, 90, 180, 270];
   const TYPER = { f32: Float32Array, f16: Uint16Array, int8: Int8Array, u16: Uint16Array, u32: Uint32Array, u8: Uint8Array, utf8: Uint8Array };
 
-  async function packaUpp(buf) {
-    const b = new Uint8Array(buf);
-    if (b[0] !== 0x1f || b[1] !== 0x8b) return buf;
-    if (typeof DecompressionStream === 'undefined') throw new Error('världsfilen är gzippad men webbläsaren saknar DecompressionStream');
-    return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+  /* Filens bytes som en ström, uppackad om den börjar med gzip (1f 8b). Ingenting hålls i minnet utöver biten
+     som läses just nu och det uppackade som växer (rättelsen 2026-10-17 fynd 3: förut låg svaret, 31 MB packat
+     som ArrayBuffer, en Blob-kopia av den och de 41 MB uppackade i minnet samtidigt — 130–170 MB på en telefon).
+     rakna.bytes räknar bytena in (det som gick över nätet). */
+  async function strom(body, rakna) {
+    const r = body.getReader();
+    let forsta = new Uint8Array(0), slut = false;
+    while (forsta.length < 2 && !slut) {   // de två första bytena avgör gzip eller inte; en bit kan vara kortare än så
+      const x = await r.read();
+      if (x.done) slut = true;
+      else if (x.value && x.value.length) { const n = new Uint8Array(forsta.length + x.value.length); n.set(forsta); n.set(x.value, forsta.length); forsta = n; }
+    }
+    const gz = forsta.length >= 2 && forsta[0] === 0x1f && forsta[1] === 0x8b;
+    if (gz && typeof DecompressionStream === 'undefined') throw new Error('världsfilen är gzippad men webbläsaren saknar DecompressionStream');
+    rakna.bytes = forsta.length;
+    const s = new ReadableStream({
+      start(c) { if (forsta.length) c.enqueue(forsta); if (slut) c.close(); },
+      async pull(c) { const x = await r.read(); if (x.done) c.close(); else { rakna.bytes += x.value.length; c.enqueue(x.value); } },
+      cancel(skal) { return r.cancel(skal); }
+    });
+    return gz ? s.pipeThrough(new DecompressionStream('gzip')) : s;
   }
 
   function franF16(u16) {
@@ -52,13 +69,20 @@
     return ut;
   }
 
-  /* url (sträng) eller ArrayBuffer → världen. o.onProg({ fas }) valfri. */
+  /* url (sträng), ett Response (fetch eller Cache Storage — kroppen läses som ström), en ReadableStream eller en
+     ArrayBuffer → världen. Svaret packas upp direkt ur strömmen; v.bytes är bytena in, v.bytesUppackad filen i
+     minnet. o.modell: bildmodellens version att kontrollera huvudet mot. */
   async function ladda(kalla, o) {
     o = o || {};
     const t0 = performance.now();
-    let buf = kalla;
-    if (typeof kalla === 'string') { const r = await fetch(kalla); if (!r.ok) throw new Error('världsfilen svarade ' + r.status); buf = await r.arrayBuffer(); }
-    buf = await packaUpp(buf);
+    const rakna = { bytes: 0 };
+    if (typeof kalla === 'string') { const r = await fetch(kalla); if (!r.ok) throw new Error('världsfilen svarade ' + r.status); kalla = r; }
+    let kropp;
+    if (kalla && typeof kalla === 'object' && kalla.body && typeof kalla.body.getReader === 'function') kropp = kalla.body;   // Response
+    else if (kalla && typeof kalla.getReader === 'function') kropp = kalla;                                                  // ReadableStream
+    else if (kalla && (kalla instanceof ArrayBuffer || ArrayBuffer.isView(kalla))) kropp = new ReadableStream({ start(c) { c.enqueue(kalla instanceof ArrayBuffer ? new Uint8Array(kalla) : new Uint8Array(kalla.buffer, kalla.byteOffset, kalla.byteLength)); c.close(); } });
+    else throw new Error('Varld.ladda: ingen url, Response, ström eller ArrayBuffer');
+    const buf = await new Response(await strom(kropp, rakna)).arrayBuffer();
     if (new Uint8Array(new Uint16Array([1]).buffer)[0] !== 1) throw new Error('världsfilen kräver little-endian');
     const dv = new DataView(buf);
     if (String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3)) !== 'MESV') throw new Error('inte en världsfil');
@@ -79,7 +103,7 @@
       skala: del('skala'), medel: del('medel'), pca: del('pca'), namnidx: del('namnidx'), bild: del('bild'),
       bildId: del('bild_id'), bildSida: del('bild_sida'),
       namn: new TextDecoder().decode(del('namn')).split('\n'),
-      buf,
+      buf, bytes: rakna.bytes, bytesUppackad: buf.byteLength,
     };
     v.laddMs = performance.now() - t0;
     return v;

@@ -3363,6 +3363,61 @@ if (foralder) foraldern(); else (async () => {
     t0 = Date.now(); s = await Promise.race([kamVarldSok({}), new Promise(r => setTimeout(() => r('hänger'), 2000))]); dt = Date.now() - t0;
     check(`VD7 nätet står still för alla tre: svar på ${dt} ms, pool ${s && s.pool}, skäl '${s && s.skal}' — steget faller tyst, kameran hänger inte`, s !== 'hänger' && dt < 1000 && s && s.pool === null && s.skal === 'inga bilder' && kamVarldBilder.size === 0);
   }
+  /* VD8 (MES-377 rättelsen, fynd 3 och 8): trådens kropp (varldWorkerKropp) körs i node med appens riktiga läsare
+     (dev/embed/varld.js) mot en liten världsfil byggd här (tre namn, gzippad) och attrapper för fetch och Cache
+     Storage. Det som provas: första starten hämtar, packar upp direkt ur strömmen (Varld.ladda får svaret, inte en
+     ArrayBuffer) och skriver cachen samtidigt; nästa start läser ur cachen utan att hämta; gamla poster rensas; en
+     cachad post som inte går att läsa tas bort och filen hämtas om på en gång (fynd 8). */
+  if (await del('VD8')) {
+    const vmW = require('vm'), zlib = require('zlib');
+    const klippW = (startRad, slutRad) => { const a = src.findIndex(l => l.startsWith(startRad)); if (a < 0) throw new Error('hittar inte ' + startRad); let b = -1; for (let i = a + 1; i < src.length; i++) if (src[i].startsWith(slutRad)) { b = i; break; } if (b < 0) throw new Error('hittar inte slutet på ' + startRad); return src.slice(a, b + 1).join('\n'); };
+    /* En världsfil: "MESV", huvudlängd, JSON-huvud, delar på 8-bytegränser (dev/embed/varld.js). */
+    const byggVarld = () => {
+      const D = 4, namn = ['Alfa', 'Beta', 'Gamma'], N = 3;
+      const delar = {}, bitar = []; let pos = 0;
+      const lagg = (n, typ, u8) => { pos = Math.ceil(pos / 8) * 8; delar[n] = { typ, start: pos, bytes: u8.byteLength }; bitar.push({ start: pos, u8 }); pos += u8.byteLength; };
+      const f32 = a => new Uint8Array(new Float32Array(a).buffer), u32 = a => new Uint8Array(new Uint32Array(a).buffer);
+      const huvud0 = { format: 'mesa-varld', formatV: 1, modell: 'mobileclip-s0|v1', variant: 'prov', antal: N, dim: D, dimIn: D, delar };
+      const hlenGiss = JSON.stringify(huvud0).length + 400;   // delarnas positioner räknas efter huvudet; huvudet fylls ut till en fast längd
+      pos = 8 + hlenGiss;
+      lagg('vek', 'f32', f32([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0])); lagg('medel', 'f32', f32([0, 0, 0, 0])); lagg('namnidx', 'u32', u32([0, 1, 2])); lagg('bild', 'u32', u32([0, 1, 2]));
+      lagg('bild_id', 'u8', new Uint8Array(48).map((_, i) => i)); lagg('bild_sida', 'u8', new Uint8Array([0, 0, 1])); lagg('namn', 'utf8', new TextEncoder().encode(namn.join('\n')));
+      let h = new TextEncoder().encode(JSON.stringify(huvud0)); const hu = new Uint8Array(hlenGiss); hu.fill(32); hu.set(h);
+      const ut = new Uint8Array(pos); ut.set(new TextEncoder().encode('MESV'), 0); new DataView(ut.buffer).setUint32(4, hlenGiss, true); ut.set(hu, 8);
+      for (const b of bitar) ut.set(b.u8, b.start);
+      return { ra: ut, gz: new Uint8Array(zlib.gzipSync(Buffer.from(ut))) };
+    };
+    const varld = byggVarld();
+    const URL_V = 'https://x.test/varld-prov.bin.gz', URL_GAMMAL = 'https://x.test/varld-gammal.bin.gz';
+    const lager = new Map(), logg = [];
+    const cacheAttrapp = { async match(url) { logg.push('match ' + url); const b = lager.get(url); return b ? new Response(b) : undefined; },
+                           async put(url, r) { logg.push('put ' + url); lager.set(url, new Uint8Array(await r.arrayBuffer())); },
+                           async keys() { return [...lager.keys()].map(url => ({ url })); }, async delete(k) { const url = typeof k === 'string' ? k : k.url; logg.push('delete ' + url); return lager.delete(url); } };   // som Cache API: en Request (ur keys) eller en adress
+    const sant = [];
+    const w = { self: null, caches: { open: async () => cacheAttrapp }, fetch: async url => { logg.push('fetch ' + url); return new Response(varld.gz); }, console,
+                performance, Response, ReadableStream, DecompressionStream, TextDecoder, Uint8Array, Uint16Array, Uint32Array, Int8Array, Int32Array, Float32Array, DataView, ArrayBuffer, JSON, Error, Math, String, Promise, Array, Object };
+    w.self = w; w.postMessage = m => sant.push(m); w.onmessage = null;   // self är trådens globala objekt: Varld hamnar där, och kroppen sätter self.onmessage
+    vmW.createContext(w);
+    vmW.runInContext(fs.readFileSync(require('path').join(__dirname, 'embed', 'varld.js'), 'utf8') + '\n' + klippW('function varldWorkerKropp() {', '}') + '\nvarldWorkerKropp();', w);
+    const kallor = [], laddaOrig = w.Varld.ladda;
+    w.Varld.ladda = (k, o) => { kallor.push(k && k.constructor ? k.constructor.name : typeof k); return laddaOrig(k, o); };   // vad tråden ger läsaren: svaret (strömmen) eller en hel ArrayBuffer
+    const kor = async m => { sant.length = 0; logg.length = 0; await w.onmessage({ data: m }); return sant[0]; };
+    const ladda = { typ: 'ladda', url: URL_V, cache: 'prov', modell: 'mobileclip-s0|v1' };
+    lager.set(URL_GAMMAL, varld.gz);
+    let k = await kor(ladda);
+    check(`VD8 första starten: hämtad (${logg.filter(x => x.startsWith('fetch')).length} fetch), skriven till cachen (${logg.filter(x => x.startsWith('put')).length} put), klar ${k && k.typ}${k && k.fel ? ' (' + k.fel + ')' : ''} med ${k && k.namn} namn, ${k && k.mb} MB in (gzip ${(varld.gz.byteLength / 1048576).toFixed(1)}), urCache ${k && k.urCache}`,
+          k && k.typ === 'klar' && k.namn === 3 && k.antal === 3 && !k.urCache && logg.filter(x => x.startsWith('fetch')).length === 1 && lager.has(URL_V) && lager.get(URL_V).byteLength === varld.gz.byteLength && k.mb === +(varld.gz.byteLength / 1048576).toFixed(1));
+    check(`VD8 den gamla filen rensas ur cachen: kvar ${[...lager.keys()].map(u => u.split('/').pop()).join(',')}`, !lager.has(URL_GAMMAL) && lager.has(URL_V));
+    check(`VD8 läsaren får svaret som ström, inte en hel ArrayBuffer (fynd 3: det packade ligger aldrig helt i minnet): Varld.ladda fick ${kallor[0]}`, kallor[0] === 'Response');
+    let s = await kor({ typ: 'sok', id: 1, fragor: [new Float32Array([0, 1, 0, 0])], n: 3 });
+    check(`VD8 sökning i tråden efteråt: ${s && s.svar && s.svar.namn} (${s && s.svar && s.svar.topp && s.svar.topp.map(x => x.namn).join(',')})`, s && s.typ === 'svar' && s.svar && s.svar.namn === 'Beta' && s.svar.topp[0].id.length === 36);
+    k = await kor(ladda);
+    check(`VD8 nästa start: ur cachen (${logg.join('; ')}), urCache ${k && k.urCache}, ${k && k.namn} namn`, k && k.typ === 'klar' && k.urCache && k.namn === 3 && !logg.some(x => x.startsWith('fetch')));
+    w.fetch = async () => new Response('borta', { status: 404 });
+    lager.clear();
+    k = await kor(ladda);
+    check(`VD8 filen saknas på nätet (404): ${k && k.typ} (${k && k.fel}), inget i cachen`, k && k.typ === 'fel' && /404/.test(k.fel) && lager.size === 0);
+  }
 
   if (barn) { skickaKlar(); process.send({ slut: true }, () => process.exit(0)); return; }
   console.log([...ok, ...fel].join('\n'));

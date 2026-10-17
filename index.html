@@ -23362,16 +23362,20 @@ function varldWorkerKropp() {
         let c = null; try { c = await caches.open(m.cache); } catch (e) { c = null; }
         let svar = null; if (c) { try { svar = await c.match(m.url); } catch (e) { svar = null; } }
         const urCache = !!svar;
+        let sparas = null;
         if (!svar) {
           svar = await fetch(m.url);
           if (!svar.ok) throw new Error('världsfilen svarade ' + svar.status);
-          if (c) { try { await c.put(m.url, svar.clone()); } catch (e) {} }
+          /* Cachen skrivs SAMTIDIGT som filen läses, ur en klon (strömmen delas i två): inget svar hålls helt i
+             minnet för cachens skull (rättelsen 2026-10-17 fynd 3). Går skrivningen fel läses filen ändå. */
+          if (c) { try { sparas = c.put(m.url, svar.clone()).catch(() => {}); } catch (e) { sparas = null; } }
         }
-        const buf = await svar.arrayBuffer();
-        v = await Varld.ladda(buf, { modell: m.modell || null });
+        /* Varld.ladda packar upp direkt ur svarets ström: det packade (31 MB) ligger aldrig helt i minnet, bara det uppackade (41 MB). */
+        v = await Varld.ladda(svar, { modell: m.modell || null });
+        if (sparas) await sparas;
         /* Gamla filer (en annan hash i namnet) rensas ur cachen: bara den som läses ligger kvar. */
         if (c) { try { for (const k of await c.keys()) if (k.url !== m.url) await c.delete(k); } catch (e) {} }
-        self.postMessage({ typ: 'klar', antal: v.N, namn: v.namn.length, mb: +(buf.byteLength / 1048576).toFixed(1), urCache, laddMs: Math.round(v.laddMs), modell: v.huvud.modell, variant: v.huvud.variant || null });
+        self.postMessage({ typ: 'klar', antal: v.N, namn: v.namn.length, mb: +(v.bytes / 1048576).toFixed(1), urCache, laddMs: Math.round(v.laddMs), modell: v.huvud.modell, variant: v.huvud.variant || null });
       } catch (e) { v = null; self.postMessage({ typ: 'fel', fel: String((e && e.message) || e) }); }
       return;
     }
