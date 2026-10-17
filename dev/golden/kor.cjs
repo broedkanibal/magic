@@ -67,7 +67,37 @@ const tvillingNamn = () => fs.readFileSync(TVILLINGLISTA_FIL, 'utf8').split('\n'
    ('minne+orb' i --detalj); ett annat säkert namn på dem är ett fel namn som förut. Utan --utan-leken tas förvalet
    (tvillinglistan). Jämförs mot baslinjen; sparas aldrig. */
 const MINNE = process.argv.includes('--minne');
+/* --varld [fil] (MES-377, steg 3 i trappan): världsfilen — alla ~33 200 kort som bildmodellens fingeravtryck — läses in
+   och varje nytt helt kort som steg 1 (leken) och steg 2 (minnet) inte gjorde säkert letas där, med ORB mot
+   Scryfall-bilden som villkor ('varld+orb' i --detalj, 'varld land' för basland som typ). Filen är som förval den
+   lokala kopian VARLD_FIL under dev/material/ (gitignorerad; samma innehåll som den uppladdade, hashen 792fefcb), så
+   att mätningen inte hänger på nätet; en annan fil ges som argument. Finns ingen lokal fil hämtas appens egen URL
+   (nätet) och det sägs.
+   Ensamt: INGEN lek (G1 steg 2, "golden mot världen") — poolen är tom som på telefonen utan aktiv lek, och varje
+   kort på borden ska hittas i världen; 0 fel namn är gränsen, och "första försöket" är rätt namn av läsbara.
+   Med --utan-leken: tvillinglistan tas bort ur leken som förut och ska nu hittas i världen (0 fel namn).
+   Med --minne: tvillinglistan i minnet, världen efter minnet. Jämförs mot baslinjen; sparas aldrig. */
+const VARLD = process.argv.includes('--varld');
+const VARLD_FIL_FORVAL = path.join('dev', 'material', 'arbete', '2026-10-15-mes-375-varldsfil', 'varld-E3.bin.gz');
+const VARLD_URL_APP = 'https://rtoejcafnssypnysjmey.supabase.co/storage/v1/object/public/modeller/varld-mobileclip-s0-v1-E3-792fefcb.bin.gz';
+const VARLD_FIL = (() => { if (!VARLD) return ''; const v = process.argv[process.argv.indexOf('--varld') + 1]; return v && !v.startsWith('--') ? v : (fs.existsSync(path.join(ROT, VARLD_FIL_FORVAL)) ? VARLD_FIL_FORVAL : ''); })();
+if (VARLD && SPARA) { console.error('--varld med --spara vägras: baslinjen mäter kedjan utan världen (steg 3).'); process.exit(2); }
+if (VARLD && UTAN_MODELL) { console.error('--varld med --utan-modell vägras: världen söks med bildmodellens vektorer.'); process.exit(2); }
 const UTAN_LEKEN = (() => { const i = process.argv.indexOf('--utan-leken'); if (i < 0) return MINNE ? tvillingNamn().join(',') : ''; const v = process.argv[i + 1]; return v && !v.startsWith('--') ? v : tvillingNamn().join(','); })();
+const UTAN_LEK = VARLD && !UTAN_LEKEN;   // --varld ensamt: ingen lek alls
+let VARLD_URL = '';
+if (VARLD) {
+  if (VARLD_FIL) {
+    const abs = path.resolve(VARLD_FIL), rel = path.relative(ROT, abs);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) { console.error(`--varld: ${VARLD_FIL} ligger utanför repots rot (${ROT}) — attrappen kan inte servera den. Lägg den under dev/material/.`); process.exit(2); }
+    if (!fs.existsSync(abs)) { console.error(`--varld: ${VARLD_FIL} finns inte.`); process.exit(2); }
+    VARLD_URL = '/' + rel.split(path.sep).map(encodeURIComponent).join('/');
+    console.log(`Världen (--varld): ${rel} (${Math.round(fs.statSync(abs).size / 1048576)} MB, lokal kopia)${UTAN_LEK ? ' — INGEN lek: varje kort letas i världen' : ''}.`);
+  } else {
+    VARLD_URL = VARLD_URL_APP;
+    console.log(`Världen (--varld): ingen lokal kopia (${VARLD_FIL_FORVAL} saknas) — hämtas från nätet: ${VARLD_URL_APP}${UTAN_LEK ? ' — INGEN lek: varje kort letas i världen' : ''}.`);
+  }
+}
 const UTAN_LEKEN_LISTA = !UTAN_LEKEN ? '' : (UTAN_LEKEN === tvillingNamn().join(',') ? `tvillinglistan (förval, dev/golden/utan-leken.txt, ${tvillingNamn().length} namn)` : `egen lista (${UTAN_LEKEN.split(',').length} namn, inte förvalet — bara utforskning)`);
 /* --lek-som-den-ar: baslandens antal i golden-leken ur lek.txt som de står, utan lyftet kor.html gör till förval (max(lek.txt, det största antalet av baslandet i något enskilt fall)). Bara för prov: baslinjen mäts alltid med lyftet, och raden "Leken:" under "Poolen:" säger vilka antal kameran fick. */
 const LEK_SOM_DEN_AR = process.argv.includes('--lek-som-den-ar');
@@ -302,7 +332,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   for (const ljus of varianter) {
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
   const param = [(AIFLAG || STUB_KAMERA) && 'ai=1', REFFLAG && (REFANVAND ? 'refanvand=1' : 'ref=1'), LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
-                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', process.argv.includes('--konsol') && 'konsol=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')), MINNE && 'minne=1', LEK_SOM_DEN_AR && 'lekasis=1',
+                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', process.argv.includes('--konsol') && 'konsol=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')), MINNE && 'minne=1', VARLD_URL && 'varld=' + encodeURIComponent(VARLD_URL), UTAN_LEK && 'utanlek=1', LEK_SOM_DEN_AR && 'lekasis=1',
                  (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER, UTAN_STILLBILDER && 'stillbilder=0',
                  FACIT_ERS && 'facit=' + encodeURIComponent(FACIT_ERS.split(',').map(x => x.trim().replace('=', ':')).join('|')),
                  VIDEO_URL && 'video=' + encodeURIComponent(VIDEO_URL), EMBED_LOKALT && !UTAN_MODELL && 'embedv=' + Math.round(fs.statSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')).mtimeMs), REMS_URL && 'remsmodell=' + encodeURIComponent(REMS_URL), MODELL_URL && 'modellfil=' + encodeURIComponent(MODELL_URL), NY_EMBED && 'nyembed=1'].filter(Boolean).join('&');
@@ -346,8 +376,9 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   await kor(`delete window.__kor_ut; 'ok'`);
   let json = '[\n' + delar.join(',\n') + '\n]\n';
   /* MES-266: vilken lista som kördes följer med varje rad (--ut, senaste.json), så att en rad aldrig kan läsas som en annan lista. */
-  if (UTAN_LEKEN) json = '[\n' + JSON.parse(json).map(r => JSON.stringify({ ...r, utanLeken: { lista: UTAN_LEKEN_LISTA, namn: UTAN_LEKEN.split(',').map(x => x.trim()), minne: MINNE } })).join(',\n') + '\n]\n';
-  if (UTAN_LEKEN) console.log(`  --utan-leken: ${UTAN_LEKEN_LISTA}: ${UTAN_LEKEN.split(',').map(x => x.trim()).join(', ')}${MINNE ? ' — i spelarens MINNE (--minne, steg 2): rätt namn bara med ORB som villkor' : ''}`);
+  if (UTAN_LEKEN) json = '[\n' + JSON.parse(json).map(r => JSON.stringify({ ...r, utanLeken: { lista: UTAN_LEKEN_LISTA, namn: UTAN_LEKEN.split(',').map(x => x.trim()), minne: MINNE, varld: VARLD } })).join(',\n') + '\n]\n';
+  if (UTAN_LEKEN) console.log(`  --utan-leken: ${UTAN_LEKEN_LISTA}: ${UTAN_LEKEN.split(',').map(x => x.trim()).join(', ')}${MINNE ? ' — i spelarens MINNE (--minne, steg 2): rätt namn bara med ORB som villkor' : ''}${VARLD ? ' — och VÄRLDEN som steg 3 (--varld): de borttagna korten ska hittas där med ORB som villkor' : ''}`);
+  if (UTAN_LEK) console.log('  --varld utan lek: poolen är tom, varje kort letas i världen (steg 3) med ORB som villkor — ett säkert fel namn är ett fel namn som förut');
   console.log('');
   skrivTabell(JSON.parse(json), gamla);
   /* K7: referenserna — hur många poolen bar per fall (--ref) och hur många varje fall lärde (--lar-ref). */
@@ -379,6 +410,16 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     const rsV = JSON.parse(json), vf = {}; for (const r of rsV) for (const k in (r.varforRatt || {})) vf[k] = (vf[k] || 0) + r.varforRatt[k];
     if (Object.keys(vf).length) console.log('  domskäl för de säkra rätta namnen: ' + Object.entries(vf).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(' · ')
       + (AIFLAG ? ` — namnViaAi ${rsV.reduce((a, r) => a + (r.namnViaAi || 0), 0)}` : ''));
+    /* MES-377: världen (steg 3) — vad som lästes, hur många säkra rätta namn den bar, och vad den såg utan att bära. */
+    if (VARLD) {
+      const vi = f0.varld;
+      const ur = rsV.flatMap(r => (r.lasningar || []).filter(l => l.bild && (l.bild.varld || l.bild.varld2)));
+      const bar = ur.filter(l => l.bild.varld).length, provade = ur.filter(l => l.bild.varld2).length, delar = ur.filter(l => l.bild.varld2 && l.bild.varld2.del).length, bilderSaknas = ur.filter(l => l.bild.varld2 && l.bild.varld2.skal).length;
+      const sokMs = ur.map(l => (l.bild.varld2 && l.bild.varld2.sokMs) || null).filter(x => x != null).sort((a, b) => a - b);
+      console.log('  världen (--varld, steg 3): ' + (vi && !vi.fel ? `${vi.namn} namn (${vi.variant || ''}, ${vi.mb} MB${vi.urCache ? ', ur cachen' : ', hämtad'}), läst på ${vi.s} s` : 'GICK INTE ATT LÄSA' + (vi && vi.fel ? ' (' + vi.fel + ')' : '') + ' — körningen mätte utan steg 3')
+        + (UTAN_LEK ? '; ingen lek' : '') + `; säkra rätta ur världen: ${Object.entries(vf).filter(([k]) => /^varld/.test(k)).map(([k, n]) => `${k} ${n}`).join(', ') || 0}`
+        + `; läsningar där världen bar: ${bar}, prövades utan att bära: ${provade}${delar ? ` (${delar} bar bara en del av ett kort)` : ''}${bilderSaknas ? ` (${bilderSaknas} utan Scryfall-bild)` : ''}${sokMs.length ? `; sökningen i tråden median ${sokMs[sokMs.length >> 1]} ms, max ${sokMs[sokMs.length - 1]} ms` : ''}`);
+    }
     /* MES-228: land per typ — facits basland mot kamerans, typ för typ (en hög räknas med sitt antal). */
     { const av = rsV.reduce((a, r) => a + (r.landAv || 0), 0), ratt = rsV.reduce((a, r) => a + (r.landRatt || 0), 0), over = rsV.reduce((a, r) => a + (r.landOver || 0), 0);
       if (av) console.log(`  land per typ: ${ratt}/${av} rätt, ${over} för många — ` + rsV.filter(r => r.landAv || r.landOver).map(r => `${r.id.slice(0, 2)}: ${r.landRatt}/${r.landAv}${r.landOver ? ' (+' + r.landOver + ')' : ''}`).join(' · ')); }
@@ -470,7 +511,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     for (const b of r.fodslar || []) console.log(`    född ${b.s} s @${b.cx},${b.cy} lång ${b.lang} (gräns ${b.grans}): ledigt ${b.narm ? `#${b.narm.id} ${b.narm.d} px, area ×${b.narm.area}, ${b.narm.sen} ms utan region, ${b.narm.st}${b.narm.namn ? ' ' + b.narm.namn : ''}, täckning ${b.narm.tackning}` : '–'}; upptaget ${b.upptaget ? `#${b.upptaget.id} ${b.upptaget.d} px` : '–'}`);
     /* MES-94: varje lokal läsning — beskärningens storlek, bildens dom med poäng och ORB-inliers, namnläsarens svar — så att en säker bilddom går att spåra till sina tal. */
     for (const l of r.lasningar || []) console.log(`    läst ${l.s} s${l.spek ? ' (tidigt)' : ''} spår ${l.nr != null ? '#' + l.nr : 'id ' + l.spar} ${l.w}×${l.h}: ${l.dom}${l.varfor ? ' [' + l.varfor + ']' : ''}${l.namn ? ' ' + l.namn : ''}`
-      + (l.bild ? ` — ${l.bild.modell ? `modell ${l.bild.poang}, marginal ${l.bild.marginal}${l.bild.ensamt ? '' : ', inte ensamt'}, ${l.bild.ms} ms; ORB ${l.bild.inliers} inliers${l.bild.orbNamn ? ' på ' + l.bild.orbNamn : ''} (ettan ${l.bild.stod}${l.bild.skala != null ? ', skala ' + l.bild.skala : ''})` : `bild ${l.bild.poang}, ${l.bild.inliers} inliers${l.bild.efterModell ? ' (andra åsikten efter modellen)' : ''}`}${l.bild.accept ? ', accept' : ''}${l.bild.utanTitel ? ', titeln inte inväntad' : ''}${l.bild.minne ? ', ur MINNET (steg 2)' : ''}${l.bild.minne2 ? `; minnet såg ${l.bild.minne2.namn} (marginal ${l.bild.minne2.marginal}, ORB ${l.bild.minne2.inliers} på ${l.bild.minne2.orbNamn || '–'}, konst ${l.bild.minne2.konst})${l.bild.minne2.bar ? ' — bar, men ' + l.bild.minne2.dom : ' utan att bära'}` : ''}` : '')
+      + (l.bild ? ` — ${l.bild.modell ? `modell ${l.bild.poang}, marginal ${l.bild.marginal}${l.bild.ensamt ? '' : ', inte ensamt'}, ${l.bild.ms} ms; ORB ${l.bild.inliers} inliers${l.bild.orbNamn ? ' på ' + l.bild.orbNamn : ''} (ettan ${l.bild.stod}${l.bild.skala != null ? ', skala ' + l.bild.skala : ''})` : `bild ${l.bild.poang}, ${l.bild.inliers} inliers${l.bild.efterModell ? ' (andra åsikten efter modellen)' : ''}`}${l.bild.accept ? ', accept' : ''}${l.bild.utanTitel ? ', titeln inte inväntad' : ''}${l.bild.minne ? ', ur MINNET (steg 2)' : ''}${l.bild.minne2 ? `; minnet såg ${l.bild.minne2.namn} (marginal ${l.bild.minne2.marginal}, ORB ${l.bild.minne2.inliers} på ${l.bild.minne2.orbNamn || '–'}, konst ${l.bild.minne2.konst})${l.bild.minne2.bar ? ' — bar, men ' + l.bild.minne2.dom : ' utan att bära'}` : ''}${l.bild.varld ? ', ur VÄRLDEN (steg 3)' : ''}${l.bild.varld2 ? `; världen såg ${l.bild.varld2.namn} (marginal ${l.bild.varld2.marginal}, ORB ${l.bild.varld2.inliers} på ${l.bild.varld2.orbNamn || '–'}, konst ${l.bild.varld2.konst}${l.bild.varld2.sokMs != null ? ', sökning ' + l.bild.varld2.sokMs + ' ms' : ''})${l.bild.varld2.skal ? ' — ' + l.bild.varld2.skal : l.bild.varld2.bar ? ' — bar, men ' + l.bild.varld2.dom : l.bild.varld2.del ? ' — bar bara en del av ett kort' : ' utan att bära'}` : ''}` : '')
       + ((l.cands || []).length ? ' (' + l.cands.map(c => c.name + (c.score != null ? ' ' + c.score : '')).join(', ') + ')' : '')
       + (l.ocr ? (l.ocr.hoppad ? ` [ocr hoppad: ${l.ocr.hoppad}]` : ` [ocr "${l.ocr.text || ''}" → ${l.ocr.namn || '–'} ${l.ocr.poang}/${l.ocr.marginal}${l.ocr.vand ? ' vänd' : ''}]`) : '')
       + (l.remsa ? ` [remsa → ${l.remsa.namn || '–'} ${l.remsa.marginal}${l.remsa.saker ? ' SÄKER' : ''} ${l.remsa.varfor || ''}${l.remsa.synt ? ' synt' : l.remsa.geo ? ' geo' : ' låda'}${l.remsa.rot ? ' rot ' + l.remsa.rot : ''}${l.remsa.ocr ? (l.remsa.ocr.hoppad ? ', ocr hoppad: ' + l.remsa.ocr.hoppad : ', ocr → ' + (l.remsa.ocr.namn || '–') + ' ' + l.remsa.ocr.poang + '/' + l.remsa.ocr.marginal) : ''}${l.remsa.cands && l.remsa.cands.length ? ' (' + l.remsa.cands.join(', ') + ')' : ''}${l.remsa.titel ? ', titel → ' + l.remsa.titel.namn + ' ' + l.remsa.titel.marginal : ''}${minneText(l.remsa.minne)}]` : ''));

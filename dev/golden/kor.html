@@ -202,6 +202,17 @@ const UTAN_LEKEN = new Set((PARAMS.get('utanleken') || '').split('|').map(x => x
    är ett fel namn som förut. Utan ?minne=1 finns inget minne i golden (KamMinne.redo() är falskt). */
 const MINNE = PARAMS.get('minne') === '1';
 let minneInfo = null;   // { kort, ms, fel } när minnet är byggt
+/* ?varld=<url> (kor.cjs --varld, MES-377): världsfilen (steg 3 i trappan) läses från den adressen — kor.cjs ger en
+   lokal kopia under dev/material/ som attrappen serverar, så att mätningen inte hänger på nätet — och väntas in
+   innan första fallet, så att alla fall mäts med den. Varje nytt helt kort som steg 1 och 2 inte gjorde säkert letas
+   då bland alla ~33 200 namn med ORB som villkor ('varld+orb' i --detalj; 'varld+orb+namn' när titeln håller med;
+   'varld land' för basland som typ på landregeln). Utan ?varld är världen AV i golden (w.MESA_VARLD = false): en
+   baslinje mäter aldrig steg 3 av misstag.
+   ?utanlek=1 (kor.cjs --varld utan --utan-leken/--minne): INGEN lek alls — poolen är tom (bara baksidan, som
+   telefonen utan aktiv lek), och varje kort på borden är ett kort världen ska hitta (G1 steg 2: golden mot världen). */
+const VARLD = PARAMS.get('varld') || '';
+const UTAN_LEK = PARAMS.get('utanlek') === '1';
+let varldInfo = null;   // { namn, mb, s, variant, urCache, fel } när världen lästs (eller inte gick att läsa)
 let embedInfo = null;   // { backend, modell, vektorer, ms } när leken är inbäddad
 let detInfo = null, detFel = null;   // den tränade detektorn (MES-329): { backend, modell, variant, ms, remsa } när den är laddad; felet annars
 /* ?rutlogg=1 (kor.cjs --rutlogg <fil>): varje videoruta med spåren som de står — tillstånd, mått, formN, skymd, r = fick en region i den här rutan (regionNar mot modulens klocka, w.performance.now — videotiden i ett videofall; rutloggen skrivs bara i videofall; till 2026-10-02 jämfördes mot ett fält som inte fanns och r var alltid 1), tm = tomMs, om = omlott, fy = maskandelen under spåret i senaste rutan utan region (kn = antalet kända kortlådor som räknats bort ur den, MES-331 pass 3) — för utredningar ruta för ruta (MES-227: hur länge syns kortet oskymt innan det ligger still?). Stort, därför aldrig i baslinjen. */
@@ -379,8 +390,9 @@ async function byggPool() {
     });
   const minnesRader = [];   // --minne: de borttagna raderna blir minnet (steg 2)
   if (UTAN_LEKEN.size) for (let i = rader.length - 1; i >= 0; i--) if (UTAN_LEKEN.has(rader[i].namn.toLowerCase())) minnesRader.unshift(...rader.splice(i, 1));
+  if (UTAN_LEK) rader.length = 0;   // --varld utan lek (MES-377): ingen rad ur lek.txt når poolen — allt letas i världen
   const namn = rader.map(x => x.namn);
-  if (!namn.length) throw new Error('lek.txt är tom');
+  if (!namn.length && !UTAN_LEK) throw new Error('lek.txt är tom');
   /* Nyckeln bär tryckningen: byts den, byggs poolen om. En rad utan tryckning
      ger samma text som förut, så en oförändrad lek behåller sin pool. */
   const nyckelText = rader.map(x => x.namn + (x.set ? ` (${x.set})${x.nr ? ' ' + x.nr : ''}` : '')).join('\n');
@@ -419,7 +431,10 @@ async function byggPool() {
      svarade 429 får inte ligga kvar under samma nyckel som den hela. */
   /* --glom-ref: de lärda referenserna för den här poolen bort, före bygget. */
   if (GLOM_REF) { try { await w.eval('Ref').glom('lek:golden-' + h.toString(16) + '-' + kort.length); } catch (e) {} }
-  const rec = await w.byggLekPool({ kort, ts: 1 }, 'golden-' + h.toString(16) + '-' + kort.length, p => {
+  /* Utan lek (--varld): den tomma poolen — bara baksidan — som telefonen bygger utan aktiv lek (kamPoolDelning 'tom', byggNamnPool tomOk). */
+  const rec = UTAN_LEK
+    ? await w.byggNamnPool({ kort: [], namn: [], land: [] }, 'golden-tom', p => status(`Bygger den tomma poolen… ${p.done || ''}`), { tomOk: true, setName: 'No deck' })
+    : await w.byggLekPool({ kort, ts: 1 }, 'golden-' + h.toString(16) + '-' + kort.length, p => {
     status(p.phase === 'img' ? `Lär mig leken… ${p.done} av ${p.total}` : `Hämtar leken… ${p.done || ''}`);
   });
   poolRec = rec;
@@ -471,6 +486,20 @@ async function byggPool() {
     const mrec = await KM.bygg(poster, p => status(p.phase === 'img' ? `Lär mig minnet… ${p.done} av ${p.total}` : p.phase === 'list' ? `Hämtar minnet… ${p.done || ''}` : `Bäddar in minnet… ${p.done} av ${p.total}`));
     minneInfo = { kort: mrec ? mrec.names.filter(n => n !== w.eval('BAKSIDA_NAMN')).length : 0, namn: poster.length, ms: Math.round(performance.now() - t0), fel: !KM.redo() ? (KM.fel || 'minnet gick inte att bygga') : null, saknade };
   } else { try { w.eval('KamMinne').glom(); } catch (e) {} }
+  /* Världen (MES-377, --varld): filen läses i appens egen tråd (KamVarld) från adressen kor.cjs gav, och väntas in så
+     att alla fall mäts med den. Utan --varld är steget AV. Går den inte att läsa står det, och körningen mäter utan. */
+  varldInfo = null;
+  w.MESA_VARLD = VARLD ? { url: VARLD } : false;
+  if (VARLD) {
+    const KV = w.eval('KamVarld'), t0 = performance.now();
+    try { KV.stopp(); } catch (e) {}
+    KV.starta();
+    status('Hämtar världen…');
+    while (KV.lage === 'laddar' && performance.now() - t0 < 5 * 60 * 1000) { await sleep(250); status(`Hämtar världen… ${((performance.now() - t0) / 1000).toFixed(0)} s`); }
+    const i = KV.info;
+    varldInfo = KV.redo() && i ? { namn: i.namn, antal: i.antal, mb: i.mb, s: i.s, variant: i.variant, urCache: i.urCache, modell: i.modell, fel: null }
+                               : { fel: KV.lage === 'laddar' ? 'världen hann inte läsas på 5 min' : (KV.fel || KV.halsa().varldFel || 'okänt fel') };
+  }
   /* Den tränade detektorn (MES-329): laddas här, så att alla fall mäts med
      den — annars hade första fallet gått på dagens detektor medan modellen
      hämtades. --tro "detektor:0" mäter dagens detektor, "detRemsa:0" bara
@@ -549,6 +578,7 @@ async function byggPool() {
   const tillfalliga = saknas.filter(x => x.tillfallig), varaktiga = saknas.filter(x => !x.tillfallig);
   poolFel = [];
   if (minneInfo && minneInfo.fel) poolFel.push('Minnet (--minne) gick inte att bygga: ' + minneInfo.fel + '.');
+  if (varldInfo && varldInfo.fel) poolFel.push('Världen (--varld) gick inte att läsa: ' + varldInfo.fel + '.');
   if (varaktiga.length) poolFel.push(`Finns inte på Scryfall — rätta lek.txt: ${varaktiga.map(x => x.namn).join(', ')}.`);
   if (tillfalliga.length) poolFel.push(`Nådde inte Scryfall för: ${tillfalliga.map(x => x.namn).join(', ')}.`);
   if (utanLand) poolFel.push(`Baslandens extra konstverk kom inte med (${kortaLand.map(t => t + ' ' + (perTyp.get(t) || 0) + '/' + BAS_TAK).join(', ')}).`);
@@ -567,7 +597,7 @@ async function byggPool() {
        bort igen, och saknas de i poolen mäter förloppet leken. */
     const under = ((f.facit.video && f.facit.video.handelser) || []).map(h => h.spelar || h.tar_bort);
     const borta = [...new Set(f.facit.kort.map(k => k.namn).concat(under))].filter(n => n && !iPool.has(norm(n)));
-    f.varning = borta.length ? `saknas i poolen: ${borta.join(', ')}` : null;
+    f.varning = borta.length && !UTAN_LEK ? `saknas i poolen: ${borta.join(', ')}` : null;   // utan lek (--varld) saknas allt i poolen med flit: det letas i världen
   }
   $('#pool').innerHTML = (poolFel.length ? `<span class="fel">${esc(poolFel.join(' '))}</span><br>` : '')
     + `Poolen: ${rec.names.length} kort ur lek.txt (${kort.length} namn${rec.names.length > kort.length ? ' + baslandens konstverk' : ''}).`
@@ -577,10 +607,13 @@ async function byggPool() {
        : EMBED_PA ? `<br><span class="fel">Bildmodellen gick inte att ladda: ${esc(embedFel || '')} — körningen mäter reserven (Matcher + ORB).</span>` : '<br>Bildmodellen avstängd (--utan-modell): reserven Matcher + ORB mäts.')
     + `<br>Leken: ${LEK_SOM_DEN_AR ? 'basland ur lek.txt som de är (--lek-som-den-ar)' : lekLyft.length ? lekLyft.map(x => `${esc(x.namn)} ${x.fran} → ${x.till} (fall ${x.fall})`).join(', ') : 'basland ur lek.txt räcker'}`
     + (UTAN_LEKEN.size ? `<br>Utanför leken: ${esc([...UTAN_LEKEN].join(', '))} — ${MINNE ? 'i spelarens MINNE (steg 2, --minne): rätt namn bara med ORB som villkor, ett annat' : 'ett'} säkert namn på de korten är ett fel namn.` : '')
-    + (minneInfo ? `<br>Minnet: ${minneInfo.kort} kort för ${minneInfo.namn} namn, klart på ${(minneInfo.ms / 1000).toFixed(1)} s${minneInfo.saknade.length ? `; <span class="fel">kunde inte slås upp: ${esc(minneInfo.saknade.join(', '))}</span>` : ''}${minneInfo.fel ? `; <span class="fel">${esc(minneInfo.fel)}</span>` : ''}.` : '');
+    + (minneInfo ? `<br>Minnet: ${minneInfo.kort} kort för ${minneInfo.namn} namn, klart på ${(minneInfo.ms / 1000).toFixed(1)} s${minneInfo.saknade.length ? `; <span class="fel">kunde inte slås upp: ${esc(minneInfo.saknade.join(', '))}</span>` : ''}${minneInfo.fel ? `; <span class="fel">${esc(minneInfo.fel)}</span>` : ''}.` : '')
+    + (UTAN_LEK ? '<br>Ingen lek (--varld): poolen är tom, varje kort letas i världen.' : '')
+    + (varldInfo ? (varldInfo.fel ? `<br><span class="fel">Världen gick inte att läsa: ${esc(varldInfo.fel)} — körningen mäter utan steg 3.</span>` : `<br>Världen: ${varldInfo.namn} namn (${esc(varldInfo.variant || '')}, ${varldInfo.mb} MB${varldInfo.urCache ? ', ur cachen' : ', hämtad'}), klar på ${varldInfo.s} s — steg 3 med ORB som villkor.`) : '');
   $('#metod').textContent = 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, '
     + (embedInfo ? 'bildmodellen (MobileCLIP-S0, ' + embedInfo.backend + ') rangordnar lekens namn och ORB kontrollerar de tre bästa; Matcher + ORB som andra åsikt' : 'Matcher + ORB mot leken')
     + (minneInfo && !minneInfo.fel ? ' + minnet som steg 2 (ORB som villkor)' : '')
+    + (varldInfo && !varldInfo.fel ? ' + världen som steg 3 (ORB som villkor)' : '')
     + (namnFel ? '. Ingen namnläsare' : ', och kortnamnet läst ur titelraden (tesseract.js)') + '. Ingen fråga till Claude utan ?ai=1.';
   poolKlar = true;
 }
@@ -1337,6 +1370,8 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     kallStorlek: f.kallStorlek,
     /* Bildmodellen (MES-225): vilken väg den räknade (webgpu/wasm), null = reserven; och domskälen för de säkra rätta namnen — vilket vittne som bar. */
     modell: embedInfo ? embedInfo.backend : null, modellFil: (embedInfo && embedInfo.modell) || null,
+    /* MES-377: världen (steg 3) — vad som lästes, eller felet; undefined när --varld inte gavs. utanLek: ingen lek alls. */
+    varld: varldInfo || undefined, utanLek: UTAN_LEK || undefined,
     /* MES-329: detektorn som faktiskt kördes i fallet (KamDet.status läses nu — föll modellen under körningen står 'fel'), inte bara den som laddades. */
     detektor: (() => { let st = null; try { st = w.eval('KamDet').status(); } catch (e) {} const tr = K.trosklar || {}; return !tr.detektor ? 'dagens' : /^yolox-/.test(st || '') ? st + (tr.detRemsa ? '' : ' (bara lådor)') : (st || 'okänd') + (detFel ? ': ' + detFel : ''); })(),
     varforRatt: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k)).reduce((m, p) => { const k = p.t.varfor || '–'; m[k] = (m[k] || 0) + 1; return m; }, {}),
