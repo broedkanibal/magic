@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/* Steg 2 i trappan — minnet utanför den aktiva leken (MES-376, granskningen 2026-10-17).
+/* Steg 2 och 3 i trappan — minnet utanför den aktiva leken (MES-376, granskningen 2026-10-17) och världen
+   (MES-377, rättelsen 2026-10-17: domMinne 'varld' med steg 2:s fällda namn som vittne, identifyMedModell
+   utanfor 'varld' med landregeln, inlärningen i kamSakert).
 
    Kör:  node dev/minnesteg.cjs            bänken (dev/kolla.sh), sekunder
          node dev/minnesteg.cjs <index.html>
@@ -143,6 +145,43 @@ const check = (vad, ok) => { n++; if (!ok) { fel++; console.log('  FEL: ' + vad)
   check("utan femte argument alls (steg 2:s anrop): 'varld+orb' som förut", d && d.saker && d.varfor === 'varld+orb');
   d = domMinne(v3('Z', 'Y'), null, 'X', 'varld', { namn: 'Z', varfor: 'konflikt' });
   check('steg 1:s vittne X och steg 2:s Z båda med: inte säkert', d && !d.saker);
+  /* Världens dom i sig (fynd 9): samma regel som steg 2, med förledet 'varld'. */
+  d = domMinne(v3('W', 'Z'), titel('X', 0.9, 0.5), null, 'varld');
+  check("världen bär W, titeln säker på lekens X: konflikt (titeln är vittne emot i steg 3 också)", d && !d.saker && d.varfor === 'konflikt');
+  d = domMinne(v3('W', 'Z'), titel(null, 0.7, 0.3, { namn: 'W', ord: ['Heath'], saknas: ['Moor'] }), null, 'varld');
+  check("världen bär W, titeln skiljer sig i ett helt ord från alla namn: 'titel skiljer ord'", d && !d.saker && d.varfor === 'titel skiljer ord');
+  d = domMinne(v3('W', 'Z'), titel('W', 0.55, 0.15), 'X', 'varld');
+  check("steg 1 bar lekens X (vittne1), världen bär W: konflikt — två bildvittnen", d && !d.saker && d.varfor === 'konflikt');
+}
+
+/* ── MES-377 rättelsen, fynd 9 (och 4): inlärningen i minnet när världen gjort ett namn säkert (kamSakert) ── */
+{
+  const planerade = [];
+  const ctx = { console, Map, Set, clearTimeout: () => {}, setTimeout: (f, ms) => { planerade.push(ms); return 1; },
+                Kamera: { spar: [{ id: 7, sid: 'sid-opt' }, { id: 8, sid: null }] }, kamLage: { id: 'g1' }, satKamFin: () => {},
+                AktivLek: { sett: () => ({ bytt: false, aktiv: null }) }, kamAktivT: null, kamPoolBygger: false, kamPoolOm: false, kamByggAktiv: async () => {}, byggKamPool: () => {} };
+  vm.createContext(ctx);
+  const kamSakert = vm.runInContext(klipp('function kamSakert(', '}') + '\n;kamSakert', ctx);
+  const nyData = () => ({ poster: new Map([['Pacifism', { sid: 'sid-pa', small: 'pa.jpg' }]]), grupper: new Map(), lekar: [] });
+  console.log('kamSakert: ett namn världen gjorde säkert lärs in i minnet (fynd 9), aldrig ett basland på landregeln (fynd 4)');
+  ctx.kamMinneData = nyData(); planerade.length = 0;
+  kamSakert('Opt', 7, 'varld+orb');
+  check("'varld+orb': Opt läggs i minnets poster med spårets tryckning, i partiets grupp, och minnets pool byggs om", ctx.kamMinneData.poster.get('Opt') && ctx.kamMinneData.poster.get('Opt').sid === 'sid-opt' && ctx.kamMinneData.grupper.get('g1').has('Opt') && planerade.length === 1 && planerade[0] === 1500);
+  ctx.kamMinneData = nyData(); planerade.length = 0;
+  kamSakert('Opt', 8, 'varld+orb+namn');
+  check("'varld+orb+namn': lärs in, utan tryckning när spåret saknar sid", ctx.kamMinneData.poster.has('Opt') && ctx.kamMinneData.poster.get('Opt').sid === null && planerade.length === 1);
+  ctx.kamMinneData = nyData(); planerade.length = 0;
+  kamSakert('Plains', 7, 'varld land');
+  check("'varld land' (basland som typ på landregeln): lärs INTE in (fynd 4 — ingen godtycklig tryckning, inget undantag från KONST_MIN i steg 2), inget ombygge", !ctx.kamMinneData.poster.has('Plains') && planerade.length === 0);
+  ctx.kamMinneData = nyData(); planerade.length = 0;
+  kamSakert('Opt', 7, 'minne+orb');
+  check("'minne+orb' (steg 2): inget lärs (namnet finns redan i minnet)", !ctx.kamMinneData.poster.has('Opt') && planerade.length === 0);
+  ctx.kamMinneData = nyData(); planerade.length = 0;
+  kamSakert('Pacifism', 7, 'varld+orb');
+  check('ett namn som redan ligger i minnet: posten rörs inte, inget ombygge', ctx.kamMinneData.poster.get('Pacifism').sid === 'sid-pa' && planerade.length === 0);
+  ctx.kamMinneData = null; planerade.length = 0;
+  kamSakert('Opt', 7, 'varld+orb');
+  check('utan minnesdata (inte inloggad): ingenting händer', planerade.length === 0);
 }
 
 /* ── rättelse 2, fynd 4: kandidaterna åt granskningen när steg 2 inte blev säkert ── */
@@ -244,6 +283,38 @@ const check = (vad, ok) => { n++; if (!ok) { fel++; console.log('  FEL: ' + vad)
   traffar = [{ r: 0, i: 1, inliers: 30, konst: 1, skala: 1.2 }];
   v = await identifyMedModell(null, box, e(['Y', 0.6], ['Z', 0.2]), 'matt', minne, true);
   check('…men bara 1 inlier i konstverket (< KONST_MIN 2): bär inte, inte accept', v && !v.accept && !v.modell.bar);
+
+  /* MES-377 rättelsen, fynd 9: utanfor 'varld' (steg 3) — ORB är villkoret som i steg 2, men landregeln gäller som
+     i leken (ett basland är en typ, LAND_MARGINAL på ett spår mätt mot kortreferensen), aldrig modellen ensam. */
+  console.log("identifyMedModell: utanfor 'varld' (steg 3) — ORB villkor, landregeln som i leken");
+  const varld = { names: [BAKSIDA_NAMN, 'Y', 'Z', 'Plains', 'Swamp'], orb: {}, tillfallig: true };
+  traffar = [];
+  v = await identifyMedModell(null, box, e(['Y', 0.6], ['Z', 0.2]), 'matt', varld, 'varld');
+  check("vanligt kort, modellen säker (0,40) men ORB bär inte: inte accept (modellen aldrig ensam mot världen), modell.varld", v && v.modell.saker && !v.accept && v.modell.varld && !v.modell.minne);
+  traffar = [{ r: 0, i: 1, inliers: 30, konst: 5, skala: 1.2 }];
+  v = await identifyMedModell(null, box, e(['Y', 0.6], ['Z', 0.2]), 'matt', varld, 'varld');
+  check('vanligt kort, ORB bär Y med 30 inliers och 5 i konstverket: accept (varld+orb), hel ruta', v && v.accept && v.modell.bar && !v.del);
+  traffar = [{ r: 0, i: 1, inliers: 30, konst: 1, skala: 1.2 }];
+  v = await identifyMedModell(null, box, e(['Y', 0.6], ['Z', 0.2]), 'matt', varld, 'varld');
+  check('…men 1 i konstverket (< KONST_MIN): bär inte', v && !v.accept);
+  traffar = [{ r: 0, i: 1, inliers: 30, konst: 5, skala: 0.9 }];
+  v = await identifyMedModell(null, box, e(['Y', 0.6], ['Z', 0.2]), 'matt', varld, 'varld');
+  check('ORB bär Y men bara en DEL av ett kort (skalan under ORB_HEL): del — kamIdentifiera räknar det inte som säkert', v && v.accept && v.del);
+  traffar = [];
+  v = await identifyMedModell(null, box, e(['Plains', 0.6], ['Swamp', 0.3]), 'matt', varld, 'varld');
+  check("basland Plains med marginal 0,30 ≥ LAND_MARGINAL, spåret mätt ('matt'), utan ORB: accept på landregeln ('varld land'), inte bar", v && v.accept && !v.modell.bar && v.modell.land);
+  v = await identifyMedModell(null, box, e(['Plains', 0.6], ['Swamp', 0.3]), 'form', varld, 'varld');
+  check("samma land men bara formen känd ('form', före bordets första kort): inte accept", v && !v.accept);
+  v = await identifyMedModell(null, box, e(['Plains', 0.6], ['Swamp', 0.5]), 'matt', varld, 'varld');
+  check('samma land med marginal 0,10 < LAND_MARGINAL 0,15: inte accept', v && !v.accept);
+  v = await identifyMedModell(null, box, e(['Plains', 0.6], ['Swamp', 0.3]), 'matt', varld, true);
+  check("samma land i steg 2 (utanfor true, minnet): landregeln gäller inte där — inte accept", v && !v.accept);
+  traffar = [{ r: 0, i: 4, inliers: 12, konst: 0, skala: 1.2 }];
+  v = await identifyMedModell(null, box, e(['Plains', 0.6], ['Swamp', 0.3]), 'matt', varld, 'varld');
+  check('land Plains men ORB bär Swamp med 12 ≥ ORB_ACCEPT: emot — inte accept', v && !v.accept && v.modell.emot);
+  traffar = [];
+  v = await identifyMedModell(null, box, e(['Y', 0.6], ['Z', 0.2]), '', varld, 'varld');
+  check('inte ensamt (ett spår som inte ligger för sig självt): inte accept utan ORB', v && !v.accept);
 
   console.log(`\nminnesteg: ${n - fel} av ${n} prov ok${fel ? ', ' + fel + ' FEL' : ''}`);
   process.exit(fel ? 1 : 0);

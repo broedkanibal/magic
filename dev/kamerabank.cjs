@@ -3331,6 +3331,24 @@ if (foralder) foraldern(); else (async () => {
     const w6 = tradar[tradar.length - 1];
     check(`VD6 egen fil (golden): tråden får en absolut adress ${w6.sant[0].url}`, w6.sant[0].url === 'http://localhost/dev/material/x/varld.bin.gz');
     KV.stopp();
+    // VD6b (rättelsen fynd 6): startaNarRedo väntar på bildmodellen och detektorn, startar sedan — eller vid taket; stopp() avbryter väntan
+    const vanta = ms => new Promise(r => setTimeout(r, ms));
+    let klara = false; const forraTradar = tradar.length;
+    KV.startaNarRedo(() => klara, 2000); await vanta(120);
+    check(`VD6b modellen och detektorn inte klara: väntar (läget '${KV.lage}', ${tradar.length - forraTradar} nya trådar)`, KV.lage === 'vantar' && tradar.length === forraTradar && !!KV.vantT);
+    klara = true; await vanta(400);
+    check(`VD6b de blev klara: startad (läget '${KV.lage}', ${tradar.length - forraTradar} ny tråd), ingen väntan kvar`, KV.lage === 'laddar' && tradar.length === forraTradar + 1 && !KV.vantT);
+    KV.stopp(); klara = false;
+    KV.startaNarRedo(() => klara, 300); await vanta(120);
+    check(`VD6b taket: inte klara efter 120 ms, väntar än (läget '${KV.lage}')`, KV.lage === 'vantar' && tradar.length === forraTradar + 1);
+    await vanta(500);
+    check(`VD6b taket 300 ms passerat: startad ändå (läget '${KV.lage}', ${tradar.length - forraTradar} trådar)`, KV.lage === 'laddar' && tradar.length === forraTradar + 2);
+    KV.stopp();
+    KV.startaNarRedo(() => false, 300); await vanta(50); KV.stopp(); await vanta(500);
+    check(`VD6b stopp() under väntan: ingen start (läget '${KV.lage}', ${tradar.length - forraTradar} trådar, väntan ${KV.vantT})`, KV.lage === 'vantar' && tradar.length === forraTradar + 2 && !KV.vantT);
+    KV.startaNarRedo(() => { throw new Error('KamEmbed saknas'); }, 2000); await vanta(100);
+    check(`VD6b en koll som kastar räknas som klar — hellre starta än aldrig (läget '${KV.lage}')`, KV.lage === 'laddar');
+    KV.stopp();
   }
   /* VD7 (MES-377 rättelsen, fynd 2): Scryfall-bilderna för världens tre kandidater har ett tidstak. kamVarldOrb och
      kamVarldSok klipps ut med en loadImage-attrapp där en bild kommer, en aldrig svarar (nätet står still) och en
@@ -3413,6 +3431,10 @@ if (foralder) foraldern(); else (async () => {
     check(`VD8 sökning i tråden efteråt: ${s && s.svar && s.svar.namn} (${s && s.svar && s.svar.topp && s.svar.topp.map(x => x.namn).join(',')})`, s && s.typ === 'svar' && s.svar && s.svar.namn === 'Beta' && s.svar.topp[0].id.length === 36);
     k = await kor(ladda);
     check(`VD8 nästa start: ur cachen (${logg.join('; ')}), urCache ${k && k.urCache}, ${k && k.namn} namn`, k && k.typ === 'klar' && k.urCache && k.namn === 3 && !logg.some(x => x.startsWith('fetch')));
+    lager.set(URL_V, new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));   // en post som inte går att läsa (inte gzip, inte MESV)
+    k = await kor(ladda);
+    check(`VD8 en cachad post som inte går att läsa (fynd 8): tas bort (${logg.filter(x => x.startsWith('delete')).length} delete), hämtas om (${logg.filter(x => x.startsWith('fetch')).length} fetch), klar ${k && k.typ}${k && k.fel ? ' (' + k.fel + ')' : ''}, urCache ${k && k.urCache}`,
+          k && k.typ === 'klar' && !k.urCache && logg.some(x => x === 'delete ' + URL_V) && logg.filter(x => x.startsWith('fetch')).length === 1 && lager.get(URL_V).byteLength === varld.gz.byteLength);
     w.fetch = async () => new Response('borta', { status: 404 });
     lager.clear();
     k = await kor(ladda);

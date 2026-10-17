@@ -23335,7 +23335,8 @@ const KamMinne = {
    namnen är villkoret (identifyMedModell utanfor 'varld'), KONST_MIN gäller,
    titelraden är bara ett vittne emot (domMinne).
    Nedladdningen (Jespers beslut 2026-10-15): osynlig, i bakgrunden, en gång.
-   Startas när kameran öppnas (oppnaKamera), blockerar aldrig kameran, sparas
+   Startas när kameran öppnats (oppnaKamera) och bildmodellen och detektorn
+   är klara (startaNarRedo), blockerar aldrig kameran, sparas
    i Cache Storage (VARLD_CACHE) med URL:en som nyckel — filnamnet bär
    innehållets hash, så en ny fil är en ny URL och hämtas en gång, och de
    gamla posterna rensas. Beständig lagring begärs (navigator.storage.persist)
@@ -23361,18 +23362,29 @@ function varldWorkerKropp() {
       try {
         let c = null; try { c = await caches.open(m.cache); } catch (e) { c = null; }
         let svar = null; if (c) { try { svar = await c.match(m.url); } catch (e) { svar = null; } }
-        const urCache = !!svar;
-        let sparas = null;
-        if (!svar) {
-          svar = await fetch(m.url);
-          if (!svar.ok) throw new Error('världsfilen svarade ' + svar.status);
+        let urCache = !!svar;
+        const hamta = async () => {
+          const r = await fetch(m.url);
+          if (!r.ok) throw new Error('världsfilen svarade ' + r.status);
           /* Cachen skrivs SAMTIDIGT som filen läses, ur en klon (strömmen delas i två): inget svar hålls helt i
              minnet för cachens skull (rättelsen 2026-10-17 fynd 3). Går skrivningen fel läses filen ändå. */
-          if (c) { try { sparas = c.put(m.url, svar.clone()).catch(() => {}); } catch (e) { sparas = null; } }
+          let sparas = null;
+          if (c) { try { sparas = c.put(m.url, r.clone()).catch(() => {}); } catch (e) { sparas = null; } }
+          /* Varld.ladda packar upp direkt ur svarets ström: det packade (31 MB) ligger aldrig helt i minnet, bara det uppackade (41 MB). */
+          const u = await Varld.ladda(r, { modell: m.modell || null });
+          if (sparas) await sparas;
+          return u;
+        };
+        if (svar) {
+          try { v = await Varld.ladda(svar, { modell: m.modell || null }); }
+          catch (e) {
+            /* En cachad post som inte går att läsa (avbruten skrivning, en annan modell, skadad fil) tas bort och filen
+               hämtas om på en gång — förut låg den kvar och gav 'fel' vid varje start (rättelsen 2026-10-17 fynd 8). */
+            try { await c.delete(m.url); } catch (e2) {}
+            svar = null; urCache = false;
+          }
         }
-        /* Varld.ladda packar upp direkt ur svarets ström: det packade (31 MB) ligger aldrig helt i minnet, bara det uppackade (41 MB). */
-        v = await Varld.ladda(svar, { modell: m.modell || null });
-        if (sparas) await sparas;
+        if (!svar) v = await hamta();
         /* Gamla filer (en annan hash i namnet) rensas ur cachen: bara den som läses ligger kvar. */
         if (c) { try { for (const k of await c.keys()) if (k.url !== m.url) await c.delete(k); } catch (e) {} }
         self.postMessage({ typ: 'klar', antal: v.N, namn: v.namn.length, mb: +(v.bytes / 1048576).toFixed(1), urCache, laddMs: Math.round(v.laddMs), modell: v.huvud.modell, variant: v.huvud.variant || null });
@@ -23408,7 +23420,9 @@ const KamVarld = {
     let url = KamVarld.konf().url || VARLD_URL;
     try { url = new URL(url, window.location.href).href; } catch (e) {}   // absolut: tråden lever på en blob-URL och kan inte lösa en relativ adress (golden ger en lokal sökväg)
     KamVarld.url = url; KamVarld.lage = 'laddar'; KamVarld.fel = null; KamVarld.info = null; KamVarld.t0 = performance.now();
-    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
+    /* Beständig lagring — tyst där det går (Safari och Chrome avgör själva, utan fråga). Firefox visar en dialog vid
+       persist(), och spelaren ska inte se något av världsfilen: där hoppas det över (rättelsen 2026-10-17 fynd 7). */
+    try { if (navigator.storage && navigator.storage.persist && !/\bFirefox\//.test(navigator.userAgent || '')) navigator.storage.persist().catch(() => {}); } catch (e) {}
     let w = null;
     try {
       const lasare = new URL(KamVarld.konf().modul || 'dev/embed/varld.js', window.location.href).href;
@@ -23426,6 +23440,23 @@ const KamVarld = {
     };
     w.postMessage({ typ: 'ladda', url, cache: VARLD_CACHE, modell: (window.Embed && window.Embed.MODELL) || null });
   },
+  /* Starta när bildmodellen och detektorn är klara, eller gett upp (rättelsen 2026-10-17 fynd 6): förut gick de
+     31 MB ut samtidigt som modellens vikter, detektorn och lekens bilder i kamerans första sekunder och stred om
+     nätet och minnet. Kollas var 250 ms (klart: förval andraKlara); efter takMs (förval 20 s) startas den ändå —
+     fortfarande i bakgrunden, aldrig vid första okända kortet. stopp() avbryter väntan. Provad i dev/kamerabank.cjs. */
+  vantT: null,
+  startaNarRedo(klart, takMs) {
+    if (!KamVarld.pa() || KamVarld.w || KamVarld.lage === 'laddar' || KamVarld.vantT) return;
+    klart = klart || KamVarld.andraKlara; takMs = takMs == null ? 20000 : takMs;
+    const t0 = performance.now();
+    const koll = () => {
+      KamVarld.vantT = null;
+      let ok = false; try { ok = !!klart(); } catch (e) { ok = true; }
+      if (ok || performance.now() - t0 >= takMs) KamVarld.starta(); else KamVarld.vantT = setTimeout(koll, 250);
+    };
+    KamVarld.vantT = setTimeout(koll, 0);
+  },
+  andraKlara: () => { const e = !KamEmbed.pa() || !!KamEmbed.fel || (KamEmbed.redo() && !KamEmbed.bygger); const d = !KamDet.pa() || !!KamDet.fel || !!KamDet.laddat; return e && d; },
   avvisa(varfor) { for (const [, p] of KamVarld.vantar) { clearTimeout(p.t); p.res(null); } KamVarld.vantar.clear(); },
   /* Sök: fragor = bildmodellens normerade vektorer för 0/90/180/270° (Float32Array(512) var). Svar som Varld.sok
      ({ rot, namn, poang, marginal, topp: [{ namn, poang, ref, id, sida }], ms }) eller null — på en gång när världen
@@ -23442,7 +23473,7 @@ const KamVarld = {
     });
   },
   /* Kameran stängs: tråden och dess 41 MB släpps. Nästa start läser filen ur cachen (0,4–0,8 s på Macen). */
-  stopp() { const w = KamVarld.w; KamVarld.w = null; KamVarld.avvisa('stoppad'); if (w) { try { w.terminate(); } catch (e) {} } if (KamVarld.lage !== 'fel') KamVarld.lage = 'vantar'; KamVarld.info = null; }
+  stopp() { if (KamVarld.vantT) { clearTimeout(KamVarld.vantT); KamVarld.vantT = null; } const w = KamVarld.w; KamVarld.w = null; KamVarld.avvisa('stoppad'); if (w) { try { w.terminate(); } catch (e) {} } if (KamVarld.lage !== 'fel') KamVarld.lage = 'vantar'; KamVarld.info = null; }
 };
 async function fetchQuery(q, onProg, seen, cards, label, order) {
   /* order 'released' ger nyaste tryckningen först — det som ligger på ett
@@ -33163,7 +33194,7 @@ async function oppnaKamera(gameId) {
 
   try {
     LasWorker.varm();   // räknetråden (MES-221) skapas nu, så att bordets första läsning inte betalar starten
-    try { KamVarld.starta(); } catch (e) {}   // världsfilen (MES-377) hämtas i bakgrunden, en gång — blockerar aldrig kameran
+    try { KamVarld.startaNarRedo(); } catch (e) {}   // världsfilen (MES-377) hämtas i bakgrunden, en gång, när bildmodellen och detektorn är klara — blockerar aldrig kameran
     await Kamera.start({ video: $('#kamVideo'), overlay: $('#kamOverlay') }, {
       status: kamSag,
       bord: (spar, nollstall, extra) => sandBord(spar, nollstall, extra),
@@ -33573,8 +33604,11 @@ function kamSakert(namn, id, varfor) {
      bordet är då steg 2 (minnet, ORB som villkor), inte en sökning i världen. Inte steg 1: den aktiva lekens pool är
      lekens namn och inget annat (kamPoolDelning, granskningen 2026-10-17 fynd 2). Hur det sparas i datan är
      MES-373: datorn skriver spelarens_kort ur korthändelsen, som för Claudes och spelarens namn. */
+  /* Bara 'varld+orb' och 'varld+orb+namn' — inte 'varld land' (rättelsen 2026-10-17 fynd 4): ett basland på
+     landregeln är en TYP, inte en tryckning, och lärt i minnet hade det fått en godtycklig tryckning och i steg 2
+     sluppit KONST_MIN. Basland sköter landregeln själv i varje steg. Ren funktion, provad i dev/minnesteg.cjs. */
   let nytt = false;
-  if (varfor && /^varld/.test(varfor) && !kamMinneData.poster.has(namn)) {
+  if (varfor && /^varld\+orb/.test(varfor) && !kamMinneData.poster.has(namn)) {
     const t = Kamera.spar.find(x => x.id === id);
     kamMinneData.poster.set(namn, { sid: (t && t.sid) || null, small: null });
     if (kamLage && kamLage.id) { const g = kamMinneData.grupper.get(kamLage.id) || new Set(); g.add(namn); kamMinneData.grupper.set(kamLage.id, g); }
