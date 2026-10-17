@@ -33166,8 +33166,10 @@ function sandBord(spar, nollstall, extra) {
      sett(namn) ett SÄKERT namn på bordet (telefonens, Claudes eller spelarens —
                Claude är aldrig ett villkor, bara ett namn bland de andra).
                Svar: { aktiv, bytt, slappt, nya, traffar }
-     namn()    namnmängden steg 1 känner igen mot: den aktiva lekens namn och
-               de grannar som dragits in ur minnet
+     namn()    den aktiva lekens namn och de grannar som dragits in ur minnet
+               — för lage() och bänken; steg 1:s pool är lekens namn ensamma
+               (kamPoolDelning, granskningen 2026-10-17 fynd 2), grannarna
+               ligger i steg 2:s pool med ORB som villkor
    Regeln (mätt i dev/aktiv-lek.cjs, resultatet under *Resultat G4* i
    dev/plan/lekar-och-minnet.md; m = 2, släpp efter 4):
      1. Starta i den valda leken, annars den senast spelade.
@@ -33181,8 +33183,10 @@ function sandBord(spar, nollstall, extra) {
      4. Ingen viktning efter hur ovanligt ett kort är (gav ingen vinst).
    Ett kort som syns och inte finns i den aktiva leken drar in sina GRANNAR
    ur minnet: namnen i de grupper (partier, lekar) det setts i. De hör till
-   namn() tills partiet är slut — en fel aktiv lek kostar bara fart, inte
-   rätt (steg 2 kräver ORB), och grannarna gör den farten kortare. */
+   namn() tills partiet är slut. Sedan 2026-10-17 når de inte steg 1:s pool
+   (en fel aktiv lek kostar bara fart, inte rätt, för att steg 2 kräver ORB
+   — och grannarna i steg 1 hade gett titeln och remsan ensamma fria händer
+   utanför leken); de söks i steg 2 som resten av minnet. */
 const AktivLek = (() => {
   const MIN_BYTE = 2, SLAPP_EFTER = 4;
   const basland = n => /^(?:Snow-Covered )?(?:Plains|Island|Swamp|Mountain|Forest|Wastes)$/.test(String(n || ''));
@@ -33305,29 +33309,45 @@ async function byggKamPool() {
     if (kamPoolOm) { kamPoolOm = false; byggKamPool(); }
   }
 }
-/* Den aktiva lekens pool ur AktivLek.namn() — lekens egna tryckningar och alla konstverk per namn som förut
-   (byggNamnPool), grannarna ur minnet bara med den tryckning som syntes — och minnets pool (KamMinne, steg 2) ur
-   resten av minnet. Nyckeln bär namnmängden: samma mängd byggs inte om, och ett byte av aktiv lek är en hopsättning
-   ur cachen per kort. Utan aktiv lek och utan grannar är den aktiva poolen tom (bara baksidan), så att steg 2 får
-   köra på allt i minnet. Poolens kod är lekens ('lek:<id>') när mängden är lekens egen, så att de lärda referenserna
-   (Ref, RefMoln) följer leken som förut. */
-async function kamByggAktiv() {
-  const M = kamMinneData; if (!M) return;
-  const namn = AktivLek.namn(), lek = AktivLek.aktiv ? M.lekar.find(l => l.id === AktivLek.aktiv) || null : null;
-  sattKamLekAntal(lek && lek.kort);
-  const lekNamn = new Set(lek ? lek.alla : []), extra = [...namn].filter(n => !lekNamn.has(n));
+/* ═══ DELNINGEN MELLAN STEG 1 OCH STEG 2 (MES-376, granskningen 2026-10-17 fynd 2) ═══
+   Den aktiva lekens pool (steg 1) är LEKENS namn och inget annat: kortlistans
+   egna tryckningar och alla konstverk per namn som förut (byggNamnPool), plus
+   de namn leken setts med i partier men som inte står i listan (lek.alla, en
+   lärd lek) — med den tryckning som syntes. I steg 1 gör titeln ensam,
+   remsan ensam och modellen med svagt stöd ett namn säkert, och det får bara
+   ske mot den lek korten pekat ut. Grannarna ur minnet (AktivLek.namn()) och
+   resten av minnet hör till steg 2:s pool (KamMinne), där ORB är villkoret —
+   de dras alltså inte in i steg 1. Utan aktiv lek är steg 1:s pool tom
+   ('tom', bara baksidan) och steg 2 kör på hela minnet. Poolens kod är
+   lekens ('lek:<id>'), så att de lärda referenserna (Ref, RefMoln) följer
+   leken som förut; ingen 'aktiv:<hash>' finns längre.
+   Svar: { spec, code, ts, vill, minne } — vill: det en sparad pool måste
+   bära för att räknas som färsk (de egna tryckningarnas namn och de slagna
+   sid:en; lek.ts säger inget om namn som lärts i partier), minne: minnets
+   poster utanför leken. Ren funktion: dev/minnesteg.cjs provar den. */
+function kamPoolDelning(M, lek) {
   const spec = lek ? lekNamnMangd({ kort: lek.kort }) : { kort: [], namn: [], land: [] };
-  /* Lekens namn som setts i partier men inte står i kortlistan (en lärd lek), och grannarna: den tryckning som syntes. */
-  for (const n of [...lekNamn].filter(n => !spec.kort.some(k => k.name === n)).concat(extra)) {
-    const p = M.poster.get(n);
+  const lekNamn = new Set(lek ? lek.alla : []);
+  for (const n of [...lekNamn].filter(n => !spec.kort.some(k => k.name === n))) {
+    const p = M.poster.get(n), typ = landTyp(n);
     if (p && p.sid && p.small) spec.kort.push({ id: p.sid, name: n, small: p.small });
     else if (p && p.sid) (spec.sid || (spec.sid = [])).push({ id: p.sid });
-    else if (!landTyp(n) && !n.includes(' // ') && !spec.namn.includes(n)) spec.namn.push(n);
+    else if (typ) { if (!spec.land.includes(typ)) spec.land.push(typ); }
+    else if (!n.includes(' // ') && !spec.namn.includes(n)) spec.namn.push(n);
   }
-  let code, ts;
-  if (!namn.size) { code = 'tom'; ts = 0; }
-  else if (lek && !extra.length) { code = 'lek:' + lek.id; ts = lek.ts || 0; }
-  else { const text = [...namn].sort().join('\n'); let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } code = 'aktiv:' + h.toString(16) + '-' + namn.size; ts = 0; }
+  const minne = []; for (const [n, p] of M.poster) if (!lekNamn.has(n)) minne.push({ namn: n, sid: p.sid, small: p.small });
+  return { spec, code: lek ? 'lek:' + lek.id : 'tom', ts: lek ? lek.ts || 0 : 0,
+           vill: { namn: spec.kort.map(k => k.name), ids: (spec.sid || []).map(s => s.id) }, minne };
+}
+/* Bär den sparade poolen allt delningen vill ha? Annars är den gammal fast ts stämmer. */
+const poolBar = (rec, vill) => !!rec && vill.namn.every(n => rec.names.indexOf(n) >= 0) && vill.ids.every(id => rec.ids.indexOf(id) >= 0);
+/* Den aktiva lekens pool (kamPoolDelning) och minnets pool (KamMinne, steg 2). Nyckeln bär leken och dess ts: samma
+   lek byggs inte om, och ett byte av aktiv lek är en hopsättning ur cachen per kort (byggPoolAv). */
+async function kamByggAktiv() {
+  const M = kamMinneData; if (!M) return;
+  const lek = AktivLek.aktiv ? M.lekar.find(l => l.id === AktivLek.aktiv) || null : null;
+  sattKamLekAntal(lek && lek.kort);
+  const { spec, code, ts, vill, minne: minnesPoster } = kamPoolDelning(M, lek);
   const nyckel = code + ':' + ts;
   if (nyckel !== kamPoolNyckel || !Pool.idx || Pool.idx.code !== code) {
     let sist = 0;
@@ -33337,6 +33357,7 @@ async function kamByggAktiv() {
       satKamFin('pool', p.phase === 'img' ? `Learning ${vad}… ${Math.round(100 * p.done / Math.max(1, p.total))} %` : 'Fetching the deck…'); };
     let rec = (Pool.idx && Pool.idx.code === code && (Pool.idx.ts || 0) >= ts) ? Pool.idx : null;
     if (!rec) { const cached = await Pool.load(code); if (cached && cached.ts >= ts) rec = cached; }
+    if (rec && !poolBar(rec, vill)) rec = null;   // lärda namn som poolen saknar: byggs om (ur cachen per kort)
     if (!rec) rec = await byggNamnPool(spec, code, prog, { setName: lek ? lek.namn : 'My cards', tomOk: true });
     Pool.idx = rec;
     if (Ref.kod !== rec.code) await Ref.ladda(rec.code);
@@ -33345,8 +33366,8 @@ async function kamByggAktiv() {
     kamPoolNyckel = nyckel;
     /* Lekens antal, inte poolens: poolen bär upp till tolv konstverk per namn och tjugofyra per basic land. */
     satKamFin('pool', lek
-      ? `Recognising ${lek.namn || 'your deck'}: ${lekKortAntal(lek)} cards${extra.length ? ` + ${extra.length} from memory` : ''}.${Ref.antal(Pool.idx) ? ` ${Ref.antal(Pool.idx)} learned photo${Ref.antal(Pool.idx) === 1 ? '' : 's'}.` : ''}${kamAiNamnKapade() ? ` Claude sees the ${KAM_AI_NAMN_TAK} most likely names of ${KAM_AI_NAMN_TAK + kamAiNamnKapade()}.` : ''}`
-      : namn.size ? `Recognising ${namn.size} cards from memory.` : `No deck matches yet — recognising from memory (${M.poster.size} cards).`);
+      ? `Recognising ${lek.namn || 'your deck'}: ${lekKortAntal(lek)} cards.${Ref.antal(Pool.idx) ? ` ${Ref.antal(Pool.idx)} learned photo${Ref.antal(Pool.idx) === 1 ? '' : 's'}.` : ''}${kamAiNamnKapade() ? ` Claude sees the ${KAM_AI_NAMN_TAK} most likely names of ${KAM_AI_NAMN_TAK + kamAiNamnKapade()}.` : ''}`
+      : `No deck matches yet — recognising from memory (${M.poster.size} cards).`);
     /* Kort som väntade på en pool får en ny chans. */
     for (const t of Kamera.spar) if (!t.namn) Kamera.glomKort(t.id);
   }
@@ -33355,7 +33376,6 @@ async function kamByggAktiv() {
      (steg 2) byggs efter den aktiva lekens inbäddning, tyst: den ska aldrig fördröja steg 1. */
   if (KamEmbed.pa()) {
     let sistM = 0; const poolen = Pool.idx;
-    const minnesPoster = []; for (const [n, p] of M.poster) if (!namn.has(n)) minnesPoster.push({ namn: n, sid: p.sid, small: p.small });
     if (!KamEmbed.redo() || KamEmbed.kod !== poolen.code) satKamFin('modell', 'Getting the image model…');
     KamEmbed.bygg(poolen, p => {
       const nu = Date.now(); if (nu - sistM < 400) return; sistM = nu;
@@ -33368,14 +33388,15 @@ async function kamByggAktiv() {
     });
   }
 }
-/* Ett säkert namn på bordet (Kamera cb.sakert): den aktiva leken räknar det, och byter den lek eller drar in grannar
-   byggs poolerna om — med en liten väntan, så att en hand full av kort ger ett ombygge och inte fem. Det gamla
-   gäller tills det nya är klart (Pool.idx byts först när hopsättningen är färdig). Kommer ett byte medan poolen
-   byggs tas det efteråt (kamPoolOm → byggKamPool → kamByggAktiv). */
+/* Ett säkert namn på bordet (Kamera cb.sakert): den aktiva leken räknar det, och byter den lek byggs poolerna om —
+   med en liten väntan, så att en hand full av kort ger ett ombygge och inte fem. Grannar som dras in (r.nya) ändrar
+   inga pooler: de ligger redan i minnets (kamPoolDelning). Det gamla gäller tills det nya är klart (Pool.idx byts
+   först när hopsättningen är färdig). Kommer ett byte medan poolen byggs tas det efteråt (kamPoolOm → byggKamPool →
+   kamByggAktiv). */
 function kamSakert(namn, id, varfor) {
   if (!kamMinneData || !namn) return;
   let r; try { r = AktivLek.sett(namn); } catch (e) { return; }
-  if (!r || (!r.bytt && !r.nya)) return;
+  if (!r || !r.bytt) return;
   if (r.bytt) {
     const l = r.aktiv ? kamMinneData.lekar.find(x => x.id === r.aktiv) : null;
     satKamFin('pool', r.aktiv ? `The cards look like ${l ? l.namn : 'another deck'} — switching…` : 'No deck matches the cards on the table — recognising from memory…');

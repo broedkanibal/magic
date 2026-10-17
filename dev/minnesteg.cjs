@@ -69,6 +69,36 @@ const check = (vad, ok) => { n++; if (!ok) { fel++; console.log('  FEL: ' + vad)
   check('bara baksidan bland kandidaterna: ingen dom', d === null);
 }
 
+/* ── fynd 2: kamPoolDelning — steg 1 är lekens namn, grannarna hör till steg 2 ── */
+{
+  const ctx = { console, BASICS, landTyp, Map, Set };
+  vm.createContext(ctx);
+  vm.runInContext(klipp('function lekNamnMangd(', '}'), ctx);
+  const kamPoolDelning = vm.runInContext(klipp('function kamPoolDelning(', '}') + '\n;kamPoolDelning', ctx);
+  const post = (sid, small) => ({ sid, small });
+  const M = { poster: new Map([['Fencing Ace', post('sid-fa', 'fa.jpg')], ['Pacifism', post('sid-pa', 'pa.jpg')], ['Shock', post('sid-sh', null)],
+                                ['Goblin Guide', post('sid-gg', 'gg.jpg')], ['Lightning Bolt', post(null, null)], ['Opt', post('sid-opt', 'opt.jpg')],
+                                ['Snow-Covered Plains', post(null, null)], ['Plains', post('sid-pl', 'pl.jpg')]]) };
+  /* Leken A: listan har Fencing Ace och Pacifism; i partier har den setts med Shock (sid utan bild), Lightning Bolt
+     (bara namnet) och Snow-Covered Plains (ett basland utan tryckning). Goblin Guide och Opt är grannar/minne. */
+  const A = { id: 'A', namn: 'Alfa', ts: 1000, kort: [{ name: 'Fencing Ace', sid: 'sid-fa', small: 'fa.jpg' }, { name: 'Pacifism', sid: 'sid-pa', small: 'pa.jpg' }, { name: 'Plains', sid: 'sid-pl', small: 'pl.jpg' }],
+              alla: ['Fencing Ace', 'Pacifism', 'Plains', 'Shock', 'Lightning Bolt', 'Snow-Covered Plains'] };
+  console.log('kamPoolDelning: den aktiva lekens pool och minnets');
+  let d = kamPoolDelning(M, A);
+  const namnI = s => new Set(s.kort.map(k => k.name).concat(s.namn || []).concat(s.land || []));
+  check("koden är lekens ('lek:A') med lekens ts", d.code === 'lek:A' && d.ts === 1000);
+  check('kortlistans tryckningar ligger i spec.kort', d.spec.kort.some(k => k.id === 'sid-fa') && d.spec.kort.some(k => k.id === 'sid-pa'));
+  check('ett lärt namn med sid utan bild slås upp per sid (spec.sid)', (d.spec.sid || []).some(s => s.id === 'sid-sh'));
+  check('ett lärt namn utan tryckning söks per namn (spec.namn)', d.spec.namn.includes('Lightning Bolt'));
+  check('ett lärt basland ger sin typ i spec.land (byggarens kod tappade det)', d.spec.land.includes('Plains') && d.spec.land.length === 1);
+  check('grannen Goblin Guide och minnets Opt finns INTE i steg 1:s spec', !namnI(d.spec).has('Goblin Guide') && !namnI(d.spec).has('Opt') && !(d.spec.sid || []).some(s => s.id === 'sid-gg' || s.id === 'sid-opt'));
+  check('…men i minnets poster (steg 2)', d.minne.some(p => p.namn === 'Goblin Guide' && p.sid === 'sid-gg') && d.minne.some(p => p.namn === 'Opt'));
+  check('lekens namn finns inte i minnets poster', !d.minne.some(p => ['Fencing Ace', 'Pacifism', 'Shock', 'Lightning Bolt', 'Plains', 'Snow-Covered Plains'].includes(p.namn)));
+  check('vill: de egna tryckningarnas namn och de slagna sid:en', d.vill.namn.includes('Fencing Ace') && d.vill.ids.includes('sid-sh') && !d.vill.namn.includes('Goblin Guide'));
+  d = kamPoolDelning(M, null);
+  check("utan aktiv lek: poolen 'tom' utan namn, och hela minnet i steg 2", d.code === 'tom' && !d.spec.kort.length && !d.spec.namn.length && !d.spec.land.length && d.minne.length === M.poster.size);
+}
+
 /* ── fynd 4: identifyMedModell utan rival i poolen ─────────────────────── */
 (async () => {
   let traffar = [];
