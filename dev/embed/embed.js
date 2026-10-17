@@ -438,7 +438,14 @@
              cands: lista.slice(0, 5).map(x => ({ name: x.namn, sid: x.id, score: x.poang })), ms: performance.now() - t0, backend, vektor: o && o.vektor ? q : undefined };
   }
 
-  global.Embed = { V, MODELL, franF16, SIDA, DIM, TROSKEL, ROTAR, VARIANTER, ladda, byggLek, laddaLek, glom, gallra, laggTill, taBort, identifiera, rangordna, sakerhetAv,
+  /* Bara vektorn för en beskärning, utan lek att rangordna mot (MES-377: världens fyra vridningar, o.rot 0/90/180/270
+     som fragaTensor — samma beskärning med marginal som identifiera, så att frågan är den världsfilen byggdes för). */
+  async function vektor(kalla, o) {
+    await ladda();
+    return kor(fragaTensor(kalla, o), 0, false);
+  }
+
+  global.Embed = { V, MODELL, franF16, SIDA, DIM, TROSKEL, ROTAR, VARIANTER, ladda, byggLek, laddaLek, glom, gallra, laggTill, taBort, identifiera, rangordna, sakerhetAv, vektor,
                    byggRemsLek, laddaRemsLek, REMS_ROTAR,
                    get backend() { return backend; }, get redo() { return !!session; }, get remsModell() { return remsNamn; }, get remsFel() { return remsFel; } };
 })(window);

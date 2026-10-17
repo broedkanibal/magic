@@ -9186,7 +9186,7 @@ function ofrMarkLagg() {
    och visar hela tidslinjen bredvid kortet under pekaren. Kameravyn får samma rad (ritaPbLager). */
 /* [del, namn, Claude] */
 const KEDJA_DELAR = { det: ['Detector', false], modell: ['Image model', false], orb: ['ORB', false], titel: ['Title box', false],
-                      remsa: ['Name strip', false], minne: ['Memory', false], claude: ['Claude · card', true], helbild: ['Claude · whole table', true] };
+                      remsa: ['Name strip', false], minne: ['Memory', false], varld: ['World', false], claude: ['Claude · card', true], helbild: ['Claude · whole table', true] };
 let kamKedja = new Map();   // spårets id → { l: [[del, start, ms, slut]], namn, saker, tillstand, varfor }
 let kedjaPekad = null;      // kortet under pekaren: 'c:<cid>' eller 'o:<ofr-id>'
 function tagEmotKedja(m) {
@@ -23323,6 +23323,123 @@ const KamMinne = {
   },
   glom() { KamMinne.pool = null; KamMinne.idx = null; KamMinne.kod = null; KamMinne.nyckel = null; KamMinne.poster = 0; }
 };
+/* ═══ VÄRLDEN I KEDJAN — STEG 3 I TRAPPAN (MES-377, etapp 2b) ═══
+   Alla Magic-kort som bildmodellens fingeravtryck i EN fil (MES-375, E3:
+   PCA 384 + int8, 31 MB över nätet, 41 MB uppackad, ~33 200 namn), läst och
+   sökt i en egen tråd (dev/embed/varld.js, Varld.ladda / Varld.sok) så att
+   spårningen inte hackar: en sökning är ~50 miljoner multiplikationer per
+   vridning. Ett nytt, helt kort som ligger still och som varken den aktiva
+   leken (steg 1) eller spelarens minne (steg 2) gjorde säkert letas här
+   (kamIdentifiera). Bildmodellen är ALDRIG ensamt vittne mot världen (G1,
+   MES-361: upp till 16 säkra fel): ORB mot Scryfall-bilden av de tre bästa
+   namnen är villkoret (identifyMedModell utanfor 'varld'), KONST_MIN gäller,
+   titelraden är bara ett vittne emot (domMinne).
+   Nedladdningen (Jespers beslut 2026-10-15): osynlig, i bakgrunden, en gång.
+   Startas när kameran öppnas (oppnaKamera), blockerar aldrig kameran, sparas
+   i Cache Storage (VARLD_CACHE) med URL:en som nyckel — filnamnet bär
+   innehållets hash, så en ny fil är en ny URL och hämtas en gång, och de
+   gamla posterna rensas. Beständig lagring begärs (navigator.storage.persist)
+   så att Safari inte rensar efter 7 dagar utan besök. Är filen inte klar när
+   ett okänt kort dyker upp hoppas steget över (redo() är falskt) — ingen
+   fråga, ingen väntan; kortet går till Claude eller spelaren som förut.
+   Spelaren ser ingenting: läget syns bara i ?debug (kamHalsa.varld —
+   'laddar' / 'klar' / 'fel' / 'av' / 'vantar', med MB och sekunder).
+   window.MESA_VARLD = false stänger av steget; { url } byter fil (golden
+   kor.cjs --varld läser en lokal kopia under dev/material/). Claude är aldrig
+   ett villkor här, och steget skickar ingen bild till Claude.
+   Tråden får exakt appens läsare: dev/embed/varld.js hämtas med importScripts
+   och trådens kropp (varldWorkerKropp) följer med som text. */
+const VARLD_URL = 'https://rtoejcafnssypnysjmey.supabase.co/storage/v1/object/public/modeller/varld-mobileclip-s0-v1-E3-792fefcb.bin.gz';
+const VARLD_CACHE = 'mesa-varld-v1';
+const VARLD_SOK_TAK_MS = 8000;   // ett svar som inte kommer: steget hoppas över, tråden lever vidare (ett enskilt svar kan ha fastnat bakom laddningen)
+function varldWorkerKropp() {
+  'use strict';
+  let v = null;
+  self.onmessage = async ev => {
+    const m = ev.data;
+    if (m.typ === 'ladda') {
+      try {
+        let c = null; try { c = await caches.open(m.cache); } catch (e) { c = null; }
+        let svar = null; if (c) { try { svar = await c.match(m.url); } catch (e) { svar = null; } }
+        const urCache = !!svar;
+        if (!svar) {
+          svar = await fetch(m.url);
+          if (!svar.ok) throw new Error('världsfilen svarade ' + svar.status);
+          if (c) { try { await c.put(m.url, svar.clone()); } catch (e) {} }
+        }
+        const buf = await svar.arrayBuffer();
+        v = await Varld.ladda(buf, { modell: m.modell || null });
+        /* Gamla filer (en annan hash i namnet) rensas ur cachen: bara den som läses ligger kvar. */
+        if (c) { try { for (const k of await c.keys()) if (k.url !== m.url) await c.delete(k); } catch (e) {} }
+        self.postMessage({ typ: 'klar', antal: v.N, namn: v.namn.length, mb: +(buf.byteLength / 1048576).toFixed(1), urCache, laddMs: Math.round(v.laddMs), modell: v.huvud.modell, variant: v.huvud.variant || null });
+      } catch (e) { v = null; self.postMessage({ typ: 'fel', fel: String((e && e.message) || e) }); }
+      return;
+    }
+    if (m.typ === 'sok') {
+      try {
+        if (!v) throw new Error('världen är inte laddad');
+        const t0 = performance.now();
+        const s = Varld.sok(v, m.fragor.map(q => new Float32Array(q)), m.n || 5);
+        self.postMessage({ typ: 'svar', id: m.id, svar: s, ms: Math.round(performance.now() - t0) });
+      } catch (e) { self.postMessage({ typ: 'svar', id: m.id, fel: String((e && e.message) || e) }); }
+    }
+  };
+}
+const KamVarld = {
+  w: null, lage: 'vantar', fel: null, info: null, t0: 0, nr: 0, vantar: new Map(), url: null,
+  stat: { sok: 0, fel: 0, ms: [] },
+  pa: () => window.MESA_VARLD !== false,
+  konf: () => (window.MESA_VARLD && typeof window.MESA_VARLD === 'object') ? window.MESA_VARLD : {},
+  /* Klar att söka: filen läst i tråden, och byggd för samma modell och recept som bildmodellen räknar frågorna med. */
+  redo: () => !!(KamVarld.pa() && KamVarld.w && KamVarld.lage === 'klar' && KamVarld.info && (!window.Embed || KamVarld.info.modell === window.Embed.MODELL)),
+  /* 'av' | 'vantar' (inte startad) | 'laddar' | 'klar' | 'fel' — hälsokollen (?debug). */
+  status: () => !KamVarld.pa() ? 'av' : KamVarld.lage === 'klar' && !KamVarld.redo() ? 'fel' : KamVarld.lage,
+  /* Hälsokollen får också vad som laddats: MB, sekunder, namn, ur cachen eller nätet. */
+  halsa: () => ({ varld: KamVarld.status(), varldFel: KamVarld.lage === 'klar' && !KamVarld.redo() ? 'built for ' + (KamVarld.info && KamVarld.info.modell) + ', the image model is ' + (window.Embed && window.Embed.MODELL) : KamVarld.fel,
+                  varldInfo: KamVarld.info ? { mb: KamVarld.info.mb, s: KamVarld.info.s, namn: KamVarld.info.namn, urCache: KamVarld.info.urCache, variant: KamVarld.info.variant, sok: KamVarld.stat.sok, sokMs: KamVarld.stat.ms.length ? KamVarld.stat.ms.slice().sort((a, b) => a - b)[KamVarld.stat.ms.length >> 1] : null } : null }),
+  /* Starta hämtningen och läsningen i bakgrunden. Tyst: ett fel syns bara i ?debug. Anropas en gång; senare anrop gör inget. */
+  starta() {
+    if (!KamVarld.pa() || KamVarld.w || KamVarld.lage === 'laddar') return;
+    if (typeof Worker !== 'function' || typeof Blob !== 'function' || typeof URL === 'undefined' || !URL.createObjectURL) { KamVarld.lage = 'fel'; KamVarld.fel = 'no worker support'; return; }
+    let url = KamVarld.konf().url || VARLD_URL;
+    try { url = new URL(url, window.location.href).href; } catch (e) {}   // absolut: tråden lever på en blob-URL och kan inte lösa en relativ adress (golden ger en lokal sökväg)
+    KamVarld.url = url; KamVarld.lage = 'laddar'; KamVarld.fel = null; KamVarld.info = null; KamVarld.t0 = performance.now();
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
+    let w = null;
+    try {
+      const lasare = new URL(KamVarld.konf().modul || 'dev/embed/varld.js', window.location.href).href;
+      const kod = 'importScripts(' + JSON.stringify(lasare) + ');\n' + varldWorkerKropp.toString() + '\nvarldWorkerKropp();\n';
+      w = new Worker(URL.createObjectURL(new Blob([kod], { type: 'text/javascript' })));
+    } catch (e) { KamVarld.lage = 'fel'; KamVarld.fel = (e && e.message) || String(e); return; }
+    KamVarld.w = w;
+    w.onerror = e => { if (KamVarld.w !== w) return; KamVarld.lage = 'fel'; KamVarld.fel = (e && e.message) || 'worker error'; KamVarld.avvisa('tråden föll'); };
+    w.onmessage = ev => {
+      if (KamVarld.w !== w) return;
+      const m = ev.data || {};
+      if (m.typ === 'klar') { KamVarld.lage = 'klar'; KamVarld.info = { antal: m.antal, namn: m.namn, mb: m.mb, urCache: !!m.urCache, laddMs: m.laddMs, modell: m.modell, variant: m.variant, s: +((performance.now() - KamVarld.t0) / 1000).toFixed(1) }; return; }
+      if (m.typ === 'fel') { KamVarld.lage = 'fel'; KamVarld.fel = m.fel || 'okänt fel'; KamVarld.avvisa(m.fel); return; }
+      if (m.typ === 'svar') { const p = KamVarld.vantar.get(m.id); if (!p) return; KamVarld.vantar.delete(m.id); clearTimeout(p.t); if (m.fel) { KamVarld.stat.fel++; p.res(null); } else { KamVarld.stat.ms.push(m.ms); if (KamVarld.stat.ms.length > 200) KamVarld.stat.ms.shift(); p.res(Object.assign(m.svar || {}, { ms: m.ms })); } }
+    };
+    w.postMessage({ typ: 'ladda', url, cache: VARLD_CACHE, modell: (window.Embed && window.Embed.MODELL) || null });
+  },
+  avvisa(varfor) { for (const [, p] of KamVarld.vantar) { clearTimeout(p.t); p.res(null); } KamVarld.vantar.clear(); },
+  /* Sök: fragor = bildmodellens normerade vektorer för 0/90/180/270° (Float32Array(512) var). Svar som Varld.sok
+     ({ rot, namn, poang, marginal, topp: [{ namn, poang, ref, id, sida }], ms }) eller null — på en gång när världen
+     inte är klar (steget hoppas över, ingen väntan), och efter VARLD_SOK_TAK_MS om tråden inte svarar. */
+  sok(fragor, n) {
+    if (!KamVarld.redo() || !Array.isArray(fragor) || !fragor.length) return Promise.resolve(null);
+    const w = KamVarld.w, id = ++KamVarld.nr;
+    KamVarld.stat.sok++;
+    return new Promise(res => {
+      const t = setTimeout(() => { if (KamVarld.vantar.has(id)) { KamVarld.vantar.delete(id); KamVarld.stat.fel++; res(null); } }, VARLD_SOK_TAK_MS);
+      KamVarld.vantar.set(id, { res, t });
+      try { const kopior = fragor.map(q => new Float32Array(q)); w.postMessage({ typ: 'sok', id, fragor: kopior, n: n || 5 }, kopior.map(q => q.buffer)); }
+      catch (e) { KamVarld.vantar.delete(id); clearTimeout(t); KamVarld.stat.fel++; res(null); }
+    });
+  },
+  /* Kameran stängs: tråden och dess 41 MB släpps. Nästa start läser filen ur cachen (0,4–0,8 s på Macen). */
+  stopp() { const w = KamVarld.w; KamVarld.w = null; KamVarld.avvisa('stoppad'); if (w) { try { w.terminate(); } catch (e) {} } if (KamVarld.lage !== 'fel') KamVarld.lage = 'vantar'; KamVarld.info = null; }
+};
 async function fetchQuery(q, onProg, seen, cards, label, order) {
   /* order 'released' ger nyaste tryckningen först — det som ligger på ett
      bord i dag är oftare nytt än gammalt, och taket per namn tar de första. */
@@ -23973,10 +24090,15 @@ async function identifyMedModell(img, box, e, ensamt, P, utanfor) {
   const emot = bast.namn !== etta && bast.inliers >= (land && landTyp(bast.namn) ? ORB_ACCEPT : ORB_EMOT);
   /* Provat och backat: ett land säkert också utan att spåret är ensamt, när ORB ger typen ett svagt stöd inom skalan. Golden 07 fick sitt Swamp (det ligger ensamt, men inspelningens egna streckade spårrutor gör regionen för stor, MES-223) — och golden 11 fick Swamp-halvan i plastfickan namngiven en gång till: dubbletter 0 → 1 och en falsk tap-flipp. En bit av ett kort får inte bli ett kort till. */
   /* Landregeln — säkert utan ORB:s stöd — gäller bara ett spår som är MÄTT mot kortreferensen ('matt'). Före bordets första säkra kort finns bara formen, och då krävs ORB:s stöd som för vilket kort som helst: uppmätt i golden 04 i mörkare ljus (kor.cjs --ljus alla) växte Plains-högen ihop med Swamp bredvid till en region med ett korts kvot (288×394 mot kortens 190×251), och modellen sa Swamp med marginal 0,21 — ett säkert fel namn. */
-  const ensam = !utanfor && !!(ensamt && !emot && ((land && ensamt === 'matt' && e.marginal >= LAND_MARGINAL) || (e.saker && (!P.orb || (stod >= ORB_EMOT && stodOk)))));
+  /* utanfor 'varld' (steg 3, MES-377): landregeln gäller som i leken — ett basland på bordet är sällan ett av
+     världens konstverk heller, och G1 mätte typen säker vid marginal ≥ LAND_MARGINAL utan säkra fel (7 av 11 oskymda
+     Plains/Swamp rätt och säkra, de två som föll på navkort blev aldrig säkra) — men modellen ensam på ett vanligt
+     kort aldrig (e.saker-grenen), som i steg 2. */
+  const landOk = !utanfor || utanfor === 'varld';
+  const ensam = !!(ensamt && !emot && ((landOk && land && ensamt === 'matt' && e.marginal >= LAND_MARGINAL) || (!utanfor && e.saker && (!P.orb || (stod >= ORB_EMOT && stodOk)))));
   const cands = (e.cands || []).map(c => ({ name: c.name, sid: refSid(c.sid), score: c.score }));
   return { accept: bar || ensam, del: bar && !helRuta, score: e.poang, rec: { box, rot: bast.rot, cands, inliers: bast.inliers, konst: bast.konst },
-           modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, land, orbNamn: bast.namn, skala: bast.skala, konst: bast.konst, stodKonst: perKonst.get(etta) || 0, ms: e.ms, backend: e.backend, minne: !!utanfor } };   // konst/stodKonst: ORB-inliers i konstverket, för den bästa träffen och för ettan (MES-235)
+           modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, land, orbNamn: bast.namn, skala: bast.skala, konst: bast.konst, stodKonst: perKonst.get(etta) || 0, ms: e.ms, backend: e.backend, minne: utanfor === true, varld: utanfor === 'varld' } };   // konst/stodKonst: ORB-inliers i konstverket, för den bästa träffen och för ettan (MES-235)
 }
 
 /* ═══ LÄSNINGENS RÄKNETRÅD (MES-221) ═══
@@ -24078,10 +24200,13 @@ const LasWorker = (() => {
        canvasen (se ovan). Går den inte att göra räknar huvudtråden. */
     const bm = await createImageBitmap(img);
     if (!w) { bm.close(); return null; }   // tråden dog medan bitmapen gjordes
-    const s = pool(P), id = ++nr;
+    /* En TILLFÄLLIG pool (P.tillfallig — världens tre kandidater, MES-377) följer med frågan och sparas aldrig i
+       tråden: varje okänt kort har sina egna tre, och de hade annars knuffat ut den aktiva leken och minnet ur
+       trådens POOLER_I_TRADEN (några megabyte om igen vid nästa läsning i steg 1). */
+    const s = P.tillfallig ? 'tillfallig' : pool(P), id = ++nr;
     return new Promise((res, rej) => {
       vantar.set(id, { res, rej });
-      w.postMessage(Object.assign({ typ, id, stamp: s, bm, w: bm.width, h: bm.height }, m), [bm]);
+      w.postMessage(Object.assign({ typ, id, stamp: s, bm, w: bm.width, h: bm.height }, m, P.tillfallig ? { pool: { names: P.names, ids: P.ids, descs: P.descs, orb: P.orb || null } } : {}), [bm]);
       arm();
     });
   }
@@ -24154,7 +24279,7 @@ function lasWorkerKropp() {
     const m = ev.data;
     if (m.typ === 'pool') { pooler.set(m.stamp, m.pool); while (pooler.size > POOLER_I_TRADEN) pooler.delete(pooler.keys().next().value); P = m.pool; varm(); return; }
     try {
-      P = pooler.get(m.stamp) || null;
+      P = m.pool || pooler.get(m.stamp) || null;   // m.pool: en tillfällig pool med frågan (världens kandidater, MES-377) — används en gång, sparas inte
       if (!P) { self.postMessage({ id: m.id, ok: false, fel: 'pool' }); return; }
       /* Bitmapen ritas direkt (drawImage tar en ImageBitmap; grab och
          cropCanvas läser dess width/height) — en GPU-källa, som
@@ -33034,6 +33159,7 @@ async function oppnaKamera(gameId) {
 
   try {
     LasWorker.varm();   // räknetråden (MES-221) skapas nu, så att bordets första läsning inte betalar starten
+    try { KamVarld.starta(); } catch (e) {}   // världsfilen (MES-377) hämtas i bakgrunden, en gång — blockerar aldrig kameran
     await Kamera.start({ video: $('#kamVideo'), overlay: $('#kamOverlay') }, {
       status: kamSag,
       bord: (spar, nollstall, extra) => sandBord(spar, nollstall, extra),
@@ -33140,6 +33266,7 @@ function kamHalsa() {
     modellFel: KamEmbed.fel || null,
     minne: KamMinne.status(),   // MES-376: minnets pool (steg 2) — 'klar N', 'laddar', 'fel', 'inget', 'av'
     aktivLek: kamMinneData ? AktivLek.lage() : null,   // den aktiva leken: vilken, träffar per lek, bytena
+    ...KamVarld.halsa(),        // MES-377: världsfilen (steg 3) — varld 'laddar' / 'klar' / 'fel' / 'av' / 'vantar', varldFel, varldInfo { mb, s, namn, urCache, sok, sokMs }
     det: Kamera.detHist,       // MES-329: detektorns tid per bild som histogram; datorn tar skillnaden över passet
     detektor: KamDet.status(), // 'yolox-fp32-webgpu', 'laddar', 'fel', 'av' …
     detektorFel: KamDet.fel || null,
@@ -33437,8 +33564,20 @@ async function kamByggAktiv() {
    kamByggAktiv). */
 function kamSakert(namn, id, varfor) {
   if (!kamMinneData || !namn) return;
+  /* Inlärningen (MES-377, steg 3): ett namn världen gjorde säkert läggs i minnet — posten (med tryckningen världen
+     pekade ut) och partiets grupp — och minnets pool byggs om (ur cachen per kort, en bild till). Nästa exemplar på
+     bordet är då steg 2 (minnet, ORB som villkor), inte en sökning i världen. Inte steg 1: den aktiva lekens pool är
+     lekens namn och inget annat (kamPoolDelning, granskningen 2026-10-17 fynd 2). Hur det sparas i datan är
+     MES-373: datorn skriver spelarens_kort ur korthändelsen, som för Claudes och spelarens namn. */
+  let nytt = false;
+  if (varfor && /^varld/.test(varfor) && !kamMinneData.poster.has(namn)) {
+    const t = Kamera.spar.find(x => x.id === id);
+    kamMinneData.poster.set(namn, { sid: (t && t.sid) || null, small: null });
+    if (kamLage && kamLage.id) { const g = kamMinneData.grupper.get(kamLage.id) || new Set(); g.add(namn); kamMinneData.grupper.set(kamLage.id, g); }
+    nytt = true;
+  }
   let r; try { r = AktivLek.sett(namn); } catch (e) { return; }
-  if (!r || !r.bytt) return;
+  if (!r || (!r.bytt && !nytt)) return;
   if (r.bytt) {
     const l = r.aktiv ? kamMinneData.lekar.find(x => x.id === r.aktiv) : null;
     satKamFin('pool', r.aktiv ? `The cards look like ${l ? l.namn : 'another deck'} — switching…` : 'No deck matches the cards on the table — recognising from memory…');
@@ -33539,8 +33678,11 @@ async function kamKedjaUnder(id, s, f) {
    likt konstverk i minnet, blev ett säkert Z utan att titeln väntats in).
    Steg 2 nås inte alls med ett sådant steg 1 (kamIdentifiera kräver
    !v.accept); vittnet här är bältet till hängslena. Ren funktion:
-   dev/minnesteg.cjs klipper ut den och provar fallen. */
-function domMinne(v2, t, steg1) {
+   dev/minnesteg.cjs klipper ut den och provar fallen.
+   B: domskälets förled — 'minne' (steg 2, förvalet) eller 'varld' (steg 3, MES-377: samma dom mot världens tre
+   bästa namn, med titeln dömd om mot lekens, minnets och världens namn). */
+function domMinne(v2, t, steg1, B) {
+  B = B || 'minne';
   if (!v2 || !v2.accept || !v2.rec) return null;
   const cands = (v2.rec.cands || []).filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
   const c0 = cands[0]; if (!c0) return null;
@@ -33552,7 +33694,7 @@ function domMinne(v2, t, steg1) {
     if (j > 0) cands.unshift(cands.splice(j, 1)[0]);
     return { saker: false, varfor: 'konflikt', cands };
   }
-  return { saker: true, varfor: sakerT ? 'minne+orb+namn' : 'minne+orb', cands };
+  return { saker: true, varfor: sakerT ? B + '+orb+namn' : B + '+orb', cands };
 }
 /* Steg 1:s vittne åt domMinne (rättelse 2, fynd 1; rättelse 3): namnet steg 1 var säker på innan domen föll på något
    annat ('fler än leken'). Antingen ORB:s bärande på lekens X (v.accept), eller titeln ensam — en säker titel
@@ -33574,6 +33716,54 @@ function minneKandidater(lek, minne, t) {
   for (const c of minne || []) if (!ut.some(k => k.name === c.name)) ut.push(c);
   if (t && t.namn && t.poang >= 0.6 && t.marginal >= 0.2) { const j = ut.findIndex(c => c.name === t.namn); if (j > 0) ut.unshift(ut.splice(j, 1)[0]); }
   return ut.slice(0, 5);
+}
+/* ═══ STEG 3:S VILLKOR OCH SÖKNING (MES-377) ═══
+   varldSoks: får beskärningen letas i världen? Bara ett NYTT, HELT kort som ligger STILL: inte den tidiga läsningen
+   (o.spek — kortet har inte vilat än, K4), inte en maskad eller täckt beskärning (o.tackt, o.tacktSpar — en bit av
+   ett kort mot 33 000 namn är ett navkort), och spåret ska ligga för sig självt med ett korts mått (kamSparEnsamt:
+   'form' eller 'matt'). Remsor når aldrig hit: de läses i kamLasRemsa, och världen har ingen remsdel förrän
+   lekfotots session 3. Ren funktion, provad i dev/kamerabank.cjs (VD). */
+function varldSoks(o, ensamt) {
+  if (o && (o.spek || o.tackt || o.tacktSpar)) return false;
+  return !!ensamt;
+}
+/* ORB-särdragen för ett av världens konstverk: Scryfalls small-bild (samma storlek som poolens bilder, byggPoolAv)
+   hämtad vid behov och räknad med appens egen ORB.refFeatures. Cache per bild-id: ett kort som dyker upp igen
+   hämtas inte om. null när bilden inte gick att hämta (utan nät: steget faller tyst). */
+const kamVarldBilder = new Map();   // id → Promise<särdrag | null>
+const KAM_VARLD_BILDER_TAK = 400;
+function kamVarldOrb(id, sida) {
+  const nyckel = id + (sida ? '/b' : '');
+  let p = kamVarldBilder.get(nyckel);
+  if (p) return p;
+  const url = 'https://cards.scryfall.io/small/' + (sida ? 'back' : 'front') + '/' + id[0] + '/' + id[1] + '/' + id + '.jpg';
+  p = loadImage(url, true).then(im => ORB.refFeatures(im, 200)).catch(() => null);
+  kamVarldBilder.set(nyckel, p);
+  while (kamVarldBilder.size > KAM_VARLD_BILDER_TAK) kamVarldBilder.delete(kamVarldBilder.keys().next().value);
+  p.then(f => { if (!f) kamVarldBilder.delete(nyckel); });   // ett misslyckande cachas inte: nätet kan komma tillbaka
+  return p;
+}
+/* Världens sökning för en beskärning: bildmodellens vektor i fyra vridningar (filen har bara upprätta referenser,
+   G1:s recept), sökningen i tråden, och ORB-referenser för de tre bästa namnen som en tillfällig pool åt
+   identifyMedModell. Svar: { e, pool, skal } — e i Embed.identifieras form (cands med Scryfall-id som sid), pool
+   null när ingen bild gick att hämta (skal säger varför) eller null när världen inte svarade. */
+async function kamVarldSok(canvas) {
+  const t0 = performance.now(), fragor = [];
+  for (const r of [0, 90, 180, 270]) fragor.push(await Embed.vektor(canvas, { rot: r }));
+  const modellMs = performance.now() - t0;
+  const s = await KamVarld.sok(fragor, 5);
+  if (!s || !Array.isArray(s.topp) || !s.topp.length) return null;
+  const topp = s.topp.filter(x => x && x.namn && x.namn !== BAKSIDA_NAMN);
+  if (!topp.length) return null;
+  const e = { namn: topp[0].namn, id: topp[0].id, poang: topp[0].poang, marginal: topp[0].poang - (topp[1] ? topp[1].poang : 0), rot: s.rot || 0,
+              saker: topp.length > 1 && topp[0].poang - topp[1].poang > Embed.TROSKEL, cands: topp.map(x => ({ name: x.namn, sid: x.id, score: x.poang })),
+              ms: Math.round(modellMs), backend: Embed.backend, sokMs: s.ms };
+  const tre = topp.slice(0, MODELL_NAMN);
+  const feats = await Promise.all(tre.map(x => kamVarldOrb(x.id, x.sida)));
+  const names = [], ids = [], lista = [];
+  tre.forEach((x, i) => { if (feats[i] && feats[i].kps && feats[i].kps.length) { names.push(x.namn); ids.push(x.id); lista.push(feats[i]); } });
+  if (!names.length) return { e, pool: null, skal: 'inga bilder' };
+  return { e, pool: { code: 'varld:' + ids.join(','), names, ids, descs: null, orb: ORB.pack(lista), tillfallig: true }, bilder: names.length, ms: Math.round(performance.now() - t0) };
 }
 /* o.spek: en tidig läsning (Kamera, K4) — svaret är inte spårets än, så
    ingen beskärning går till datorns granskning. */
@@ -33687,8 +33877,8 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      titelVant: hur länge bildvägen fick vänta på den. vand: titeln läst vänd. */
   const tider = tq ? (() => {
     const r = x => Math.max(0, Math.round(x)), mm = M && M.ms != null ? M.ms : 0;
-    return { modell: M ? r(mm) : null, orb: r(tq.bild - tq.fore - mm), minne: 0, orb2: r(tq.andra - tq.namn), titel: namn && namn.ms != null ? r(namn.ms) : null,
-             titelVant: r(tq.namn - tq.bild), vand: r(tq.vand - tq.andra), fore: r(tq.fore - tq.t0), total: r(tq.vand - tq.t0), backend: M ? M.backend || null : null };   // minne: steg 2:s tid fylls i nedan när det körs
+    return { modell: M ? r(mm) : null, orb: r(tq.bild - tq.fore - mm), minne: 0, varld: 0, orb2: r(tq.andra - tq.namn), titel: namn && namn.ms != null ? r(namn.ms) : null,
+             titelVant: r(tq.namn - tq.bild), vand: r(tq.vand - tq.andra), fore: r(tq.fore - tq.t0), total: r(tq.vand - tq.t0), backend: M ? M.backend || null : null };   // minne, varld: steg 2:s och steg 3:s tid fylls i nedan när de körs
   })() : undefined;
   const alla = v.rec.cands || [];
   const b0 = alla[0], b1 = alla[1];
@@ -33831,6 +34021,37 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
     } else if (v2 && v2.rec && v2.rec.cands[0]) v.minne2 = { namn: v2.rec.cands[0].name, marginal: +(+v2.modell.marginal).toFixed(3), inliers: v2.rec.inliers, konst: v2.modell.konst, orbNamn: v2.modell.orbNamn };   // för loggen: vad minnet såg utan att bära
     if (tider) { tider.minne = Math.max(0, Math.round(performance.now() - tM)); tider.total += tider.minne; }
   }
+  /* Steg 3 i trappan (MES-377): världen — alla ~33 200 kort — FÖRST när steg 1 och steg 2 sagt osäkert, och bara för
+     ett nytt, helt kort som ligger still (varldSoks). Bildmodellen rangordnar världen i tråden (KamVarld) och ORB
+     mot Scryfall-bilden av de tre bästa namnen är VILLKORET (identifyMedModell utanfor 'varld': 'bar' med KONST_MIN,
+     hel ruta — en 'del'-träff räknas inte; basland som typ på landregeln, LAND_MARGINAL). Titeln döms om mot lekens,
+     minnets och världens namn och är ett vittne emot, aldrig ett krav (domMinne): en säker titel på ett annat namn
+     ger 'konflikt', ett helt annat ord 'titel skiljer ord'. Samma spärrar som steg 2: aldrig efter ett steg 1 med
+     ORB-bärande (v.accept), steg 1:s vittne följer med. Är världen inte klar (laddar, fel, utan nät) hoppas steget
+     över på en gång: kortet går till Claude eller spelaren som förut. */
+  if (!saker && !v.accept && KamVarld.redo() && KamEmbed.redo() && varldSoks(o, kamSparEnsamt(id))) {
+    const tV = performance.now();
+    let s3 = null, v3 = null;
+    try { s3 = await kamKedjaUnder(id, 'varld', () => kamVarldSok(canvas)); } catch (e) { s3 = null; }
+    if (s3 && s3.pool) { try { v3 = await kamKedjaUnder(id, 'orb', () => identifyMedModell(canvas, box, s3.e, kamSparEnsamt(id), s3.pool, 'varld')); } catch (e) { v3 = null; } }
+    const sett = v3 && v3.rec && v3.rec.cands[0] ? { namn: v3.rec.cands[0].name, marginal: +(+v3.modell.marginal).toFixed(3), inliers: v3.rec.inliers, konst: v3.modell.konst, orbNamn: v3.modell.orbNamn, del: !!v3.del, sokMs: s3.e.sokMs, bilder: s3.bilder } : null;
+    if (v3 && v3.accept && !v3.del) {
+      const namnen = [...new Set(namnUtanBaksida().concat(KamMinne.pool ? KamMinne.pool.names : [], s3.pool.names))].filter(n => n !== BAKSIDA_NAMN);
+      let t = namn && namn.text ? Namn.doma(namn.text, namnen) : null;
+      if (t && t.namn) t = Object.assign({}, t, { namn: typAv(t.namn) });
+      const d = domMinne(v3, t, vittne1, 'varld');
+      if (d && d.saker) {
+        v = Object.assign(v3, { varld: true }); M = v3.modell; saker = true; varfor = M.bar ? d.varfor : 'varld land'; cands = d.cands; c0 = cands[0];
+        if (flerAnLeken(c0)) { saker = false; varfor = 'fler än leken'; }   // antalspriorn (K6) på världens namn: ett basland som typ kan vara lekens
+      } else if (d) {
+        varfor = d.varfor; cands = minneKandidater(cands, d.cands, t); c0 = cands[0];
+        v.varld2 = Object.assign(sett, { bar: true, dom: d.varfor });
+      }
+      if (d && t) namn = Object.assign({}, namn, t, { utanfor: t.utanfor || null });
+    } else if (sett) v.varld2 = sett;   // för loggen: vad världen såg utan att bära (eller bar bara en del av ett kort)
+    else if (s3 && s3.e) v.varld2 = { namn: s3.e.namn, marginal: +(+s3.e.marginal).toFixed(3), inliers: 0, konst: 0, orbNamn: null, skal: s3.skal || null, sokMs: s3.e.sokMs };
+    if (tider) { tider.varld = Math.max(0, Math.round(performance.now() - tV)); tider.total += tider.varld; }
+  }
   const namnLast = namn ? { text: namn.text, namn: namn.namn, poang: namn.poang, marginal: namn.marginal, ms: namn.ms, hoppad: namn.hoppad || null, start: namn.start, vand: !!namn.vand, utanfor: namn.utanfor || null } : null;   // utanfor: titeln skilde sig i ett helt ord från lekens närmaste namn (MES-235)
   if (!saker && !(o && o.spek)) {
     /* Beskärningen följer med så att datorn kan visa den i granskningen. */
@@ -33847,6 +34068,8 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   if (v.efterModell) bild.efterModell = true;   // Matcher + ORB som andra åsikt efter en osäker modell
   if (v.minne) bild.minne = true;   // namnet kom ur minnet, steg 2 (MES-376)
   if (v.minne2) bild.minne2 = v.minne2;   // minnet prövades utan att bära: vad det såg
+  if (v.varld) bild.varld = true;   // namnet kom ur världen, steg 3 (MES-377)
+  if (v.varld2) bild.varld2 = v.varld2;   // världen prövades utan att bära: vad den såg
   if (utanTitel) bild.utanTitel = true;   // titelraden väntades inte in (T.orbUtanTitel)
   return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor, bild, del: !!(v.del && saker), tider };
 }
@@ -38091,6 +38314,13 @@ const LatensDator = (() => {
       else if (h.detektor === 'fel') rad('fel', `Trained detector unavailable (${h.detektorFel || 'unknown error'}). The phone finds cards the old way. The test does not measure the detector.`);
       else if (h.detektor === 'av') rad('varn', 'Trained detector switched off on the phone (Picture mode → Detector).');
       else rad('vant', 'Trained detector not started yet on the phone.');
+      /* Världsfilen (MES-377): bara här syns den — spelaren ser ingenting. */
+      if (h.varld === undefined) rad('varn', 'The phone runs an older Mesa without the world file (cards outside the deck and memory). Reload Mesa on the phone.');
+      else if (h.varld === 'klar') { const i = h.varldInfo || {}; rad('ok', `World file ready: ${i.namn ? i.namn.toLocaleString('en') + ' names, ' : ''}${i.mb ? i.mb + ' MB' : ''}${i.s != null ? ` in ${i.s} s` : ''}${i.urCache ? ' (from the phone’s cache, no download)' : ' (downloaded)'}${i.sok ? `; ${i.sok} searches, median ${i.sokMs} ms` : ''}.`); }
+      else if (h.varld === 'laddar') rad('vant', 'World file downloading on the phone in the background. New cards outside the deck and memory wait for it; the game does not.');
+      else if (h.varld === 'fel') rad('varn', `World file unavailable (${h.varldFel || 'unknown error'}). Cards outside the deck and memory go to Claude or the player.`);
+      else if (h.varld === 'av') rad('varn', 'World file switched off on the phone.');
+      else rad('vant', 'World file not started yet on the phone.');
       if (h.mork) rad('varn', 'Dark screen is on: a screen recording will be black. Tap “Keep the picture on” on the phone before you record. Timing is fine either way.');
       else rad('ok', 'The camera picture shows on the phone: a screen recording will work.');
     }
@@ -39348,6 +39578,7 @@ function kamFran(orsak, o = {}) {
   if (!kamLage && !kamFranSpel) return;
   if (kamLage) kamFranSpel = { id: kamLage.id, kod: kamLage.kod, namn: (spelLage && spelLage.namn) || ('Game ' + kamLage.kod) };
   stoppaStrom(); Kamera.stopp();
+  try { KamVarld.stopp(); } catch (e) {}   // världens tråd och dess 41 MB släpps (MES-377); nästa start läser ur cachen
   kamLage = null;
   /* Frånkopplad är inte kamera längre: en omladdning ska inte gå tillbaka in
      (MES-355). Reconnect camera går in igen med inbjudan i adressen. */
