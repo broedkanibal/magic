@@ -4013,6 +4013,76 @@ prov('GF10h det olästa kortet lyfts: frågan försvinner med det oframkallade k
   tid(klocka.t + 2000); klocka.t += 100; stamG([], lyft(true));
   assert.equal(app.ofr.length, 0); assert.equal(app.flyttFraga, null, 'frågan står kvar över ett kort som inte finns');
 });
+/* Bara det första oframkallade kortet efter lyftet är högen (granskningen av ab60440, fynd 1–3). */
+const ofrAv = sparId => app.ofr.find(p => p.spar === sparId);
+prov('GF10i ett andra oläst kort (ur handen) får ingen fråga, och frågan hoppar inte dit', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast();
+  const hog = ofrAv(7); assert.ok(hog && app.flyttFraga && app.flyttFraga.ofr === hog.id, 'ingen fråga om högen');
+  klocka.t += 1000; stamG([hogOlast(7, LANGT), hogOlast(8, PORT)], lyft(true));
+  assert.equal(app.ofr.length, 2);
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr === hog.id, 'frågan hoppade till kortet ur handen: ' + JSON.stringify(app.flyttFraga));
+  klocka.t += 1000; stamG([hogOlast(7, LANGT), hogOlast(8, PORT)], lyft(true));
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr === hog.id, 'frågan hoppade');
+});
+prov('GF10j det valda kortet får ett säkert namn som inte finns i högen: ingen fråga, och inget annat oläst kort får den i fönstret', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast();
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr != null, 'ingen fråga');
+  klocka.t += 1000; stamG([klar(7, 'Llanowar Elves', { sen: 20, vilar: true, ...LANGT }), hogOlast(8, PORT)], lyft(true));
+  assert.equal(app.flyttFraga, null, 'frågan står kvar över ett läst kort eller hoppade: ' + JSON.stringify(app.flyttFraga));
+  klocka.t += 1000; stamG([klar(7, 'Llanowar Elves', { sen: 20, vilar: true, ...LANGT }), hogOlast(8, PORT)], lyft(true));
+  assert.equal(app.flyttFraga, null, 'ett senare kort fick frågan');
+  assert.equal(app.kort.filter(c => c.zon === 'grav').length, 3, 'ett kort togs ur graveyard');
+});
+prov('GF10n det valda kortet läses osäkert (okand, inget namn): frågan står kvar — högen vid kanten kan läsas så', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast();
+  const hog = ofrAv(7);
+  klocka.t += 1000; stamG([hogOlast(7, LANGT, { tillstand: 'okand' }), hogOlast(8, PORT)], lyft(true));
+  assert.ok(app.flyttFraga && hog && app.flyttFraga.ofr === hog.id, 'frågan försvann eller hoppade: ' + JSON.stringify(app.flyttFraga));
+});
+prov('GF10k efter No: ett nytt oläst kort får ingen fråga i samma fönster', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast();
+  assert.ok(app.flyttSvar('nej'));
+  klocka.t += 1000; stamG([hogOlast(7, LANGT), hogOlast(8, PORT)], lyft(true));
+  assert.equal(app.flyttFraga, null, 'kortet efter No fick frågan');
+});
+prov('GF10l efter No: högen vars spår dör och föds om får inte frågan igen', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast();
+  assert.ok(app.flyttSvar('nej'));
+  klocka.t += 150; stamG([], lyft(true));
+  tid(klocka.t + 2000); klocka.t += 2000; stamG([], lyft(true));                  // posten är borta (OFR_NAD)
+  assert.equal(app.ofr.length, 0);
+  klocka.t += 1000; stamG([hogOlast(9, LANGT)], lyft(true));
+  assert.equal(app.ofr.length, 1); assert.equal(app.flyttFraga, null, 'samma hög fick frågan igen');
+});
+prov('GF10m ett helbildsspår: ingen fråga', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast(LANGT, { ai: { helbild: true } });
+  assert.equal(app.flyttFraga, null, JSON.stringify(app.flyttFraga));
+});
+prov('GF10o det valda kortets spår dör en kort stund och föds om på samma plats: frågan kommer tillbaka', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast();
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr != null, 'ingen fråga');
+  klocka.t += 150; stamG([], lyft(true));
+  klocka.t += 150; stamG([hogOlast(9, LANGT)], lyft(true));
+  klocka.t += 1000; stamG([hogOlast(9, LANGT)], lyft(true));
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr != null, 'frågan kom inte tillbaka: ' + JSON.stringify(app.flyttFraga));
+});
+prov('GF10p två olästa kort finns när fönstret öppnas: det äldsta blir valt', () => {
+  app.gravRad = GRAV_RUTA;
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  stamG([], lyft(false));
+  klocka.t += 500; stamG([hogOlast(7, LANGT)], lyft(false));
+  klocka.t += 500; stamG([hogOlast(7, LANGT), hogOlast(8, PORT)], lyft(false));
+  klocka.t += 500; stamG([hogOlast(7, LANGT), hogOlast(8, PORT)], lyft(true));   // fönstret öppnas: båda föddes inom marginalen före "tom"
+  const hog = ofrAv(7);
+  assert.ok(hog && app.flyttFraga && app.flyttFraga.ofr === hog.id, 'fel kort valt: ' + JSON.stringify(app.flyttFraga));
+});
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);

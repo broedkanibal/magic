@@ -34074,8 +34074,9 @@ function handRadTillbaka(mig, h, val, nu) {
 const GRAV_LYFT_MARG = 1500;  // telefonen säger "tom" först efter en sekunds tomhet (GRAV_TOM_MS): lyftet var så mycket tidigare
 let gravTomNar = 0, gravTomSparr = false, gravFoljdaSpar = new Map();   // gravTomSparr: högen har flyttats; "tom" räknas först när telefonen sagt "inte tom" igen (den nya rutan)   // spår-id → senast sett: högens spår, tills telefonen slutat rapportera det (10 s osett)
 let gravFonsterTagna = [];   // korten fönstret tagit ur högen medan den är lyft: { cid, fore (kortet som det låg i högen), topp (överst, i en hög med minst två) }
-let gravFlyttFraga = null, gravFlyttNej = new Set();   // frågan om en flyttad hög: { id, cid, kam } (ett läst kort ur högen) | { id, ofr, spar, kam } (ett oframkallat kort, gravFlyttOlast) | null; kort och oframkallade kort ('o:' + post-id, 's:' + spår-id) som fått No i det här fönstret
-function gravFonsterStang() { gravFonsterTagna = []; gravFlyttFraga = null; gravFlyttNej = new Set(); }
+let gravFlyttFraga = null, gravFlyttNej = new Set();   // frågan om en flyttad hög: { id, cid, kam } (ett läst kort ur högen) | { id, ofr, spar, kam } (ett oframkallat kort, gravFlyttOlast) | null; kort som fått No i det här fönstret
+let gravOlastVal = null;   // den olästa högen i det här fönstret (gravFlyttOlast): null = inte vald än | { ofr } = det första oframkallade kortet efter lyftet | 'klar' = inget mer frågas
+function gravFonsterStang() { gravFonsterTagna = []; gravFlyttFraga = null; gravFlyttNej = new Set(); gravOlastVal = null; }
 /* Spåren utan högen som följts (Yes), tills telefonen slutat rapportera dem. */
 function gravFoljer(spar, nu) {
   if (!gravFoljdaSpar.size) return spar;
@@ -34118,21 +34119,35 @@ function gravFlyttSteg(spar, mig, fore, kant) {
    stod spåret ny/stilla till slutet, mattan visade ett oframkallat kort, och ingen fråga kom). Medan fönstret är öppet
    och graveyard har minst två kort frågar appen "Is this your graveyard?" också ovanför ett oframkallat kort (ofrSteg)
    vars spår föddes efter lyftet (samma villkor som fönstret i avstamBord), inte har något namn och inte är ett
-   helbildsspår. Ett kort i spel som är oläst är också ett oframkallat kort: No lämnar det som det var. Det senast
-   lagda oframkallade kortet först. Ingen regel kräver Claude: frågan ställs på telefonens egen läsning (ingen). */
+   helbildsspår.
+   Bara det FÖRSTA oframkallade kortet som läggs efter lyftet är högen (granskningen av ab60440, fynd 1–3): kort som
+   läggs efter det får ingen fråga, frågan hoppar inte till nyare kort, och efter No — eller
+   när det valda kortet får ett namn, binds till ett kort eller försvinner — frågas inget mer i det fönstret
+   (gravOlastVal 'klar'). Ett osäkert läst kort (okand) har inget namn och frågas fortfarande: högen vid kanten kan läsas så.
+   Valet gäller tills fönstret stängs (gravFonsterStang). Priset: läggs ett kort ur handen först efter lyftet, före
+   högen, är det det som får frågan (tills det läses), och högen får ingen; och dör högens post utan svar (handen över
+   högen längre än OFR_NAD) frågas den inte igen i fönstret. Ingen regel kräver Claude: frågan ställs på telefonens
+   egen läsning (ingen). */
 function gravFlyttOlast(spar, mig, kant) {
+  if (gravOlastVal === 'klar') return null;
   if (!gravTomNar || typeof kamGravRad === 'undefined' || !kamGravRad || !kamSpeglar(mig)) return null;
   if (typeof ofrPaMattan === 'function' && !ofrPaMattan()) return null;   // syns inte på mattan
   if (mig.cards.filter(c => zonAv(c) === ZON_GRAV).length < 2) return null;   // en graveyard med ett kort flyttas inte (gravFlyttSteg)
-  const efter = gravTomNar - GRAV_LYFT_MARG, alla = kant && kant.length ? spar.concat(kant) : spar, ofr = ofrLista();
-  for (let i = ofr.length - 1; i >= 0; i--) {
-    const p = ofr[i];
-    if (p.namn || p.overTak || p.lagd < efter || gravFlyttNej.has('o:' + p.id) || gravFlyttNej.has('s:' + p.spar)) continue;
+  const efter = gravTomNar - GRAV_LYFT_MARG, alla = kant && kant.length ? spar.concat(kant) : spar;
+  const oLast = t => !t || t.tillstand === 'klar' || franHelbild(t) || mig.cards.some(c => c.spar === t.id);   // läst klart, helbild eller bär ett kort
+  const svar = (p, t) => ({ p, t, kam: p.kam && p.kam.w > 0 ? { x: p.kam.x, y: p.kam.y, w: p.kam.w, h: p.kam.h } : { x: t.x + t.w / 2, y: t.y + t.h / 2, w: t.w, h: t.h } });
+  if (gravOlastVal) {
+    const p = ofrMinne.get(gravOlastVal.ofr), t = p && alla.find(u => u.id === p.spar);
+    if (!p || p.namn || p.overTak || (t && oLast(t))) { gravOlastVal = 'klar'; return null; }   // läst, borta eller ett kort: det var inte högen
+    return t && t.w != null && t.h != null ? svar(p, t) : null;   // spåret syns inte i det här bordet: ingen fråga nu, valet står
+  }
+  for (const p of ofrLista()) {   // äldst först
+    if (p.namn || p.overTak || p.lagd < efter) continue;
     const t = alla.find(u => u.id === p.spar);
-    if (!t || t.tillstand === 'klar' || t.w == null || t.h == null || franHelbild(t)) continue;
-    if ((sparSedd.has(t.id) ? sparSedd.get(t.id) : Infinity) < efter || mig.cards.some(c => c.spar === t.id)) continue;
-    const kam = p.kam && p.kam.w > 0 ? { x: p.kam.x, y: p.kam.y, w: p.kam.w, h: p.kam.h } : { x: t.x + t.w / 2, y: t.y + t.h / 2, w: t.w, h: t.h };
-    return { p, t, kam };
+    if (!t || t.w == null || t.h == null || oLast(t)) continue;
+    if ((sparSedd.has(t.id) ? sparSedd.get(t.id) : Infinity) < efter) continue;
+    gravOlastVal = { ofr: p.id };
+    return svar(p, t);
   }
   return null;
 }
@@ -34143,7 +34158,7 @@ function gravFlyttSvar(mig, svar, nu) {
     /* Den olästa högen (gravFlyttOlast). No: det oframkallade kortet står kvar som förut. Yes: det var högen — rutan
        flyttas dit, det oframkallade kortet (och en fråga om dess namn) tas bort, och spåret blir inget kort. Inga kort
        flyttas: inget togs ur högen. */
-    if (svar === 'nej') { gravFlyttNej.add('o:' + q.ofr); if (q.spar != null) gravFlyttNej.add('s:' + q.spar); gravFlyttFraga = null; return true; }
+    if (svar === 'nej') { gravOlastVal = 'klar'; gravFlyttFraga = null; return true; }   // inget mer frågas i det här fönstret
     if (svar !== 'ja') return false;
     const p = ofrMinne.get(q.ofr), spar = p ? p.spar : q.spar, kam = p && p.kam && p.kam.w > 0 ? p.kam : q.kam;
     if (p) ofrMinne.delete(q.ofr);
