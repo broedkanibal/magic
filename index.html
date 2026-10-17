@@ -33525,13 +33525,21 @@ async function kamKedjaUnder(id, s, f) {
    minnets, fäller domen ('konflikt', titelns kort överst om det finns bland
    kandidaterna); en titel som skiljer sig i ett helt ord (utanfor ≥ 0,5)
    likaså ('titel skiljer ord'). Håller titeln med: 'minne+orb+namn'; ingen
-   eller osäker titel: 'minne+orb'. Ren funktion: dev/minnesteg.cjs klipper
-   ut den och provar fallen. */
-function domMinne(v2, t) {
+   eller osäker titel: 'minne+orb'.
+   steg1: namnet steg 1 själv accepterade (ORB bar lekens X, eller landregeln)
+   innan domen föll på något annat ('fler än leken', 'land mot namn'). Ett
+   annat namn än minnets är då två bildvittnen emot varandra — 'konflikt',
+   aldrig säkert (rättelse 2, fynd 1: ett femte exemplar av ett 4-of, med ett
+   likt konstverk i minnet, blev ett säkert Z utan att titeln väntats in).
+   Steg 2 nås inte alls med ett sådant steg 1 (kamIdentifiera kräver
+   !v.accept); vittnet här är bältet till hängslena. Ren funktion:
+   dev/minnesteg.cjs klipper ut den och provar fallen. */
+function domMinne(v2, t, steg1) {
   if (!v2 || !v2.accept || !v2.rec) return null;
   const cands = (v2.rec.cands || []).filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
   const c0 = cands[0]; if (!c0) return null;
   if (t && t.utanfor && t.poang >= 0.5) return { saker: false, varfor: 'titel skiljer ord', cands };
+  if (steg1 && steg1 !== c0.name) return { saker: false, varfor: 'konflikt', cands };
   const sakerT = !!(t && t.namn && t.poang >= 0.6 && t.marginal >= 0.2);
   if (sakerT && t.namn !== c0.name) {
     const j = cands.findIndex(c => c.name === t.namn);
@@ -33761,8 +33769,13 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      gör namnet säkert (identifyMedModell utanfor: modellen ensam, landregeln och titeln ensam gäller inte). Titeln
      döms om utan ny OCR mot BÅDA namnmängderna, lekens och minnets (Namn.doma), och fäller domen när den säkert säger
      ett annat namn, var det än hör hemma (domMinne). Körs inte när steg 1 redan var säkert: en säker titel på ett
-     lekens namn ska aldrig försvinna i ett minnesnamn (granskningen 2026-10-17, fynd 1). */
-  if (!saker && KamMinne.redo()) {
+     lekens namn ska aldrig försvinna i ett minnesnamn (granskningen 2026-10-17, fynd 1).
+     …och inte heller när steg 1 själv accepterade ett namn (v.accept: ORB bar lekens X, eller landregeln) och domen
+     föll först därefter — 'fler än leken', 'land mot namn', 'konflikt' (rättelse 2, fynd 1). Bildvittnet på X står
+     kvar, och ett ORB-bärande på minnets Z vore två bildvittnen emot varandra; värst med utanTitel, där titeln inte
+     väntats in och Z hade blivit 'minne+orb' på ingenting annat än ett likt konstverk. Steg 1:s namn följer med
+     till domMinne som vittne emot ifall vägen hit ändras. */
+  if (!saker && !v.accept && KamMinne.redo()) {
     const tM = performance.now();
     let v2 = null;
     try { const e2 = await kamKedjaUnder(id, 'minne', () => Embed.identifiera(canvas, KamMinne.idx)); if (e2 && e2.namn) v2 = await kamKedjaUnder(id, 'orb', () => identifyMedModell(canvas, box, e2, kamSparEnsamt(id), KamMinne.pool, true)); } catch (e) { v2 = null; }
@@ -33770,7 +33783,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
       const bada = [...new Set(namnUtanBaksida().concat(KamMinne.pool.names))].filter(n => n !== BAKSIDA_NAMN);
       let t = namn && namn.text ? Namn.doma(namn.text, bada) : null;
       if (t && t.namn) t = Object.assign({}, t, { namn: typAv(t.namn) });
-      const d = domMinne(v2, t);
+      const d = domMinne(v2, t, v.accept && b0 && b0.name !== BAKSIDA_NAMN ? b0.name : null);
       if (d) {
         v = Object.assign(v2, { minne: true }); M = v2.modell; saker = d.saker; varfor = d.varfor; cands = d.cands; c0 = cands[0];
         if (t) namn = Object.assign({}, namn, t, { utanfor: t.utanfor || null });
