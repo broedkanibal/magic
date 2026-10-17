@@ -408,6 +408,7 @@ steg leken dev/leken.cjs -- node dev/leken.cjs
 steg hogarna dev/hogarna.cjs -- node dev/hogarna.cjs
 steg kamerabank dev/kamerabank.cjs dev/kamerabank-vinkel.json -- node dev/kamerabank.cjs
 steg aktivlek dev/aktivlek.cjs -- node dev/aktivlek.cjs > /dev/null   # MES-376: den aktiva leken — starten, bytet vid 2, släpp efter 4, grannarna ur minnet (ren modul ur index.html)
+steg minnesteg dev/minnesteg.cjs -- node dev/minnesteg.cjs > /dev/null   # MES-376: steg 2 i trappan — minnets dom mot titeln (domMinne), poolens delning, modellen utan rival (rena delar ur index.html)
 steg kanten-vridningen dev/kanten-vridningen.cjs dev/mattest/chrome.cjs -- node dev/kanten-vridningen.cjs   # MES-359: mattan vrids efter korten, kort vid bildkanten väntar
 steg rapport dev/rapport/ -- node dev/rapport/prov.cjs > /dev/null   # MES-365: problemrapporten (rutan, paketet, Cancel, dold information), attrapp för Supabase
 steg rapport-c dev/rapport/ -- node dev/rapport/prov-c.cjs > /dev/null   # MES-367: kontot, Settings, Delete, knappen och telefonens ark; flaggan av = inga ytor (attrapp av supabase-js)

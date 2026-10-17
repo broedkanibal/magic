@@ -33454,6 +33454,30 @@ async function kamKedjaUnder(id, s, f) {
   Kamera.kedjaSteg(id, s, true);
   try { return await f(); } finally { Kamera.kedjaSteg(id, s, false); }
 }
+/* ═══ STEG 2:S DOM (MES-376, granskningen 2026-10-17 fynd 1) ═══
+   v2: identifyMedModell mot minnets pool med utanfor (ORB villkor) — bara ett
+   v2.accept når hit. t: titelraden dömd om (Namn.doma) mot lekens OCH minnets
+   namn: { namn, poang, marginal, utanfor } eller null när ingen titel lästes.
+   Regeln: ORB bär minnets namn, och titeln är ett vittne EMOT, aldrig ett
+   krav — en säker titel (≥ 0,6 / 0,2) på ett ANNAT namn, lekens eller
+   minnets, fäller domen ('konflikt', titelns kort överst om det finns bland
+   kandidaterna); en titel som skiljer sig i ett helt ord (utanfor ≥ 0,5)
+   likaså ('titel skiljer ord'). Håller titeln med: 'minne+orb+namn'; ingen
+   eller osäker titel: 'minne+orb'. Ren funktion: dev/minnesteg.cjs klipper
+   ut den och provar fallen. */
+function domMinne(v2, t) {
+  if (!v2 || !v2.accept || !v2.rec) return null;
+  const cands = (v2.rec.cands || []).filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
+  const c0 = cands[0]; if (!c0) return null;
+  if (t && t.utanfor && t.poang >= 0.5) return { saker: false, varfor: 'titel skiljer ord', cands };
+  const sakerT = !!(t && t.namn && t.poang >= 0.6 && t.marginal >= 0.2);
+  if (sakerT && t.namn !== c0.name) {
+    const j = cands.findIndex(c => c.name === t.namn);
+    if (j > 0) cands.unshift(cands.splice(j, 1)[0]);
+    return { saker: false, varfor: 'konflikt', cands };
+  }
+  return { saker: true, varfor: sakerT ? 'minne+orb+namn' : 'minne+orb', cands };
+}
 /* o.spek: en tidig läsning (Kamera, K4) — svaret är inte spårets än, så
    ingen beskärning går till datorns granskning. */
 async function kamIdentifiera(canvas, id, gissning, kort, o) {
@@ -33489,17 +33513,8 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   if (tq) tq.modell = performance.now();
   if (!v) { try { v = await kamKedjaUnder(id, 'orb', () => kamIdentifyAt(canvas, box, 0)); } catch (e) { return null; } }
   if (tq) tq.bild = performance.now();
-  /* Steg 2 i trappan (MES-376): gjorde den aktiva leken inte kortet säkert letas det i spelarens minne utanför leken
-     (KamMinne) — bildmodellen rangordnar minnets namn och ORB kontrollerar de tre bästa, och bara ORB:s bärande
-     ('bar', med KONST_MIN) gör namnet säkert: 'minne+orb'. Modellen ensam, landregeln och titelraden ensam gäller
-     inte här (identifyMedModell utanfor). Kostar bara för kort steg 1 inte klarade. */
-  if (!v.accept && KamMinne.redo()) {
-    let v2 = null;
-    try { const e2 = await kamKedjaUnder(id, 'minne', () => Embed.identifiera(canvas, KamMinne.idx)); if (e2 && e2.namn) v2 = await kamKedjaUnder(id, 'orb', () => identifyMedModell(canvas, box, e2, kamSparEnsamt(id), KamMinne.pool, true)); } catch (e) { v2 = null; }
-    if (v2 && v2.accept) v = Object.assign(v2, { minne: true });
-    else if (v2 && v2.rec && v2.rec.cands[0]) v.minne2 = { namn: v2.rec.cands[0].name, marginal: +(+v2.modell.marginal).toFixed(3), inliers: v2.rec.inliers, konst: v2.modell.konst, orbNamn: v2.modell.orbNamn };   // för loggen: vad minnet såg utan att bära
-  }
-  if (tq) tq.minne = performance.now();
+  /* Steg 2 i trappan (spelarens minne, KamMinne) körs längre ned — FÖRST när steg 1 sagt osäkert med alla sina
+     vittnen hörda (granskningen 2026-10-17, fynd 1). */
   /* Väntar inte på titelraden när ORB redan bär modellens etta (T.orbUtanTitel, 2026-10-15): 'modell+orb' är det
      starkaste beviset kedjan har, och väntan på textläsaren var 315 ms av läsningens 669 ms i telefonprovet 2026-09-20
      (latensrapporten MES-263). Titelraden läses klart i bakgrunden; säger den säkert ett ANNAT namn än det som blev
@@ -33525,10 +33540,6 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   }).catch(() => {});
   else { try { namn = await namnP; } catch (e) { namn = null; } }
   if (tq) tq.namn = performance.now();
-  /* Ett namn ur minnet (steg 2): titelraden lästes mot den aktiva lekens namn, och döms om mot minnets utan ny OCR
-     (Namn.doma) — annars hade 'titel skiljer ord' fällt varje rätt minnesnamn, och ett namn ensamt ur minnet (utan
-     ORB) blir aldrig säkert, eftersom 'namn ensamt' nedan bara tar poolens (den aktiva lekens) namn. */
-  if (v.minne && namn && namn.text && KamMinne.pool) { const d = Namn.doma(namn.text, KamMinne.pool.names.filter(n => n !== BAKSIDA_NAMN)); namn = Object.assign({}, namn, d, { utanfor: d.utanfor || null }); }
   /* Titelraden på ett basland säger typen (MES-228): "Snow-Covered Plains" och "Plains" är samma kort för kameran, med lekens eget namn för typen — annars stod de två vittnena emot varandra om samma land. */
   const typAv = n => { const t = KamEmbed.redo() ? landTyp(n) : null; return t ? landVisning(t).name : n; };
   if (namn && namn.namn) namn = Object.assign({}, namn, { namn: typAv(namn.namn) });
@@ -33550,7 +33561,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
       if (v2 && v2.accept && c2 && v.rec.cands.slice(0, MODELL_NAMN).some(c => c.name === c2.name)) v = Object.assign(v2, { efterModell: v.modell });
     }
   }
-  const M = v.modell || null;
+  let M = v.modell || null;   // let: steg 2 (minnet) nedan byter till minnets modellsvar
   if (tq) tq.andra = performance.now();
   /* Läste titeln inget: kortet kan ligga upp och ner. Bilden vet vinkeln
      (matchningens rot, 0 eller 180 ± några grader); säger den 180 läses
@@ -33579,8 +33590,8 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      titelVant: hur länge bildvägen fick vänta på den. vand: titeln läst vänd. */
   const tider = tq ? (() => {
     const r = x => Math.max(0, Math.round(x)), mm = M && M.ms != null ? M.ms : 0;
-    return { modell: M ? r(mm) : null, orb: r(tq.bild - tq.fore - mm), minne: r(tq.minne - tq.bild), orb2: r(tq.andra - tq.namn), titel: namn && namn.ms != null ? r(namn.ms) : null,
-             titelVant: r(tq.namn - tq.minne), vand: r(tq.vand - tq.andra), fore: r(tq.fore - tq.t0), total: r(tq.vand - tq.t0), backend: M ? M.backend || null : null };
+    return { modell: M ? r(mm) : null, orb: r(tq.bild - tq.fore - mm), minne: 0, orb2: r(tq.andra - tq.namn), titel: namn && namn.ms != null ? r(namn.ms) : null,
+             titelVant: r(tq.namn - tq.bild), vand: r(tq.vand - tq.andra), fore: r(tq.fore - tq.t0), total: r(tq.vand - tq.t0), backend: M ? M.backend || null : null };   // minne: steg 2:s tid fylls i nedan när det körs
   })() : undefined;
   const alla = v.rec.cands || [];
   const b0 = alla[0], b1 = alla[1];
@@ -33606,7 +33617,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
     if (form != null && form < BAK_FORM * (Kamera.utseendeSkala || 1))
       return { baksida: true, varfor: 'baksida ficka', form: +form.toFixed(1), poang: b0 ? b0.score : 0, accept: false, tider };
   }
-  const cands = alla.filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
+  let cands = alla.filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));   // let: steg 2 (minnet) byter till minnets kandidater
   /* Stod baksidan överst utan att räcka till gäller modellens dom inte tvåan. */
   let saker = !!(v.accept && cands[0] && !(M && b0 && b0.name === BAKSIDA_NAMN));
   /* Domskälet, för diagnosen och golden-provet: 'bild…' är Matcher + ORB, 'modell…' bildmodellen + ORB. */
@@ -33656,7 +33667,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      ingenting — för litet, ingen läsare, eller bara skräp — gäller bildens
      egen landregel som förut: fall 02 (150 cm) tappade Plains när regeln
      krävde namnet även då. */
-  const c0 = cands[0];
+  let c0 = cands[0];
   if (saker && c0 && BASICS.has(c0.name) && sakertNamn && namn.namn !== c0.name) { saker = false; varfor = 'land mot namn'; }
   /* Helt ord (MES-235, Namn.ordSkiljer): titelraden läste en titel som skiljer sig från bildens namn i ett helt ord
      ("Thriving Heath" när bara Thriving Moor finns i leken). Namnet blev då inget vittne FÖR (namn.namn är null), och
@@ -33677,6 +33688,29 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
     const tak = kamLekAntal.get(norm(c0.name));
     const upptagna = Kamera.upptagnaLek(c0.name, id);   // utan spår som bevisat är på väg bort: kortet som just flyttats är inte ett exemplar till (MES-214); ett basland med egen skild remsa räknar inte de andra (upptagnaLek)
     if (!lekPrior(true, tak == null ? Infinity : tak, upptagna)) { saker = false; varfor = 'fler än leken'; }
+  }
+  /* Steg 2 i trappan (MES-376): FÖRST när steg 1 sagt osäkert med alla sina vittnen hörda — titelraden, 'namn
+     ensamt', andra åsikten, 'konflikt' — letas kortet i spelarens minne utanför den aktiva leken (KamMinne).
+     Bildmodellen rangordnar minnets namn och ORB kontrollerar de tre bästa; bara ORB:s bärande ('bar', med KONST_MIN)
+     gör namnet säkert (identifyMedModell utanfor: modellen ensam, landregeln och titeln ensam gäller inte). Titeln
+     döms om utan ny OCR mot BÅDA namnmängderna, lekens och minnets (Namn.doma), och fäller domen när den säkert säger
+     ett annat namn, var det än hör hemma (domMinne). Körs inte när steg 1 redan var säkert: en säker titel på ett
+     lekens namn ska aldrig försvinna i ett minnesnamn (granskningen 2026-10-17, fynd 1). */
+  if (!saker && KamMinne.redo()) {
+    const tM = performance.now();
+    let v2 = null;
+    try { const e2 = await kamKedjaUnder(id, 'minne', () => Embed.identifiera(canvas, KamMinne.idx)); if (e2 && e2.namn) v2 = await kamKedjaUnder(id, 'orb', () => identifyMedModell(canvas, box, e2, kamSparEnsamt(id), KamMinne.pool, true)); } catch (e) { v2 = null; }
+    if (v2 && v2.accept && KamMinne.pool) {
+      const bada = [...new Set(namnUtanBaksida().concat(KamMinne.pool.names))].filter(n => n !== BAKSIDA_NAMN);
+      let t = namn && namn.text ? Namn.doma(namn.text, bada) : null;
+      if (t && t.namn) t = Object.assign({}, t, { namn: typAv(t.namn) });
+      const d = domMinne(v2, t);
+      if (d) {
+        v = Object.assign(v2, { minne: true }); M = v2.modell; saker = d.saker; varfor = d.varfor; cands = d.cands; c0 = cands[0];
+        if (t) namn = Object.assign({}, namn, t, { utanfor: t.utanfor || null });
+      }
+    } else if (v2 && v2.rec && v2.rec.cands[0]) v.minne2 = { namn: v2.rec.cands[0].name, marginal: +(+v2.modell.marginal).toFixed(3), inliers: v2.rec.inliers, konst: v2.modell.konst, orbNamn: v2.modell.orbNamn };   // för loggen: vad minnet såg utan att bära
+    if (tider) { tider.minne = Math.max(0, Math.round(performance.now() - tM)); tider.total += tider.minne; }
   }
   const namnLast = namn ? { text: namn.text, namn: namn.namn, poang: namn.poang, marginal: namn.marginal, ms: namn.ms, hoppad: namn.hoppad || null, start: namn.start, vand: !!namn.vand, utanfor: namn.utanfor || null } : null;   // utanfor: titeln skilde sig i ett helt ord från lekens närmaste namn (MES-235)
   if (!saker && !(o && o.spek)) {
