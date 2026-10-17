@@ -6,6 +6,11 @@ skälen står i den filen. Här står bara hur det byggs.
 
 ## Kort sagt
 
+- **2026-10-17: D1 och D3 är beslutade** (MES-372, *Jespers beslut 2026-10-17*
+  nedan). Mesa lär sig spelarens kort helt i bakgrunden. Spelaren ser inga
+  learned-lekar, får ingen fråga om att spara en lek och väljer ingen lek i
+  Mirror. Designen är att ta bort leken ur Mirror, inte att lägga till något.
+  `decks.lage` (learned/complete) stryks.
 - **Inget av bygget är påbörjat.** Det som är klart: mätningarna G1/G2
   (MES-361), G3 (MES-364), krymp världen (MES-363), och läsmarkeringen D2
   (MES-362, på main). Ingen issue finns för etapperna (kollat i Linear
@@ -46,13 +51,13 @@ redan är klar.
 | T1 | världens fingeravtryck på telefonen | **byggt** (MES-375): E3, 31 MB, 24/37, 0 fel | 2b |
 | T2 | ORB mot Scryfall-bilder vid behov | gap | 2b |
 | T3 | minnet i datan | gap | 1a |
-| T4 | learned och complete | gap | 1a |
+| T4 | learned och complete | **struken** (J8, 2026-10-17) | – |
 | T5 | trösklar per steg i trappan | gap | 1b (steg 2), 2b (steg 3) |
 | T6 | Claude-flödet: spärren, en fråga per kort, kontrollen, taket | gap | 3 |
-| D1 | Mirror utan lekval | **ingen yta** | designytan D1 + D3, före 4 |
+| D1 | Mirror utan lekval | **beslutad** (MES-372, J7–J10) | etapp 4 |
 | D2 | läsmarkeringen | **byggd** (MES-362) | – |
-| D3 | efter partiet, learned/complete på Home | **ingen yta** | designytan D1 + D3, före 4 |
-| D4 | learned → complete inför Digital | delvis: lekfotot (`lekfoto-efter-provet.md`) | inläsningen av en lek; import och inklistring finns |
+| D3 | efter partiet, learned/complete på Home | **beslutad: ingenting syns** (J8) | – |
+| D4 | learned → complete inför Digital | **struken** (J9): Digital använder lekar spelaren lagt in, som i dag | – |
 
 ## Vad som finns i dag, och vad som saknas
 
@@ -91,7 +96,7 @@ Rör bara Supabase, `Moln` och datorns logg. Ingen kamerakod.
 | RLS | ägaren läser och skriver sina egna rader. Motståndare läser inget |
 | Skrivs när | ett namn blir **säkert** på spelarens bord: telefonen, Claude efter kontrollen (etapp 3), eller spelaren (Name this card, rättelse). Osäkra namn skrivs aldrig. En rättelse (`bytt`) ersätter raden. Samma ställe som `khLogga` (rad 34307), som redan loggar varje namn i Mirror |
 | Inläst lek (lekfotosessionens önskemål 1) | en väg som skriver **hela leken på en gång** som bekräftade rader (`kalla: inlast`), när spelaren tryckt Create deck på datorn |
-| Learned och complete (T4) | `decks.lage` = `learned` eller `complete`. En inläst eller inklistrad lek är complete; en lek som Mirror lärt sig är learned. Digital kräver complete |
+| ~~Learned och complete (T4)~~ | **Struken 2026-10-17 (J8).** Ingen lek skapas av Mirror, så alla lekar är spelarens egna. Migrationen `20261016120000_spelarens_kort.sql` lägger till `decks.lage`; ta bort det ur migrationen innan Jesper kör den, och toasten i `valjLekTill` som läser den |
 | Antal | en learned lek har inget säkert antal: högsta antalet som setts samtidigt i ett parti, och det är ett mjukt stöd, inte ett tak (B3). Basland har inget antal |
 | Bakåt | fyll minnet en gång ur gamla partier (`boards`, 116 rader, bordets sista läge per spelare och parti) och ur `decks`, så att testarna inte börjar tomt (Jespers ja 2026-10-13, J2) |
 
@@ -112,7 +117,8 @@ Rör läsningen (`Pool`, `kamValdLek`, `kamIdentifiera`). Krockar med 2b och 3.
 | Fel namn utanför leken (MES-235) **först** | en inlärd lek saknar alltid kort. `--utan-leken` med den fasta listan ger **5 säkra fel namn** på main 967b64c (fall 03 ×2, 08, 14, 15; mätt 2026-10-16, domskälen i MES-235), bland dem Thriving Heath → Moor. Föreslagen spärr för tvillingarna: ett läst namn som skiljer sig från listans namn i ett **helt ord** är inte samma kort. De andra felen måste spåras till sin väg |
 | `--utan-leken` med en fast lista (MES-266) | **klar 2026-10-15:** förvalet är tvillinglistan i `dev/golden/utan-leken.txt`, och rapporten skriver vilken lista som kördes |
 | Poolen ur en namnmängd | `byggLekPool` tar en lista med namn och tryckningar i stället för ett lek-id. Cachen i IndexedDB per kort, inte per lek, så att ett byte av aktiv lek inte bygger om allt |
-| Starten | den lek spelaren spelade senast (learned eller complete). Telefonen gör redan nästan så när ingen lek valts (`kamValdLek`) |
+| Starten | korten ur spelarens senaste parti (eller den lek spelaren valde senast i Digital). Telefonen gör redan nästan så när ingen lek valts (`kamValdLek`) |
+| Grupperna | en "lek" i regeln nedan ska vara en **grupp i minnet**: ett tidigare parti (`game_id`) eller en lek spelaren lagt in (`deck_id`, eller direkt ur `decks`). Inga sparade learned-lekar finns (J8). **Gap mot det byggda (main 35a5be1):** `AktivLek` väljer i dag bara bland sparade lekar (`kamLasMinne` → `lekar`); partierna används bara som grannar. Utan sparade lekar finns alltså ingen aktiv lek, bara steg 2. För J8 ska tidigare partier också kunna bli den aktiva leken. Kommentaren vid `byggKamPool` ("etapp 4 behåller lekvalet i uppstarten") gäller inte längre (J7) |
 | Bytet | **regeln ur G4:** byt till en annan lek i minnet när den har minst 2 av de säkra korten och fler än den aktiva; vid lika behålls den aktiva, sedan den senast spelade; basland räknas inte. Släpp leken (ingen aktiv) när 4 säkra kort gett 0 träffar. Ingen viktning efter hur ovanligt ett kort är. Ett kort som syns och inte finns i den aktiva leken drar in sina grannar ur minnet (AktivLek) — **men grannarna når inte steg 1:s pool** (granskningen 2026-10-17): titeln och remsan ensamma får bara döma mot lekens namn, så grannarna söks i steg 2 med ORB som villkor |
 | Steg 2 i trappan | resten av spelarens minne, med **ORB som villkor** (G1: bildmodellen ensam gav upp till 16 säkra fel utanför leken). Bildmodellen får aldrig vara ensam vittne utanför den aktiva leken |
 | Claude | oförändrat i 1b: `kamera`-läget med den aktiva lekens namn |
@@ -208,17 +214,21 @@ först.
 ### Etapp 4 · Lekvalet bort ur Mirror
 
 **Målet:** man startar Mirror och lägger ut korten. Mesa vet vilken lek det
-är, och efter partiet erbjuds leken.
+är, utan att spelaren ser eller gör något (D1 beslutad 2026-10-17, J7–J10).
+Designytan: "Mesa Mirror Without Deck", sida 2 (https://claude.ai/artifact/MAuL1u2JnJbhe6KUMFihw8).
 
 | Del | Innehåll |
 |---|---|
-| Uppstarten | steget `lek` hoppas över när läget är Mirror (`bord`). Texten "Only cards from the deck you pick will be recognized" bort i Mirror |
-| I spelet | chippet "Pick a deck" och lekens knapp ändras enligt D1. Library i Mirror är den fysiska högen |
+| Uppstarten | **läget först** (`OPP_ORDNING` blir läge → telefon i Mirror, läge → lek i Digital). Steget `lek` finns bara i Digital. Mirror-valets text: "Everything you do with your cards shows up here. No deck to pick: Mesa learns your cards as you play." Texten "Only cards from the deck you pick will be recognized" och mattans ram "Pick your deck" (`OPP_MATT.lek`) bort i Mirror |
+| I spelet | den streckade "Pick a deck" på library (`renderBibHog`, `bib tom`) och lekchippet på flikarna (`lekChipHtml`) **bort i Mirror**. Library i Mirror är den fysiska högen. Mattan före första kortet som i dag |
+| Läget | **gäller hela partiet** (J10): Digital table går inte att välja mitt i ett Mirror-parti, varken i Mesa-menyns Table mode (`lage-utan`) eller i Redo setup. Slutar kameran fungera: Camera off som i dag. Digital → Mirror mitt i partiet: förslag samma spärr, inte beslutat |
+| Namnge utan lek | "Which card is this?" besvaras i dag i library-solfjädern (`hfNamnge`, `hfOppna('lib')`), som är lekens kort. Utan lek: Enter card name (sökning bland alla kort, MES-351) |
+| Texterna | startsidan ("Add your deck · Paste a decklist…" som steg 1) och Home utan lekar ("the camera recognises your cards against the deck you play with") säger att en lek krävs. Skrivs om: Mirror behöver ingen lek, Digital gör det |
 | Telefonen | utan lekval: aktiva leken ur minnet (etapp 1). Tomt minne: världen och Claude direkt (etapp 2–3) |
-| Datorn | antalsreglerna (`lekAntal`) med en learned lek: mjukt stöd, inget tak |
+| Datorn | antalsreglerna (`lekAntal`) i Mirror: mjukt stöd ur minnet, inget tak |
 | Antalsfrågan "Another X?" | **tas bort i Mirror** (Jesper 2026-10-15). I dag frågar appen "Your deck has only N × X — one more?" när ett säkert namn skulle ge fler exemplar än leken har (`overTak` i `avstamBord`, knappen "Another X?" i `ofrMarkHtml`). Utan lekval finns inget tak, så frågan, dess post i granskningen (`overTak`, `tak`) och knappens text tas bort i Mirror, inte bara slutar slå till. Digital behåller den om den behövs där. Samma sak för `urGraven` (graveyard → bordet bara vid fullt antal): se MES-388 |
-| Efter partiet | "Mesa learned 34 cards — save as deck?" enligt D3. Leken sparas som `learned` |
-| Digital | kräver fortfarande en complete lek. Vägen dit: lekfotot, import eller inklistring (D4) |
+| Efter partiet | **ingenting** (J8). Ingen fråga om att spara en lek, inget sparas som lek. Korten finns i minnet ändå |
+| Digital | kräver fortfarande en lek spelaren lagt in, som i dag (lekfotot, import, inklistring). Create deck oförändrad, inget nytt meddelande (J9) |
 
 **Klart när:** **Jespers parti på telefonen** med en lek Mesa aldrig sett:
 0 fel namn och Name this card under 1 gång per parti (B5). Golden utan
@@ -231,9 +241,11 @@ lek mot världen oförändrad.
 | Yta | Vad | Behövs till |
 |---|---|---|
 | **D1** | vad som syns när Mirror startar utan lekval: uppstarten, mattan före första kortet, chippet och lekens knapp i spelet | etapp 4 |
-| **D3** | efter partiet ("Mesa learned 34 cards — save as deck?"), och hur learned och complete syns på Home och lekens sida | etapp 4 (D3 kan visa sig behövas redan i 1a för `decks.lage`) |
+| **D3** | efter partiet ("Mesa learned 34 cards — save as deck?"), och hur learned och complete syns på Home och lekens sida | – |
 
-Båda kan göras nu, i en session (Opus 5.5, medium–high). Jesper väljer.
+**Beslutade 2026-10-17** (MES-372, designytan "Mesa Mirror Without Deck" sida 2): D1 = läget
+först, inget leksteg, library bara högen, inget lekchip, läget gäller hela partiet. D3 = ingenting
+syns. Sida 1 på ytan (learned-lekar, "save as deck?") är förkastad och ligger kvar som historik.
 
 ## Ordningen
 
@@ -292,7 +304,19 @@ orkestrerande session: `dev/plan/prompt-2026-10-13-mirror-lar-sig-leken.md`.
 | J3 | Världens fil: **högst 50 MB**, helst ~25 MB (förslag; Jesper visste inte vad som är rimligt). 50 MB är ungefär en vanlig appuppdatering, ~10–20 s på 4G. Laddas ned i bakgrunden första gången Mirror startar, och sparas. 2a mäter vad 25 MB kostar i träffar. |
 | J4 | Läraren använder Sonnet 5.5, medium, som kamerans fråga. |
 | J5 | Claudes namn som kontrollen stoppat visas som förslag i Name this card. |
-| J6 | Designvalen D1 och D3: när ytan finns. |
+| J6 | Designvalen D1 och D3: när ytan finns. **Gjorda 2026-10-17**, se nedan. |
+
+## Jespers beslut 2026-10-17
+
+Designytan för D1 + D3 (MES-372). Jesper: learned-lekar som sparas för hand och ligger i
+leklistan är "ett otroligt märkligt koncept", och allt det här ska ske i bakgrunden.
+
+| # | Beslut |
+|---|---|
+| J7 | Mirror startar utan lekval: läget väljs först, och Mirror har inget leksteg. Library är bara högen, och "Pick a deck" och lekchippet försvinner i Mirror. |
+| J8 | Minnet syns inte för spelaren. Inga learned-lekar, ingen fråga efter partiet om att spara en lek, ingen sida som visar vad Mesa kan. Den aktiva leken räknas ur grupperna i minnet (tidigare partier och lekar spelaren lagt in). `decks.lage` och T4 stryks. |
+| J9 | Digital table som i dag: spelaren lägger in leken (foto, import, inklistring). Create deck oförändrad. Ingen "lek från ett parti". |
+| J10 | Läget gäller hela partiet: Mirror → Digital mitt i ett parti tillåts inte. Fallet när kameran slutar fungera är Camera off. |
 
 ## Det här ändrar inte
 
@@ -301,4 +325,4 @@ orkestrerande session: `dev/plan/prompt-2026-10-13-mirror-lar-sig-leken.md`.
   Mat test utan `--ai`.
 - 0 säkra fel namn i golden, `--utan-leken` och `--ljus alla` är ett hårt
   stopp.
-- Digital table kräver en komplett lek.
+- Digital table kräver en lek spelaren lagt in.

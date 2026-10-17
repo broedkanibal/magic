@@ -43,10 +43,14 @@ fortfarande kännas igen, och "Name this card" ska nästan aldrig synas.
 
 1. **Mirror startar utan lekval.** Man lägger bara ut korten.
 2. **Minnet sitter på spelaren.** Mesa minns alla kort den sett hos spelaren,
-   i alla partier. Lekar bildas av kort som syns ihop och föreslås efter
-   partiet ("Mesa learned 34 cards — save as deck?").
-3. **Learned och complete** är två lägen hos samma lek. Learned räcker för
-   Mirror, complete krävs bara i Digital.
+   i alla partier. ~~Lekar bildas av kort som syns ihop och föreslås efter
+   partiet ("Mesa learned 34 cards — save as deck?").~~ **Ändrat 2026-10-17
+   (J8):** minnet syns inte för spelaren och inga lekar föreslås. Kort som
+   syns ihop bildar grupper i minnet (partierna), och den aktiva leken räknas
+   ur dem i bakgrunden.
+3. ~~**Learned och complete** är två lägen hos samma lek. Learned räcker för
+   Mirror, complete krävs bara i Digital.~~ **Struken 2026-10-17 (J8):** alla
+   lekar är spelarens egna. Digital kräver en lek spelaren lagt in, som i dag.
 4. **Trappan:** ju mer oväntat ett kort är, desto mer bevis krävs för ett
    säkert namn.
 
@@ -95,6 +99,11 @@ fortfarande kännas igen, och "Name this card" ska nästan aldrig synas.
 | B6 | Motståndare utan konto: samma flöde, världen och sedan Claude. |
 | B7 | Kameran startad mitt i ett parti, med kort som redan är täckta: Claude eller spelaren, ingen specialbyggnad. |
 
+## Jespers beslut 2026-10-17
+
+J7–J10 i `dev/plan/lekar-och-minnet-bygget.md`: Mirror utan lekval, minnet syns inte (inga
+learned-lekar, ingen fråga efter partiet), Digital som i dag, läget gäller hela partiet.
+
 ## Jespers beslut 2026-10-11
 
 | # | Beslut |
@@ -126,7 +135,7 @@ spelaren, bli träningsmaterial för bildmodellen och remsan, och ORB kan minnas
 | T1 | Fingeravtryck för hela världen på telefonen: ~15–30 MB, laddas ner en gång, filtreras på format och färg. |
 | T2 | ORB mot kort vars bild inte finns i telefonen: bilderna för de 2–3 bästa kandidaterna hämtas från Scryfall vid behov. Tiden är okänd. |
 | T3 | Minnet i datan: vilka kort spelaren har setts med, i vilket parti (Supabase). |
-| T4 | Leken med två lägen, learned och complete. Digital kräver complete. |
+| T4 | ~~Leken med två lägen, learned och complete. Digital kräver complete.~~ Struken 2026-10-17 (J8). |
 | T5 | Trösklar per steg i trappan, kalibrerade ur G1. |
 | T6 | Claude-flödet: spärren, en fråga per kort, kontrollen mot Scryfall, taket. Taket 30 per parti kan vara för lågt för ett första parti med en ny lek (se G2). |
 
@@ -134,10 +143,10 @@ spelaren, bli träningsmaterial för bildmodellen och remsan, och ORB kan minnas
 
 | # | Gap |
 |---|---|
-| D1 | Vad som syns när Mirror startar utan lekval. |
+| D1 | Vad som syns när Mirror startar utan lekval. **Beslutad 2026-10-17** (MES-372): läget först, inget leksteg, inget lekchip, läget gäller hela partiet. |
 | D2 | Läsmarkeringen för ett nytt kort. Designytan ["Mesa Reading Mark"](https://claude.ai/artifact/EguWdqncyTDFqvPR5TGYNM) (MES-362, 2026-10-11): A stilla sudd, B framkallas i takt, C tyst prick; väntar på Jespers val. Källor i `design_handoff_lasmarkering/`. |
-| D3 | Efter partiet ("Mesa learned 34 cards") och hur learned- och complete-lekar syns på Home. |
-| D4 | Att göra en learned lek complete inför Digital: lekfoto, import (Moxfield, Archidekt) eller inklistring. |
+| D3 | Efter partiet ("Mesa learned 34 cards") och hur learned- och complete-lekar syns på Home. **Beslutad 2026-10-17: ingenting syns** (J8). |
+| D4 | ~~Att göra en learned lek complete inför Digital.~~ Struken 2026-10-17 (J9): Digital använder lekar spelaren lagt in, som i dag. |
 
 ## Devil's advocate: fota leken först i stället?
 
