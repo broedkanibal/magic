@@ -23893,7 +23893,12 @@ async function identifyMedModell(img, box, e, ensamt, P, utanfor) {
   const rang = [];
   for (const c of e.cands || []) { const name = typNamn(c.name), f = rang.find(x => x.name === name); if (!f) rang.push({ name, sid: (landTyp(c.name) && landVisning(landTyp(c.name)).sid) || c.sid, score: c.score }); }
   const etta = rang[0] ? rang[0].name : e.namn, marginal = rang[0] ? rang[0].score - (rang[1] ? rang[1].score : 0) : e.marginal;
-  e = Object.assign({}, e, { marginal, saker: marginal > Embed.TROSKEL, cands: rang });
+  /* Marginalen är ett mått bara när poolen hade något annat att välja: en pool utan annat namn än ettan (den tomma
+     aktiva poolen 'tom' bär bara baksidan, MES-376) ger "marginal" = poängen mot ingenting, och ett uppvänt kort
+     hade dömts till baksida på den (granskningen 2026-10-17, fynd 4). Utan rival är modellen aldrig säker: bara
+     ORB:s bärande ('bar') gäller. */
+  const rival = P.names.some(n => typNamn(n) !== etta);
+  e = Object.assign({}, e, { marginal, saker: rival && marginal > Embed.TROSKEL, cands: rang });
   const namn3 = new Set(rang.slice(0, MODELL_NAMN).map(c => c.name));
   const per = new Map(), perSkala = new Map(), perKonst = new Map(); let bast = { inliers: 0, konst: 0, namn: null, rot: e.rot || 0 };
   if (P.orb) {
@@ -33598,7 +33603,11 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   /* Med modellen (MES-225) är baksidan ett namn bland de andra: säker när
      ORB bär den, eller när marginalen är klar och ORB inte pekar på ett av
      de andra två — en baksida ligger ofta i en hög, så 'ensamt' krävs inte. */
-  if (b0 && b0.name === BAKSIDA_NAMN && (M ? (M.bar || (M.saker && !M.emot)) : (v.accept || (b0.score >= 0.7 && (!b1 || b0.score - b1.score >= 0.1)))))
+  /* …och utan modell: en pool utan annat namn än baksidan (den tomma aktiva poolen 'tom', MES-376) har ingen marginal
+     att döma på — där krävs matcharens egen acceptans (ORB), som för modellen (identifyMedModell: ingen rival, aldrig
+     saker; granskningen 2026-10-17, fynd 4). */
+  const baraBaksidan = !namnUtanBaksida().length;
+  if (b0 && b0.name === BAKSIDA_NAMN && (M ? (M.bar || (M.saker && !M.emot)) : (v.accept || (!baraBaksidan && b0.score >= 0.7 && (!b1 || b0.score - b1.score >= 0.1)))))
     return { baksida: true, varfor: 'baksida', poang: b0.score, accept: !!v.accept, tider };
   /* Baksidan I PLASTFICKA (MES-258): fickan döljer Magic-baksidan, så
      uppslaget ovan känner inte igen den — beskärningen jagas i stället mot

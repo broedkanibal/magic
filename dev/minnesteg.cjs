@@ -69,5 +69,42 @@ const check = (vad, ok) => { n++; if (!ok) { fel++; console.log('  FEL: ' + vad)
   check('bara baksidan bland kandidaterna: ingen dom', d === null);
 }
 
-console.log(`\nminnesteg: ${n - fel} av ${n} prov ok${fel ? ', ' + fel + ' FEL' : ''}`);
-process.exit(fel ? 1 : 0);
+/* ── fynd 4: identifyMedModell utan rival i poolen ─────────────────────── */
+(async () => {
+  let traffar = [];
+  const ctx = { console, BAKSIDA_NAMN, landTyp, landVisning, Embed: { TROSKEL: 0.11 }, MODELL_NAMN: 3, ORB_ACCEPT: 10, ORB_SKALA: [0.8, 1.6], ORB_HEL: 1.08,
+                DEL_MARGINAL: 0.08, KONST_MIN: 2, ORB_EMOT: 6, LAND_MARGINAL: 0.15, refSid: x => x, Pool: { idx: null }, Object, Map, Set,
+                LasWorker: { orb: async () => traffar } };
+  vm.createContext(ctx);
+  const identifyMedModell = vm.runInContext(klipp('async function identifyMedModell(', '}') + '\n;identifyMedModell', ctx);
+  const e = (...c) => ({ namn: c[0][0], cands: c.map(([name, score], i) => ({ name, sid: 's' + i, score })), marginal: c[0][1] - (c[1] ? c[1][1] : 0), rot: 0, poang: c[0][1], ms: 1 });
+  const box = { x: 0, y: 0, w: 100, h: 140 };
+  console.log('identifyMedModell: poolen utan annat namn än baksidan (den tomma aktiva poolen)');
+  const tom = { names: [BAKSIDA_NAMN], orb: {} };
+  traffar = [];
+  let v = await identifyMedModell(null, box, e([BAKSIDA_NAMN, 0.6]), 'matt', tom, false);
+  check('bara baksidan i poolen, inga ORB-träffar: modellen inte säker, inte accept (uppvänt kort blir inte baksida)', v && !v.modell.saker && !v.accept && !v.modell.bar);
+  traffar = [{ r: 0, i: 0, inliers: 30, konst: 0, skala: 1.2 }];
+  v = await identifyMedModell(null, box, e([BAKSIDA_NAMN, 0.6]), 'matt', tom, false);
+  check('bara baksidan i poolen, ORB bär baksidan (30 inliers): accept via bar (ett riktigt nedvänt kort)', v && v.accept && v.modell.bar);
+  const lek = { names: [BAKSIDA_NAMN, 'Fencing Ace', 'Pacifism'], orb: {} };
+  traffar = [];
+  v = await identifyMedModell(null, box, e(['Fencing Ace', 0.5], ['Pacifism', 0.2]), 'matt', lek, false);
+  check('vanlig pool, marginal 0,30: modellen säker som förut (rival finns)', v && v.modell.saker && v.modell.marginal > 0.29);
+  v = await identifyMedModell(null, box, e([BAKSIDA_NAMN, 0.6], ['Pacifism', 0.2]), 'matt', lek, false);
+  check('vanlig pool, baksidan överst med marginal 0,40: säker som förut', v && v.modell.saker);
+  console.log('identifyMedModell: utanfor (steg 2) — ORB är villkoret');
+  const minne = { names: [BAKSIDA_NAMN, 'Y', 'Z'], orb: {} };
+  traffar = [];
+  v = await identifyMedModell(null, box, e(['Y', 0.6], ['Z', 0.2]), 'matt', minne, true);
+  check('minnets pool, modellen säker (0,40) men ORB bär inte: inte accept (modellen aldrig ensam utanför leken)', v && v.modell.saker && !v.accept && v.modell.minne);
+  traffar = [{ r: 0, i: 1, inliers: 30, konst: 5, skala: 1.2 }];
+  v = await identifyMedModell(null, box, e(['Y', 0.6], ['Z', 0.2]), 'matt', minne, true);
+  check('minnets pool, ORB bär Y med 30 inliers och 5 i konstverket: accept (minne+orb)', v && v.accept && v.modell.bar);
+  traffar = [{ r: 0, i: 1, inliers: 30, konst: 1, skala: 1.2 }];
+  v = await identifyMedModell(null, box, e(['Y', 0.6], ['Z', 0.2]), 'matt', minne, true);
+  check('…men bara 1 inlier i konstverket (< KONST_MIN 2): bär inte, inte accept', v && !v.accept && !v.modell.bar);
+
+  console.log(`\nminnesteg: ${n - fel} av ${n} prov ok${fel ? ', ' + fel + ' FEL' : ''}`);
+  process.exit(fel ? 1 : 0);
+})().catch(e => { console.error('minnesteg:', e && e.stack || e); process.exit(1); });
