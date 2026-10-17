@@ -266,7 +266,35 @@ const PROV = async steg => {
       ok('graveyard följer med: inte när graveyard bara har ett kort (det kortet togs upp)', kamGravRad.x === r3.x && kamGravRad.y === r3.y, JSON.stringify(kamGravRad));
       await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: false });
       for (const c of spara) mig().cards.push(c);
-      mig().cards = mig().cards.filter(c => !(c.spar === 94 && zonAv(c) !== ZON_GRAV)); }
+      mig().cards = mig().cards.filter(c => !(c.spar === 94 && zonAv(c) !== ZON_GRAV));
+      /* MES-388, Jespers prov 2026-10-16: högen läggs där kameran inte kan läsa det översta kortet. Spåret blir ett
+         oframkallat kort, och frågan står ovanför det på mattan. Yes: rutan flyttas dit, det oframkallade kortet tas bort,
+         och inget kort flyttas ur graveyard. */
+      { const olast = { id: 95, tillstand: 'stilla', namn: null, saker: false, x: 0.25, y: 0.19, w: 0.1, h: 0.22, tappad: false, kortlik: true, bekr: true, vilar: true, sen: 0 };
+        const extra = [{ cid: 'ol1', name: 'Opt', zon: ZON_GRAV, x: null, y: null, z: 1, tapped: 0 }, { cid: 'ol2', name: 'Lightning Bolt', zon: ZON_GRAV, x: null, y: null, z: 1, tapped: 0 }];
+        mig().cards = mig().cards.filter(c => zonAv(c) === ZON_GRAV || c.spar == null || bas.some(t => t.id === c.spar));   // inget kort i väntan (ett lyft Wood Elves) som det olästa spåret kan vara (bordets minne, MES-341)
+        mig().cards.push(...extra);   // graveyard med minst två kort
+        const ng = mig().cards.filter(c => zonAv(c) === ZON_GRAV).length;
+        await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
+        await vanta(15); avstamBord(bas.concat([olast]), false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
+        await vanta(15); avstamBord(bas.concat([olast]), false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
+        renderAll(true); await stilla();
+        const fr = gravFragaNu(mig()), o = ofrNu().find(q => q.spar === 95), ro = o && ofrRekt(o), fEl = gridEl.querySelector('.gravfraga');
+        const fx = fEl ? parseFloat(fEl.style.left) : NaN, fy = fEl ? parseFloat(fEl.style.top) : NaN;
+        ok('oläst hög: frågan "Is this your graveyard?" ovanför det oframkallade kortet, rutan orörd före svaret',
+           !!fr && fr.q.flytt && fr.q.ofr === (o && o.id) && !!ro && !!fEl && Math.abs(fx - (ro.x + ro.w / 2)) <= 1 && fy < ro.y && ng >= 2,
+           JSON.stringify({ ofr: o && o.id, fraga: fr && fr.q.id, ro, fx, fy, ng }));
+        const r4 = Object.assign({}, kamGravRad);
+        gravSvar('ja');
+        await vanta(15); avstamBord(bas.concat([olast]), false, 'kort', undefined, '', { n: n0, sen: null, tom: true });   // telefonen har inte fått den nya rutan än
+        renderAll(true); await stilla();
+        const r = kamGravRad, mitt = r ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : null;
+        ok('oläst hög: Yes — rutan flyttar dit, det oframkallade kortet är borta, graveyard orörd, ingen fråga',
+           !!mitt && Math.abs(mitt.x - 0.30) < 0.02 && Math.abs(mitt.y - 0.30) < 0.02 && (r4.x !== r.x || r4.y !== r.y) && !ofrNu().some(q => q.spar === 95)
+             && mig().cards.filter(c => zonAv(c) === ZON_GRAV).length === ng && !mig().cards.some(c => c.spar === 95) && !gridEl.querySelector('.gravfraga'),
+           JSON.stringify({ efter: mitt && { x: +mitt.x.toFixed(2), y: +mitt.y.toFixed(2) }, ofr: ofrNu().map(q => q.spar), grav: mig().cards.filter(c => zonAv(c) === ZON_GRAV).length }));
+        await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: false });
+        mig().cards = mig().cards.filter(c => c.cid !== 'ol1' && c.cid !== 'ol2'); } }
   }
   if (steg === 3) {
     /* Reserven, och No → menyn M1 → Permanent. */

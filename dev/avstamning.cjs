@@ -3918,6 +3918,101 @@ prov('GF2c kameran nollställs medan högen är lyft: fönstret öppnas inte ige
   klocka.t += 1000; stamG([klar(1, 'Ukud Cobra', { sen: 20, vilar: true, ...PORT }), klar(2, 'Ukud Cobra', { sen: 20, vilar: true, ...LANGT })], lyft(true));
   assert.equal(iGrav('Ukud Cobra'), 0, 'fönstret öppnades inte efter nollställningen');
 });
+/* GF10 (MES-388, Jespers prov 2026-10-16): högen läggs där kameran inte kan läsa det översta kortet — vid bildkanten
+   stod spåret ny/stilla till slutet, mattan visade ett oframkallat kort och ingen fråga kom. Ett nytt spår som föddes
+   efter lyftet, utan namn, som ett oframkallat kort på mattan, får samma fråga när graveyard har minst två kort. Yes:
+   rutan flyttas dit och det oframkallade kortet tas bort (inget kort togs ur högen). No: inget ändras. */
+const hogOlast = (id, b, rest) => Object.assign({ id, tillstand: 'stilla', namn: null, saker: false, tappad: false, sen: 0, kortlik: true, vilar: true, bekr: true, skymd: false }, b, rest);
+const lyftOlast = (b = LANGT, rest) => {
+  app.gravRad = GRAV_RUTA;
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([hogOlast(7, b, rest)], lyft(true));
+};
+prov('GF10 en oläst hög i fönstret: frågan ovanför det oframkallade kortet; inget kort tas ur graveyard, rutan står kvar', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast();
+  assert.equal(app.ofr.length, 1, 'inget oframkallat kort');
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr === app.ofr[0].id, 'ingen fråga om den olästa högen: ' + JSON.stringify(app.flyttFraga));
+  assert.equal(app.gravZoner.length, 0); assert.equal(app.kort.length, 3); assert.equal(app.kort.filter(c => c.zon === 'grav').length, 3);
+  klocka.t += 1000; stamG([hogOlast(7, LANGT)], lyft(true));
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr === app.ofr[0].id, 'frågan försvann');
+});
+prov('GF10b Yes: rutan flyttas dit, det oframkallade kortet tas bort, inga kort flyttas, fönstret stängs', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast();
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr != null, 'ingen fråga');
+  assert.ok(app.flyttSvar('ja'));
+  assert.equal(app.gravZoner.length, 1, 'rutan flyttades inte');
+  assert.ok(Math.abs(app.gravZoner[0].x - (LANGT.x + LANGT.w / 2)) < 1e-9 && Math.abs(app.gravZoner[0].y - (LANGT.y + LANGT.h / 2)) < 1e-9, JSON.stringify(app.gravZoner[0]));
+  assert.equal(app.ofr.length, 0, 'det oframkallade kortet står kvar');
+  assert.equal(app.flyttFraga, null);
+  assert.equal(app.kort.length, 3); assert.equal(app.kort.filter(c => c.zon === 'grav').length, 3, 'ett kort flyttades');
+  klocka.t += 1000; stamG([hogOlast(7, LANGT)], lyft(true));                     // telefonen har inte fått den nya rutan än
+  assert.equal(app.ofr.length, 0, 'högens spår blev ett oframkallat kort igen'); assert.equal(app.pending.length, 0);
+  klocka.t += 1000; stamG([hogOlast(7, LANGT), klar(3, 'Shock', { sen: 20, vilar: true, ...PORT })], lyft(true));
+  assert.equal(iGrav('Shock'), 1, 'Shock togs ur högen fast fönstret är stängt'); assert.equal(app.kort.length, 4);
+});
+prov('GF10c No: inget ändras, det oframkallade kortet står kvar, frågan kommer inte igen; fönstret står öppet', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast();
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr != null, 'ingen fråga');
+  assert.ok(app.flyttSvar('nej'));
+  assert.equal(app.flyttFraga, null); assert.equal(app.ofr.length, 1); assert.equal(app.gravZoner.length, 0);
+  klocka.t += 1000; stamG([hogOlast(7, LANGT)], lyft(true));
+  assert.equal(app.flyttFraga, null, 'frågan kom igen'); assert.equal(app.ofr.length, 1);
+  klocka.t += 1000; stamG([hogOlast(7, LANGT), klar(3, 'Shock', { sen: 20, vilar: true, ...PORT })], lyft(true));
+  assert.equal(iGrav('Shock'), 0, 'fönstret stängdes av No');
+});
+prov('GF10d en graveyard med ett kort: ingen fråga om en oläst hög', () => {
+  gravHog('Ukud Cobra');
+  lyftOlast();
+  assert.equal(app.ofr.length, 1); assert.equal(app.flyttFraga, null);
+});
+prov('GF10e ett oläst spår som låg där före lyftet: ingen fråga', () => {
+  app.gravRad = GRAV_RUTA;
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  stamG([hogOlast(7, LANGT)], lyft(false));
+  klocka.t += 2000; stamG([hogOlast(7, LANGT)], lyft(true));
+  klocka.t += 1000; stamG([hogOlast(7, LANGT)], lyft(true));
+  assert.equal(app.ofr.length, 1); assert.equal(app.flyttFraga, null);
+});
+prov('GF10f ett läst översta kort går den gamla vägen och före den olästa: Yes lägger tillbaka kortet', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast(PORT);
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr != null, 'ingen fråga om den olästa');
+  klocka.t += 1000; stamG([hogOlast(7, PORT), cobra()], lyft(true));
+  assert.ok(app.flyttFraga && app.flyttFraga.cid === 'g0' && app.flyttFraga.ofr == null, 'frågan gäller inte det lästa kortet: ' + JSON.stringify(app.flyttFraga));
+  const k = app.kort.find(c => c.cid === 'g0');
+  assert.ok(app.flyttSvar('ja'));
+  assert.equal(k.zon, 'grav'); assert.equal(app.gravZoner.length, 1);
+  assert.ok(Math.abs(app.gravZoner[0].x - (LANGT.x + LANGT.w / 2)) < 1e-9);
+  assert.equal(app.ofr.length, 1, 'det olästa kortet togs bort fast frågan gällde det lästa');
+  app.nollstall(); klocka.t = 1e6;                                               // båda i samma bord: den lästa vägen
+  gravHog('Ukud Cobra', 'Shock', 'Expel'); app.gravRad = GRAV_RUTA;
+  stamG([], lyft(false));
+  klocka.t += 1000; stamG([], lyft(true));
+  klocka.t += 1000; stamG([hogOlast(7, PORT), cobra()], lyft(true));
+  assert.ok(app.flyttFraga && app.flyttFraga.cid === 'g0', JSON.stringify(app.flyttFraga));
+});
+prov('GF10g vid bildkanten (avskuren, som spår 13 i passet 2026-10-16): frågan står kvar när raden blir en kantrad', () => {
+  const KANT = box(0, 0.55, 0.06, 0.088);
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast(KANT, { avskuren: true });
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr != null, 'ingen fråga');
+  for (let i = 0; i < 5; i++) { klocka.t += 1000; stamG([hogOlast(7, KANT, { avskuren: true })], lyft(true)); }
+  assert.equal(app.ofr.length, 1);
+  assert.ok(app.flyttFraga && app.flyttFraga.ofr === app.ofr[0].id, 'frågan försvann vid kanten');
+  assert.ok(app.flyttSvar('ja')); assert.equal(app.gravZoner.length, 1); assert.equal(app.ofr.length, 0);
+});
+prov('GF10h det olästa kortet lyfts: frågan försvinner med det oframkallade kortet', () => {
+  gravHog('Ukud Cobra', 'Shock', 'Expel');
+  lyftOlast();
+  assert.ok(app.flyttFraga);
+  klocka.t += 150; stamG([], lyft(true));
+  tid(klocka.t + 2000); klocka.t += 100; stamG([], lyft(true));
+  assert.equal(app.ofr.length, 0); assert.equal(app.flyttFraga, null, 'frågan står kvar över ett kort som inte finns');
+});
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);
